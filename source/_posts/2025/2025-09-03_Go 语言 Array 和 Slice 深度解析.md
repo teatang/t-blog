@@ -3,10 +3,11 @@ title: Go 语言 Array 和 Slice 深度解析：核心区别与实战指南
 date: 2025-09-03 06:24:00
 tags: 
     - 2025
-    - 技术相关
-    - golang
+    - Golang
     - 转载
-categories: golang
+categories: 
+    - Golang
+    - 数据结构
 ---
 
 > 本文由 [简悦 SimpRead](http://ksria.com/simpread/) 转码， 原文地址 [mp.weixin.qq.com](https://mp.weixin.qq.com/s/4DXKZSjeLyr1t-PAJhAhaw)

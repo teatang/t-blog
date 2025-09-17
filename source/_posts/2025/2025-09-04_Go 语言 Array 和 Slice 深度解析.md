@@ -4,10 +4,11 @@ title: Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与�
 date: 2025-09-04 06:24:00
 tags: 
     - 2025
-    - 技术相关
-    - golang
+    - Golang
     - 数据结构
-categories: golang
+categories:
+    - Golang
+    - 数据结构
 ---
 
 {% note info %}

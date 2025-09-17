@@ -3,7 +3,6 @@ title: Redis持久化深度解析：RDB与AOF的终极对决与实战优化
 date: 2025-09-14 06:24:00
 tags: 
     - 2025
-    - 技术相关
     - Redis
 categories: Redis
 ---

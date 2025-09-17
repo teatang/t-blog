@@ -3,10 +3,12 @@ title: TypeScript高级类型
 date: 2024-07-26 06:24:00
 tags: 
     - 2024
-    - 技术相关
+    - 前端技术
     - JavaScript
     - TypeScript
-categories: TypeScript
+categories: 
+  - 前端技术
+  - TypeScript
 ---
 
 {% note info %}
