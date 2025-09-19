@@ -5,11 +5,9 @@ tags:
   - 2025
   - Golang
   - Wails
-  - Webview
   - 桌面开发
   - 前端技术
 categories:
-  - Golang
   - 桌面开发
 ---
 
