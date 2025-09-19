@@ -6,7 +6,7 @@ tags:
   - Vue
   - TanStackQuery
   - Nuxt
-  - 前端开发
+  - 前端技术
 categories:
   - 前端技术
   - Vue
