@@ -1,10 +1,9 @@
 ---
 title: 在NAS上部署Jellyfin媒体服务器
-date: 2024-10-21 06:024:00
+date: 2024-11-01 06:24:00
 tags:
   - 2024
   - NAS
-  - Jellyfin
   - Docker
 categories:
   - NAS
@@ -159,8 +158,8 @@ services:
       #      - NVIDIA_DRIVER_CAPABILITIES=all
 
     environment:
-      - PUID=1000 # 容器内用户ID，通常是 default user，可能需要根据自己NAS的用户ID调整
-      - PGID=100 # 容器内用户组ID，通常是 users group，可能需要根据自己NAS的用户组ID调整
+      # - PUID=1000 # 容器内用户ID，通常是 default user，可能需要根据自己NAS的用户ID调整
+      # - PGID=100 # 容器内用户组ID，通常是 users group，可能需要根据自己NAS的用户组ID调整
       - TZ=Asia/Shanghai # 设置时区
       # - JELLYFIN_FFMPEG=/usr/lib/jellyfin-ffmpeg/ffmpeg # 指定FFmpeg路径（高级用户，通常不需要）
   
