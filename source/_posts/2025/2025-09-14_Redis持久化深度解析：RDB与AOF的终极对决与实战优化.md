@@ -4,7 +4,9 @@ date: 2025-09-14 06:24:00
 tags: 
     - 2025
     - Redis
-categories: Redis
+categories: 
+    - 中间件
+    - Redis
 ---
 
 > 本文由 [简悦 SimpRead](http://ksria.com/simpread/) 转码， 原文地址 [mp.weixin.qq.com](https://mp.weixin.qq.com/s/jjhUpP2eVCt31dw2ViJ2mA)
