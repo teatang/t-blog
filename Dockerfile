@@ -18,7 +18,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # 从构建阶段复制构建产物
-COPY --from=builder /app/public /usr/share/nginx/html/public
+COPY --from=builder /app/public /usr/share/nginx/html/t-blog
 
 # 暴露80端口
 EXPOSE 80
