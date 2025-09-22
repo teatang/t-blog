@@ -1,0 +1,653 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>WSL2详解：在Windows运行Linux的新标准 | T维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="WSL 2 (Windows Subsystem for Linux 2) 是微软对 WSL 架构的重大革新，它提供了一个运行在轻量级虚拟机中的完整 Linux 内核。相较于其前身 WSL 1，WSL 2 实现了更强的 Linux 系统调用兼容性、显著提升的文件系统性能，并为 Docker Desktop 等需要原生 Linux 内核的工具提供了无缝集成。WSL 2 已经成为在 Windows">
+<meta property="og:type" content="article">
+<meta property="og:title" content="WSL2详解：在Windows运行Linux的新标准">
+<meta property="og:url" content="https://teatang.github.io/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/index.html">
+<meta property="og:site_name" content="T维度">
+<meta property="og:description" content="WSL 2 (Windows Subsystem for Linux 2) 是微软对 WSL 架构的重大革新，它提供了一个运行在轻量级虚拟机中的完整 Linux 内核。相较于其前身 WSL 1，WSL 2 实现了更强的 Linux 系统调用兼容性、显著提升的文件系统性能，并为 Docker Desktop 等需要原生 Linux 内核的工具提供了无缝集成。WSL 2 已经成为在 Windows">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://teatang.github.io/t-blog/img/cover/default_cover-15.jpg">
+<meta property="article:published_time" content="2025-09-21T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-09-22T10:09:35.061Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="WSL2">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="虚拟机">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://teatang.github.io/t-blog/img/cover/default_cover-15.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "WSL2详解：在Windows运行Linux的新标准",
+  "url": "https://teatang.github.io/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/",
+  "image": "https://teatang.github.io/t-blog/img/cover/default_cover-15.jpg",
+  "datePublished": "2025-09-21T22:24:00.000Z",
+  "dateModified": "2025-09-22T10:09:35.061Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://teatang.github.io/t-blog"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/t-blog/img/favicon.ico"><link rel="canonical" href="https://teatang.github.io/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/t-blog/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/t-blog/',
+  algolia: undefined,
+  localSearch: {"path":"/t-blog/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: T维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'WSL2详解：在Windows运行Linux的新标准',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/t-blog/atom.xml" title="T维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/avatar.jpg" onerror="this.onerror=null;this.src='/t-blog/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/t-blog/archives/"><div class="headline">文章</div><div class="length-num">45</div></a><a href="/t-blog/tags/"><div class="headline">标签</div><div class="length-num">52</div></a><a href="/t-blog/categories/"><div class="headline">分类</div><div class="length-num">29</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/t-blog/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/t-blog/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/t-blog/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/t-blog/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/t-blog/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/t-blog/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/t-blog/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/t-blog/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/t-blog/img/cover/default_cover-15.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/t-blog/"><span class="site-name">T维度</span></a><a class="nav-page-title" href="/t-blog/"><span class="site-name">WSL2详解：在Windows运行Linux的新标准</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/t-blog/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/t-blog/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/t-blog/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/t-blog/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/t-blog/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/t-blog/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/t-blog/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/t-blog/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">WSL2详解：在Windows运行Linux的新标准</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-09-21T22:24:00.000Z" title="发表于 2025-09-22 06:24:00">2025-09-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/t-blog/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/t-blog/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E8%99%9A%E6%8B%9F%E6%9C%BA/">虚拟机</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>WSL 2 (Windows Subsystem for Linux 2)</strong> 是微软对 WSL 架构的重大革新，它提供了一个运行在轻量级虚拟机中的完整 Linux 内核。相较于其前身 WSL 1，WSL 2 实现了更强的 Linux 系统调用兼容性、显著提升的文件系统性能，并为 Docker Desktop 等需要原生 Linux 内核的工具提供了无缝集成。WSL 2 已经成为在 Windows 上进行 Linux 开发体验的新标准。</p>
+</blockquote>
+<div class="note info flat"><p>“WSL 2 从根本上改变了 Windows 上的 Linux 体验，它提供了一个真正的 Linux 内核，这意味着你可以在 Windows 上运行更多原生的 Linux 应用和工具。”</p>
+</div>
+
+<h2 id="一、WSL-2-的核心：轻量级虚拟机与真实-Linux-内核"><a href="#一、WSL-2-的核心：轻量级虚拟机与真实-Linux-内核" class="headerlink" title="一、WSL 2 的核心：轻量级虚拟机与真实 Linux 内核"></a>一、WSL 2 的核心：轻量级虚拟机与真实 Linux 内核</h2><h3 id="1-1-与-WSL-1-的根本区别"><a href="#1-1-与-WSL-1-的根本区别" class="headerlink" title="1.1 与 WSL 1 的根本区别"></a>1.1 与 WSL 1 的根本区别</h3><p>WSL 2 的核心在于采用了<strong>轻量级虚拟机 (VM)</strong> 的架构，而不是像 WSL 1 那样通过系统调用翻译层。</p>
+<table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">WSL 1</th>
+<th align="left">WSL 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>底层架构</strong></td>
+<td align="left">系统调用翻译层（无虚拟机）</td>
+<td align="left"><strong>基于 Hyper-V 的轻量级虚拟机</strong>，运行真实 Linux 内核</td>
+</tr>
+<tr>
+<td align="left"><strong>Linux 内核</strong></td>
+<td align="left">无，Windows NT 内核模拟</td>
+<td align="left"><strong>有，微软定制的 Linux 4.19 (或更高)</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>系统调用兼容性</strong></td>
+<td align="left">中等，部分应用（如 Docker）无法运行</td>
+<td align="left"><strong>极高，几乎 100% 兼容</strong>，可运行 Docker、Fuse 等</td>
+</tr>
+<tr>
+<td align="left"><strong>Linux 文件系统性能</strong></td>
+<td align="left">较差（在 <code>/home</code> 等 Linux 内部路径）</td>
+<td align="left"><strong>极佳</strong>（在 <code>/home</code> 等 Linux 内部路径，与原生 Linux 相当）</td>
+</tr>
+<tr>
+<td align="left"><strong>Windows 文件系统性能</strong></td>
+<td align="left">极佳（在 <code>/mnt/c</code> 等 Windows 挂载点）</td>
+<td align="left">略逊于 WSL 1，但在 <code>\\wsl$\...</code> 路径下性能良好</td>
+</tr>
+<tr>
+<td align="left"><strong>内存管理</strong></td>
+<td align="left">共享 Windows 内存，占用低</td>
+<td align="left"><strong>动态分配</strong>，启动时占用低，可按需增长，并在不使用时自动释放回 Windows（自 Win 10 2004 版本）</td>
+</tr>
+<tr>
+<td align="left"><strong>网络模式</strong></td>
+<td align="left">共享主机 IP</td>
+<td align="left"><strong>独立的虚拟 IP 地址</strong>，默认 NAT 模式</td>
+</tr>
+<tr>
+<td align="left"><strong>适用场景</strong></td>
+<td align="left">轻量级脚本、简单命令行工具</td>
+<td align="left"><strong>所有 Linux 开发场景</strong>，包括 Docker、Kubernetes、Web&#x2F;AI&#x2F;ML 开发等</td>
+</tr>
+</tbody></table>
+<h3 id="1-2-工作原理概览"><a href="#1-2-工作原理概览" class="headerlink" title="1.2 工作原理概览"></a>1.2 工作原理概览</h3><ol>
+<li><strong>Hyper-V 平台</strong>：WSL 2 利用 Windows 内置的 Hyper-V 虚拟化技术，但其管理方式远比传统的 Hyper-V VM 更轻量和自动化。</li>
+<li><strong>精简 Linux 内核</strong>：微软维护并分发一个优化的 Linux 内核（通常基于最新稳定版），专门用于 WSL 2。这个内核被放置在一个 VHD (Virtual Hard Disk) 文件中，并由 Hyper-V VM 运行。</li>
+<li><strong>VHD 文件</strong>：每个 WSL 2 发行版都有一个独立的 VHD 文件（通常位于 <code>C:\Users\&lt;YourUser&gt;\AppData\Local\Packages\&lt;DistroName&gt;\LocalState</code>），其中包含其文件系统。</li>
+<li><strong>动态资源分配</strong>：WSL 2 虚拟机不会占用固定的大量 RAM。它会根据需要动态分配内存和 CPU 资源，并在你关闭所有 WSL 实例后自动释放大部分资源。</li>
+</ol>
+<h2 id="二、WSL-2-的安装与基本操作-快速指南"><a href="#二、WSL-2-的安装与基本操作-快速指南" class="headerlink" title="二、WSL 2 的安装与基本操作 (快速指南)"></a>二、WSL 2 的安装与基本操作 (快速指南)</h2><h3 id="2-1-安装要求"><a href="#2-1-安装要求" class="headerlink" title="2.1 安装要求"></a>2.1 安装要求</h3><ul>
+<li>Windows 10 版本 2004 (Build 19041) 或更高版本，或 Windows 11。</li>
+<li>主板 BIOS&#x2F;UEFI 中启用虚拟化技术（如 Intel VT-x &#x2F; AMD-V）。</li>
+</ul>
+<h3 id="2-2-推荐安装方式-Windows-11-或较新-Win-10"><a href="#2-2-推荐安装方式-Windows-11-或较新-Win-10" class="headerlink" title="2.2 推荐安装方式 (Windows 11 或较新 Win 10)"></a>2.2 推荐安装方式 (Windows 11 或较新 Win 10)</h3><p>只需一条命令（以管理员身份运行 PowerShell 或 CMD）：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wsl <span class="literal">--install</span></span><br></pre></td></tr></table></figure>
+<p>这条命令将自动：</p>
+<ol>
+<li>安装 WSL 所需的 Windows 可选组件。</li>
+<li>下载并安装最新的 WSL 2 Linux 内核。</li>
+<li>默认安装 Ubuntu 发行版。</li>
+<li>设置 WSL 2 为默认版本。</li>
+<li>首次启动 Ubuntu 并提示创建用户。</li>
+</ol>
+<h3 id="2-3-手动安装或升级现有发行版到-WSL-2"><a href="#2-3-手动安装或升级现有发行版到-WSL-2" class="headerlink" title="2.3 手动安装或升级现有发行版到 WSL 2"></a>2.3 手动安装或升级现有发行版到 WSL 2</h3><p>如果已安装 WSL 1 或需要特定步骤，可以：</p>
+<ol>
+<li><p><strong>确保已启用“适用于 Linux 的 Windows 子系统”和“虚拟机平台”</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">dism.exe /online /<span class="built_in">enable-feature</span> /featurename:Microsoft<span class="literal">-Windows-Subsystem-Linux</span> /all /norestart</span><br><span class="line">dism.exe /online /<span class="built_in">enable-feature</span> /featurename:VirtualMachinePlatform /all /norestart</span><br></pre></td></tr></table></figure>
+<p>重启计算机。</p>
+</li>
+<li><p><strong>下载并安装 WSL 2 内核更新包</strong>：<br>前往 <a target="_blank" rel="noopener external nofollow noreferrer" href="https://learn.microsoft.com/zh-cn/windows/wsl/install-manual">微软官方文档</a> 下载并运行 <code>wsl_update_x64.msi</code>。</p>
+</li>
+<li><p><strong>将 WSL 2 设置为默认版本</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wsl <span class="literal">--set-default-version</span> <span class="number">2</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>将现有发行版转换为 WSL 2</strong>：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wsl <span class="literal">--set-version</span> &lt;DistroName&gt; <span class="number">2</span></span><br></pre></td></tr></table></figure>
+<p>例如：<code>wsl --set-version Ubuntu-22.04 2</code>。此过程可能需要几分钟。</p>
+</li>
+</ol>
+<h3 id="2-4-WSL-常用管理命令"><a href="#2-4-WSL-常用管理命令" class="headerlink" title="2.4 WSL 常用管理命令"></a>2.4 WSL 常用管理命令</h3><ul>
+<li><code>wsl -l -v</code>：列出所有已安装的发行版、其状态和 WSL 版本。</li>
+<li><code>wsl --shutdown</code>：停止所有运行中的发行版虚拟机。</li>
+<li><code>wsl --terminate &lt;DistroName&gt;</code>：停止指定发行版。</li>
+<li><code>wsl --unregister &lt;DistroName&gt;</code>：卸载并删除指定发行版的所有数据。</li>
+</ul>
+<h2 id="三、WSL-2-的核心优势与应用场景"><a href="#三、WSL-2-的核心优势与应用场景" class="headerlink" title="三、WSL 2 的核心优势与应用场景"></a>三、WSL 2 的核心优势与应用场景</h2><h3 id="3-1-极高的-Linux-系统调用兼容性"><a href="#3-1-极高的-Linux-系统调用兼容性" class="headerlink" title="3.1 极高的 Linux 系统调用兼容性"></a>3.1 极高的 Linux 系统调用兼容性</h3><p>这是 WSL 2 最重要的优势。由于运行的是真实 Linux 内核，WSL 2 支持所有 Linux 内核功能，这意味着你可以运行此前在 WSL 1 中无法工作的应用程序：</p>
+<ul>
+<li><strong>Docker Desktop</strong>：完美集成，无需 Hyper-V VM，直接在 WSL 2 后端运行 Linux 容器。</li>
+<li><strong>Kubernetes</strong>：通过 Docker Desktop 的 Kubernetes 集成，或直接在 WSL 2 中安装 K3s&#x2F;Minikube 等轻量级 K8s 发行版。</li>
+<li><strong>FUSE 文件系统</strong>：如 SSHFS, FUSE 驱动的文件系统。</li>
+<li><strong>低级网络工具</strong>：如 <code>tcpdump</code>, <code>wireshark</code>。</li>
+<li><strong>更多 Linux 发行版</strong>：可以运行更多依赖特定内核特性的 Linux 发行版。</li>
+<li><strong>安全性</strong>：某些安全工具或渗透测试工具需要更完整的 Linux 内核特性。</li>
+</ul>
+<h3 id="3-2-卓越的-Linux-文件系统性能"><a href="#3-2-卓越的-Linux-文件系统性能" class="headerlink" title="3.2 卓越的 Linux 文件系统性能"></a>3.2 卓越的 Linux 文件系统性能</h3><p>如果你经常在 WSL 内部进行编译、Git 操作、大型项目文件处理，WSL 2 在其 Linux 文件系统 (Ext4) 内部的性能几乎与原生 Linux 持平。</p>
+<ul>
+<li><strong>最佳实践</strong>：将你的开发项目克隆到 WSL 内部（例如 <code>/home/user/projects</code>），而不是通过 <code>/mnt/c/</code> 访问 Windows 目录。在 WSL 内部对这些文件进行操作将获得最佳性能。</li>
+</ul>
+<h3 id="3-3-无缝的图形化应用程序支持-WSLg"><a href="#3-3-无缝的图形化应用程序支持-WSLg" class="headerlink" title="3.3 无缝的图形化应用程序支持 (WSLg)"></a>3.3 无缝的图形化应用程序支持 (WSLg)</h3><p>自 Windows 11 开始，WSLg (WSL Graphical Architecture) 成为了 WSL 2 的内置功能，极大地提升了 WSL 的可用性。</p>
+<ul>
+<li><strong>工作原理</strong>：WSLg 包含了一个轻量级的 Wayland&#x2F;X Server、PulseAudio Server 和必要的驱动，通过 RemoteFX 技术在 Windows 桌面无缝运行 Linux GUI 应用。</li>
+<li><strong>使用方式</strong>：在 WSL 命令行中直接运行你安装的 Linux GUI 应用（例如 <code>firefox</code>、<code>gimp</code>、<code>code</code>、<code>pycharm</code>），它们会像原生 Windows 应用一样以独立的窗口启动。</li>
+<li><strong>优势</strong>：<ul>
+<li>可以在 Windows 上使用 Linux 专属的 IDE、开发工具、浏览器、图形设计软件等。</li>
+<li>在开发环境下进行更真实的测试，无需额外的虚拟机或双启动。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-4-与-Windows-工具链的深度集成"><a href="#3-4-与-Windows-工具链的深度集成" class="headerlink" title="3.4 与 Windows 工具链的深度集成"></a>3.4 与 Windows 工具链的深度集成</h3><p>WSL 2 除了提供独立的 Linux 环境，还保持了与 Windows 的良好互操作性。</p>
+<ul>
+<li><strong>VS Code Remote Development</strong>：最佳开发体验。在 Windows 上运行 VS Code，但其所有开发工作都在 WSL 2 内部进行。</li>
+<li><strong>命令行互操作</strong>：<ul>
+<li>从 Windows CMD&#x2F;PowerShell 运行 Linux 命令：<code>wsl &lt;command&gt;</code>。</li>
+<li>从 Linux Bash 运行 Windows 命令：<code>explorer.exe .</code>（在当前 Linux 路径打开 Windows 文件管理器），<code>cmd.exe</code>，<code>notepad.exe</code> 等。</li>
+</ul>
+</li>
+<li><strong>网络访问</strong>：<ul>
+<li>通过 <code>localhost</code> 访问 WSL 内部运行的服务（Windows 自动进行端口转发）。</li>
+<li>从 WSL 访问 Windows 的服务（例如 <code>--host 192.168.X.X</code> 指向 Windows 主机 IP）。</li>
+<li>从外部访问 WSL 服务通常需要手动进行端口转发 (<code>netsh interface portproxy ...</code>)。</li>
+</ul>
+</li>
+</ul>
+<h2 id="四、WSL-2-开发工作流示例"><a href="#四、WSL-2-开发工作流示例" class="headerlink" title="四、WSL 2 开发工作流示例"></a>四、WSL 2 开发工作流示例</h2><h4 id="4-1-全栈-Web-开发-React-Node-js-Python-Go-等"><a href="#4-1-全栈-Web-开发-React-Node-js-Python-Go-等" class="headerlink" title="4.1 全栈 Web 开发 (React, Node.js, Python, Go 等)"></a>4.1 全栈 Web 开发 (React, Node.js, Python, Go 等)</h4><ol>
+<li><strong>安装 WSL 2 (Ubuntu 22.04 LTS)</strong>。</li>
+<li>在 WSL 内部安装 Node.js&#x2F;NVM, Python&#x2F;Pyenv, GoLang, Git 等开发工具链。</li>
+<li>在 WSL 内部克隆你的项目到 <code>/home/user/my-project</code>。</li>
+<li>在 VS Code 中安装 <code>Remote - WSL</code> 扩展。</li>
+<li>在 WSL 终端中进入项目目录，运行 <code>code .</code>，VS Code 会自动连接并打开项目。</li>
+<li>在 VS Code 终端中运行 <code>npm install</code> 或 <code>pip install</code>，然后 <code>npm start</code> 或 <code>python app.py</code> 启动开发服务器。</li>
+<li>在 Windows 浏览器中访问 <code>http://localhost:&lt;port&gt;</code>。</li>
+</ol>
+<h4 id="4-2-Docker-Kubernetes-开发"><a href="#4-2-Docker-Kubernetes-开发" class="headerlink" title="4.2 Docker&#x2F;Kubernetes 开发"></a>4.2 Docker&#x2F;Kubernetes 开发</h4><ol>
+<li><strong>安装 Docker Desktop for Windows</strong>，并确保其配置为使用 WSL 2 后端。</li>
+<li>在 WSL 内部，你可以像在原生 Linux 中一样使用 <code>docker</code> 和 <code>docker-compose</code> 命令。Docker Desktop 会自动将这些命令代理到 WSL 2 宿主机。</li>
+<li>构建、运行、管理容器，甚至部署本地 Kubernetes 集群 (<code>minikube</code> 或 Docker Desktop 内置的 K8s)。</li>
+</ol>
+<h2 id="五、高级配置与优化"><a href="#五、高级配置与优化" class="headerlink" title="五、高级配置与优化"></a>五、高级配置与优化</h2><h3 id="5-1-wslconfig-文件"><a href="#5-1-wslconfig-文件" class="headerlink" title="5.1 .wslconfig 文件"></a>5.1 <code>.wslconfig</code> 文件</h3><p>这是一个全局配置文件，位于 <code>C:\Users\&lt;你的用户名&gt;\.wslconfig</code>。可以用来限制 WSL 2 虚拟机的资源。</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[wsl2]</span></span><br><span class="line"><span class="attr">memory</span>=<span class="number">4</span>GB         <span class="comment"># 限制 WSL 2 虚拟机的总内存为 4GB。默认是 Windows 主机内存的 50%。</span></span><br><span class="line"><span class="attr">processors</span>=<span class="number">2</span>       <span class="comment"># 限制 WSL 2 虚拟机使用的 CPU 核心数为 2。默认是所有核心。</span></span><br><span class="line"><span class="attr">swap</span>=<span class="number">2</span>GB           <span class="comment"># 设置虚拟机的交换空间大小。默认是内存的 25% 或 16GB。</span></span><br><span class="line"><span class="attr">localhostForwarding</span>=<span class="literal">true</span> <span class="comment"># 允许 localhost 转发，默认开启。</span></span><br></pre></td></tr></table></figure>
+<p>保存后，需要运行 <code>wsl --shutdown</code> 然后重新启动 WSL 发行版才能生效。</p>
+<h3 id="5-2-磁盘空间管理"><a href="#5-2-磁盘空间管理" class="headerlink" title="5.2 磁盘空间管理"></a>5.2 磁盘空间管理</h3><ul>
+<li>WSL 2 的 VHD 文件会动态增长。</li>
+<li><strong>压缩 VHD 文件</strong>：当 WSL 发行版占用磁盘空间过大时，可以对 VHD 文件进行压缩。<ol>
+<li>停止所有 WSL 实例：<code>wsl --shutdown</code>。</li>
+<li>打开 PowerShell (管理员身份)</li>
+<li>运行 <code>diskpart</code>。</li>
+<li>在 <code>DISKPART&gt;</code> 提示符下：<ul>
+<li><code>select vdisk file=&quot;&lt;PathToVHDFile&gt;&quot;</code> （路径在 <code>wsl -l -v</code> 的 <code>Location</code> 字段中）</li>
+<li><code>compact vdisk</code></li>
+<li><code>exit</code></li>
+</ul>
+</li>
+</ol>
+</li>
+</ul>
+<h3 id="5-3-网络配置与端口转发"><a href="#5-3-网络配置与端口转发" class="headerlink" title="5.3 网络配置与端口转发"></a>5.3 网络配置与端口转发</h3><p>由于 WSL 2 的默认 NAT 网络模式，从 Windows 外部访问 WSL 内部服务需要端口转发。</p>
+<ul>
+<li><strong>永久端口转发 (PowerShell 管理员)</strong>：<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 获取 WSL 2 默认网关 IP (通常是 172.xx.xx.1)</span></span><br><span class="line"><span class="variable">$wsl_gateway</span> = (<span class="built_in">Get-NetIPAddress</span> <span class="literal">-AddressFamily</span> IPv4 <span class="literal">-PrefixLength</span> <span class="number">20</span> | <span class="built_in">Where-Object</span> &#123; <span class="variable">$_</span>.InterfaceAlias <span class="operator">-like</span> <span class="string">&quot;vEthernet (WSL)*&quot;</span> &#125;).IPAddress.ToString()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取你的 WSL 2 实例 IP</span></span><br><span class="line"><span class="variable">$wsl_ip</span> = (wsl <span class="literal">-d</span> Ubuntu<span class="literal">-22</span>.<span class="number">04</span> hostname <span class="literal">-I</span>).Trim() <span class="comment"># 替换为你的发行版名称</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加端口转发规则 (例如将 Windows 的 8000 转发到 WSL 的 8000)</span></span><br><span class="line">netsh interface portproxy add v4tov4 listenport=<span class="number">8000</span> listenaddress=<span class="number">0.0</span>.<span class="number">0.0</span> connectaddress=<span class="variable">$wsl_ip</span> connectport=<span class="number">8000</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>防火墙规则</strong>：确保 Windows 防火墙允许入站连接到你转发的端口。</li>
+</ul>
+<h3 id="5-4-Dotfiles-管理"><a href="#5-4-Dotfiles-管理" class="headerlink" title="5.4 Dotfiles 管理"></a>5.4 Dotfiles 管理</h3><p>使用 Git 来管理 <code>.bashrc</code>, <code>.zshrc</code>, <code>.gitconfig</code> 等配置文件，方便在不同 WSL 实例或机器上同步你的 Linux 环境。</p>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>WSL 2 彻底改变了 Windows 上的 Linux 开发范式，它不再是一个简单的兼容层，而是一个全功能的、高度集成的轻量级 Linux 虚拟机。其卓越的系统调用兼容性、文件系统性能、原生 Docker 支持以及突破性的 WSLg 功能，使其成为现代 Windows 开发者不可或缺的利器。通过理解其底层工作原理和掌握高级配置技巧，你可以充分发挥 WSL 2 的潜力，构建一个高效、灵活且强大的开发环境，真正实现 Windows 和 Linux 的优势互补。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://teatang.github.io/t-blog">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://teatang.github.io/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/">https://teatang.github.io/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://teatang.github.io/t-blog" target="_blank">T维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/t-blog/tags/2025/">2025</a><a class="post-meta__tags" href="/t-blog/tags/WSL2/">WSL2</a><a class="post-meta__tags" href="/t-blog/tags/Linux/">Linux</a><a class="post-meta__tags" href="/t-blog/tags/%E8%99%9A%E6%8B%9F%E6%9C%BA/">虚拟机</a></div><div class="post-share"><div class="social-share" data-image="/t-blog/img/cover/default_cover-15.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/t-blog/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-12.jpg" onerror="onerror=null;src='/t-blog/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">GoLang Wails 框架详解：用 Web 技术构建桌面应用</div></div><div class="info-2"><div class="info-item-1"> Wails 是一个允许您使用 Go 和 Web 技术构建桌面应用程序的框架。它结合了 Go 语言的强大后端能力与现代 Web 界面的灵活性，帮助开发者快捷地创建轻量级、原生感强的跨平台桌面应用。  传统的桌面应用开发通常需要学习特定的 GUI 框架（如 Qt, Electron, WPF&#x2F;WinForms 等），这对于 Web 开发者来说学习曲线陡峭。Electron 虽然解决了 Web 技术栈的问题，但其应用体积庞大、内存占用高，且集成了 Node.js 运行时，额外增加了依赖。Wails 则提供了一种优雅的解决方案：它使用原生 WebView 渲染界面，后端逻辑全部由 Go 语言编写，实现了轻量级、高性能和原生体验的桌面应用。   一、Wails 简介与核心优势Wails 的核心理念是：用 Go 语言编写应用后端（业务逻辑），用 Web 前端技术（HTML, CSS, JavaScript）构建应用界面（UI）。它将 Go 程序和基于 Webview 的前端巧妙地结合在一起，实现两者之间的双向通信。 Wails 的核心优势：  原生 Webview 渲染：不捆绑 ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/t-blog/2025/2025-01-27_Prometheus%E4%B8%8EGrafana%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%8E%B0%E4%BB%A3%E7%9B%91%E6%8E%A7%E7%9A%84%E9%BB%84%E9%87%91%E7%BB%84%E5%90%88/" title="Prometheus与Grafana详解：现代监控的黄金组合"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-27</div><div class="info-item-2">Prometheus与Grafana详解：现代监控的黄金组合</div></div><div class="info-2"><div class="info-item-1"> 在现代复杂的 IT 基础设施中，如何高效、准确地监控系统和应用的健康状况，并及时发现潜在问题，是运维和开发团队面临的巨大挑战。Prometheus 和 Grafana 正是为此而生的一对黄金搭档。Prometheus 负责数据的收集、存储和查询，而 Grafana 则负责数据的可视化和告警展示。它们共同构建了一个强大的开源监控解决方案，已成为云原生时代监控领域的事实标准。  “没有监控的系统就像在黑暗中航行的船只，随时可能触礁。”   一、Prometheus 详解1.1 Prometheus 是什么？Prometheus 是一个开源的时间序列数据库 (TSDB) 和监控系统，由 SoundCloud 公司开发并于 2016 年加入云原生计算基金会 (CNCF)，是其第二个毕业项目。它采用了一种拉取 (Pull) 模型来收集指标数据，并通过强大的多维度数据模型和灵活的查询语言 (PromQL) 来支持复杂的告警和分析。 1.2 Prometheus 的核心特点与优势 多维数据模型：所有指标都是以时间戳和键值对（称为标签或 labels）的形式存储的。例如，http_reques...</div></div></div></a><a class="pagination-related" href="/t-blog/2025/2025-02-04_PromQL%E8%AF%A6%E8%A7%A3%EF%BC%9A%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Prometheus%E6%9F%A5%E8%AF%A2%E8%AF%AD%E8%A8%80/" title="PromQL详解：深入理解Prometheus查询语言"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-04</div><div class="info-item-2">PromQL详解：深入理解Prometheus查询语言</div></div><div class="info-2"><div class="info-item-1"> PromQL (Prometheus Query Language) 是 Prometheus 监控系统中用于查询、聚合和分析时间序列数据的一种功能强大的查询语言。它是 Prometheus 核心价值的体现之一。无论你是要构建仪表盘、创建告警规则，还是进行故障排查，PromQL 都是你与 Prometheus 数据进行交互的唯一途径。掌握 PromQL 是有效利用 Prometheus 的关键。  “PromQL 让你能够将原始指标数据转化为有意义的洞察和可操作的智能信息。”   一、Prometheus 指标类型回顾在深入 PromQL 之前，我们先快速回顾一下 Prometheus 的四种核心指标类型，因为 PromQL 的查询行为会根据指标类型有所不同：  Counter (计数器)：一种累计型指标，只增不减（重置除外）。通常用于统计请求总数、错误总数等。 例子：http_requests_total 适用 PromQL 函数：rate()、irate()、increase()   Gauge (测量仪)：一种可任意上下变动的指标，反映当前状态。通常用于表示内存使用量、C...</div></div></div></a><a class="pagination-related" href="/t-blog/2025/2025-03-15_%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8C%87%E7%BA%B9%20(Browser%20Fingerprinting)%20%E8%AF%A6%E8%A7%A3/" title="浏览器指纹 (Browser Fingerprinting) 详解"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-15</div><div class="info-item-2">浏览器指纹 (Browser Fingerprinting) 详解</div></div><div class="info-2"><div class="info-item-1"> 浏览器指纹 (Browser Fingerprinting) 是一种用于识别或追踪用户在线行为的技术，即使在用户清除了 cookies、使用无痕模式甚至更换 IP 地址之后，它也能尝试标识出唯一的用户或设备。与 cookies 不同，浏览器指纹不是存储在用户设备上的数据，而是通过收集用户浏览器的各种配置和设置信息来生成的。  “你的浏览器就像你的手纹一样，看似普通，却独一无二。”   一、什么是浏览器指纹？浏览器指纹是指网站或在线服务通过收集用户浏览器和设备的大量可公开信息（如操作系统、浏览器类型和版本、屏幕分辨率、字体、插件、MIME 类型、时区、语言设置、GPU 信息、Canvas 渲染结果、AudioContext 信息等），并将这些信息综合起来生成一个近似唯一的“指纹”，从而在一定概率上识别单个用户或设备的技术。 这个“指纹”的强大之处在于其持久性和隐蔽性，用户很难通过常规手段进行清除或规避。 二、浏览器指纹的工作原理网站通过 JavaScript 或其他客户端脚本，在用户访问时执行一系列操作来获取其浏览器和设备特征。这些特征包括： 1. HTTP 请求头信息 (HTT...</div></div></div></a><a class="pagination-related" href="/t-blog/2025/2025-04-24_Node.js%20%E6%9C%AC%E5%9C%B0%E9%9D%99%E6%80%81%E6%9C%8D%E5%8A%A1%E8%AF%A6%E8%A7%A3%EF%BC%9Ahttp-server%20%E4%B8%8E%20live-server/" title="Node.js 本地静态服务详解：http-server 与 live-server"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-24</div><div class="info-item-2">Node.js 本地静态服务详解：http-server 与 live-server</div></div><div class="info-2"><div class="info-item-1"> 在前端开发过程中，我们经常需要一个本地服务器来预览 HTML、CSS、JavaScript 等静态文件。虽然许多现代前端框架（如 React, Vue, Angular）都自带了开发服务器，但对于一些简单的项目、纯静态网站或快速原型开发，使用 Node.js 提供轻量级的本地静态服务器会更加方便快捷。本文将详细介绍两个广受欢迎的 Node.js 静态服务器工具：http-server 和 live-server。  “好的本地开发服务器，让你的前端工作流如丝般顺滑。”   一、为什么需要本地静态服务？在浏览器中直接打开本地的 HTML 文件（file:/// 协议）通常会有一些限制和问题：  AJAX&#x2F;Fetch 请求受限：浏览器出于安全考虑（同源策略），不允许 file:/// 协议下的页面进行跨域 AJAX 请求，甚至无法加载本地其他文件的 AJAX 请求。 动态加载问题：某些 JavaScript 模块加载器（如 ES Module import 语句）在 file:/// 协议下可能无法正常工作。 开发工具功能不全：一些浏览器扩展或开发工具可能依赖于 HTTP...</div></div></div></a><a class="pagination-related" href="/t-blog/2025/2025-05-12_Python%20%E6%89%93%E5%8C%85%E5%B7%A5%E5%85%B7%20uv%20%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E5%8C%85%E7%AE%A1%E7%90%86%E5%99%A8%E4%B8%8E%E6%9E%84%E5%BB%BA%E5%99%A8/" title="Python 打包工具 uv 详解：下一代包管理器与构建器"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-12</div><div class="info-item-2">Python 打包工具 uv 详解：下一代包管理器与构建器</div></div><div class="info-2"><div class="info-item-1"> uv (通常读作 “yoo-vee”) 是由 Astral (Rye, Ruff, Linter 等工具的创造者) 开源的一个超快的 Python 包管理器和包安装器，旨在成为 pip 和 venv 的直接替代品。它使用 Rust 编写，专注于速度、可靠性和稳定性，正在迅速改变 Python 包管理的格局。  传统的 Python 包管理工具如 pip 和 venv 虽然功能完善，但在大规模项目或频繁操作时，其性能瓶颈日益凸显。例如，复杂的依赖解析可能耗时很久，创建虚拟环境也并非瞬间完成。uv 的出现正是为了解决这些痛点，它将速度提升了几个数量级，并且提供了更加一致和可靠的语义。   一、uv 简介与核心优势uv 的诞生是为了提供一个现代、高效的 Python 包管理解决方案，它集成了 包安装器、解析器和虚拟环境管理器 的功能。 uv 的核心优势：  极速性能：这是 uv 最突出的特点。由于使用 Rust 编写，并采用了先进的图算法进行依赖解析，uv 在安装、更新、解析依赖等操作上比 pip 和 venv 快 10-100 倍。 单一工具链：uv 不仅是一个安装器，还集成了虚拟...</div></div></div></a><a class="pagination-related" href="/t-blog/2025/2025-06-01_LazyGit%E4%BD%BF%E7%94%A8%E8%A7%A3%E6%9E%90%EF%BC%9A%E4%BD%A0%E7%9A%84Git%E5%91%BD%E4%BB%A4%E8%A1%8C%E6%95%88%E7%8E%87%E7%A5%9E%E5%99%A8/" title="LazyGit使用解析：你的Git命令行效率神器"><img class="cover" src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-01</div><div class="info-item-2">LazyGit使用解析：你的Git命令行效率神器</div></div><div class="info-2"><div class="info-item-1"> 本文将带你深入了解 LazyGit，一个简单直观的终端 UI Git 客户端。如果你厌倦了反复输入 Git 命令，又觉得 GUI 客户端不够灵活，那么 LazyGit 可能会成为你的新宠。它将终端的强大与 GUI 的便捷完美结合，让你的 Git 工作流变得前所未有的高效和愉悦。  对于开发者而言，Git 无疑是日常工作中不可或缺的工具。然而，即使是最熟练的 Git 用户，也可能被一些重复、繁琐的命令行操作所困扰，例如 git add ., git status, git commit -m &quot;...&quot;, git log --oneline 等等。虽然有各种图形化 Git 客户端，但它们往往意味着脱离终端环境，或多或少牺牲了速度和灵活性。LazyGit 正是为了解决这一痛点而生的——它提供了一个文本用户界面 (TUI)，让你在终端中就能以图形化的方式快速、直观地执行 Git 操作，大幅提升工作效率。   一、为什么选择 LazyGit？LazyGit 并不是简单的 Git 命令别名集合，它提供了一个交互式的视图，将 git status, git branch...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/avatar.jpg" onerror="this.onerror=null;this.src='/t-blog/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/t-blog/archives/"><div class="headline">文章</div><div class="length-num">45</div></a><a href="/t-blog/tags/"><div class="headline">标签</div><div class="length-num">52</div></a><a href="/t-blog/categories/"><div class="headline">分类</div><div class="length-num">29</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>主題 GitHub</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/t-blog/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81WSL-2-%E7%9A%84%E6%A0%B8%E5%BF%83%EF%BC%9A%E8%BD%BB%E9%87%8F%E7%BA%A7%E8%99%9A%E6%8B%9F%E6%9C%BA%E4%B8%8E%E7%9C%9F%E5%AE%9E-Linux-%E5%86%85%E6%A0%B8"><span class="toc-text">一、WSL 2 的核心：轻量级虚拟机与真实 Linux 内核</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E4%B8%8E-WSL-1-%E7%9A%84%E6%A0%B9%E6%9C%AC%E5%8C%BA%E5%88%AB"><span class="toc-text">1.1 与 WSL 1 的根本区别</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E6%A6%82%E8%A7%88"><span class="toc-text">1.2 工作原理概览</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81WSL-2-%E7%9A%84%E5%AE%89%E8%A3%85%E4%B8%8E%E5%9F%BA%E6%9C%AC%E6%93%8D%E4%BD%9C-%E5%BF%AB%E9%80%9F%E6%8C%87%E5%8D%97"><span class="toc-text">二、WSL 2 的安装与基本操作 (快速指南)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%89%E8%A3%85%E8%A6%81%E6%B1%82"><span class="toc-text">2.1 安装要求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%8E%A8%E8%8D%90%E5%AE%89%E8%A3%85%E6%96%B9%E5%BC%8F-Windows-11-%E6%88%96%E8%BE%83%E6%96%B0-Win-10"><span class="toc-text">2.2 推荐安装方式 (Windows 11 或较新 Win 10)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85%E6%88%96%E5%8D%87%E7%BA%A7%E7%8E%B0%E6%9C%89%E5%8F%91%E8%A1%8C%E7%89%88%E5%88%B0-WSL-2"><span class="toc-text">2.3 手动安装或升级现有发行版到 WSL 2</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-WSL-%E5%B8%B8%E7%94%A8%E7%AE%A1%E7%90%86%E5%91%BD%E4%BB%A4"><span class="toc-text">2.4 WSL 常用管理命令</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81WSL-2-%E7%9A%84%E6%A0%B8%E5%BF%83%E4%BC%98%E5%8A%BF%E4%B8%8E%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">三、WSL 2 的核心优势与应用场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%9E%81%E9%AB%98%E7%9A%84-Linux-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%85%BC%E5%AE%B9%E6%80%A7"><span class="toc-text">3.1 极高的 Linux 系统调用兼容性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%8D%93%E8%B6%8A%E7%9A%84-Linux-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E6%80%A7%E8%83%BD"><span class="toc-text">3.2 卓越的 Linux 文件系统性能</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%97%A0%E7%BC%9D%E7%9A%84%E5%9B%BE%E5%BD%A2%E5%8C%96%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F%E6%94%AF%E6%8C%81-WSLg"><span class="toc-text">3.3 无缝的图形化应用程序支持 (WSLg)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%8E-Windows-%E5%B7%A5%E5%85%B7%E9%93%BE%E7%9A%84%E6%B7%B1%E5%BA%A6%E9%9B%86%E6%88%90"><span class="toc-text">3.4 与 Windows 工具链的深度集成</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81WSL-2-%E5%BC%80%E5%8F%91%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A4%BA%E4%BE%8B"><span class="toc-text">四、WSL 2 开发工作流示例</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-%E5%85%A8%E6%A0%88-Web-%E5%BC%80%E5%8F%91-React-Node-js-Python-Go-%E7%AD%89"><span class="toc-text">4.1 全栈 Web 开发 (React, Node.js, Python, Go 等)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-2-Docker-Kubernetes-%E5%BC%80%E5%8F%91"><span class="toc-text">4.2 Docker&#x2F;Kubernetes 开发</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%AB%98%E7%BA%A7%E9%85%8D%E7%BD%AE%E4%B8%8E%E4%BC%98%E5%8C%96"><span class="toc-text">五、高级配置与优化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-wslconfig-%E6%96%87%E4%BB%B6"><span class="toc-text">5.1 .wslconfig 文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%A3%81%E7%9B%98%E7%A9%BA%E9%97%B4%E7%AE%A1%E7%90%86"><span class="toc-text">5.2 磁盘空间管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E7%BD%91%E7%BB%9C%E9%85%8D%E7%BD%AE%E4%B8%8E%E7%AB%AF%E5%8F%A3%E8%BD%AC%E5%8F%91"><span class="toc-text">5.3 网络配置与端口转发</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-Dotfiles-%E7%AE%A1%E7%90%86"><span class="toc-text">5.4 Dotfiles 管理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/" title="WSL2详解：在Windows运行Linux的新标准"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/t-blog/img/404.jpg'" alt="WSL2详解：在Windows运行Linux的新标准"/></a><div class="content"><a class="title" href="/t-blog/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/" title="WSL2详解：在Windows运行Linux的新标准">WSL2详解：在Windows运行Linux的新标准</a><time datetime="2025-09-21T22:24:00.000Z" title="发表于 2025-09-22 06:24:00">2025-09-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/t-blog/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-12.jpg" onerror="this.onerror=null;this.src='/t-blog/img/404.jpg'" alt="GoLang Wails 框架详解：用 Web 技术构建桌面应用"/></a><div class="content"><a class="title" href="/t-blog/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用">GoLang Wails 框架详解：用 Web 技术构建桌面应用</a><time datetime="2025-09-17T22:24:00.000Z" title="发表于 2025-09-18 06:24:00">2025-09-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/t-blog/2025/2025-09-14_Redis%E6%8C%81%E4%B9%85%E5%8C%96%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%EF%BC%9ARDB%E4%B8%8EAOF%E7%9A%84%E7%BB%88%E6%9E%81%E5%AF%B9%E5%86%B3%E4%B8%8E%E5%AE%9E%E6%88%98%E4%BC%98%E5%8C%96/" title="Redis持久化深度解析：RDB与AOF的终极对决与实战优化"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-14.jpg" onerror="this.onerror=null;this.src='/t-blog/img/404.jpg'" alt="Redis持久化深度解析：RDB与AOF的终极对决与实战优化"/></a><div class="content"><a class="title" href="/t-blog/2025/2025-09-14_Redis%E6%8C%81%E4%B9%85%E5%8C%96%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%EF%BC%9ARDB%E4%B8%8EAOF%E7%9A%84%E7%BB%88%E6%9E%81%E5%AF%B9%E5%86%B3%E4%B8%8E%E5%AE%9E%E6%88%98%E4%BC%98%E5%8C%96/" title="Redis持久化深度解析：RDB与AOF的终极对决与实战优化">Redis持久化深度解析：RDB与AOF的终极对决与实战优化</a><time datetime="2025-09-13T22:24:00.000Z" title="发表于 2025-09-14 06:24:00">2025-09-14</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/t-blog/2025/2025-09-05_Go%E8%AF%AD%E8%A8%80%E5%8D%8F%E7%A8%8B%E8%AE%BE%E8%AE%A1%E4%B8%8E%E8%B0%83%E5%BA%A6%E5%8E%9F%E7%90%86/" title="Go 语言协程设计与调度原理"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/t-blog/img/404.jpg'" alt="Go 语言协程设计与调度原理"/></a><div class="content"><a class="title" href="/t-blog/2025/2025-09-05_Go%E8%AF%AD%E8%A8%80%E5%8D%8F%E7%A8%8B%E8%AE%BE%E8%AE%A1%E4%B8%8E%E8%B0%83%E5%BA%A6%E5%8E%9F%E7%90%86/" title="Go 语言协程设计与调度原理">Go 语言协程设计与调度原理</a><time datetime="2025-09-04T22:24:00.000Z" title="发表于 2025-09-05 06:24:00">2025-09-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/t-blog/2025/2025-09-04_Go%20%E8%AF%AD%E8%A8%80%20Array%20%E5%92%8C%20Slice%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"><img src="/t-blog/img/loading.gif" data-lazy-src="/t-blog/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/t-blog/img/404.jpg'" alt="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"/></a><div class="content"><a class="title" href="/t-blog/2025/2025-09-04_Go%20%E8%AF%AD%E8%A8%80%20Array%20%E5%92%8C%20Slice%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用">Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用</a><time datetime="2025-09-03T22:24:00.000Z" title="发表于 2025-09-04 06:24:00">2025-09-04</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/t-blog/img/cover/default_cover-15.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/t-blog/tags/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/t-blog/tags/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/t-blog/tags/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/t-blog/categories/" target="_blank" title="分类">分类</a><a href="/t-blog/tags/" target="_blank" title="标签">标签</a><a href="/t-blog/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/t-blog/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.0</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/t-blog/js/utils.js"></script><script src="/t-blog/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="false"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,0,255" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/t-blog/404.html') : window.location.href = '/t-blog/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/t-blog/js/search/local-search.js"></script></div></div></body></html>
