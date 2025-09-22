@@ -1,0 +1,648 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Frigate介绍与部署：基于AI的本地视频监控系统 | T维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Frigate 是一个开源的、高性能的本地视频监控系统，它利用 AI （特别是通过 Google Coral TPU 进行边缘计算）来实现实时目标检测，例如检测人、车辆、宠物等。与传统监控系统只是录像不同，Frigate 能够智能识别画面中的物体，并只在检测到感兴趣的事件时进行录像或发送通知，大大减少了存储空间和误报，同时提高了事件分析的效率。  “让你的摄像头变得更智能，只记录你真正关心的事件">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Frigate介绍与部署：基于AI的本地视频监控系统">
+<meta property="og:url" content="http://tbf1211.com/2024/12/14/2024/2024-12-15_Frigate%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E5%9F%BA%E4%BA%8EAI%E7%9A%84%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/index.html">
+<meta property="og:site_name" content="T维度">
+<meta property="og:description" content="Frigate 是一个开源的、高性能的本地视频监控系统，它利用 AI （特别是通过 Google Coral TPU 进行边缘计算）来实现实时目标检测，例如检测人、车辆、宠物等。与传统监控系统只是录像不同，Frigate 能够智能识别画面中的物体，并只在检测到感兴趣的事件时进行录像或发送通知，大大减少了存储空间和误报，同时提高了事件分析的效率。  “让你的摄像头变得更智能，只记录你真正关心的事件">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://tbf1211.com/img/cover/default_cover-08.jpg">
+<meta property="article:published_time" content="2024-12-14T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-09-22T07:15:42.696Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="NAS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://tbf1211.com/img/cover/default_cover-08.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Frigate介绍与部署：基于AI的本地视频监控系统",
+  "url": "http://tbf1211.com/2024/12/14/2024/2024-12-15_Frigate%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E5%9F%BA%E4%BA%8EAI%E7%9A%84%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/",
+  "image": "http://tbf1211.com/img/cover/default_cover-08.jpg",
+  "datePublished": "2024-12-14T22:24:00.000Z",
+  "dateModified": "2025-09-22T07:15:42.696Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "http://tbf1211.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="http://tbf1211.com/2024/12/14/2024/2024-12-15_Frigate%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E5%9F%BA%E4%BA%8EAI%E7%9A%84%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: T维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Frigate介绍与部署：基于AI的本地视频监控系统',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="T维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">52</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">29</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-08.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">T维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Frigate介绍与部署：基于AI的本地视频监控系统</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Frigate介绍与部署：基于AI的本地视频监控系统</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-12-14T22:24:00.000Z" title="发表于 2024-12-15 06:24:00">2024-12-15</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/NAS/">NAS</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/NAS/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7/">实用工具</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>17分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2024/12/14/2024/2024-12-15_Frigate%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E5%9F%BA%E4%BA%8EAI%E7%9A%84%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>Frigate 是一个开源的、高性能的本地视频监控系统，它利用 AI （特别是通过 <a target="_blank" rel="noopener external nofollow noreferrer" href="https://coral.ai/">Google Coral TPU</a> 进行边缘计算）来实现实时目标检测，例如检测人、车辆、宠物等。与传统监控系统只是录像不同，Frigate 能够智能识别画面中的物体，并只在检测到感兴趣的事件时进行录像或发送通知，大大减少了存储空间和误报，同时提高了事件分析的效率。</p>
+</blockquote>
+<div class="note info flat"><p>“让你的摄像头变得更智能，只记录你真正关心的事件。”</p>
+</div>
+
+<h2 id="一、Frigate-是什么？"><a href="#一、Frigate-是什么？" class="headerlink" title="一、Frigate 是什么？"></a>一、Frigate 是什么？</h2><p>Frigate 是一个基于 <code>FFmpeg</code> 和 <code>TensorFlow</code> 的 AI 目标检测视频监控系统。它的核心思想是利用神经网络在本地对视频流进行实时分析，识别预定义的目标（如人、车），然后根据这些识别结果进行录制、快照捕捉或触发自动化。</p>
+<p><strong>核心优势：</strong></p>
+<ul>
+<li><strong>本地处理</strong>：所有视频流和 AI 推理都在本地完成，保障隐私，不依赖云服务。</li>
+<li><strong>实时目标检测</strong>：利用 Google Coral TPU 等硬件加速，实现毫秒级的实时检测。</li>
+<li><strong>智能录像与快照</strong>：只在检测到目标时录制完整的视频片段，并捕捉关键帧快照。</li>
+<li><strong>集成度高</strong>：与 Home Assistant 深度集成，可以作为强大的自动化触发器。</li>
+<li><strong>事件分组</strong>：自动将连续的检测事件进行分组，方便回溯和管理。</li>
+<li><strong>区域检测</strong>：可定义特定区域，只在该区域内进行目标检测。</li>
+<li><strong>丰富的通知</strong>：结合 Home Assistant 或其他服务，发送包含快照的通知。</li>
+<li><strong>高度可配置</strong>：通过 YAML 文件进行详细配置，满足各种高级需求。</li>
+<li><strong>开源免费</strong>：完全开放源代码，社区活跃。</li>
+</ul>
+<h2 id="二、为什么选择-Frigate？"><a href="#二、为什么选择-Frigate？" class="headerlink" title="二、为什么选择 Frigate？"></a>二、为什么选择 Frigate？</h2><ul>
+<li><strong>告别误报</strong>：传统监控遇到树叶摇曳、光线变化、小动物经过等情况常会误报，Frigate 通过 AI 准确识别“人”或“车”，显著减少误报。</li>
+<li><strong>节省存储</strong>：只录制有事件发生的片段，而非持续录像，大大节省 NAS &#x2F; NVR 的存储空间。</li>
+<li><strong>快速查找事件</strong>：通过 Frigate 的 Web UI 或 Home Assistant 界面，可以快速浏览所有检测到的“人”或“车”事件，而无需大海捞针般地查看大量录像。</li>
+<li><strong>强大的自动化</strong>：结合 Home Assistant，当 Frigate 检测到“人”时，可以自动开灯、发送通知、触发警报等。</li>
+<li><strong>隐私保护</strong>：所有处理都在本地完成，无需将视频流上传到第三方云服务。</li>
+</ul>
+<h2 id="三、部署前的准备"><a href="#三、部署前的准备" class="headerlink" title="三、部署前的准备"></a>三、部署前的准备</h2><p>Frigate 推荐使用 Docker 部署。为了发挥其最佳性能，特别是实时 AI 推理，强烈建议使用 <strong>Google Coral TPU</strong>。</p>
+<h3 id="1-硬件要求"><a href="#1-硬件要求" class="headerlink" title="1. 硬件要求"></a>1. 硬件要求</h3><ul>
+<li><strong>服务器</strong>：一台能运行 Docker 的 Linux 服务器（如 NAS、NUC、树莓派 4B&#x2F;5、Mini PC、旧电脑等）。<ul>
+<li><strong>CPU</strong>：建议有一定性能的 CPU，如 Intel Celeron J4125&#x2F;J5005 或更好，用于运行 FFmpeg。</li>
+<li><strong>内存</strong>：建议 4GB 及以上。</li>
+</ul>
+</li>
+<li><strong>摄像头</strong>：支持 RTSP 协议的 IP 摄像头（几乎所有现代网络摄像头都支持）。</li>
+<li><strong>Google Coral TPU (强烈推荐)</strong>：<ul>
+<li><strong>USB Accelerator</strong>：最常见的形式，通过 USB 3.0 接口连接到你的服务器。</li>
+<li><strong>PCIe Accelerator</strong>：性能更高，适用于有 PCIe 插槽的服务器。</li>
+<li><strong>为何需要？</strong>：没有 Coral TPU，Frigate 也能运行，但 AI 推理将完全依赖 CPU，性能会非常差，可能无法满足多路摄像头的实时检测需求，甚至可能导致 CPU 占用过高。Coral TPU 可以极大地加速 AI 推理，让每秒帧数 (FPS) 大幅提升，从而实现实时分析。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-软件要求"><a href="#2-软件要求" class="headerlink" title="2. 软件要求"></a>2. 软件要求</h3><ul>
+<li><strong>Docker 和 Docker Compose</strong>：确保你的服务器已安装。</li>
+<li><strong>SSH 客户端</strong>：用于连接服务器进行命令行操作。</li>
+<li><strong>媒体存储路径</strong>：用于保存录像和快照的持久化存储目录。</li>
+<li><strong>Python (如果需要 Coral)</strong>：部分系统可能需要安装 Python 和 Coral 驱动。</li>
+</ul>
+<h3 id="3-理解-Docker-部署的好处"><a href="#3-理解-Docker-部署的好处" class="headerlink" title="3. 理解 Docker 部署的好处"></a>3. 理解 Docker 部署的好处</h3><ul>
+<li><strong>环境隔离</strong>：Frigate 运行在独立的容器中，不影响宿主系统。</li>
+<li><strong>易于部署和管理</strong>：使用 Docker Compose 一键启动、停止、升级。</li>
+<li><strong>版本控制</strong>：方便升级和回滚 Frigate 版本。</li>
+<li><strong>Coral TPU 兼容性</strong>：Docker 提供标准化的方式来将 Coral 设备映射到容器内部。</li>
+</ul>
+<h2 id="四、部署步骤（以-Docker-Compose-为例）"><a href="#四、部署步骤（以-Docker-Compose-为例）" class="headerlink" title="四、部署步骤（以 Docker Compose 为例）"></a>四、部署步骤（以 Docker Compose 为例）</h2><h3 id="1-挂载-Coral-TPU-如果使用"><a href="#1-挂载-Coral-TPU-如果使用" class="headerlink" title="1. 挂载 Coral TPU (如果使用)"></a>1. 挂载 Coral TPU (如果使用)</h3><p>如果你的服务器连接了 Google Coral TPU，需要确保宿主系统能够识别它，并将其映射到 Docker 容器中。</p>
+<h4 id="USB-Coral"><a href="#USB-Coral" class="headerlink" title="USB Coral"></a>USB Coral</h4><ol>
+<li><p><strong>安装 Coral 驱动 (部分系统可能需要)</strong>：<br>通常，Linux 系统会自动识别 USB Coral。如果遇到问题，可以参考 Coral 官方文档安装 <code>libedgetpu1-std</code>。</p>
+</li>
+<li><p><strong>检查设备</strong>：<br>连接 Coral TPU 到 USB 3.0 端口，然后运行：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">lsusb <span class="comment"># 查看 USB 设备列表，应能看到 Google Inc. 或 Global Unichip Corp.</span></span><br><span class="line"><span class="built_in">ls</span> -l /dev/bus/usb/ <span class="comment"># 查看 USB 设备文件</span></span><br></pre></td></tr></table></figure>
+<p>你可能会看到一个类似 <code>Bus 001 Device 002: ID 1a6e:089a Global Unichip Corp.</code> 的设备。</p>
+</li>
+</ol>
+<h4 id="PCIe-Coral"><a href="#PCIe-Coral" class="headerlink" title="PCIe Coral"></a>PCIe Coral</h4><ol>
+<li><strong>安装 Coral 驱动</strong>：<br>PCIe Coral 需要安装驱动。请参考 <a target="_blank" rel="noopener external nofollow noreferrer" href="https://coral.ai/docs/m2/get-started/">Coral 官方文档</a>。</li>
+<li><strong>检查设备</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lspci -nn | grep -i coral</span><br></pre></td></tr></table></figure>
+应能看到 Coral PCIe 设备。</li>
+</ol>
+<h3 id="2-创建目录结构"><a href="#2-创建目录结构" class="headerlink" title="2. 创建目录结构"></a>2. 创建目录结构</h3><p>通过 SSH 连接到你的服务器，创建用于 Frigate 存储配置、录像、缓存等数据的目录。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建 Frigate 配置目录</span></span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">mkdir</span> -p /mnt/data/frigate/config</span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">chmod</span> -R 777 /mnt/data/frigate/config <span class="comment"># 确保容器有读写权限</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 Frigate 媒体存储目录</span></span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">mkdir</span> -p /mnt/data/frigate/media</span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">chmod</span> -R 777 /mnt/data/frigate/media <span class="comment"># 确保容器有读写权限</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 如果你还有额外的用于存储录像的目录，如NAS的共享文件夹，也一并创建并设置权限</span></span><br><span class="line"><span class="comment"># sudo mkdir -p /mnt/your_nas_share_for_recordings</span></span><br><span class="line"><span class="comment"># sudo chmod -R 777 /mnt/your_nas_share_for_recordings</span></span><br></pre></td></tr></table></figure>
+<p><strong>注意：</strong> <code>/mnt/data/frigate</code> 仅为示例路径，请根据你的存储实际情况调整。</p>
+<h3 id="3-编写-config-yml-Frigate-核心配置文件"><a href="#3-编写-config-yml-Frigate-核心配置文件" class="headerlink" title="3. 编写 config.yml (Frigate 核心配置文件)"></a>3. 编写 <code>config.yml</code> (Frigate 核心配置文件)</h3><p>在 <code>/mnt/data/frigate/config</code> 目录下创建一个名为 <code>config.yml</code> 的文件。<br>这是 Frigate 最重要的配置文件，定义了你的摄像头、AI 模型、检测区域等。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> nano /mnt/data/frigate/config/config.yml</span><br></pre></td></tr></table></figure>
+
+<p>一个基本的 <code>config.yml</code> 示例（请根据你的摄像头和需求修改）：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Frigate 配置示例</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># MQTT 配置 (与 Home Assistant 集成需要)</span></span><br><span class="line"><span class="comment"># 如果不使用 Home Assistant 或 MQTT，可以禁用或删除此部分</span></span><br><span class="line"><span class="attr">mqtt:</span></span><br><span class="line">  <span class="attr">host:</span> <span class="string">YOUR_MQTT_BROKER_IP</span> <span class="comment"># 例如 Home Assistant 的 IP</span></span><br><span class="line">  <span class="comment"># user: mqtt_user         # 如果你的 MQTT 需要认证</span></span><br><span class="line">  <span class="comment"># password: mqtt_password # 如果你的 MQTT 需要认证</span></span><br><span class="line">  <span class="comment"># port: 1883              # 默认端口</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># TensorFlow Lite AI 模块配置</span></span><br><span class="line"><span class="attr">detectors:</span></span><br><span class="line">  <span class="attr">cpu1:</span> <span class="comment"># 定义一个 CPU 检测器，如果你没有 Coral TPU，推理会非常慢</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">cpu</span></span><br><span class="line">  <span class="comment"># coral_tpu: # 如果你有 Coral TPU，请取消注释并使用此配置</span></span><br><span class="line">  <span class="comment">#   type: edgetpu</span></span><br><span class="line">  <span class="comment">#   device: usb # 或 &quot;pci&quot; 如果是 PCIe 版本，如果只有一个 TPU 可以不指定 device</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Frigate 主配置</span></span><br><span class="line"><span class="attr">database:</span></span><br><span class="line">  <span class="attr">path:</span> <span class="string">/media/frigate.db</span> <span class="comment"># 数据库文件路径 (推荐默认，会自动挂载到持久化目录)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 视频录制和快照等配置</span></span><br><span class="line"><span class="attr">record:</span></span><br><span class="line">  <span class="attr">enabled:</span> <span class="literal">True</span> <span class="comment"># 启用录制</span></span><br><span class="line">  <span class="attr">events:</span></span><br><span class="line">    <span class="attr">pre_capture:</span> <span class="number">5</span> <span class="comment"># 事件发生前录制 5 秒</span></span><br><span class="line">    <span class="attr">post_capture:</span> <span class="number">5</span> <span class="comment"># 事件发生后录制 5 秒</span></span><br><span class="line">    <span class="attr">max_seconds:</span> <span class="number">300</span> <span class="comment"># 最长录制 300 秒 (5分钟)</span></span><br><span class="line">    <span class="comment"># objects:       # 仅录制哪些类型的对象 (默认录制所有配置的检测对象)</span></span><br><span class="line">    <span class="comment">#   - person</span></span><br><span class="line">    <span class="comment">#   - car</span></span><br><span class="line">  <span class="attr">retain:</span></span><br><span class="line">    <span class="attr">default:</span> <span class="number">10</span> <span class="comment"># 默认保存 10 天的录像 (按事件保留)</span></span><br><span class="line">    <span class="comment"># days:     # 也可以按天数设置 (默认按事件数量)</span></span><br><span class="line">    <span class="comment">#   default: 7</span></span><br><span class="line"><span class="attr">snapshots:</span></span><br><span class="line">  <span class="attr">enabled:</span> <span class="literal">True</span>            <span class="comment"># 启用快照</span></span><br><span class="line">  <span class="attr">bounding_box:</span> <span class="literal">True</span>       <span class="comment"># 快照中显示检测框</span></span><br><span class="line">  <span class="attr">timestamp:</span> <span class="literal">True</span>          <span class="comment"># 快照中显示时间戳</span></span><br><span class="line">  <span class="attr">retain:</span></span><br><span class="line">    <span class="attr">default:</span> <span class="number">7</span> <span class="comment"># 默认保存 7 天的快照</span></span><br><span class="line">    <span class="comment"># days:</span></span><br><span class="line">    <span class="comment">#   default: 7</span></span><br><span class="line"><span class="attr">object_detection:</span></span><br><span class="line">  <span class="attr">enabled:</span> <span class="literal">True</span></span><br><span class="line">  <span class="comment"># lp_detector:</span></span><br><span class="line">  <span class="comment">#   enabled: False # 是否启用车牌检测，需要额外模型</span></span><br><span class="line"><span class="attr">ffmpeg:</span></span><br><span class="line">  <span class="comment"># 线程数根据你的CPU核心数调整，如果CPU性能不够，可能需要降低</span></span><br><span class="line">  <span class="comment"># global_args: -hwaccel vaapi -hwaccel_output_format vaapi # 如果Intel CPU支持VAAPI硬件加速FFmpeg解码</span></span><br><span class="line">  <span class="attr">output_args:</span></span><br><span class="line">    <span class="attr">detect:</span> <span class="string">-f</span> <span class="string">segment</span> <span class="string">-segment_times</span> <span class="number">10</span> <span class="string">-segment_format</span> <span class="string">mp4</span> <span class="string">-r</span> <span class="number">10</span> <span class="string">-c:v</span> <span class="string">libx264</span> <span class="string">-preset</span> <span class="string">ultrafast</span> <span class="string">-tune</span> <span class="string">zerolatency</span> <span class="string">-crf</span> <span class="number">23</span> <span class="string">-bf</span> <span class="number">0</span> <span class="string">-g</span> <span class="number">30</span> <span class="string">-sc_threshold</span> <span class="number">0</span> <span class="string">-pix_fmt</span> <span class="string">yuv420p</span> <span class="string">-movflags</span> <span class="string">+faststart</span> <span class="comment"># 检测流的FFmpeg输出参数，推荐</span></span><br><span class="line">    <span class="attr">record:</span> <span class="string">-c</span> <span class="string">copy</span> <span class="string">-map</span> <span class="number">0</span><span class="string">:v:0</span> <span class="string">-map</span> <span class="number">0</span><span class="string">:a?</span> <span class="string">-f</span> <span class="string">segment</span> <span class="string">-segment_times</span> <span class="number">10</span> <span class="string">-segment_format</span> <span class="string">mp4</span> <span class="string">-reset_timestamps</span> <span class="number">1</span> <span class="string">-strftime</span> <span class="number">1</span> <span class="string">-ar</span> <span class="number">44100</span> <span class="comment"># 录制流的FFmpeg输出参数，推荐</span></span><br><span class="line">    <span class="attr">rtmp:</span> <span class="string">-c</span> <span class="string">copy</span> <span class="string">-map</span> <span class="number">0</span><span class="string">:v:0</span> <span class="string">-map</span> <span class="number">0</span><span class="string">:a?</span> <span class="string">-f</span> <span class="string">flv</span> <span class="comment"># RTMP 流输出参数</span></span><br><span class="line"><span class="comment"># Web UI 配置</span></span><br><span class="line"><span class="attr">web:</span></span><br><span class="line">  <span class="attr">port:</span> <span class="number">5000</span> <span class="comment"># Web UI 端口</span></span><br><span class="line">  <span class="comment"># password: your_password # 如果需要为Web UI设置密码</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 摄像头配置 (重点配置项)</span></span><br><span class="line"><span class="attr">cameras:</span></span><br><span class="line">  <span class="attr">front_door:</span> <span class="comment"># 摄像头名称，唯一标识符</span></span><br><span class="line">    <span class="attr">enabled:</span> <span class="literal">True</span></span><br><span class="line">    <span class="attr">ffmpeg:</span></span><br><span class="line">      <span class="attr">inputs:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">path:</span> <span class="string">rtsp://user:password@192.168.1.100:554/stream1</span> <span class="comment"># 摄像头的 RTSP 地址</span></span><br><span class="line">          <span class="attr">roles:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">detect</span> <span class="comment"># 用于目标检测的视频流 (通常是低分辨率子码流，节省资源)</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">record</span> <span class="comment"># 用于录像的视频流 (可以是高分辨率主码流)</span></span><br><span class="line">        <span class="comment"># - path: rtsp://user:password@192.168.1.100:554/stream2 # 如果有第二个流用于 Web UI 预览</span></span><br><span class="line">        <span class="comment">#   roles:</span></span><br><span class="line">        <span class="comment">#     - rtmp # 用于 Web UI 预览的 RTMP 流</span></span><br><span class="line">    <span class="attr">detect:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">True</span></span><br><span class="line">      <span class="comment"># 减小帧率以降低 CPU 占用，如果你没有 Coral。</span></span><br><span class="line">      <span class="comment"># frigate默认会根据FFmpeg output的帧率进行检测。</span></span><br><span class="line">      <span class="comment"># 如果你的RTSP流本身是30FPS，并且你想降低检测帧率，则可以在这里指定：</span></span><br><span class="line">      <span class="comment"># fps: 5</span></span><br><span class="line">    <span class="attr">zones:</span> <span class="comment"># 区域检测 (可选)</span></span><br><span class="line">      <span class="comment"># 只在特定区域内进行检测，或者在特定区域内不检测</span></span><br><span class="line">      <span class="attr">driveway:</span></span><br><span class="line">        <span class="attr">coordinates:</span> <span class="number">0</span><span class="string">,0,0,1,1,1,1,0</span> <span class="comment"># 定义一个多边形区域，以像素百分比表示 (左上角是0,0，右下角是1,1)</span></span><br><span class="line">                                      <span class="comment"># 例如：0,0, 0.5,0, 0.5,0.5, 0,0.5 （上、右、下、左）</span></span><br><span class="line">        <span class="attr">objects:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">person</span> <span class="comment"># 只在此区域检测人</span></span><br><span class="line">    <span class="attr">objects:</span></span><br><span class="line">      <span class="attr">track:</span> <span class="comment"># 跟踪的对象类型</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">person</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">car</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">dog</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">cat</span></span><br><span class="line">      <span class="attr">filters:</span> <span class="comment"># 过滤条件</span></span><br><span class="line">        <span class="attr">person:</span></span><br><span class="line">          <span class="attr">min_area:</span> <span class="number">5000</span> <span class="comment"># 最小检测面积</span></span><br><span class="line">          <span class="attr">max_area:</span> <span class="number">1000000</span> <span class="comment"># 最大检测面积</span></span><br><span class="line">          <span class="attr">threshold:</span> <span class="number">0.7</span> <span class="comment"># 置信度阈值</span></span><br><span class="line">        <span class="attr">car:</span></span><br><span class="line">          <span class="attr">min_area:</span> <span class="number">10000</span></span><br><span class="line">    <span class="attr">motion:</span></span><br><span class="line">      <span class="attr">mask:</span> <span class="comment"># 运动检测遮罩区域 (可选)</span></span><br><span class="line">        <span class="bullet">-</span> <span class="number">0</span><span class="string">,0,0,0.5,0.5,0.5,0.5,0</span> <span class="comment"># 示例：遮蔽图像上半部分</span></span><br><span class="line">      <span class="attr">threshold:</span> <span class="number">25</span> <span class="comment"># 运动检测阈值</span></span><br><span class="line">      <span class="attr">contour_area:</span> <span class="number">50</span> <span class="comment"># 轮廓区域阈值</span></span><br><span class="line"></span><br><span class="line">  <span class="attr">back_yard:</span> <span class="comment"># 第二个摄像头，如果需要</span></span><br><span class="line">    <span class="attr">enabled:</span> <span class="literal">True</span></span><br><span class="line">    <span class="attr">ffmpeg:</span></span><br><span class="line">      <span class="attr">inputs:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">path:</span> <span class="string">rtsp://user:password@192.168.1.101:554/H264_stream</span> <span class="comment"># 另一个摄像头的 RTSP 地址</span></span><br><span class="line">          <span class="attr">roles:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">detect</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">record</span></span><br><span class="line">    <span class="attr">detect:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">True</span></span><br><span class="line">    <span class="attr">objects:</span></span><br><span class="line">      <span class="attr">track:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">person</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">car</span></span><br></pre></td></tr></table></figure>
+
+<p>保存并关闭文件。</p>
+<p><strong>配置解释：</strong></p>
+<ul>
+<li><strong><code>mqtt</code></strong>：用于与 Home Assistant 集成，将检测事件发布到 MQTT Broker。</li>
+<li><strong><code>detectors</code></strong>：定义 AI 推理设备。<code>cpu</code> 是默认的，<code>edgetpu</code> 是为 Coral TPU 准备的。如果你有 Coral，记得取消注释 <code>coral_tpu</code> 部分。</li>
+<li><strong><code>record</code> &#x2F; <code>snapshots</code></strong>：控制录像和快照的行为，保留时间等。</li>
+<li><strong><code>ffmpeg</code></strong>：FFmpeg 的参数配置。<code>inputs</code> 是摄像头的 RTSP 地址，<code>roles</code> 定义了该流的用途 (<code>detect</code> 用于检测，<code>record</code> 用于录像，<code>rtmp</code> 用于 Web UI 预览)。</li>
+<li><strong><code>cameras</code></strong>：定义你的每个摄像头。<ul>
+<li><code>ffmpeg</code>：每个摄像头的 FFmpeg 配置。</li>
+<li><code>detect.fps</code>：用于检测的帧率，如果 CPU 性能不足且没有 Coral，可以适当降低此值。</li>
+<li><code>zones</code>：定义感兴趣的检测区域，可以减少误报。</li>
+<li><code>objects.track</code>：指定 Frigate 应该关注哪些类型的对象。</li>
+<li><code>motion.mask</code>：定义忽略运动的区域。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-创建-Docker-Compose-文件"><a href="#4-创建-Docker-Compose-文件" class="headerlink" title="4. 创建 Docker Compose 文件"></a>4. 创建 Docker Compose 文件</h3><p>在 <code>/mnt/data/frigate</code> 目录下创建一个名为 <code>docker-compose.yml</code> 的文件。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> nano /mnt/data/frigate/docker-compose.yml</span><br></pre></td></tr></table></figure>
+
+<p>将以下内容粘贴到 <code>docker-compose.yml</code> 文件中：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3.8&quot;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">frigate:</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">frigate</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">blakeblackshear/frigate:stable</span> <span class="comment"># 推荐使用 stable 标签</span></span><br><span class="line">    <span class="comment"># image: blakeblackshear/frigate:0.13.0-beta # 如果你想尝试最新功能，使用特定版本</span></span><br><span class="line">  </span><br><span class="line">    <span class="attr">privileged:</span> <span class="literal">true</span> <span class="comment"># 必需，允许访问 /dev/dri 或 /dev/bus/usb</span></span><br><span class="line">  </span><br><span class="line">    <span class="comment"># 网络模式，通常 host 模式更简单，避免复杂的端口映射，且方便FFmpeg访问RTSP流</span></span><br><span class="line">    <span class="attr">network_mode:</span> <span class="string">host</span> </span><br><span class="line">    <span class="comment"># 或者用 bridge 模式，需要手动映射端口</span></span><br><span class="line">    <span class="comment"># ports:</span></span><br><span class="line">    <span class="comment">#   - &quot;5000:5000&quot; # Frigate Web UI</span></span><br><span class="line">    <span class="comment">#   - &quot;1935:1935&quot; # RTMP 流</span></span><br><span class="line">  </span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/localtime:/etc/localtime:ro</span> <span class="comment"># 同步时区</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/mnt/data/frigate/config:/config:ro</span> <span class="comment"># 映射 Frigate 配置文件 (只读，避免容器修改)</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/mnt/data/frigate/media:/media</span> <span class="comment"># 映射录像、快照和数据库等数据 (读写)</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># 如果使用 Intel 核显进行 FFmpeg 解码/编码硬件加速</span></span><br><span class="line">      <span class="comment"># - /dev/dri:/dev/dri</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># 如果使用 Coral TPU (USB 版本或 PCIe 版本通用设备映射)</span></span><br><span class="line">      <span class="comment"># - /dev/bus/usb:/dev/bus/usb # 挂载整个 USB bus，让容器识别 Coral USB</span></span><br><span class="line">      <span class="comment"># 如果你的Coral设备文件是固定的，可以精确映射，例如：</span></span><br><span class="line">      <span class="comment"># - /dev/bus/usb/001/002:/dev/bus/usb/001/002 # 精确映射某个USB设备</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># 如果使用 NVIDIA GPU (需要安装 NVIDIA Container Toolkit)</span></span><br><span class="line">      <span class="comment"># devices:</span></span><br><span class="line">      <span class="comment">#   - /dev/nvidia0:/dev/nvidia0</span></span><br><span class="line">      <span class="comment">#   - /dev/nvidiactl:/dev/nvidiactl</span></span><br><span class="line">      <span class="comment">#   - /dev/nvidia-uvm:/dev/nvidia-uvm</span></span><br><span class="line">      <span class="comment"># runtime: nvidia</span></span><br><span class="line"></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="comment"># 在某些系统上，PUID/PGID 可能有助于文件权限</span></span><br><span class="line">      <span class="comment"># - PUID=1000</span></span><br><span class="line">      <span class="comment"># - PGID=100</span></span><br><span class="line">      <span class="comment"># 更多环境变量可参考 Frigate 文档，例如：</span></span><br><span class="line">      <span class="comment"># - FRIGATE_ENV_VAR=value</span></span><br><span class="line">  </span><br><span class="line">    <span class="comment"># 设定 CPU 核心和内存限制，防止占用过多资源</span></span><br><span class="line">    <span class="comment"># deploy:</span></span><br><span class="line">    <span class="comment">#   resources:</span></span><br><span class="line">    <span class="comment">#     limits:</span></span><br><span class="line">    <span class="comment">#       cpus: &#x27;3.0&#x27; # 限制为3个CPU核心</span></span><br><span class="line">    <span class="comment">#       memory: 4G  # 限制为4GB内存</span></span><br><span class="line"></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">unless-stopped</span> <span class="comment"># 容器崩溃或服务器重启后自动重启</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>配置解释：</strong></p>
+<ul>
+<li><code>image: blakeblackshear/frigate:stable</code>：使用 Frigate 的稳定版 Docker 镜像。</li>
+<li><code>privileged: true</code>：<strong>必需</strong>。允许容器访问宿主机的 <code>/dev</code> 设备，这是为了让容器能够识别和使用 <code>/dev/dri</code> (Intel GPU) 或 <code>/dev/bus/usb</code> (Coral USB)。</li>
+<li><code>network_mode: host</code>：为了简化，让容器直接使用宿主机的网络堆栈。这样 Frigate 就可以直接访问你的局域网中的摄像头，而无需复杂的端口转发或 Bridge 网络配置。缺点是容器不再拥有独立 IP。如果你需要为 Frigate 分配一个独立的 IP 地址，请使用 <code>bridge</code> 模式并手动映射端口。</li>
+<li><code>volumes:</code><ul>
+<li><code>/etc/localtime:/etc/localtime:ro</code>：同步容器和宿主机的时区。</li>
+<li><code>/mnt/data/frigate/config:/config:ro</code>：将宿主机的 <code>config</code> 目录映射为容器内部的 <code>/config</code>。<code>ro</code> 表示只读，这意味着 Frigate 无法修改 <code>config.yml</code>。</li>
+<li><code>/mnt/data/frigate/media:/media</code>：将宿主机的 <code>media</code> 目录映射为容器内部的 <code>/media</code>。Frigate 会将录像、快照、数据库文件等存储在这里。</li>
+<li><strong><code>/dev/dri:/dev/dri</code></strong> (Intel GPU 解码&#x2F;编码)：如果使用 Intel CPU 的核显进行硬件加速，请取消注释此行。</li>
+<li><strong><code>/dev/bus/usb:/dev/bus/usb</code></strong> (Coral USB TPU)：如果使用 USB Coral TPU，请取消注释此行。</li>
+</ul>
+</li>
+<li><code>environment</code>: 如果宿主机的文件权限与容器内 Jellyfin 的 <code>PUID</code>&#x2F;<code>PGID</code> 不匹配，你可能需要根据实际情况设置这些环境变量，确保容器有权限写入 <code>media</code> 目录。</li>
+<li><code>restart: unless-stopped</code>：保证 Frigate 在服务器重启后自动启动。</li>
+</ul>
+<p>保存并关闭文件。</p>
+<h3 id="5-启动-Frigate-容器"><a href="#5-启动-Frigate-容器" class="headerlink" title="5. 启动 Frigate 容器"></a>5. 启动 Frigate 容器</h3><p>在 <code>/mnt/data/frigate</code> 目录下，执行以下命令来启动 Frigate：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> docker compose up -d</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>docker compose up</code>：根据 <code>docker-compose.yml</code> 文件创建并启动服务。</li>
+<li><code>-d</code>：表示在后台运行容器。</li>
+</ul>
+<p>如果一切顺利，Frigate 容器应该已经启动并运行。</p>
+<h3 id="6-检查容器状态和日志"><a href="#6-检查容器状态和日志" class="headerlink" title="6. 检查容器状态和日志"></a>6. 检查容器状态和日志</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> docker ps -a | grep frigate</span><br><span class="line"><span class="built_in">sudo</span> docker logs -f frigate <span class="comment"># 查看实时日志，检查是否有错误，特别是关于FFmpeg和Coral TPU的</span></span><br></pre></td></tr></table></figure>
+<p>在日志中，你应该能看到 FFmpeg 启动、摄像头流接收以及 Coral TPU 初始化成功的消息。</p>
+<h3 id="7-访问-Frigate-Web-UI"><a href="#7-访问-Frigate-Web-UI" class="headerlink" title="7. 访问 Frigate Web UI"></a>7. 访问 Frigate Web UI</h3><p>打开你的浏览器，访问 <code>http://你的服务器IP:5000</code>。</p>
+<p>你将看到 Frigate 的 Web UI 界面。</p>
+<ul>
+<li>在 <code>Live</code> 页面，你应该能看到你的摄像头实时画面。</li>
+<li>在 <code>Events</code> 页面，当 Frigate 检测到配置的对象时，会生成事件和快照。</li>
+<li>在 <code>Configuration</code> 页面，你可以查看当前的配置（只读）。</li>
+</ul>
+<h2 id="五、与-Home-Assistant-集成（推荐）"><a href="#五、与-Home-Assistant-集成（推荐）" class="headerlink" title="五、与 Home Assistant 集成（推荐）"></a>五、与 Home Assistant 集成（推荐）</h2><p>Frigate 与 Home Assistant 官方集成，可以极大扩展其功能。</p>
+<ol>
+<li>确保你的 Home Assistant 和 Frigate 都在同一个网络中，且 MQTT 服务已运行并配置在 Frigate 的 <code>config.yml</code> 中。</li>
+<li>在 Home Assistant 中，进入 <code>设置</code> -&gt; <code>设备与服务</code> -&gt; <code>添加集成</code>。</li>
+<li>搜索 <code>Frigate</code>。</li>
+<li>Home Assistant 会尝试自动发现 Frigate。如果发现失败，你可能需要手动输入 Frigate 的 IP 地址。</li>
+<li>通过集成，Home Assistant 会自动创建各种 Frigate 实体，包括：<ul>
+<li><code>binary_sensor</code>：每次检测到对象时触发。</li>
+<li><code>media_player</code>：用于查看摄像头直播流。</li>
+<li><code>camera</code>：用于查看录像、快照。</li>
+<li><code>sensor</code>：显示当前在线人数、车辆数等。</li>
+</ul>
+</li>
+<li>你可以利用这些实体在 Home Assistant 中创建强大的自动化，例如：<ul>
+<li>当 Frigate 检测到 <code>person</code> 时，触发智能灯光亮起。</li>
+<li>当 Frigate 检测到 <code>car</code> 且是夜间时，发送包含快照的通知到手机。</li>
+<li>结合门窗传感器，只有在门窗打开时才检测特定区域等。</li>
+</ul>
+</li>
+</ol>
+<h2 id="六、高级配置与优化"><a href="#六、高级配置与优化" class="headerlink" title="六、高级配置与优化"></a>六、高级配置与优化</h2><h3 id="1-FFmpeg-硬件加速"><a href="#1-FFmpeg-硬件加速" class="headerlink" title="1. FFmpeg 硬件加速"></a>1. FFmpeg 硬件加速</h3><p>如果你的服务器 CPU 是 Intel (带核显)，强烈建议开启 FFmpeg 的硬件解码&#x2F;编码，可以大幅降低 CPU 占用。</p>
+<ol>
+<li><strong>宿主机驱动</strong>：确保你的 Linux 系统已安装 Intel 显卡的 VA-API 驱动。</li>
+<li><strong>Docker Compose</strong>：在 <code>volumes</code> 中添加 <code>- /dev/dri:/dev/dri</code>。</li>
+<li><strong>Frigate <code>config.yml</code></strong>：<br>在 <code>ffmpeg</code> 部分的 <code>global_args</code> 中添加：<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">ffmpeg:</span></span><br><span class="line">  <span class="attr">global_args:</span> <span class="string">-hwaccel</span> <span class="string">vaapi</span> <span class="string">-hwaccel_output_format</span> <span class="string">vaapi</span></span><br></pre></td></tr></table></figure>
+并调整 <code>output_args</code> 中的编码器，例如：<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ...</span></span><br><span class="line"><span class="attr">output_args:</span></span><br><span class="line">  <span class="attr">detect:</span> <span class="string">-f</span> <span class="string">segment</span> <span class="string">-segment_times</span> <span class="number">10</span> <span class="string">-segment_format</span> <span class="string">mp4</span> <span class="string">-r</span> <span class="number">10</span> <span class="string">-c:v</span> <span class="string">h264_vaapi</span> <span class="string">-preset</span> <span class="string">ultrafast</span> <span class="string">-tune</span> <span class="string">zerolatency</span> <span class="string">-crf</span> <span class="number">23</span> <span class="string">-bf</span> <span class="number">0</span> <span class="string">-g</span> <span class="number">30</span> <span class="string">-sc_threshold</span> <span class="number">0</span> <span class="string">-pix_fmt</span> <span class="string">vaapi_vpp</span> <span class="string">-movflags</span> <span class="string">+faststart</span></span><br><span class="line">  <span class="attr">record:</span> <span class="string">-c:v</span> <span class="string">h264_vaapi</span> <span class="string">-map</span> <span class="number">0</span><span class="string">:v:0</span> <span class="string">-map</span> <span class="number">0</span><span class="string">:a?</span> <span class="string">-f</span> <span class="string">segment</span> <span class="string">-segment_times</span> <span class="number">10</span> <span class="string">-segment_format</span> <span class="string">mp4</span> <span class="string">-reset_timestamps</span> <span class="number">1</span> <span class="string">-strftime</span> <span class="number">1</span> <span class="string">-ar</span> <span class="number">44100</span> <span class="comment"># 如果录像也想用VAAPI编码</span></span><br></pre></td></tr></table></figure>
+具体编码器名称(<code>h264_vaapi</code>) 和像素格式 (<code>vaapi_vpp</code>) 可能因 FFmpeg 版本和驱动而异，请查阅资料匹配。</li>
+</ol>
+<h3 id="2-内存磁盘-tmpfs"><a href="#2-内存磁盘-tmpfs" class="headerlink" title="2. 内存磁盘 (tmpfs)"></a>2. 内存磁盘 (<code>tmpfs</code>)</h3><p>Frigate 会在 <code>cache</code> 中存储一些临时文件。如果你的内存足够大，可以考虑将 <code>/tmp/cache</code> 映射为 <code>tmpfs</code>，以减少磁盘 I&#x2F;O，并提升性能。</p>
+<p>在 <code>docker-compose.yml</code> 中 <code>volumes</code> 部分添加：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">volumes:</span></span><br><span class="line">  <span class="comment"># ... 其他 volumes</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">type:</span> <span class="string">tmpfs</span> <span class="comment"># 内存磁盘</span></span><br><span class="line">    <span class="attr">target:</span> <span class="string">/tmp/cache</span></span><br><span class="line">    <span class="attr">tmpfs:</span></span><br><span class="line">      <span class="attr">size:</span> <span class="string">1g</span> <span class="comment"># 设定为1GB，根据你的内存和摄像头数量调整</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-多路-Coral-TPU"><a href="#3-多路-Coral-TPU" class="headerlink" title="3. 多路 Coral TPU"></a>3. 多路 Coral TPU</h3><p>如果你有多个 Coral TPU，可以在 <code>config.yml</code> 的 <code>detectors</code> 部分定义多个 <code>edgetpu</code> 检测器，并为每个摄像头指定使用哪个 TPU。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">detectors:</span></span><br><span class="line">  <span class="attr">coral_tpu_0:</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">edgetpu</span></span><br><span class="line">    <span class="attr">device:</span> <span class="string">usb:0</span> <span class="comment"># 引用第一个 USB Coral</span></span><br><span class="line">  <span class="attr">coral_tpu_1:</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">edgetpu</span></span><br><span class="line">    <span class="attr">device:</span> <span class="string">usb:1</span> <span class="comment"># 引用第二个 USB Coral</span></span><br><span class="line"></span><br><span class="line"><span class="attr">cameras:</span></span><br><span class="line">  <span class="attr">front_door:</span></span><br><span class="line">    <span class="attr">detector:</span> <span class="string">coral_tpu_0</span> <span class="comment"># 指定使用哪个检测器</span></span><br><span class="line">    <span class="comment"># ...</span></span><br><span class="line">  <span class="attr">back_yard:</span></span><br><span class="line">    <span class="attr">detector:</span> <span class="string">coral_tpu_1</span> <span class="comment"># 指定使用哪个检测器</span></span><br><span class="line">    <span class="comment"># ...</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-远程存储"><a href="#4-远程存储" class="headerlink" title="4. 远程存储"></a>4. 远程存储</h3><p>Frigate 可以配置将录像和快照存储到远程位置（如网络共享、S3 存储桶）。这需要更复杂的配置和额外的工具（如 <code>rclone</code>）。</p>
+<h3 id="5-自定义-AI-模型"><a href="#5-自定义-AI-模型" class="headerlink" title="5. 自定义 AI 模型"></a>5. 自定义 AI 模型</h3><p>Frigate 允许你使用自定义的 TensorFlow Lite 模型，来识别更多类型的物体或优化现有物体识别性能。这需要具备一定的 AI 模型训练和转换知识。</p>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>Frigate 是一个革命性的本地视频监控解决方案，它将 AI 驱动的目标检测带入了家庭和小型办公室场景。通过智能识别和事件驱动的录制，它解决了传统监控系统在误报、存储空间和事件查找方面的痛点。配合 Google Coral TPU，Frigate 能够提供高性能的实时检测，并与 Home Assistant 无缝集成，开启无限自动化可能。</p>
+<p>虽然部署 Frigate 需要一些 Docker 和 YAML 配置的知识，但一旦配置完成，它将大大提升你的监控体验，让你的智能家居系统真正“智能”起来。强烈推荐给所有希望升级自己视频监控系统的用户！</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="http://tbf1211.com">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="http://tbf1211.com/2024/12/14/2024/2024-12-15_Frigate%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E5%9F%BA%E4%BA%8EAI%E7%9A%84%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/">http://tbf1211.com/2024/12/14/2024/2024-12-15_Frigate%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E5%9F%BA%E4%BA%8EAI%E7%9A%84%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="http://tbf1211.com" target="_blank">T维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Docker/">Docker</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/NAS/">NAS</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-08.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2025/01/26/2025/2025-01-27_Prometheus%E4%B8%8EGrafana%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%8E%B0%E4%BB%A3%E7%9B%91%E6%8E%A7%E7%9A%84%E9%BB%84%E9%87%91%E7%BB%84%E5%90%88/" title="Prometheus与Grafana详解：现代监控的黄金组合"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Prometheus与Grafana详解：现代监控的黄金组合</div></div><div class="info-2"><div class="info-item-1"> 在现代复杂的 IT 基础设施中，如何高效、准确地监控系统和应用的健康状况，并及时发现潜在问题，是运维和开发团队面临的巨大挑战。Prometheus 和 Grafana 正是为此而生的一对黄金搭档。Prometheus 负责数据的收集、存储和查询，而 Grafana 则负责数据的可视化和告警展示。它们共同构建了一个强大的开源监控解决方案，已成为云原生时代监控领域的事实标准。  “没有监控的系统就像在黑暗中航行的船只，随时可能触礁。”   一、Prometheus 详解1.1 Prometheus 是什么？Prometheus 是一个开源的时间序列数据库 (TSDB) 和监控系统，由 SoundCloud 公司开发并于 2016 年加入云原生计算基金会 (CNCF)，是其第二个毕业项目。它采用了一种拉取 (Pull) 模型来收集指标数据，并通过强大的多维度数据模型和灵活的查询语言 (PromQL) 来支持复杂的告警和分析。 1.2 Prometheus 的核心特点与优势 多维数据模型：所有指标都是以时间戳和键值对（称为标签或 labels）的形式存储的。例如，http_reques...</div></div></div></a><a class="pagination-related" href="/2024/12/09/2024/2024-12-10_Home%20Assistant%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E6%89%93%E9%80%A0%E4%BD%A0%E7%9A%84%E6%99%BA%E8%83%BD%E5%AE%B6%E5%B1%85%E4%B8%AD%E6%9E%A2/" title="Home Assistant介绍与部署：打造你的智能家居中枢"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Home Assistant介绍与部署：打造你的智能家居中枢</div></div><div class="info-2"><div class="info-item-1"> Home Assistant (HA) 是一个免费开源的智能家居自动化平台，它致力于将你家中所有不同品牌的智能设备连接起来，并提供统一的控制界面，实现设备间的联动自动化。与依赖云端的智能家居平台不同，Home Assistant 强调本地化控制和隐私保护。它是智能家居爱好者的终极控制中心，让你真正掌控自己的智能生活。  “拥有 Home Assistant，意味着拥有一个由你完全掌控的智能家居大脑。”   一、Home Assistant 是什么？Home Assistant 是一个用 Python 编写的开源项目，它能让你本地运行智能家居控制中心。它支持超过 2000 个集成（integrations），可以与市面上绝大多数智能设备和服务进行连接，包括但不限于：  各种协议设备：Wi-Fi、Zigbee、Z-Wave、蓝牙、MQTT 等。 主流品牌设备：飞利浦 Hue、小米、宜家、Sonos、谷歌 Home、亚马逊 Alexa、各种智能插座、传感器等。 服务集成：天气预报、日历、邮件、通知服务、网络设备（路由器、NAS）监控等。  核心优势：  本地控制，注重隐私：大部分功能...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2024/10/20/2024/2024-10-21_Dockge%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%20Docker%20Compose%20UI/" title="Dockge介绍与部署：下一代 Docker Compose UI"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-21</div><div class="info-item-2">Dockge介绍与部署：下一代 Docker Compose UI</div></div><div class="info-2"><div class="info-item-1"> 如果你经常使用 Docker Compose 来管理容器应用，并且厌倦了命令行界面，或者觉得 Portainer 过于庞大复杂，那么 Dockge 可能会成为你的新宠。Dockge 是一个轻量级、直观且专注于 Docker Compose 的 Web UI 工具，它旨在简化 Docker Compose 项目的创建、编辑、部署和管理，让你能够更高效地维护你的容器化服务。  “好的工具让复杂的事情变得简单，Dockge 就是让 Docker Compose 更友好的工具。”   一、Dockge 是什么？Dockge 是一个开源的 Docker Compose 管理工具，它提供了一个简洁的 Web 界面，让你可以：  可视化管理 Docker Compose 项目：轻松查看所有 Docker Compose 堆栈（Stack）的状态。 在线编辑 docker-compose.yml 文件：直接在浏览器中编辑并保存更改，无需 SSH 到服务器。 一键部署和管理堆栈：启动、停止、重启、删除整个 Docker Compose 堆栈。 查看容器日志：实时查看容器的输出日志。 管理容器卷：...</div></div></div></a><a class="pagination-related" href="/2024/10/31/2024/2024-11-01_%E5%9C%A8NAS%E4%B8%8A%E9%83%A8%E7%BD%B2Jellyfin%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8/" title="在NAS上部署Jellyfin媒体服务器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-01</div><div class="info-item-2">在NAS上部署Jellyfin媒体服务器</div></div><div class="info-2"><div class="info-item-1"> Jellyfin 是一个免费、开源的媒体系统，可以帮助你管理、播放和流式传输你的电影、电视节目、音乐、照片等媒体内容。它是一个强大的替代品，适用于那些希望完全控制自己数据的用户，与 Emby 和 Plex 类似，但完全免费且无任何订阅限制。将 Jellyfin 部署在 NAS 上，可以充分利用 NAS 的存储能力、稳定性和网络共享特性，打造专属的家庭影音中心。  “拥有自己的媒体服务器，意味着你的影音世界，你做主。”   一、为什么选择 Jellyfin 和 NAS？为什么是 Jellyfin？ 完全免费且开源：无需任何订阅费用，社区活跃，持续更新。 私有化部署：所有数据（元数据、观看记录）都存储在你的服务器上，完全掌控。 跨平台客户端：支持 Web 浏览器、Android、iOS、Apple TV、Roku、Fire TV、Kodi 插件等多种设备。 硬件加速：支持多种硬件解码&#x2F;编码，提供流畅的转码体验（如果你的 NAS 支持）。 强大的媒体管理：自动抓取电影、电视节目的元数据、海报、预告片，整理媒体库。  为什么部署在 NAS 上？ 集中存储：NAS 天然就是存储...</div></div></div></a><a class="pagination-related" href="/2024/12/09/2024/2024-12-10_Home%20Assistant%E4%BB%8B%E7%BB%8D%E4%B8%8E%E9%83%A8%E7%BD%B2%EF%BC%9A%E6%89%93%E9%80%A0%E4%BD%A0%E7%9A%84%E6%99%BA%E8%83%BD%E5%AE%B6%E5%B1%85%E4%B8%AD%E6%9E%A2/" title="Home Assistant介绍与部署：打造你的智能家居中枢"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-10</div><div class="info-item-2">Home Assistant介绍与部署：打造你的智能家居中枢</div></div><div class="info-2"><div class="info-item-1"> Home Assistant (HA) 是一个免费开源的智能家居自动化平台，它致力于将你家中所有不同品牌的智能设备连接起来，并提供统一的控制界面，实现设备间的联动自动化。与依赖云端的智能家居平台不同，Home Assistant 强调本地化控制和隐私保护。它是智能家居爱好者的终极控制中心，让你真正掌控自己的智能生活。  “拥有 Home Assistant，意味着拥有一个由你完全掌控的智能家居大脑。”   一、Home Assistant 是什么？Home Assistant 是一个用 Python 编写的开源项目，它能让你本地运行智能家居控制中心。它支持超过 2000 个集成（integrations），可以与市面上绝大多数智能设备和服务进行连接，包括但不限于：  各种协议设备：Wi-Fi、Zigbee、Z-Wave、蓝牙、MQTT 等。 主流品牌设备：飞利浦 Hue、小米、宜家、Sonos、谷歌 Home、亚马逊 Alexa、各种智能插座、传感器等。 服务集成：天气预报、日历、邮件、通知服务、网络设备（路由器、NAS）监控等。  核心优势：  本地控制，注重隐私：大部分功能...</div></div></div></a><a class="pagination-related" href="/2023/01/31/2023/2023-02-01_Docker%E9%95%9C%E5%83%8F%E6%9E%84%E5%BB%BA%E4%B8%8E%E7%AE%A1%E7%90%86%EF%BC%9A%E6%89%93%E9%80%A0%E6%A0%87%E5%87%86%E5%8C%96%E3%80%81%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%9A%84%E5%AE%B9%E5%99%A8%E9%95%9C%E5%83%8F/" title="Docker镜像构建与管理：打造标准化、可复用的容器镜像"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-01</div><div class="info-item-2">Docker镜像构建与管理：打造标准化、可复用的容器镜像</div></div><div class="info-2"><div class="info-item-1"> 本文由 简悦 SimpRead 转码， 原文地址 mp.weixin.qq.com  Docker 镜像构建与管理：打造标准化、可复用的容器镜像开篇：你是否也在镜像管理上栽过跟头？凌晨 2 点，生产环境突然告警，新部署的容器启动失败。排查后发现：开发环境用的镜像 800MB，生产环境的却有 3.2GB，里面塞满了编译工具、测试数据，甚至还有开发同学的 SSH 私钥… 这种 “镜像肥胖症” 你遇到过吗？或者更糟糕的：  同一个服务，测试环境能跑，生产环境启动就报错 镜像仓库里堆满了 latest、v1、v1-final、v1-final-final 这种让人崩溃的标签 构建一次镜像要等 20 分钟，因为每次都要重新下载依赖包  今天这篇文章，我会基于 5 年运维实战经验，教你构建一套标准化的镜像管理体系：从多阶段构建优化到镜像安全扫描，从版本管理策略到自动化构建流程，让你的镜像体积缩小 70%、构建速度提升 5 倍，并且永远不会再出现 “这个镜像到底能不能用” 的灵魂拷问。 一、镜像构建的三大核心原则（90% 的人都忽略了）1. 最小化原则：镜像里只放 “必需品”很多人写 Doc...</div></div></div></a><a class="pagination-related" href="/2023/02/04/2023/2023-02-05_Docker%E9%95%9C%E5%83%8F%E6%9E%84%E5%BB%BA%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%BB%8EDockerfile%E5%88%B0%E9%AB%98%E6%95%88%E5%AE%9E%E8%B7%B5/" title="Docker镜像构建详解：从Dockerfile到高效实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-05</div><div class="info-item-2">Docker镜像构建详解：从Dockerfile到高效实践</div></div><div class="info-2"><div class="info-item-1"> Docker 镜像是 Docker 的核心组成部分之一。它是一个轻量级、独立、可执行的软件包，包含运行应用程序所需的一切：代码、运行时、系统工具、系统库和设置。构建 Docker 镜像是实现应用程序容器化的关键步骤，通过 Dockerfile 文件，我们可以定义镜像的构建过程。  “Docker 镜像本质上是文件系统和配置的组合，它通过层（Layer）的概念实现了高效的存储和复用。理解 Dockerfile 的每一条指令以及如何优化构建过程，是成为 Docker 高手的必经之路。”   一、Docker 镜像构建概述 Dockerfile：一个文本文件，包含一系列指令，用于自动化地在 Docker 环境中构建镜像。 构建上下文 (Build Context)：在执行 docker build 命令时，你指定了一个路径（通常是当前目录）。这个路径下的所有文件和目录都会被发送到 Docker daemon，作为构建上下文。只有在构建上下文中包含的文件才能被 Dockerfile 中的指令（如 ADD, COPY）访问。 镜像层 (Image Layer)：Docker 镜像由一系列...</div></div></div></a><a class="pagination-related" href="/2023/04/22/2023/2023-04-23_Dockerfile%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4%E8%AF%A6%E8%A7%A3/" title="Dockerfile 常用指令详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-23</div><div class="info-item-2">Dockerfile 常用指令详解</div></div><div class="info-2"><div class="info-item-1"> Dockerfile 是一个文本文件，其中包含用户可以在命令行上调用以组装映像的所有命令。Docker 可以通过读取 Dockerfile 中的指令自动构建映像。它本质上是一个“可执行程序脚本”，用于自动化构建 Docker 镜像的过程。  理解和熟练使用 Dockerfile 指令是 Docker 应用开发和部署的核心技能之一。一个优化良好、结构清晰的 Dockerfile 不仅能构建出高效、安全、体积小的镜像，还能提高构建速度和可维护性。   一、Dockerfile 基础概念 镜像 (Image)：一个只读的模板，包含了创建 Docker 容器所需的所有文件和配置。 容器 (Container)：镜像运行时的实例。可以启动、停止、删除。 层 (Layer)：Dockerfile 中的每个指令都会创建一个新的镜像层。这些层是只读的，可以被缓存和共享，是 Docker 镜像高效和可复用的关键。 构建上下文 (Build Context)：当执行 docker build 命令时，它会向 Docker 守护进程发送一个目录（通常是当前目录）及其所有内容。这个目录被称为构建上下文...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">52</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">29</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>主題 GitHub</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Frigate-%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F"><span class="toc-text">一、Frigate 是什么？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9-Frigate%EF%BC%9F"><span class="toc-text">二、为什么选择 Frigate？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E9%83%A8%E7%BD%B2%E5%89%8D%E7%9A%84%E5%87%86%E5%A4%87"><span class="toc-text">三、部署前的准备</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%A1%AC%E4%BB%B6%E8%A6%81%E6%B1%82"><span class="toc-text">1. 硬件要求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%BD%AF%E4%BB%B6%E8%A6%81%E6%B1%82"><span class="toc-text">2. 软件要求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%90%86%E8%A7%A3-Docker-%E9%83%A8%E7%BD%B2%E7%9A%84%E5%A5%BD%E5%A4%84"><span class="toc-text">3. 理解 Docker 部署的好处</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%83%A8%E7%BD%B2%E6%AD%A5%E9%AA%A4%EF%BC%88%E4%BB%A5-Docker-Compose-%E4%B8%BA%E4%BE%8B%EF%BC%89"><span class="toc-text">四、部署步骤（以 Docker Compose 为例）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%8C%82%E8%BD%BD-Coral-TPU-%E5%A6%82%E6%9E%9C%E4%BD%BF%E7%94%A8"><span class="toc-text">1. 挂载 Coral TPU (如果使用)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#USB-Coral"><span class="toc-text">USB Coral</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#PCIe-Coral"><span class="toc-text">PCIe Coral</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%88%9B%E5%BB%BA%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84"><span class="toc-text">2. 创建目录结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%BC%96%E5%86%99-config-yml-Frigate-%E6%A0%B8%E5%BF%83%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="toc-text">3. 编写 config.yml (Frigate 核心配置文件)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%88%9B%E5%BB%BA-Docker-Compose-%E6%96%87%E4%BB%B6"><span class="toc-text">4. 创建 Docker Compose 文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E5%90%AF%E5%8A%A8-Frigate-%E5%AE%B9%E5%99%A8"><span class="toc-text">5. 启动 Frigate 容器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-%E6%A3%80%E6%9F%A5%E5%AE%B9%E5%99%A8%E7%8A%B6%E6%80%81%E5%92%8C%E6%97%A5%E5%BF%97"><span class="toc-text">6. 检查容器状态和日志</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-%E8%AE%BF%E9%97%AE-Frigate-Web-UI"><span class="toc-text">7. 访问 Frigate Web UI</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%B8%8E-Home-Assistant-%E9%9B%86%E6%88%90%EF%BC%88%E6%8E%A8%E8%8D%90%EF%BC%89"><span class="toc-text">五、与 Home Assistant 集成（推荐）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E9%AB%98%E7%BA%A7%E9%85%8D%E7%BD%AE%E4%B8%8E%E4%BC%98%E5%8C%96"><span class="toc-text">六、高级配置与优化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-FFmpeg-%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F"><span class="toc-text">1. FFmpeg 硬件加速</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%86%85%E5%AD%98%E7%A3%81%E7%9B%98-tmpfs"><span class="toc-text">2. 内存磁盘 (tmpfs)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%A4%9A%E8%B7%AF-Coral-TPU"><span class="toc-text">3. 多路 Coral TPU</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E8%BF%9C%E7%A8%8B%E5%AD%98%E5%82%A8"><span class="toc-text">4. 远程存储</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E8%87%AA%E5%AE%9A%E4%B9%89-AI-%E6%A8%A1%E5%9E%8B"><span class="toc-text">5. 自定义 AI 模型</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/09/21/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/" title="WSL2详解：在Windows运行Linux的新标准"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WSL2详解：在Windows运行Linux的新标准"/></a><div class="content"><a class="title" href="/2025/09/21/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/" title="WSL2详解：在Windows运行Linux的新标准">WSL2详解：在Windows运行Linux的新标准</a><time datetime="2025-09-21T22:24:00.000Z" title="发表于 2025-09-22 06:24:00">2025-09-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/09/17/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="GoLang Wails 框架详解：用 Web 技术构建桌面应用"/></a><div class="content"><a class="title" href="/2025/09/17/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用">GoLang Wails 框架详解：用 Web 技术构建桌面应用</a><time datetime="2025-09-17T22:24:00.000Z" title="发表于 2025-09-18 06:24:00">2025-09-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/09/13/2025/2025-09-14_Redis%E6%8C%81%E4%B9%85%E5%8C%96%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%EF%BC%9ARDB%E4%B8%8EAOF%E7%9A%84%E7%BB%88%E6%9E%81%E5%AF%B9%E5%86%B3%E4%B8%8E%E5%AE%9E%E6%88%98%E4%BC%98%E5%8C%96/" title="Redis持久化深度解析：RDB与AOF的终极对决与实战优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Redis持久化深度解析：RDB与AOF的终极对决与实战优化"/></a><div class="content"><a class="title" href="/2025/09/13/2025/2025-09-14_Redis%E6%8C%81%E4%B9%85%E5%8C%96%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%EF%BC%9ARDB%E4%B8%8EAOF%E7%9A%84%E7%BB%88%E6%9E%81%E5%AF%B9%E5%86%B3%E4%B8%8E%E5%AE%9E%E6%88%98%E4%BC%98%E5%8C%96/" title="Redis持久化深度解析：RDB与AOF的终极对决与实战优化">Redis持久化深度解析：RDB与AOF的终极对决与实战优化</a><time datetime="2025-09-13T22:24:00.000Z" title="发表于 2025-09-14 06:24:00">2025-09-14</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/09/04/2025/2025-09-05_Go%E8%AF%AD%E8%A8%80%E5%8D%8F%E7%A8%8B%E8%AE%BE%E8%AE%A1%E4%B8%8E%E8%B0%83%E5%BA%A6%E5%8E%9F%E7%90%86/" title="Go 语言协程设计与调度原理"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go 语言协程设计与调度原理"/></a><div class="content"><a class="title" href="/2025/09/04/2025/2025-09-05_Go%E8%AF%AD%E8%A8%80%E5%8D%8F%E7%A8%8B%E8%AE%BE%E8%AE%A1%E4%B8%8E%E8%B0%83%E5%BA%A6%E5%8E%9F%E7%90%86/" title="Go 语言协程设计与调度原理">Go 语言协程设计与调度原理</a><time datetime="2025-09-04T22:24:00.000Z" title="发表于 2025-09-05 06:24:00">2025-09-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/09/03/2025/2025-09-04_Go%20%E8%AF%AD%E8%A8%80%20Array%20%E5%92%8C%20Slice%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"/></a><div class="content"><a class="title" href="/2025/09/03/2025/2025-09-04_Go%20%E8%AF%AD%E8%A8%80%20Array%20%E5%92%8C%20Slice%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用">Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用</a><time datetime="2025-09-03T22:24:00.000Z" title="发表于 2025-09-04 06:24:00">2025-09-04</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-08.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/tags/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/tags/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/tags/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.0</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="false"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,0,255" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js"></script></div></div></body></html>
