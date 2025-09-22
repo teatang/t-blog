@@ -21,7 +21,7 @@ FROM nginx:alpine
 COPY --from=builder /app/public /usr/share/nginx/html/public
 
 # 暴露80端口
-EXPOSE 2406
+EXPOSE 80
 
 # 启动Nginx
 CMD ["nginx", "-g", "daemon off;"]
