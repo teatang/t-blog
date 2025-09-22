@@ -6,6 +6,7 @@ tags:
     - 前端技术
     - JavaScript
     - Promise
+    - 源码分析
 categories: 
   - 前端技术
   - JavaScript
