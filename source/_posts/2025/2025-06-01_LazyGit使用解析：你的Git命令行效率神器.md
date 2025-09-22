@@ -4,6 +4,7 @@ date: 2025-06-01 06:24:00
 tags:
   - 2025
   - 开发工具
+  - LazyGit
   - Git
 categories:
   - 开发工具
