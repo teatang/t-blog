@@ -7,7 +7,6 @@ tags:
     - Golang
     - 数据结构
 categories:
-    - Golang
     - 数据结构
 ---
 
