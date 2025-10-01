@@ -7,6 +7,7 @@ tags:
     - JavaScript
     - Promise
     - 源码分析
+    - 编程语法
 categories: 
   - 前端技术
   - JavaScript

@@ -5,6 +5,7 @@ tags:
   - 2024
   - JavaScript
   - 原型链
+  - 编程语法
 categories:
   - 前端技术
   - JavaScript
