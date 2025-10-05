@@ -5,9 +5,10 @@ tags:
   - 2024
   - 前端技术
   - TailwindCSS
+  - CSS
 categories:
   - 前端技术
-  - TailwindCSS
+  - CSS
 ---
 
 > Tailwind CSS 是一个高度可定制的、低级的 CSS 框架，它提供了一系列功能类 (`utility classes`)，你可以直接在 HTML 中组合这些类来快速构建任何你想要的设计，而无需编写一行自定义 CSS。它与传统 CSS 框架（如 Bootstrap）理念不同，不提供预设的组件样式，而是提供原子化的样式工具集。
