@@ -1,5 +1,5 @@
 (function () {
-    if(isMobile()) {
+    if (isMobileDevice()) {
         return;
     }
     var stop, staticx;
@@ -154,9 +154,45 @@
         }
     }
 
-    function isMobile() {
-        const userAgent = navigator.userAgent.toLowerCase();
-        const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'windows phone'];
-        return mobileKeywords.some(keyword => userAgent.includes(keyword));
+    function isMobileDevice() {
+        // 1. 检查 userAgent 字符串
+        // 这是一个最常用的方法，但容易被伪造
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        // 常见的移动操作系统和设备关键词
+        if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|rim)|plucker|rim9en|rjcs|ro(ck|zo)m|sgh-|sharpen|sie-|droid|kddi|sm(art|on)|sprint|su(mo|ve)|t-mobile|up\.browser|up\.link|vodafone|wap|windows ce|xda|xiino/i.test(userAgent) ||
+            /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|nn)|aso|ap(ad|ip)|aq\-h|ar(hp|iw)|alcatel|amoi|an(ex|nd)|android|htc|ez\d+\s*|iac|jtk|lg(\s*|\-|\/)|lk\-s|lenovo|mt(50|p1|v )|nestle|netfront|nokia|no(kiafr|sa)|nx\d+|onh|pacle|panasonic|psp|series(4|6)0|simon|slice|sm(s|th)|sp(ru|me)|t\-mo|tcg|telefonica|tianyu|utec|v(w|wi)|zeno|zte/i.test(userAgent.substr(0, 4))) {
+            return true;
+        }
+        // 2. 检查触摸事件支持
+        // 现代桌面设备也可能有触摸屏，所以这不是决定性因素，但很有用
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0) {
+            // 排除某些桌面设备的触摸屏（例如通过平台判断）
+            // 这里可以结合 platform 判断，例如：
+            // if (!/win(dows|32)|mac/i.test(navigator.platform || '')) {
+            //     return true;
+            // }
+            return true; // 暂时不排除，让后续逻辑处理
+        }
+        // 3. 检查屏幕尺寸 / 视口大小
+        // 这是判断移动设备的关键指标之一。通常移动设备的物理宽度会小于某个阈值。
+        // 注意：CSS 像素和物理像素可能不同，这里指的是 CSS 像素。
+        const screenWidth = Math.max(window.screen.width, window.screen.height); // 取长边，以应对横屏/竖屏
+        const screenHeight = Math.min(window.screen.width, window.screen.height); // 取短边
+        // 可以根据需要调整这些阈值
+        const thresholdWidth = 768; // 常见的平板电脑宽度，例如iPad mini宽度768px
+        const zoomLevel = window.devicePixelRatio || 1; // 设备的缩放级别
+        // 在响应式设计中，通常会将小于某个宽度的设备视为移动设备或平板
+        // 这里我们判断屏幕的短边是否小于某个值（例如小于768px视为移动或小平板）
+        // 并且如果设备像素比大于1（高分屏），也可以降低阈值
+        if (screenHeight < thresholdWidth) { // 检查短边
+            return true;
+        }
+        // 4. 检查是否是iPad（userAgent可能伪装成Mac）
+        // 尤其是一些新iPadOS系统，User-Agent默认会伪装成桌面Mac，需要特别判断
+        if (navigator.platform && /iPad|MacIntel/.test(navigator.platform) && navigator.maxTouchPoints > 0) {
+            return true;
+        }
+        // 如果以上条件都不满足，则认为是桌面设备
+        return false;
     }
 })()
