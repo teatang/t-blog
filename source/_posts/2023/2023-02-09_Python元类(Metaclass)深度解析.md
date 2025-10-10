@@ -5,7 +5,9 @@ tags:
     - 2023
     - Python
     - 编程语法
-categories: Python
+categories: 
+    - Python
+    - 程序设计
 ---
 
 # Python 元类深度解析：从概念到实战
