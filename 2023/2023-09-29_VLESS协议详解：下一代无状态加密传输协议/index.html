@@ -1,0 +1,623 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>VLESS协议详解：下一代无状态加密传输协议 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="VLESS 是一种新型的、无状态 (Stateless)、轻量级 的传输协议，由 V2Ray 社区开发并随 V2Ray 4.23 发布。它旨在替代或补充 V2Ray 之前使用的 VMess 协议，VLESS 的核心优势在于极简的设计理念、更低的性能开销、对 TLS 握手更好的支持以及未来协议扩展的灵活性。它被设计为高度透明，尽可能不干扰底层传输协议（如 TCP 或 WebSocket）本身的工作">
+<meta property="og:type" content="article">
+<meta property="og:title" content="VLESS协议详解：下一代无状态加密传输协议">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2023/2023-09-29_VLESS%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E6%97%A0%E7%8A%B6%E6%80%81%E5%8A%A0%E5%AF%86%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="VLESS 是一种新型的、无状态 (Stateless)、轻量级 的传输协议，由 V2Ray 社区开发并随 V2Ray 4.23 发布。它旨在替代或补充 V2Ray 之前使用的 VMess 协议，VLESS 的核心优势在于极简的设计理念、更低的性能开销、对 TLS 握手更好的支持以及未来协议扩展的灵活性。它被设计为高度透明，尽可能不干扰底层传输协议（如 TCP 或 WebSocket）本身的工作">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-21.jpg">
+<meta property="article:published_time" content="2023-09-28T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-10-12T14:45:06.474Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="代理协议">
+<meta property="article:tag" content="网络安全">
+<meta property="article:tag" content="VLESS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-21.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "VLESS协议详解：下一代无状态加密传输协议",
+  "url": "https://blog.tbf1211.xx.kg/2023/2023-09-29_VLESS%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E6%97%A0%E7%8A%B6%E6%80%81%E5%8A%A0%E5%AF%86%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-21.jpg",
+  "datePublished": "2023-09-28T22:24:00.000Z",
+  "dateModified": "2025-10-12T14:45:06.474Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2023/2023-09-29_VLESS%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E6%97%A0%E7%8A%B6%E6%80%81%E5%8A%A0%E5%AF%86%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'VLESS协议详解：下一代无状态加密传输协议',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">121</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">128</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">49</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-21.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">VLESS协议详解：下一代无状态加密传输协议</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">VLESS协议详解：下一代无状态加密传输协议</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-09-28T22:24:00.000Z" title="发表于 2023-09-29 06:24:00">2023-09-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/%E4%BB%A3%E7%90%86%E5%8D%8F%E8%AE%AE/">代理协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2023/2023-09-29_VLESS%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E6%97%A0%E7%8A%B6%E6%80%81%E5%8A%A0%E5%AF%86%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>VLESS</strong> 是一种新型的、<strong>无状态 (Stateless)、轻量级</strong> 的传输协议，由 V2Ray 社区开发并随 V2Ray 4.23 发布。它旨在替代或补充 V2Ray 之前使用的 VMess 协议，VLESS 的核心优势在于<strong>极简的设计理念、更低的性能开销、对 TLS 握手更好的支持以及未来协议扩展的灵活性</strong>。它被设计为高度透明，尽可能不干扰底层传输协议（如 TCP 或 WebSocket）本身的工作，从而实现更强大的抗审查能力和更好的性能。</p>
+</blockquote>
+<div class="note warning flat"><p><strong>重要提示</strong>：VLESS 协议本身不提供加密和混淆功能。它通常需要与底层的 TLS (Transport Layer Security) 协议结合使用，即常见的 <strong>VLESS + TLS + WebSocoket&#x2F;TCP</strong> 组合，才能提供加密和一定的抗审查能力。</p>
+</div>
+
+<h2 id="一、为什么需要-VLESS？VMess-的局限性"><a href="#一、为什么需要-VLESS？VMess-的局限性" class="headerlink" title="一、为什么需要 VLESS？VMess 的局限性"></a>一、为什么需要 VLESS？VMess 的局限性</h2><p>在 VLESS 出现之前，V2Ray 的主要协议是 VMess。VMess 协议虽然功能强大，但存在一些局限性：</p>
+<ol>
+<li><strong>有状态协议</strong>：VMess 在连接建立时需要握手，并维护客户端和服务器之间的会话状态。这增加了服务器的资源开销，尤其是在高并发场景下。</li>
+<li><strong>协议复杂性</strong>：VMess 的包头设计相对复杂，包含认证、加密算法选择、时间戳等多种字段，这使得协议解析和处理的开销较大。</li>
+<li><strong>流量特征</strong>：VMess 协议的设计使得其流量在严格的审查环境中可能暴露出一定的特征，虽然 V2Ray 提供了各种混淆方式，但协议自身的复杂性增加了混淆的难度。</li>
+<li><strong>对 TLS 握手的干扰</strong>：VMess 包头在 TLS 握手之前，这可能会影响 TLS 握手的完整性和“原生性”，使得流量伪装成普通 HTTPS 流量的效果不如预期。</li>
+</ol>
+<p>VLESS 旨在解决这些问题，提供一个**更简单、更高效、更“原生”**地与底层传输协议结合的解决方案。</p>
+<h2 id="二、VLESS-的核心设计理念与优势"><a href="#二、VLESS-的核心设计理念与优势" class="headerlink" title="二、VLESS 的核心设计理念与优势"></a>二、VLESS 的核心设计理念与优势</h2><h3 id="2-1-1-无状态-Stateless"><a href="#2-1-1-无状态-Stateless" class="headerlink" title="2.1 1. 无状态 (Stateless)"></a>2.1 1. 无状态 (Stateless)</h3><p>这是 VLESS 最核心的特点。VLESS 客户端和服务器之间不维护任何会话状态。每个连接都是独立的，服务器不需要存储客户端的任何连接信息。</p>
+<ul>
+<li><strong>优势</strong>：<ul>
+<li><strong>降低服务器资源开销</strong>：无需存储会话状态，服务器可以处理更多的并发连接。</li>
+<li><strong>提高连接建立速度</strong>：无需复杂握手过程，直接传输数据。</li>
+<li><strong>增强可伸缩性</strong>：非常适合在负载均衡和集群环境中部署。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-2-2-极简主义设计"><a href="#2-2-2-极简主义设计" class="headerlink" title="2.2 2. 极简主义设计"></a>2.2 2. 极简主义设计</h3><p>VLESS 协议头非常简单，只包含最基本的信息，几乎没有多余的字段。</p>
+<ul>
+<li><strong>结构</strong>：由版本、用户 ID、可选的扩展信息（头部、传输特性、参数）和负载数据组成。</li>
+<li><strong>优势</strong>：<ul>
+<li><strong>更低的性能开销</strong>：协议头处理简单，CPU 占用率和内存占用更低。</li>
+<li><strong>更接近原生流量</strong>：协议特征不明显，更有利于伪装。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-3-3-不提供内置加密和混淆"><a href="#2-3-3-不提供内置加密和混淆" class="headerlink" title="2.3 3. 不提供内置加密和混淆"></a>2.3 3. 不提供内置加密和混淆</h3><p>这是一个重要的设计决策。VLESS 协议本身<strong>不提供数据加密和混淆</strong>。它设计为配合底层的传输层安全协议（如 TLS）来保证数据安全和抗审查。</p>
+<ul>
+<li><strong>优势</strong>：<ul>
+<li><strong>更强的抗审查能力</strong>：当 VLESS 与 TLS 结合时，整个流量看起来就像标准的 HTTPS 流量。VLESS 的简洁头部不会像 VMess 那样，在 TLS 握手完成前暴露协议特征。</li>
+<li><strong>效率更高</strong>：避免了多次加密和解密（VLESS 自身加密 + TLS 加密），只依赖 TLS 的加密功能。</li>
+<li><strong>未来可扩展性</strong>：可以方便地与未来出现的更安全的加密或传输协议结合。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-4-4-用户认证基于-UUID"><a href="#2-4-4-用户认证基于-UUID" class="headerlink" title="2.4 4. 用户认证基于 UUID"></a>2.4 4. 用户认证基于 UUID</h3><p>VLESS 协议使用 <strong>UUID (Universally Unique Identifier)</strong> 进行用户认证。客户端需要在连接请求中提供一个有效的 UUID，服务器通过验证 UUID 来授权连接。</p>
+<ul>
+<li><strong>优势</strong>：<ul>
+<li><strong>简单有效</strong>：无需复杂的密码或密钥交换。</li>
+<li><strong>支持多用户</strong>：每个用户可以分配一个独立的 UUID。</li>
+</ul>
+</li>
+</ul>
+<h2 id="三、VLESS-协议的传输模式"><a href="#三、VLESS-协议的传输模式" class="headerlink" title="三、VLESS 协议的传输模式"></a>三、VLESS 协议的传输模式</h2><p>VLESS 协议本身是独立于底层传输方式的，它可以运行在多种传输协议之上。最常见的组合是：</p>
+<h3 id="3-1-1-VLESS-TCP"><a href="#3-1-1-VLESS-TCP" class="headerlink" title="3.1 1. VLESS + TCP"></a>3.1 1. VLESS + TCP</h3><p>这是最基础的传输方式。VLESS 流量直接封装在 TCP 连接中。</p>
+<ul>
+<li><strong>通常需要与 TLS 结合</strong>：为了保障数据安全和抗审查，通常需要配置 <code>VLESS + TCP + TLS</code>。在这种模式下，整个 TCP 连接会被 TLS 加密和保护，VLESS 协议头和数据是 TLS 加密负载的一部分。</li>
+<li><strong>优势</strong>：简单、性能好。</li>
+</ul>
+<h3 id="3-2-2-VLESS-WebSocket-WS"><a href="#3-2-2-VLESS-WebSocket-WS" class="headerlink" title="3.2 2. VLESS + WebSocket (WS)"></a>3.2 2. VLESS + WebSocket (WS)</h3><p>VLESS 流量封装在 WebSocket 连接中，而 WebSocket 连接又运行在 HTTP&#x2F;HTTPS 之上。</p>
+<ul>
+<li><strong>通常需要与 TLS 结合</strong>：最常见的组合是 <code>VLESS + WS + TLS</code>。在这种模式下，HTTPS 协议提供了加密和伪装功能。</li>
+<li><strong>优势</strong>：<ul>
+<li><strong>强大的伪装能力</strong>：流量看起来是标准的 WebSocket over HTTPS 流量，可以伪装成网站的静态资源请求或其他 Web 应用流量，不易被识别和阻断。</li>
+<li><strong>易于与 CDN 结合</strong>：可以利用 CDN 的分发和隐藏真实 IP 地址的能力，进一步增强抗审查效果。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-3-3-VLESS-HTTP-2"><a href="#3-3-3-VLESS-HTTP-2" class="headerlink" title="3.3 3. VLESS + HTTP&#x2F;2"></a>3.3 3. VLESS + HTTP&#x2F;2</h3><p>VLESS 流量封装在 HTTP&#x2F;2 连接中，而 HTTP&#x2F;2 通常运行在 TLS 之上。</p>
+<ul>
+<li><strong>强大的伪装能力</strong>：与 WebSocket 类似，可以伪装成正常的网站流量。</li>
+<li><strong>性能优化</strong>：HTTP&#x2F;2 的多路复用特性在某些场景下可能提供更好的性能。</li>
+</ul>
+<h3 id="3-4-4-VLESS-gRPC"><a href="#3-4-4-VLESS-gRPC" class="headerlink" title="3.4 4. VLESS + gRPC"></a>3.4 4. VLESS + gRPC</h3><p>gRPC 基于 HTTP&#x2F;2，VLESS 流量封装在 gRPC 连接中，同样运行在 TLS 之上。</p>
+<ul>
+<li><strong>更好的伪装</strong>：gRPC 流量更具备应用程序特征，比普通的 WebSocket 流量更隐蔽不容易被特征识别。</li>
+<li><strong>性能和可靠性</strong>：gRPC 作为高性能 RPC 框架，提供了更好的性能和错误处理。</li>
+</ul>
+<h2 id="四、VLESS-的工作流程-以-VLESS-TCP-TLS-为例"><a href="#四、VLESS-的工作流程-以-VLESS-TCP-TLS-为例" class="headerlink" title="四、VLESS 的工作流程 (以 VLESS + TCP + TLS 为例)"></a>四、VLESS 的工作流程 (以 VLESS + TCP + TLS 为例)</h2><ol>
+<li><strong>域名解析&#x2F;TCP 握手</strong>：客户端解析服务器域名，与服务器建立标准的 TCP 连接。</li>
+<li><strong>TLS 握手</strong>：客户端与服务器进行标准的 TLS 握手。VLESS 的无状态特性让 TLS 握手能正常进行，不被额外的协议头干扰。客户端通过 SNI (Server Name Indication) 指示访问的域名，服务器返回证书。握手成功后，后续的所有数据都将通过 TLS 进行加密。</li>
+<li><strong>VLESS 头部发送</strong>：在 TLS 加密的隧道内，客户端发送 VLESS 的请求头部。该头部包含：<ul>
+<li><strong>版本号</strong>：通常是 <code>00</code>。</li>
+<li><strong>用户 ID (UUID)</strong>：用于认证。</li>
+<li><strong>指令</strong>：如连接目标地址和端口等。</li>
+<li><strong>头部长度和传输特性</strong>：表示 VLESS 头部的额外信息。</li>
+</ul>
+</li>
+<li><strong>数据传输</strong>：服务器验证 UUID，如果合法，则根据指令建立到目标网站的连接，将客户端后续发送的数据通过 TLS 隧道转发到目标网站，并将目标网站返回的数据通过 TLS 隧道转发回客户端。所有数据在 TLS 保护下进行，VLESS 协议在其中仅仅是提供了一个透明的数据传输通道。</li>
+</ol>
+<h2 id="五、VLESS-的配置文件示例-Xray-V2Ray"><a href="#五、VLESS-的配置文件示例-Xray-V2Ray" class="headerlink" title="五、VLESS 的配置文件示例 (Xray&#x2F;V2Ray)"></a>五、VLESS 的配置文件示例 (Xray&#x2F;V2Ray)</h2><p>以下是一个简化的 VLESS + WS + TLS 配置示例：</p>
+<p><strong>客户端配置 (Client config.json)</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;log&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;loglevel&quot;</span><span class="punctuation">:</span> <span class="string">&quot;info&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;inbounds&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;port&quot;</span><span class="punctuation">:</span> <span class="number">1080</span><span class="punctuation">,</span> <span class="comment">// SOCKS5 代理端口</span></span><br><span class="line">      <span class="attr">&quot;listen&quot;</span><span class="punctuation">:</span> <span class="string">&quot;127.0.0.1&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;protocol&quot;</span><span class="punctuation">:</span> <span class="string">&quot;socks&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;settings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;auth&quot;</span><span class="punctuation">:</span> <span class="string">&quot;no&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;outbounds&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;protocol&quot;</span><span class="punctuation">:</span> <span class="string">&quot;vless&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;settings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;vnext&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">          <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;address&quot;</span><span class="punctuation">:</span> <span class="string">&quot;your_domain.com&quot;</span><span class="punctuation">,</span> <span class="comment">// 你的服务器域名</span></span><br><span class="line">            <span class="attr">&quot;port&quot;</span><span class="punctuation">:</span> <span class="number">443</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;users&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">              <span class="punctuation">&#123;</span></span><br><span class="line">                <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;你的UUID&quot;</span><span class="punctuation">,</span> <span class="comment">// 和服务器配置保持一致</span></span><br><span class="line">                <span class="attr">&quot;encryption&quot;</span><span class="punctuation">:</span> <span class="string">&quot;none&quot;</span> <span class="comment">// VLESS 协议自身不加密</span></span><br><span class="line">              <span class="punctuation">&#125;</span></span><br><span class="line">            <span class="punctuation">]</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;streamSettings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;network&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ws&quot;</span><span class="punctuation">,</span> <span class="comment">// 使用 WebSocket 传输</span></span><br><span class="line">        <span class="attr">&quot;security&quot;</span><span class="punctuation">:</span> <span class="string">&quot;tls&quot;</span><span class="punctuation">,</span> <span class="comment">// 开启 TLS 加密</span></span><br><span class="line">        <span class="attr">&quot;tlsSettings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;serverName&quot;</span><span class="punctuation">:</span> <span class="string">&quot;your_domain.com&quot;</span><span class="punctuation">,</span> <span class="comment">// 域名要和证书匹配</span></span><br><span class="line">          <span class="attr">&quot;allowInsecure&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;fingerprint&quot;</span><span class="punctuation">:</span> <span class="string">&quot;客户端指纹，可选&quot;</span> <span class="comment">// 可选，用于增强安全性</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;wsSettings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/你的路径&quot;</span> <span class="comment">// 和服务器配置保持一致</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>服务器配置 (Server config.json)</strong></p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;log&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;loglevel&quot;</span><span class="punctuation">:</span> <span class="string">&quot;info&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;inbounds&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;port&quot;</span><span class="punctuation">:</span> <span class="number">443</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;protocol&quot;</span><span class="punctuation">:</span> <span class="string">&quot;vless&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;settings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;clients&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">          <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;你的UUID&quot;</span><span class="punctuation">,</span> <span class="comment">// 和客户端配置保持一致</span></span><br><span class="line">            <span class="attr">&quot;encryption&quot;</span><span class="punctuation">:</span> <span class="string">&quot;none&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;level&quot;</span><span class="punctuation">:</span> <span class="number">0</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;decryption&quot;</span><span class="punctuation">:</span> <span class="string">&quot;none&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;streamSettings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;network&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ws&quot;</span><span class="punctuation">,</span> <span class="comment">// 使用 WebSocket 传输</span></span><br><span class="line">        <span class="attr">&quot;security&quot;</span><span class="punctuation">:</span> <span class="string">&quot;tls&quot;</span><span class="punctuation">,</span> <span class="comment">// 开启 TLS 加密</span></span><br><span class="line">        <span class="attr">&quot;tlsSettings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;certificates&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">            <span class="punctuation">&#123;</span></span><br><span class="line">              <span class="attr">&quot;certificateFile&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/path/to/your/cert.pem&quot;</span><span class="punctuation">,</span> <span class="comment">// 你的 SSL 证书路径</span></span><br><span class="line">              <span class="attr">&quot;keyFile&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/path/to/your/key.key&quot;</span> <span class="comment">// 你的 SSL 私钥路径</span></span><br><span class="line">            <span class="punctuation">&#125;</span></span><br><span class="line">          <span class="punctuation">]</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;wsSettings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;path&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/你的路径&quot;</span> <span class="comment">// 和客户端配置保持一致</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;outbounds&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;protocol&quot;</span><span class="punctuation">:</span> <span class="string">&quot;freedom&quot;</span><span class="punctuation">,</span> <span class="comment">// 默认的出站协议，直接转发流量</span></span><br><span class="line">      <span class="attr">&quot;settings&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="六、VLESS-与-VMess-的比较"><a href="#六、VLESS-与-VMess-的比较" class="headerlink" title="六、VLESS 与 VMess 的比较"></a>六、VLESS 与 VMess 的比较</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">VLESS</th>
+<th align="left">VMess</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>协议状态</strong></td>
+<td align="left">无状态 (Stateless)</td>
+<td align="left">有状态 (Stateful)</td>
+</tr>
+<tr>
+<td align="left"><strong>加密&#x2F;混淆</strong></td>
+<td align="left">协议自身<strong>不提供</strong>，依赖底层传输层协议 (TLS)</td>
+<td align="left">协议自身<strong>提供</strong>加密和混淆</td>
+</tr>
+<tr>
+<td align="left"><strong>性能开销</strong></td>
+<td align="left">极低，CPU 和内存占用更少</td>
+<td align="left">相对较高</td>
+</tr>
+<tr>
+<td align="left"><strong>安全性</strong></td>
+<td align="left">依赖 TLS，与原生 HTTPS 流量难以区分</td>
+<td align="left">自身加密提供安全，但协议头可能暴露特征</td>
+</tr>
+<tr>
+<td align="left"><strong>抗审查能力</strong></td>
+<td align="left">强，尤其配合 TLS + WS&#x2F;gRPC，伪装效果好</td>
+<td align="left">相对较弱，但可通过各种混淆配置增强</td>
+</tr>
+<tr>
+<td align="left"><strong>配置复杂度</strong></td>
+<td align="left">相对简单</td>
+<td align="left">相对复杂</td>
+</tr>
+<tr>
+<td align="left"><strong>应用场景</strong></td>
+<td align="left">注重性能、追求极致抗审查和原生伪装</td>
+<td align="left">性能要求不高，或需要 V2Ray 自带加密的场景</td>
+</tr>
+</tbody></table>
+<h2 id="七、安全性考虑"><a href="#七、安全性考虑" class="headerlink" title="七、安全性考虑"></a>七、安全性考虑</h2><ol>
+<li><strong>TLS 证书安全</strong>：务必使用<strong>有效、可信</strong>的 SSL&#x2F;TLS 证书（如 Let’s Encrypt 免费证书），并定期更新。</li>
+<li><strong>UUID 保密</strong>：不要泄露你的 UUID，它是你连接到服务器的凭证。</li>
+<li><strong>域名伪装</strong>：选择一个常用的网站域名进行伪装，配合 Web 服务器（如 Nginx）的反向代理功能，将 <code>/你的路径</code> 以外的请求转发到真实的网站，进一步增强伪装效果。</li>
+<li><strong>协议指纹</strong>：可以开启 TLS 的 <code>fingerprint</code> 功能，或使用 <code>xtls</code> 开启真实流量分流，进一步降低被识别的风险。</li>
+<li><strong>服务端安全</strong>：确保服务器的操作系统和 V2Ray&#x2F;Xray 软件本身的安全，定期更新。</li>
+</ol>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>VLESS 协议以其独特的<strong>无状态、极简主义</strong>设计，以及对<strong>底层 TLS 的完美支持</strong>，在对抗网络审查和保护用户隐私方面展现出强大的潜力。它解决了 VMess 协议的一些固有局限性，提供了更高效、更隐蔽的传输方案。对于追求极致性能、强大抗审查能力和原生 HTTPS 伪装效果的用户而言，VLESS 无疑是当前最优秀的代理协议之一。然而，VLESS 的强大也意味着对 TLS 的高度依赖，因此正确配置和维护 SSL&#x2F;TLS 证书是确保其安全和有效性的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2023/2023-09-29_VLESS%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E6%97%A0%E7%8A%B6%E6%80%81%E5%8A%A0%E5%AF%86%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE/">https://blog.tbf1211.xx.kg/2023/2023-09-29_VLESS%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%B8%8B%E4%B8%80%E4%BB%A3%E6%97%A0%E7%8A%B6%E6%80%81%E5%8A%A0%E5%AF%86%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E4%BB%A3%E7%90%86%E5%8D%8F%E8%AE%AE/">代理协议</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><a class="post-meta__tags" href="/tags/VLESS/">VLESS</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-21.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2023/2023-10-04_Vue3%20ref%E5%92%8Creactive%E5%AF%B9%E6%AF%94%E8%A7%A3%E6%9E%90%EF%BC%9A%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E5%93%8D%E5%BA%94%E5%BC%8F%E6%95%B0%E6%8D%AE/" title="Vue3 ref和reactive对比解析：深入理解响应式数据"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Vue3 ref和reactive对比解析：深入理解响应式数据</div></div><div class="info-2"><div class="info-item-1"> Vue 3 引入的 Composition API (组合式 API) 为我们提供了更强大、更灵活的逻辑组织和复用能力。在 Composition API 中，管理响应式状态的核心就是 ref 和 reactive 这两个函数。理解它们的异同和适用场景，是掌握 Vue 3 响应式系统、编写高效且可维护组件的关键。  本文将详细对比 ref 和 reactive，从原理、用法、优缺点及适用场景等方面进行深入解析，帮助你更好地在 Vue 3 项目中做出选择。   一、 响应式数据的核心概念在 Vue 3 中，响应式数据指的是当数据发生变化时，相关的 DOM 会自动更新。这是通过 ES2015 的 Proxy 对象实现的，Vue 3 利用 Proxy 代理数据对象，从而能够侦测到对象属性的读取和修改。 无论是 ref 还是 reactive，它们最终目的都是创建响应式数据。 二、 reactive 详解1. 概念reactive 函数接收一个 普通 JavaScript 对象（包括数组），并返回该对象的响应式代理 (Proxy)。这个代理对象具有 深度响应性，即对象内部嵌套的所有对象...</div></div></div></a><a class="pagination-related" href="/2023/2023-09-27_VMess%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9AV2Ray%E6%A0%B8%E5%BF%83%E5%8A%A0%E5%AF%86%E4%BB%A3%E7%90%86%E5%8D%8F%E8%AE%AE/" title="VMess协议详解：V2Ray核心加密代理协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">VMess协议详解：V2Ray核心加密代理协议</div></div><div class="info-2"><div class="info-item-1"> VMess 是 V2Ray 项目最初开发的一款加密传输协议，也是 V2Ray 的核心协议。它旨在提供一个安全、高效、高匿名性的代理传输方式，以应对复杂的网络审查环境。VMess 协议在设计时考虑了多种加密和混淆方案，并支持多种底层传输协议（如 TCP、WebSocket、mKCP 等），使其在各种网络环境下都具备较强的适应性和抗审查能力。  核心思想：VMess 协议通过复杂的协议头、多重加密机制和灵活的传输配置，实现在客户端和服务器之间建立一个加密且相对隐蔽的通信隧道，以达到绕过网络审查、保护用户隐私的目的。   一、为什么需要 VMess？传统的代理协议（如 SOCKS5、HTTP 代理）或简单的 VPN 协议（如 PPTP）在安全性和抗审查方面存在不足：  缺乏加密：数据明文传输，容易被监听和审查。 协议特征明显：协议固有的特征容易被防火墙识别和封锁。 安全性弱点：认证机制不够完善，易受到攻击。  VMess 协议旨在解决这些问题，提供一个增强安全性、抵抗审查、且高度可配置的代理方案。 二、VMess 的核心特性与机制VMess 协议的设计复杂而精妙，主要包含以下核心特性...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2023/2023-05-22_SOCKS5%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%BD%91%E7%BB%9C%E4%BB%A3%E7%90%86%E7%9A%84%E5%9F%BA%E7%A1%80%E4%B8%8E%E9%80%9A%E7%94%A8%E5%8D%8F%E8%AE%AE/" title="SOCKS5协议详解：网络代理的基础与通用协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-22</div><div class="info-item-2">SOCKS5协议详解：网络代理的基础与通用协议</div></div><div class="info-2"><div class="info-item-1"> SOCKS5 是一种网络传输协议，它允许客户端通过一个“代理服务器”间接地连接到其他服务器。SOCKS 是 “SOCKet Secure” 的缩写，版本 5 是目前最常用的 SOCKS 协议版本。SOCKS5 协议工作在 OSI 模型中的会话层 (第五层)，能够处理TCP 和 UDP 两种流量，并且支持多种认证方式。它本身不提供加密功能，主要用于路由流量和隐藏真实 IP 地址，是许多更高级代理协议（如 Shadowsocks、V2Ray 客户端的本地监听）的基础。  核心思想：SOCKS5 是一个通用的网络代理协议，它实现了在客户端和目标服务器之间建立连接的中间转发机制。它不关心应用层数据，只负责转发 TCP 连接和 UDP 数据包，并提供认证功能。   一、为什么需要 SOCKS5 代理？在没有代理的情况下，应用程序直接连接到目标服务器。SOCKS5 代理的出现，主要解决了以下问题：  突破网络限制：当直接访问某个服务受阻时，可以通过 SOCKS5 代理服务器进行中转，绕过本地网络限制。 隐藏真实 IP 地址：客户端的真实 IP 地址对目标服务器隐藏，保护用户隐私。 负载均衡...</div></div></div></a><a class="pagination-related" href="/2023/2023-07-03_Shadowsocks(SS)%E8%AF%A6%E8%A7%A3%EF%BC%9A%E8%BD%BB%E9%87%8F%E7%BA%A7%E5%8A%A0%E5%AF%86%E4%BB%A3%E7%90%86%E5%8D%8F%E8%AE%AE/" title="Shadowsocks(SS)详解：轻量级加密代理协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-07-03</div><div class="info-item-2">Shadowsocks(SS)详解：轻量级加密代理协议</div></div><div class="info-2"><div class="info-item-1"> Shadowsocks (SS) 是一个开源的SOCKS5 代理协议，由 @clowwindy 于 2012 年开发。它专门设计用于穿透网络审查，并保护用户隐私。与传统 VPN 不同，Shadowsocks 采取了轻量级的加密和混淆机制，旨在让代理流量看起来不那么“突出”，从而避免被网络防火墙识别和阻断。其简洁高效的设计概念，使其一度成为最流行的科学上网工具之一。  核心思想：Shadowsocks 通过特定的加密算法对SOCKS5代理流量进行加密，并通常通过在TCP层提供一个“看起来像随机数据”的加密层，来隐藏其代理本质，而非像 VPN 那样建立一个完整的隧道。   一、为什么需要 Shadowsocks？传统的 VPN 协议，如 PPTP、L2TP&#x2F;IPSec 等，虽然能提供加密和匿名性，但在严格的网络审查环境下，其协议特征容易被防火墙识别和阻断。许多早期 VPN 服务商采用的 PPTP 协议甚至因为安全性弱点而不再被推荐。 Shadowsocks 旨在解决以下问题：  协议特征明显：传统 VPN 协议的握手和数据包结构特征明显，容易被防火墙识别。 性能开销：完整...</div></div></div></a><a class="pagination-related" href="/2023/2023-09-27_VMess%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9AV2Ray%E6%A0%B8%E5%BF%83%E5%8A%A0%E5%AF%86%E4%BB%A3%E7%90%86%E5%8D%8F%E8%AE%AE/" title="VMess协议详解：V2Ray核心加密代理协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-09-27</div><div class="info-item-2">VMess协议详解：V2Ray核心加密代理协议</div></div><div class="info-2"><div class="info-item-1"> VMess 是 V2Ray 项目最初开发的一款加密传输协议，也是 V2Ray 的核心协议。它旨在提供一个安全、高效、高匿名性的代理传输方式，以应对复杂的网络审查环境。VMess 协议在设计时考虑了多种加密和混淆方案，并支持多种底层传输协议（如 TCP、WebSocket、mKCP 等），使其在各种网络环境下都具备较强的适应性和抗审查能力。  核心思想：VMess 协议通过复杂的协议头、多重加密机制和灵活的传输配置，实现在客户端和服务器之间建立一个加密且相对隐蔽的通信隧道，以达到绕过网络审查、保护用户隐私的目的。   一、为什么需要 VMess？传统的代理协议（如 SOCKS5、HTTP 代理）或简单的 VPN 协议（如 PPTP）在安全性和抗审查方面存在不足：  缺乏加密：数据明文传输，容易被监听和审查。 协议特征明显：协议固有的特征容易被防火墙识别和封锁。 安全性弱点：认证机制不够完善，易受到攻击。  VMess 协议旨在解决这些问题，提供一个增强安全性、抵抗审查、且高度可配置的代理方案。 二、VMess 的核心特性与机制VMess 协议的设计复杂而精妙，主要包含以下核心特性...</div></div></div></a><a class="pagination-related" href="/2023/2023-10-17_Trojan%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E4%BC%AA%E8%A3%85%E4%B8%BA%20HTTPS%20%E7%9A%84%E6%97%A0%E7%8A%B6%E6%80%81%E4%BB%A3%E7%90%86%E5%8D%8F%E8%AE%AE/" title="Trojan协议详解：伪装为 HTTPS 的无状态代理协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-17</div><div class="info-item-2">Trojan协议详解：伪装为 HTTPS 的无状态代理协议</div></div><div class="info-2"><div class="info-item-1"> Trojan 是一个高度伪装的代理协议，其核心设计理念是模拟最常见的流量特征——HTTPS，从而达到瞒天过海、不被审查系统识别和阻断的目的。与 VMess、Shadowsocks 等协议通过自定义加密和混淆来隐藏自身不同，Trojan 反其道而行之，直接将代理流量伪装成普通的 HTTPS 流量。它的名字也暗示了其隐蔽性，如同“特洛伊木马”一般，隐藏在看似无害的外表之下。  核心思想：Trojan 利用 HTTPS 协议的特点，直接在 TLS 握手完成后，将客户端密码作为认证信息，然后通过 TLS 加密隧道传输实际代理数据。它不额外引入复杂的加密或混淆，而是让代理流量“融入”正常的 HTTPS 流量之中。   一、为什么需要 Trojan？在严格的网络审查环境下，传统的代理协议（如 Shadowsocks、OpenVPN 等）可能会因为其独特的流量特征而被识别和阻断。即使是 V2Ray&#x2F;Xray 的 VMess 和 VLESS 协议，虽然可以通过 WebSocket + TLS 很好地伪装成 HTTPS 流量，但它们在 TLS 握手成功后，仍然会在 TLS 隧道内部传输...</div></div></div></a><a class="pagination-related" href="/2023/2023-10-12_%E5%B8%B8%E8%A7%81%E7%BD%91%E7%BB%9C%E6%94%BB%E5%87%BB%E8%AF%A6%E8%A7%A3%E4%B8%8E%E9%A2%84%E9%98%B2%EF%BC%9A%E6%9E%84%E5%BB%BA%E6%95%B0%E5%AD%97%E5%AE%89%E5%85%A8%E9%98%B2%E7%BA%BF/" title="常见网络攻击详解与预防：构建数字安全防线"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-12</div><div class="info-item-2">常见网络攻击详解与预防：构建数字安全防线</div></div><div class="info-2"><div class="info-item-1"> 在数字时代，网络攻击已成为无处不在的威胁。从个人数据泄露到企业系统瘫痪，网络攻击的危害日益增长，形式也越来越多样化。理解这些S攻击类型、攻击原理以及如何有效预防它们，是构建强大数字安全防线的基石。本文将详细介绍一些最常见的网络攻击及其相应的防范措施。  “网络安全不是一蹴而就的，而是一个持续不断的过程，需要技术、策略和人的共同努力。”   一、概述：网络攻击的种类与威胁网络攻击通常利用系统、应用或协议的漏洞，试图破坏数据的机密性（Confidentiality）、完整性（Integrity）和可用性（Availability），即所谓的 CIA 三要素。 根据攻击目标和手段，网络攻击可以分为多种类型：  拒绝服务攻击 (DoS&#x2F;DDoS)：破坏系统的可用性。 数据窃取&#x2F;泄露：破坏数据的机密性。 数据篡改：破坏数据的完整性。 恶意程序感染：破坏系统的可控性，窃取数据或进行其他恶意活动。 社会工程学攻击：利用人性的弱点进行欺骗。  接下来，我们将详细解析几种最常见的攻击类型。 二、常见网络攻击详解与预防2.1 拒绝服务攻击 (DoS &#x2F; DDoS)2....</div></div></div></a><a class="pagination-related" href="/2023/2023-12-21_JWT%20(JSON%20Web%20Tokens)%20%E8%AF%A6%E8%A7%A3/" title="JWT (JSON Web Tokens) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-12-21</div><div class="info-item-2">JWT (JSON Web Tokens) 详解</div></div><div class="info-2"><div class="info-item-1"> JWT (JSON Web Token) 是一个开放标准 (RFC 7519)，它定义了一种简洁、自包含且安全的方式，用于在各方之间安全地传输信息。这些信息通过数字签名进行验证，可以被信任。JWT 通常用作无状态 (Stateless) 认证机制，替代传统的 Session-Cookie 模式。  核心思想：将用户认证信息和少量授权信息编码进 Token 本身，并通过签名确保其不可篡改。 服务端无需存储 Session 状态，只需验证 Token 即可。   一、为什么需要 JWT？传统的基于 Session-Cookie 的认证方式有其局限性：  有状态 (Stateful)：服务端需要存储每个用户的 Session 信息。随着用户量增加，存储和管理 Session 成为负担，特别是分布式部署和微服务架构下，Session 共享和同步变得复杂。 跨域问题：Cookie 默认是同源策略，跨域请求携带 Cookie 会比较复杂，需要复杂的 CORS (Cross-Origin Resource Sharing) 配置。 移动端不友好：移动应用通常不依赖 Cookie，需要更灵活的...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">121</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">128</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">49</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-VLESS%EF%BC%9FVMess-%E7%9A%84%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">一、为什么需要 VLESS？VMess 的局限性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81VLESS-%E7%9A%84%E6%A0%B8%E5%BF%83%E8%AE%BE%E8%AE%A1%E7%90%86%E5%BF%B5%E4%B8%8E%E4%BC%98%E5%8A%BF"><span class="toc-text">二、VLESS 的核心设计理念与优势</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-1-%E6%97%A0%E7%8A%B6%E6%80%81-Stateless"><span class="toc-text">2.1 1. 无状态 (Stateless)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-2-%E6%9E%81%E7%AE%80%E4%B8%BB%E4%B9%89%E8%AE%BE%E8%AE%A1"><span class="toc-text">2.2 2. 极简主义设计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-3-%E4%B8%8D%E6%8F%90%E4%BE%9B%E5%86%85%E7%BD%AE%E5%8A%A0%E5%AF%86%E5%92%8C%E6%B7%B7%E6%B7%86"><span class="toc-text">2.3 3. 不提供内置加密和混淆</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-4-%E7%94%A8%E6%88%B7%E8%AE%A4%E8%AF%81%E5%9F%BA%E4%BA%8E-UUID"><span class="toc-text">2.4 4. 用户认证基于 UUID</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81VLESS-%E5%8D%8F%E8%AE%AE%E7%9A%84%E4%BC%A0%E8%BE%93%E6%A8%A1%E5%BC%8F"><span class="toc-text">三、VLESS 协议的传输模式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-1-VLESS-TCP"><span class="toc-text">3.1 1. VLESS + TCP</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-2-VLESS-WebSocket-WS"><span class="toc-text">3.2 2. VLESS + WebSocket (WS)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-3-VLESS-HTTP-2"><span class="toc-text">3.3 3. VLESS + HTTP&#x2F;2</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-4-VLESS-gRPC"><span class="toc-text">3.4 4. VLESS + gRPC</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81VLESS-%E7%9A%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B-%E4%BB%A5-VLESS-TCP-TLS-%E4%B8%BA%E4%BE%8B"><span class="toc-text">四、VLESS 的工作流程 (以 VLESS + TCP + TLS 为例)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81VLESS-%E7%9A%84%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E7%A4%BA%E4%BE%8B-Xray-V2Ray"><span class="toc-text">五、VLESS 的配置文件示例 (Xray&#x2F;V2Ray)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81VLESS-%E4%B8%8E-VMess-%E7%9A%84%E6%AF%94%E8%BE%83"><span class="toc-text">六、VLESS 与 VMess 的比较</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E8%99%91"><span class="toc-text">七、安全性考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-06_TresJS%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8Vue%E7%9A%84%E6%96%B9%E5%BC%8F%E6%9E%84%E5%BB%BAThree.js%E5%9C%BA%E6%99%AF/" title="TresJS详解：用Vue的方式构建Three.js场景"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="TresJS详解：用Vue的方式构建Three.js场景"/></a><div class="content"><a class="title" href="/2025/2025-10-06_TresJS%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8Vue%E7%9A%84%E6%96%B9%E5%BC%8F%E6%9E%84%E5%BB%BAThree.js%E5%9C%BA%E6%99%AF/" title="TresJS详解：用Vue的方式构建Three.js场景">TresJS详解：用Vue的方式构建Three.js场景</a><time datetime="2025-10-05T22:24:00.000Z" title="发表于 2025-10-06 06:24:00">2025-10-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-01_Go%E8%AF%AD%E8%A8%80%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88(Pointer%20to%20Pointer)%E8%AF%A6%E8%A7%A3/" title="Go语言指向指针的指针(Pointer to Pointer)详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言指向指针的指针(Pointer to Pointer)详解"/></a><div class="content"><a class="title" href="/2025/2025-10-01_Go%E8%AF%AD%E8%A8%80%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88(Pointer%20to%20Pointer)%E8%AF%A6%E8%A7%A3/" title="Go语言指向指针的指针(Pointer to Pointer)详解">Go语言指向指针的指针(Pointer to Pointer)详解</a><time datetime="2025-09-30T22:24:00.000Z" title="发表于 2025-10-01 06:24:00">2025-10-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-09-28_HTMX%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8HTML%E5%B1%9E%E6%80%A7%E7%9B%B4%E6%8E%A5%E9%A9%B1%E5%8A%A8AJAX%E3%80%81CSS%E8%BF%87%E6%B8%A1%E5%92%8CWebSocket/" title="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket"/></a><div class="content"><a class="title" href="/2025/2025-09-28_HTMX%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8HTML%E5%B1%9E%E6%80%A7%E7%9B%B4%E6%8E%A5%E9%A9%B1%E5%8A%A8AJAX%E3%80%81CSS%E8%BF%87%E6%B8%A1%E5%92%8CWebSocket/" title="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket">HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket</a><time datetime="2025-09-27T22:24:00.000Z" title="发表于 2025-09-28 06:24:00">2025-09-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/" title="WSL2详解：在Windows运行Linux的新标准"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WSL2详解：在Windows运行Linux的新标准"/></a><div class="content"><a class="title" href="/2025/2025-09-22_WSL2%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%9C%A8Windows%E8%BF%90%E8%A1%8CLinux%E7%9A%84%E6%96%B0%E6%A0%87%E5%87%86/" title="WSL2详解：在Windows运行Linux的新标准">WSL2详解：在Windows运行Linux的新标准</a><time datetime="2025-09-21T22:24:00.000Z" title="发表于 2025-09-22 06:24:00">2025-09-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="GoLang Wails 框架详解：用 Web 技术构建桌面应用"/></a><div class="content"><a class="title" href="/2025/2025-09-18_GoLang%20Wails%20%E6%A1%86%E6%9E%B6%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8%20Web%20%E6%8A%80%E6%9C%AF%E6%9E%84%E5%BB%BA%E6%A1%8C%E9%9D%A2%E5%BA%94%E7%94%A8/" title="GoLang Wails 框架详解：用 Web 技术构建桌面应用">GoLang Wails 框架详解：用 Web 技术构建桌面应用</a><time datetime="2025-09-17T22:24:00.000Z" title="发表于 2025-09-18 06:24:00">2025-09-18</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-21.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/tags/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/tags/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/tags/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><script src="/self/sakura.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>
