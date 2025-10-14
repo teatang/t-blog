@@ -3,9 +3,11 @@ title: JWT (JSON Web Tokens) 详解
 date: 2023-12-21 06:24:00
 tags:
   - 2023
+  - 计算机网络
   - 网络安全
   - JWT
 categories:
+  - 计算机网络
   - 网络安全
 ---
 > **JWT (JSON Web Token)** 是一个**开放标准 (RFC 7519)**，它定义了一种简洁、自包含且安全的方式，用于在各方之间安全地传输信息。这些信息通过数字签名进行验证，可以被信任。JWT 通常用作**无状态 (Stateless) 认证机制**，替代传统的 Session-Cookie 模式。
