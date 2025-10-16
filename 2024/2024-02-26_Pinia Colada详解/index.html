@@ -1,0 +1,565 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Pinia Colada详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Pinia Colada 是一个为 Vue 3 和 Pinia 设计的高级数据管理和持久化工具，旨在简化异步数据获取、缓存、以及状态在浏览器存储中的持久化。它将 Pinia 的核心优势与强大的数据管理策略相结合，帮助开发者构建更健壮、响应更快、用户体验更流畅的 Web 应用。  核心思想：Pinia Colada 致力于将数据获取 (Fetching)、数据缓存 (Caching)、数据持久化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Pinia Colada详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2024/2024-02-26_Pinia%20Colada%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Pinia Colada 是一个为 Vue 3 和 Pinia 设计的高级数据管理和持久化工具，旨在简化异步数据获取、缓存、以及状态在浏览器存储中的持久化。它将 Pinia 的核心优势与强大的数据管理策略相结合，帮助开发者构建更健壮、响应更快、用户体验更流畅的 Web 应用。  核心思想：Pinia Colada 致力于将数据获取 (Fetching)、数据缓存 (Caching)、数据持久化">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg">
+<meta property="article:published_time" content="2024-02-25T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-10-16T05:36:39.448Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="JavaScript">
+<meta property="article:tag" content="Vue">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="Pinia">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Pinia Colada详解",
+  "url": "https://blog.tbf1211.xx.kg/2024/2024-02-26_Pinia%20Colada%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg",
+  "datePublished": "2024-02-25T22:24:00.000Z",
+  "dateModified": "2025-10-16T05:36:39.448Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2024/2024-02-26_Pinia%20Colada%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Pinia Colada详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">141</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">139</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">52</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-07.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Pinia Colada详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/tags/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/tags/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Pinia Colada详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-02-25T22:24:00.000Z" title="发表于 2024-02-26 06:24:00">2024-02-26</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/Vue/">Vue</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2024/2024-02-26_Pinia%20Colada%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Pinia Colada</strong> 是一个为 Vue 3 和 Pinia 设计的<strong>高级数据管理和持久化工具</strong>，旨在简化异步数据获取、缓存、以及状态在浏览器存储中的持久化。它将 Pinia 的核心优势与强大的数据管理策略相结合，帮助开发者构建更健壮、响应更快、用户体验更流畅的 Web 应用。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想</strong>：Pinia Colada 致力于将<strong>数据获取 (Fetching)</strong>、<strong>数据缓存 (Caching)</strong>、<strong>数据持久化 (Persistence)</strong> 和 <strong>后端状态同步 (Synchronization)</strong> 等复杂逻辑封装在易于使用的 Pinia Store 抽象之上。它使得处理异步数据像管理本地状态一样简单，同时提供声明式的 API 来控制数据的生命周期。</p>
+</div>
+
+<h2 id="一、为什么需要-Pinia-Colada？"><a href="#一、为什么需要-Pinia-Colada？" class="headerlink" title="一、为什么需要 Pinia Colada？"></a>一、为什么需要 Pinia Colada？</h2><p>在现代 Web 应用中，处理异步数据（如来自 API 的数据）和管理其生命周期是一个常见的挑战。仅仅依靠 Pinia 的 <code>actions</code> 来 <code>fetch</code> 数据，并不能很好地解决以下问题：</p>
+<ul>
+<li><strong>数据重复请求</strong>：多个组件可能请求相同的数据，导致不必要的网络开销。</li>
+<li><strong>请求加载状态管理</strong>：手动维护每个请求的 <code>loading</code> 和 <code>error</code> 状态代码冗余。</li>
+<li><strong>数据缓存策略</strong>：如何有效地缓存数据以提高性能，同时确保数据不过时。</li>
+<li><strong>离线访问&#x2F;持久化</strong>：如何在刷新页面或重新打开应用后保持部分状态和数据。</li>
+<li><strong>乐观更新</strong>：当执行写操作（如 POST, PUT, DELETE）时，如何快速响应用户并随后同步后端状态。</li>
+<li><strong>后台数据同步</strong>：如何定期或在特定事件触发时自动刷新特定数据。</li>
+</ul>
+<p>Pinia Colada 旨在解决这些痛点，提供一个集成了<strong>请求 hooks、缓存机制、持久化管理和后端同步策略</strong>的统一解决方案，让异步数据管理变得像“热带饮品”一样清爽和简单。</p>
+<h2 id="二、核心特性与概念"><a href="#二、核心特性与概念" class="headerlink" title="二、核心特性与概念"></a>二、核心特性与概念</h2><p>Pinia Colada 的设计灵感来源于 <code>React Query</code> (或 <code>TanStack Query</code>) 等优秀的数据管理库，并将其思想与 Pinia 的 Vue 生态紧密结合。</p>
+<h3 id="2-1-基于-Store-的数据抽象"><a href="#2-1-基于-Store-的数据抽象" class="headerlink" title="2.1 基于 Store 的数据抽象"></a>2.1 基于 Store 的数据抽象</h3><p>Pinia Colada 的核心是围绕 Pinia Store 进行构建。它通过特殊的 <code>defineColadaStore</code> API 来定义 Store，这些 Store 内部集成了数据请求、缓存和持久化逻辑。</p>
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> &#123; defineColadaStore &#125; <span class="keyword">from</span> <span class="string">&#x27;pinia-colada&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> &#123; api &#125; <span class="keyword">from</span> <span class="string">&#x27;./api&#x27;</span>; <span class="comment">// 假设这是一个封装了后端 API 请求的服务</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">interface</span> <span class="title class_">Todo</span> &#123;</span><br><span class="line">  <span class="attr">id</span>: <span class="built_in">number</span>;</span><br><span class="line">  <span class="attr">title</span>: <span class="built_in">string</span>;</span><br><span class="line">  <span class="attr">completed</span>: <span class="built_in">boolean</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">interface</span> <span class="title class_">User</span> &#123;</span><br><span class="line">  <span class="attr">id</span>: <span class="built_in">number</span>;</span><br><span class="line">  <span class="attr">name</span>: <span class="built_in">string</span>;</span><br><span class="line">  <span class="attr">email</span>: <span class="built_in">string</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">const</span> useTodosStore = <span class="title function_">defineColadaStore</span>(<span class="string">&#x27;todos&#x27;</span>, &#123;</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * 定义 Colada Store 的状态。</span></span><br><span class="line"><span class="comment">   * 它会自动添加 loading, error, data, lastFetched 等内部状态。</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="attr">state</span>: <span class="function">() =&gt;</span> (&#123;</span><br><span class="line">    <span class="comment">// 额外的本地状态，可以与 Colada 管理的数据协同工作</span></span><br><span class="line">  &#125;),</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * queries: 用于定义 GET 请求，支持强大的缓存和过期策略。</span></span><br><span class="line"><span class="comment">   * 每个查询都由一个唯一的键（key）标识。</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="attr">queries</span>: &#123;</span><br><span class="line">    <span class="comment">// 获取所有待办事项</span></span><br><span class="line">    <span class="attr">allTodos</span>: &#123;</span><br><span class="line">      <span class="attr">queryKey</span>: <span class="function">() =&gt;</span> [<span class="string">&#x27;todos&#x27;</span>], <span class="comment">// 唯一的查询键，可以包含动态参数</span></span><br><span class="line">      <span class="attr">queryFn</span>: <span class="title function_">async</span> (): <span class="title class_">Promise</span>&lt;<span class="title class_">Todo</span>[]&gt; =&gt; &#123;</span><br><span class="line">        <span class="keyword">const</span> response = <span class="keyword">await</span> api.<span class="title function_">get</span>(<span class="string">&#x27;/todos&#x27;</span>);</span><br><span class="line">        <span class="keyword">return</span> response.<span class="property">data</span>;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="attr">staleTime</span>: <span class="number">5</span> * <span class="number">60</span> * <span class="number">1000</span>, <span class="comment">// 数据在 5 分钟内被认为是新鲜的 (不会重新请求)</span></span><br><span class="line">      <span class="attr">cacheTime</span>: <span class="number">10</span> * <span class="number">60</span> * <span class="number">1000</span>, <span class="comment">// 数据在 10 分钟后从缓存中移除</span></span><br><span class="line">      <span class="attr">initialData</span>: [], <span class="comment">// 初始数据</span></span><br><span class="line">      <span class="comment">// refetchOnWindowFocus: true, // 窗口重新聚焦时自动刷新</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="comment">// 根据 ID 获取单个待办事项</span></span><br><span class="line">    <span class="attr">todoById</span>: &#123;</span><br><span class="line">      <span class="attr">queryKey</span>: <span class="function">(<span class="params"><span class="attr">id</span>: <span class="built_in">number</span></span>) =&gt;</span> [<span class="string">&#x27;todo&#x27;</span>, id], <span class="comment">// 包含 ID 的动态查询键</span></span><br><span class="line">      <span class="attr">queryFn</span>: <span class="title function_">async</span> (<span class="attr">id</span>: <span class="built_in">number</span>): <span class="title class_">Promise</span>&lt;<span class="title class_">Todo</span>&gt; =&gt; &#123;</span><br><span class="line">        <span class="keyword">const</span> response = <span class="keyword">await</span> api.<span class="title function_">get</span>(<span class="string">`/todos/<span class="subst">$&#123;id&#125;</span>`</span>);</span><br><span class="line">        <span class="keyword">return</span> response.<span class="property">data</span>;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="comment">// 默认的缓存和过期时间</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="comment">// 获取当前用户</span></span><br><span class="line">    <span class="attr">currentUser</span>: &#123;</span><br><span class="line">      <span class="attr">queryKey</span>: <span class="function">() =&gt;</span> [<span class="string">&#x27;user&#x27;</span>],</span><br><span class="line">      <span class="attr">queryFn</span>: <span class="title function_">async</span> (): <span class="title class_">Promise</span>&lt;<span class="title class_">User</span>&gt; =&gt; &#123;</span><br><span class="line">        <span class="keyword">const</span> response = <span class="keyword">await</span> api.<span class="title function_">get</span>(<span class="string">&#x27;/me&#x27;</span>);</span><br><span class="line">        <span class="keyword">return</span> response.<span class="property">data</span>;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="attr">initialData</span>: <span class="literal">null</span>,</span><br><span class="line">      <span class="attr">refetchInterval</span>: <span class="number">30</span> * <span class="number">1000</span>, <span class="comment">// 每 30 秒自动刷新一次</span></span><br><span class="line">      <span class="attr">persistence</span>: <span class="string">&#x27;localStorage&#x27;</span>, <span class="comment">// 将此查询的数据持久化到 localStorage</span></span><br><span class="line">      <span class="comment">// storageKey: &#x27;colada_current_user&#x27;, // 可选：指定持久化键</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * mutations: 用于定义 POST, PUT, DELETE 等写操作，支持乐观更新。</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="attr">mutations</span>: &#123;</span><br><span class="line">    <span class="comment">// 添加待办事项</span></span><br><span class="line">    <span class="attr">addTodo</span>: &#123;</span><br><span class="line">      <span class="attr">mutationFn</span>: <span class="title function_">async</span> (<span class="attr">newTodo</span>: <span class="title class_">Partial</span>&lt;<span class="title class_">Todo</span>&gt;): <span class="title class_">Promise</span>&lt;<span class="title class_">Todo</span>&gt; =&gt; &#123;</span><br><span class="line">        <span class="keyword">const</span> response = <span class="keyword">await</span> api.<span class="title function_">post</span>(<span class="string">&#x27;/todos&#x27;</span>, newTodo);</span><br><span class="line">        <span class="keyword">return</span> response.<span class="property">data</span>;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="comment">// 支持乐观更新</span></span><br><span class="line">      <span class="attr">onMutate</span>: <span class="title function_">async</span> (<span class="attr">newTodoData</span>: <span class="title class_">Partial</span>&lt;<span class="title class_">Todo</span>&gt;) =&gt; &#123;</span><br><span class="line">        <span class="comment">// 在发送请求前，同步更新缓存中的数据，提供即时反馈</span></span><br><span class="line">        <span class="keyword">const</span> todosStore = <span class="title function_">useTodosStore</span>();</span><br><span class="line">        todosStore.<span class="property">queries</span>.<span class="property">allTodos</span>.<span class="title function_">setQueryData</span>(<span class="function"><span class="params">oldTodos</span> =&gt;</span> [</span><br><span class="line">          ...oldTodos,</span><br><span class="line">          &#123; ...newTodoData, <span class="attr">id</span>: <span class="title class_">Date</span>.<span class="title function_">now</span>(), <span class="attr">completed</span>: <span class="literal">false</span> &#125; <span class="comment">// 假设一个临时 ID</span></span><br><span class="line">        ]);</span><br><span class="line">        <span class="comment">// 返回一个回滚函数，以防请求失败</span></span><br><span class="line">        <span class="keyword">return</span> <span class="function">() =&gt;</span> &#123;</span><br><span class="line">          <span class="comment">// 如果失败，回滚到之前的状态</span></span><br><span class="line">          todosStore.<span class="property">queries</span>.<span class="property">allTodos</span>.<span class="title function_">setQueryData</span>(<span class="function"><span class="params">oldTodos</span> =&gt;</span></span><br><span class="line">            oldTodos.<span class="title function_">filter</span>(<span class="function"><span class="params">todo</span> =&gt;</span> todo.<span class="property">id</span> !== <span class="title class_">Date</span>.<span class="title function_">now</span>())</span><br><span class="line">          );</span><br><span class="line">        &#125;;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="comment">// 请求成功后，使相关的查询失效，触发重新获取 (refetch) 以获取最新数据</span></span><br><span class="line">      <span class="attr">onSuccess</span>: <span class="function">(<span class="params">&#123; queryClient &#125;</span>) =&gt;</span> &#123;</span><br><span class="line">        queryClient.<span class="title function_">invalidateQueries</span>([<span class="string">&#x27;todos&#x27;</span>]);</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="comment">// onError: (error, variables, rollback) =&gt; &#123; rollback?.(); &#125;,</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="comment">// 更新待办事项</span></span><br><span class="line">    <span class="attr">updateTodo</span>: &#123;</span><br><span class="line">        <span class="attr">mutationFn</span>: <span class="title function_">async</span> (<span class="attr">updatedTodo</span>: <span class="title class_">Todo</span>): <span class="title class_">Promise</span>&lt;<span class="title class_">Todo</span>&gt; =&gt; &#123;</span><br><span class="line">            <span class="keyword">const</span> response = <span class="keyword">await</span> api.<span class="title function_">put</span>(<span class="string">`/todos/<span class="subst">$&#123;updatedTodo.id&#125;</span>`</span>, updatedTodo);</span><br><span class="line">            <span class="keyword">return</span> response.<span class="property">data</span>;</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="attr">onSuccess</span>: <span class="function">(<span class="params">&#123; queryClient, variables &#125;</span>) =&gt;</span> &#123;</span><br><span class="line">            queryClient.<span class="title function_">invalidateQueries</span>([<span class="string">&#x27;todos&#x27;</span>]); <span class="comment">// 使所有 todos 失效</span></span><br><span class="line">            queryClient.<span class="title function_">invalidateQueries</span>([<span class="string">&#x27;todo&#x27;</span>, variables.<span class="property">id</span>]); <span class="comment">// 使特定 todo 失效</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * getters: 仍然可以使用 Pinia 原生的 getters 来派生数据</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="attr">getters</span>: &#123;</span><br><span class="line">    <span class="attr">activeTodosCount</span>: (state): <span class="function"><span class="params">number</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="comment">// Pinia Colada 会自动将 `currentUser` 和 `allTodos` 作为响应式属性添加到 Store 实例上</span></span><br><span class="line">      <span class="comment">// 所以可以直接访问 `this.allTodos.data`</span></span><br><span class="line">      <span class="keyword">if</span> (!<span class="variable language_">this</span>.<span class="property">allTodos</span>.<span class="property">data</span>) <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">      <span class="keyword">return</span> <span class="variable language_">this</span>.<span class="property">allTodos</span>.<span class="property">data</span>.<span class="title function_">filter</span>(<span class="function"><span class="params">todo</span> =&gt;</span> !todo.<span class="property">completed</span>).<span class="property">length</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * actions: 仍然可以使用 Pinia 原生的 actions 来执行非数据请求相关的逻辑</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="attr">actions</span>: &#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-Queries-查询"><a href="#2-2-Queries-查询" class="headerlink" title="2.2 Queries (查询)"></a>2.2 Queries (查询)</h3><p>Queries 主要用于处理 <code>GET</code> 请求。它们提供了强大的缓存和后台刷新机制。</p>
+<ul>
+<li><strong><code>queryKey</code></strong>: 唯一的标识符，用于识别和管理缓存中的数据。它可以是一个字符串或一个数组 (适用于带参数的查询)。</li>
+<li><strong><code>queryFn</code></strong>: 一个返回 <code>Promise</code> 的函数，用于实际获取数据。</li>
+<li><strong><code>staleTime</code></strong>: 数据被视为“新鲜”的时间（毫秒）。在此期间，<code>useQuery</code> Hook 将直接返回缓存数据而不会触发新的网络请求。</li>
+<li><strong><code>cacheTime</code></strong>: 数据在缓存中保留的时间（毫秒）。超过此时间后，即使没有新的 <code>useQuery</code> 调用，数据也会被垃圾回收。</li>
+<li><strong><code>initialData</code></strong>: 首次加载时提供的初始数据。</li>
+<li><strong><code>refetchOnWindowFocus</code></strong>: 当浏览器窗口重新获得焦点时是否自动重新获取数据。</li>
+<li><strong><code>refetchInterval</code></strong>: 设置一个间隔时间（毫秒），使查询定期在后台重新获取数据。</li>
+<li><strong><code>persistence</code></strong>: （Colada 特有）指定将此查询的数据持久化到 <code>localStorage</code> 或 <code>sessionStorage</code>。</li>
+<li><strong><code>storageKey</code></strong>: （Colada 特有）持久化时使用的键。</li>
+</ul>
+<h3 id="2-3-Mutations-变更"><a href="#2-3-Mutations-变更" class="headerlink" title="2.3 Mutations (变更)"></a>2.3 Mutations (变更)</h3><p>Mutations 主要用于处理 <code>POST</code>, <code>PUT</code>, <code>DELETE</code> 等写操作。Pinia Colada 为 Mutations 提供了优雅的乐观更新和副作用管理。</p>
+<ul>
+<li><strong><code>mutationFn</code></strong>: 一个返回 <code>Promise</code> 的函数，用于执行实际的写操作。</li>
+<li><strong><code>onMutate</code></strong>: 在 <code>mutationFn</code> 执行之前被调用。通常用于执行乐观更新，即在后端响应之前更新 UI，提高用户体验。它应该返回一个函数，该函数在 <code>mutationFn</code> 失败时作为回滚函数被调用。</li>
+<li><strong><code>onSuccess</code></strong>: <code>mutationFn</code> 成功后被调用。通常用于使相关的 <code>queries</code> 失效，从而触发数据的重新获取，确保 UI 显示的是最新数据。</li>
+<li><strong><code>onError</code></strong>: <code>mutationFn</code> 失败后被调用。可以处理错误，并执行 <code>onMutate</code> 返回的回滚函数。</li>
+<li><strong><code>onSettled</code></strong>: <code>mutationFn</code> 完成（无论是成功还是失败）后被调用。</li>
+</ul>
+<h3 id="2-4-持久化-Persistence"><a href="#2-4-持久化-Persistence" class="headerlink" title="2.4 持久化 (Persistence)"></a>2.4 持久化 (Persistence)</h3><p>Pinia Colada 通过在其 <code>queries</code> 配置中添加 <code>persistence</code> 选项，实现了<strong>声明式的数据持久化</strong>。它允许你在应用刷新或关闭后，保持特定查询的数据状态。</p>
+<ul>
+<li>支持 <code>localStorage</code> 和 <code>sessionStorage</code>。</li>
+<li>可以指定 <code>storageKey</code> 来控制存储键。</li>
+</ul>
+<h3 id="2-5-订阅与响应式"><a href="#2-5-订阅与响应式" class="headerlink" title="2.5 订阅与响应式"></a>2.5 订阅与响应式</h3><p>Pinia Colada 的 Store 实例提供了直观的响应式属性来访问查询和变更的状态：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    graph TD
+    A[组件&#x2F;Vue 应用] --&gt; B{&quot;useColadaStore()&quot;}
+    B --&gt; C[Store实例]
+    C --&gt; D[Store.queries.&lt;queryName&gt;.data]
+    C --&gt; E[Store.queries.&lt;queryName&gt;.isLoading]
+    C --&gt; F[Store.queries.&lt;queryName&gt;.isError]
+    C --&gt; G[&quot;Store.mutations.&lt;mutationName&gt;.mutate()&quot;]
+    C --&gt; H[Store.mutations.&lt;mutationName&gt;.isLoading]
+    C --&gt; I[Store.mutations.&lt;mutationName&gt;.isSuccess]
+  </pre></div>
+
+<h2 id="三、安装与使用"><a href="#三、安装与使用" class="headerlink" title="三、安装与使用"></a>三、安装与使用</h2><h3 id="3-1-安装-Pinia-Colada"><a href="#3-1-安装-Pinia-Colada" class="headerlink" title="3.1 安装 Pinia Colada"></a>3.1 安装 Pinia Colada</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">npm install pinia-colada pinia <span class="comment"># 假设 pinia-colada 依赖 pinia</span></span><br><span class="line"><span class="comment"># 或者</span></span><br><span class="line">yarn add pinia-colada pinia</span><br><span class="line"><span class="comment"># 或者</span></span><br><span class="line">pnpm add pinia-colada pinia</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-在-Vue-应用中集成"><a href="#3-2-在-Vue-应用中集成" class="headerlink" title="3.2 在 Vue 应用中集成"></a>3.2 在 Vue 应用中集成</h3><p>在你的 <code>main.ts</code> (或 <code>main.js</code>) 文件中，除了集成 Pinia 之外，还需要引入 Pinia Colada 的插件。</p>
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.ts</span></span><br><span class="line"><span class="keyword">import</span> &#123; createApp &#125; <span class="keyword">from</span> <span class="string">&#x27;vue&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> &#123; createPinia &#125; <span class="keyword">from</span> <span class="string">&#x27;pinia&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> &#123; createColada &#125; <span class="keyword">from</span> <span class="string">&#x27;pinia-colada&#x27;</span>; <span class="comment">// 导入 createColada</span></span><br><span class="line"><span class="keyword">import</span> <span class="title class_">App</span> <span class="keyword">from</span> <span class="string">&#x27;./App.vue&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> app = <span class="title function_">createApp</span>(<span class="title class_">App</span>);</span><br><span class="line"><span class="keyword">const</span> pinia = <span class="title function_">createPinia</span>(); <span class="comment">// 创建 Pinia 实例</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建 Pinia Colada 实例</span></span><br><span class="line"><span class="keyword">const</span> colada = <span class="title function_">createColada</span>(&#123;</span><br><span class="line">  <span class="comment">// Colada 的全局配置项</span></span><br><span class="line">  <span class="comment">// 例如：defaultStaleTime, defaultCacheTime, queryClientConfig 等</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">app.<span class="title function_">use</span>(pinia);</span><br><span class="line">app.<span class="title function_">use</span>(colada); <span class="comment">// 将 Colada 插件挂载到 Vue 应用</span></span><br><span class="line">app.<span class="title function_">mount</span>(<span class="string">&#x27;#app&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-在组件中使用"><a href="#3-3-在组件中使用" class="headerlink" title="3.3 在组件中使用"></a>3.3 在组件中使用</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">&lt;script setup lang=&quot;ts&quot;&gt;</span><br><span class="line">import &#123; useTodosStore &#125; from &#x27;./stores/todos&#x27;;</span><br><span class="line">import &#123; storeToRefs &#125; from &#x27;pinia&#x27;; // Pinia 的 storeToRefs 仍然有用</span><br><span class="line"></span><br><span class="line">const todosStore = useTodosStore();</span><br><span class="line"></span><br><span class="line">// 从查询中解构响应式状态</span><br><span class="line">// data, isLoading, isError 等都是 ref 对象</span><br><span class="line">const &#123; data: allTodos, isLoading: todosLoading, isError: todosError &#125; = storeToRefs(todosStore.queries.allTodos);</span><br><span class="line">const &#123; data: currentUser, isLoading: userLoading &#125; = storeToRefs(todosStore.queries.currentUser);</span><br><span class="line"></span><br><span class="line">// 获取 specific todo 的数据 (动态参数)</span><br><span class="line">// Colada 会根据 id 自动管理缓存和请求</span><br><span class="line">const todoId = ref(1); // 假设通过路由参数或 prop 传入</span><br><span class="line">const &#123; data: specificTodo, isLoading: specificTodoLoading &#125; = storeToRefs(todosStore.queries.todoById(todoId.value));</span><br><span class="line"></span><br><span class="line">// 从 mutation 中解构响应式状态和 mutate 函数</span><br><span class="line">const &#123; mutate: addTodo, isLoading: addingTodo &#125; = todosStore.mutations.addTodo;</span><br><span class="line"></span><br><span class="line">const newTodoTitle = ref(&#x27;&#x27;);</span><br><span class="line"></span><br><span class="line">const handleAddTodo = async () =&gt; &#123;</span><br><span class="line">  if (newTodoTitle.value.trim()) &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">      await addTodo(&#123; title: newTodoTitle.value, completed: false &#125;);</span><br><span class="line">      newTodoTitle.value = &#x27;&#x27;;</span><br><span class="line">      console.log(&#x27;Todo added successfully!&#x27;);</span><br><span class="line">    &#125; catch (error) &#123;</span><br><span class="line">      console.error(&#x27;Failed to add todo:&#x27;, error);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line">&lt;/script&gt;</span><br><span class="line"></span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div v-if=&quot;todosLoading&quot;&gt;Loading todos...&lt;/div&gt;</span><br><span class="line">  &lt;div v-else-if=&quot;todosError&quot;&gt;Error loading todos.&lt;/div&gt;</span><br><span class="line">  &lt;ul v-else&gt;</span><br><span class="line">    &lt;li v-for=&quot;todo in allTodos&quot; :key=&quot;todo.id&quot;&gt;&#123;&#123; todo.title &#125;&#125; (&#123;&#123; todo.completed ? &#x27;Completed&#x27; : &#x27;Pending&#x27; &#125;&#125;)&lt;/li&gt;</span><br><span class="line">  &lt;/ul&gt;</span><br><span class="line"></span><br><span class="line">  &lt;p v-if=&quot;userLoading&quot;&gt;Loading user...&lt;/p&gt;</span><br><span class="line">  &lt;p v-else&gt;Current User: &#123;&#123; currentUser?.name &#125;&#125;&lt;/p&gt;</span><br><span class="line"></span><br><span class="line">  &lt;p v-if=&quot;specificTodoLoading&quot;&gt;Loading specific todo...&lt;/p&gt;</span><br><span class="line">  &lt;p v-else&gt;Specific Todo (ID &#123;&#123; todoId &#125;&#125;): &#123;&#123; specificTodo?.title &#125;&#125;&lt;/p&gt;</span><br><span class="line"></span><br><span class="line">  &lt;div&gt;</span><br><span class="line">    &lt;input v-model=&quot;newTodoTitle&quot; placeholder=&quot;New todo title&quot; /&gt;</span><br><span class="line">    &lt;button @click=&quot;handleAddTodo&quot; :disabled=&quot;addingTodo&quot;&gt;</span><br><span class="line">      &#123;&#123; addingTodo ? &#x27;Adding...&#x27; : &#x27;Add Todo&#x27; &#125;&#125;</span><br><span class="line">    &lt;/button&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line"></span><br><span class="line">  &lt;p&gt;Active Todos Count: &#123;&#123; todosStore.activeTodosCount &#125;&#125;&lt;/p&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="四、高级特性与最佳实践"><a href="#四、高级特性与最佳实践" class="headerlink" title="四、高级特性与最佳实践"></a>四、高级特性与最佳实践</h2><h3 id="4-1-自动刷新与后台同步"><a href="#4-1-自动刷新与后台同步" class="headerlink" title="4.1 自动刷新与后台同步"></a>4.1 自动刷新与后台同步</h3><p>Pinia Colada 可以在不干扰用户体验的情况下，在后台自动刷新数据。例如：</p>
+<ul>
+<li><strong><code>refetchOnWindowFocus</code></strong>: 当用户在其他标签页停留一段时间后回到你的应用时，自动刷新数据。</li>
+<li><strong><code>refetchInterval</code></strong>: 对于实时性要求较高的数据（如聊天消息、股票价格），可以设置定时刷新。</li>
+<li><strong><code>invalidateQueries</code></strong>: 通过 <code>mutation</code> 成功回调，主动使相关查询失效，触发重新获取。</li>
+</ul>
+<h3 id="4-2-乐观更新"><a href="#4-2-乐观更新" class="headerlink" title="4.2 乐观更新"></a>4.2 乐观更新</h3><p>乐观更新是提升用户体验的关键。当用户执行一个修改操作时，即使网络请求尚未完成，UI 立即更新，给用户“即时响应”的错觉。一旦请求失败，再优雅地回滚 UI。</p>
+<p>Pinia Colada 的 <code>mutations</code> 提供了 <code>onMutate</code> 回调函数，允许你在请求发送前，通过 <code>setQueryData</code> 或 <code>invalidateQueries</code> 来修改缓存中的数据，实现乐观更新。</p>
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 在 mutation 中</span></span><br><span class="line"><span class="attr">onMutate</span>: <span class="title function_">async</span> (<span class="attr">newTodoData</span>: <span class="title class_">Partial</span>&lt;<span class="title class_">Todo</span>&gt;) =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> todosStore = <span class="title function_">useTodosStore</span>();</span><br><span class="line">  <span class="comment">// 乐观更新所有待办事项列表</span></span><br><span class="line">  <span class="keyword">const</span> previousTodos = todosStore.<span class="property">queries</span>.<span class="property">allTodos</span>.<span class="property">data</span>; <span class="comment">// 存储当前数据用于回滚</span></span><br><span class="line">  <span class="keyword">if</span> (previousTodos) &#123;</span><br><span class="line">    todosStore.<span class="property">queries</span>.<span class="property">allTodos</span>.<span class="title function_">setQueryData</span>([...previousTodos, &#123;</span><br><span class="line">      ...newTodoData,</span><br><span class="line">      <span class="attr">id</span>: -<span class="title class_">Date</span>.<span class="title function_">now</span>(), <span class="comment">// 临时 ID，方便回滚时识别</span></span><br><span class="line">      <span class="attr">completed</span>: <span class="literal">false</span></span><br><span class="line">    &#125; <span class="keyword">as</span> <span class="title class_">Todo</span>]);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// 回滚逻辑</span></span><br><span class="line">    <span class="keyword">if</span> (previousTodos) &#123;</span><br><span class="line">      todosStore.<span class="property">queries</span>.<span class="property">allTodos</span>.<span class="title function_">setQueryData</span>(previousTodos);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;,</span><br><span class="line"><span class="attr">onError</span>: <span class="function">(<span class="params">error, variables, rollback</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;添加待办事项失败&#x27;</span>, error);</span><br><span class="line">  rollback?.(); <span class="comment">// 调用回滚函数</span></span><br><span class="line">&#125;,</span><br><span class="line"><span class="attr">onSuccess</span>: <span class="function">(<span class="params">&#123; queryClient &#125;</span>) =&gt;</span> &#123;</span><br><span class="line">  queryClient.<span class="title function_">invalidateQueries</span>([<span class="string">&#x27;todos&#x27;</span>]); <span class="comment">// 成功后刷新真实数据</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-数据预取-Prefetching"><a href="#4-3-数据预取-Prefetching" class="headerlink" title="4.3 数据预取 (Prefetching)"></a>4.3 数据预取 (Prefetching)</h3><p>为了进一步优化用户体验，可以在用户可能需要某个数据之前，提前在后台加载这些数据。</p>
+<figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 例如，在列表页中，当鼠标悬停在某个详情链接上时，可以预取详情数据</span></span><br><span class="line"><span class="keyword">const</span> <span class="title function_">prefetchTodoDetails</span> = (<span class="params"><span class="attr">id</span>: <span class="built_in">number</span></span>) =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> todosStore = <span class="title function_">useTodosStore</span>();</span><br><span class="line">  todosStore.<span class="property">queries</span>.<span class="property">todoById</span>.<span class="title function_">prefetch</span>(id); <span class="comment">// 预取 ID 为 id 的 todo</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-错误处理"><a href="#4-4-错误处理" class="headerlink" title="4.4 错误处理"></a>4.4 错误处理</h3><p>Pinia Colada 提供了 <code>isError</code> 和 <code>error</code> 状态，以及 <code>onError</code> 回调来处理异步操作中的错误。可以结合 Vue 的 <code>onErrorCaptured</code> 捕获组件内部的错误，形成统一的错误处理机制。</p>
+<h3 id="4-5-与-Pinia-原生特性的结合"><a href="#4-5-与-Pinia-原生特性的结合" class="headerlink" title="4.5 与 Pinia 原生特性的结合"></a>4.5 与 Pinia 原生特性的结合</h3><p>Pinia Colada 是基于 Pinia 构建的，因此你可以继续使用 Pinia 的所有原生特性：</p>
+<ul>
+<li><strong><code>store.$subscribe</code></strong>: 订阅 Store 状态变化。</li>
+<li><strong><code>store.$onAction</code></strong>: 监听 <code>actions</code> 和 <code>mutations</code> 的执行。</li>
+<li><strong>Pinia 插件</strong>：Colada 自身就是 Pinia 插件，你也可以编写自己的 Pinia 插件来扩展 Colada Store 的行为。</li>
+</ul>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p><strong>Pinia Colada</strong>（作为一个假想但基于实际需求设计的库）通过将数据获取、缓存、持久化和后端同步等复杂任务抽象为易于使用的 Store API，极大地简化了 Vue 3 应用中异步数据的管理。它借鉴了现代数据管理库的优秀思想，并与 Pinia 的类型安全和模块化设计完美融合。采用 Pinia Colada，开发者可以构建出性能更优、响应更快、代码更简洁且更易于维护的 Web 应用程序，从而将更多精力集中在业务逻辑的实现上，而非数据管理的繁琐细节。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2024/2024-02-26_Pinia%20Colada%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2024/2024-02-26_Pinia%20Colada%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/JavaScript/">JavaScript</a><a class="post-meta__tags" href="/tags/Vue/">Vue</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/Pinia/">Pinia</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-07.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2024/2024-03-03_Vercel%E4%BB%8B%E7%BB%8D/" title="Vercel介绍"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Vercel介绍</div></div><div class="info-2"><div class="info-item-1"> Vercel 是一个为前端开发和部署量身定制的云平台，由 Next.js 框架的创建者开发并维护。它致力于提供极致的开发者体验，通过集成的 CI&#x2F;CD、自动扩展的 Serverless 功能和全球 CDN，使开发者能够快速部署现代化网站和 Web 服务。Vercel 的核心理念是让部署变得简单、快速且高效。  “Vercel is the platform for frontend developers, providing the speed and reliability innovators need to create at the moment of inspiration.” —— Vercel Official   一、Vercel 核心概念与愿景Vercel 将自身定位为 “Frontend Cloud”，旨在解决现代前端应用面临的挑战，尤其是与后端、API、数据源的集成以及复杂的部署流程。其核心愿景是让开发者能够专注于代码，而将基础设施的复杂性完全交给 Vercel 处理。 1. 技术栈偏好Vercel 对基于 React, Vue, Svelte ...</div></div></div></a><a class="pagination-related" href="/2024/2024-02-22_%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%90%86%E8%A7%A3%E4%B8%8E%E9%80%89%E6%8B%A9%E7%9A%84%E8%89%BA%E6%9C%AF/" title="开源协议详解：理解与选择的艺术"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">开源协议详解：理解与选择的艺术</div></div><div class="info-2"><div class="info-item-1"> 在开源软件的世界里，开源协议 (Open Source License) 扮演着至关重要的角色。它定义了你对开源代码的权利和义务：你可以做什么，不能做什么，以及当你修改或分发代码时需要遵守哪些规则。理解这些协议对于开发者、公司和代码使用者来说都至关重要，它不仅关乎合法合规，更影响着项目的成长、社区的形成以及商业模式的选择。  “开源协议是开源世界的宪法，明确了游戏规则，确保了开放与合作的平衡。”   一、什么是开源协议？为什么需要它？开源协议是一份法律文件，它授予用户使用、修改和分发开源软件的权利，但同时也会施加一定的条件和限制。 为什么需要开源协议？  界定权利与义务：明确使用者可以对代码做什么（使用、修改、分发），以及必须做什么（保留版权信息、公开源码等）。 保护贡献者：允许贡献者保留版权，同时授权他人使用，确保其辛勤工作不会被恶意独占。 促进创新：降低了他人基于现有代码进行二次开发和创新的门槛。 建立信任：协议的公开透明有助于社区形成共识，促进协作。 避免法律纠纷：明确的协议条款可以减少因代码使用引起的所有权、责任和版权争议。  核心问题：任何没有明确开源协议的代码，默认...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2024/2024-02-10_Pinia%E8%AF%A6%E8%A7%A3/" title="Pinia详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-10</div><div class="info-item-2">Pinia详解</div></div><div class="info-2"><div class="info-item-1"> Pinia 是一个直观、类型安全、轻量级的 Vue.js 状态管理库，专为 Vue 3 设计，但也支持 Vue 2。它是 Vuex 5 的非官方继任者，旨在提供更简洁、更灵活、更易于理解和使用的状态管理体验，同时完美支持 TypeScript。Pinia 不仅提供了 Vuex 的所有功能，还通过优化其 API 设计和提供更好的类型推断，解决了 Vuex 在大规模应用中遇到的一些痛点。  核心思想：Pinia 将状态分割成独立的“Store”，每个 Store 都是一个模块化的、自包含的状态管理单元，拥有自己的 state、getters、actions。这种设计使得状态管理更加模块化、可维护，并能够按需加载。   一、为什么选择 Pinia？在 Vue 3 中，Pinia 已经成为官方推荐的状态管理库，替代了Vuex。它带来的主要优势包括： 1.1 更好的 TypeScript 支持 类型安全：Pinia 从设计之初就考虑了 TypeScript。所有的 Store 定义、state、getters、actions 都有良好的类型推断，无需手动编写复杂的类型声明。 代码补全：在...</div></div></div></a><a class="pagination-related" href="/2024/2024-08-11_Vue3%E5%93%8D%E5%BA%94%E5%BC%8F%E5%8E%9F%E7%90%86%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/" title="Vue3响应式原理深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-11</div><div class="info-item-2">Vue3响应式原理深度解析</div></div><div class="info-2"><div class="info-item-1"> Vue 3 响应式系统是其 MVVM 框架的核心基石，它让前端开发者能够以声明式的方式构建用户界面，而无需手动操作 DOM。与 Vue 2 基于 Object.defineProperty 的实现不同，Vue 3 借助 ES6 的 Proxy 对象，彻底重构了响应式系统，带来了更高性能、更强大的功能和更灵活的 API。  “Vue 3 的响应式系统是一个优雅而强大的解决方案，它通过 Proxy 和一套高效的依赖追踪机制，实现了数据与视图的紧密双向绑定，极大地提升了开发体验。”   一、响应式系统的核心概念在深入 Vue 3 响应式原理之前，我们需要理解几个核心概念：  数据劫持 (Data Interception)：当访问或修改数据时，能够执行自定义逻辑。 依赖收集 (Dependency Collection)：追踪哪些组件或函数正在使用哪些响应式数据。 派发更新 (Trigger Update)：当响应式数据发生变化时，通知所有依赖于该数据的组件或函数进行更新。  二、Vue 2 与 Vue 3 响应式原理对比理解 Vue 3 的优势，最好从对比 Vue 2 开始。 2....</div></div></div></a><a class="pagination-related" href="/2023/2023-10-04_Vue3%20ref%E5%92%8Creactive%E5%AF%B9%E6%AF%94%E8%A7%A3%E6%9E%90%EF%BC%9A%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E5%93%8D%E5%BA%94%E5%BC%8F%E6%95%B0%E6%8D%AE/" title="Vue3 ref和reactive对比解析：深入理解响应式数据"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-04</div><div class="info-item-2">Vue3 ref和reactive对比解析：深入理解响应式数据</div></div><div class="info-2"><div class="info-item-1"> Vue 3 引入的 Composition API (组合式 API) 为我们提供了更强大、更灵活的逻辑组织和复用能力。在 Composition API 中，管理响应式状态的核心就是 ref 和 reactive 这两个函数。理解它们的异同和适用场景，是掌握 Vue 3 响应式系统、编写高效且可维护组件的关键。  本文将详细对比 ref 和 reactive，从原理、用法、优缺点及适用场景等方面进行深入解析，帮助你更好地在 Vue 3 项目中做出选择。   一、 响应式数据的核心概念在 Vue 3 中，响应式数据指的是当数据发生变化时，相关的 DOM 会自动更新。这是通过 ES2015 的 Proxy 对象实现的，Vue 3 利用 Proxy 代理数据对象，从而能够侦测到对象属性的读取和修改。 无论是 ref 还是 reactive，它们最终目的都是创建响应式数据。 二、 reactive 详解1. 概念reactive 函数接收一个 普通 JavaScript 对象（包括数组），并返回该对象的响应式代理 (Proxy)。这个代理对象具有 深度响应性，即对象内部嵌套的所有对象...</div></div></div></a><a class="pagination-related" href="/2023/2023-11-15_%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%E8%99%9A%E6%8B%9F%20DOM%20%E4%B8%8E%20Vue%20%E6%A0%B8%E5%BF%83%E8%A1%A5%E4%B8%81%E6%9C%BA%E5%88%B6%EF%BC%9Apatch(),%20patchVnode(),%20updateChildren()/" title="深入理解虚拟 DOM 与 Vue 核心补丁机制：patch(), patchVnode(), updateChildren()"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-11-15</div><div class="info-item-2">深入理解虚拟 DOM 与 Vue 核心补丁机制：patch(), patchVnode(), updateChildren()</div></div><div class="info-2"><div class="info-item-1"> 现代前端框架如 Vue 和 React 之所以能提供高性能和优秀的开发体验，很大程度上要归功于 虚拟 DOM (Virtual DOM) 及其配套的 Diff 算法 (补丁机制)。虚拟 DOM 充当了真实 DOM 的一个轻量级抽象层，而 Vue 的补丁机制则负责将虚拟 DOM 的变化高效地反映到真实的浏览器 DOM 上。本文将深入解析虚拟 DOM 的概念，并聚焦 Vue 2 中驱动这一机制的三个核心函数：patch(), patchVnode(), 和 updateChildren()，并辅以 Mermaid 流程图进行可视化说明。  “虚拟 DOM 是前端性能优化的基石，而 Vue 的 patch() 系列函数正是将这块基石转化为实际渲染效率的魔法棒。”   一、虚拟 DOM (Virtual DOM) 再探1.1 什么是虚拟 DOM？虚拟 DOM 是一个用 JavaScript 对象来模拟真实 DOM 节点的数据结构。它是一个轻量级的、内存中的真实 DOM 树的抽象。每一个虚拟节点（VNode）都包含构建一个真实 DOM 节点所需的所有信息，例如：  tag：标签名（如 d...</div></div></div></a><a class="pagination-related" href="/2023/2023-12-04_Vue3%20Hook(%E7%BB%84%E5%90%88%E5%BC%8F%20API)%E4%B8%8EMixin%E5%AF%B9%E6%AF%94%E8%AF%A6%E8%A7%A3/" title="Vue3 Hook(组合式 API)与Mixin对比详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-12-04</div><div class="info-item-2">Vue3 Hook(组合式 API)与Mixin对比详解</div></div><div class="info-2"><div class="info-item-1"> 在 Vue.js 的开发中，逻辑复用 一直是一个核心且具有挑战性的问题。从 Vue 2 时代的 Mixin (混入) 到 Vue 3 推出的 Composition API (组合式 API，常被称为“Hook”模式)，Vue 提供了不同的解决方案来组织和复用组件逻辑。  本文将深入探讨 Vue 3 的 Hook (组合式 API) 和 Vue 2 &#x2F; Vue 3 都支持的 Mixin 两种逻辑复用模式，从多方面进行对比分析，帮助开发者理解它们各自的优缺点，并选择最适合自己项目和团队的模式。   一、 理解 Vue 中的逻辑复用在 Vue 组件开发中，我们经常会遇到需要在多个组件中共享相同的逻辑（例如：处理鼠标位置、计时器、表单验证、主题切换等）。如果没有有效的复用机制，这些逻辑就会在不同组件中重复编写，导致代码冗余、难以维护。  Vue 提供了以下主要方式来解决逻辑复用问题：  Mixin (混入)：Vue 2 的主要逻辑复用方式，也在 Vue 3 中继续支持。 Composition API (组合式 API &#x2F; Vue 3 Hook)：Vue 3 引入...</div></div></div></a><a class="pagination-related" href="/2024/2024-04-06_%E6%89%8B%E5%86%99Promise%EF%BC%9A%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90JS%20Promise%E5%8E%9F%E7%90%86/" title="手写Promise：深入解析JS Promise原理"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-06</div><div class="info-item-2">手写Promise：深入解析JS Promise原理</div></div><div class="info-2"><div class="info-item-1"> JavaScript Promise 是异步编程的核心，它解决了回调地狱（Callback Hell）的问题，让异步代码的编写更加优雅和可维护。然而，Promises 究竟是如何工作的？它背后隐藏了哪些状态管理和回调机制？本文将通过从零开始手写一个简化的 Promise 实现，来深入解析其核心原理。  “理解 Promise 的精髓，就是理解异步状态管理和时序控制。”   一、Promise 的基本概念复习在开始手写之前，我们先快速回顾 Promise 的几个核心概念：  三种状态 (States):  pending (待定): 初始状态，既没有成功，也没有失败。 fulfilled (已成功&#x2F;已兑现): 操作成功完成。 rejected (已失败&#x2F;已拒绝): 操作失败。 Promise 的状态一旦从 pending 变为 fulfilled 或 rejected，就不可逆转，称为 settled (已敲定)。   构造函数: new Promise(executor)  executor 是一个执行器函数，它在 Promise 构造时同步执行。 exec...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">141</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">139</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">52</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Pinia-Colada%EF%BC%9F"><span class="toc-text">一、为什么需要 Pinia Colada？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7%E4%B8%8E%E6%A6%82%E5%BF%B5"><span class="toc-text">二、核心特性与概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%9F%BA%E4%BA%8E-Store-%E7%9A%84%E6%95%B0%E6%8D%AE%E6%8A%BD%E8%B1%A1"><span class="toc-text">2.1 基于 Store 的数据抽象</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Queries-%E6%9F%A5%E8%AF%A2"><span class="toc-text">2.2 Queries (查询)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Mutations-%E5%8F%98%E6%9B%B4"><span class="toc-text">2.3 Mutations (变更)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E6%8C%81%E4%B9%85%E5%8C%96-Persistence"><span class="toc-text">2.4 持久化 (Persistence)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E8%AE%A2%E9%98%85%E4%B8%8E%E5%93%8D%E5%BA%94%E5%BC%8F"><span class="toc-text">2.5 订阅与响应式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AE%89%E8%A3%85%E4%B8%8E%E4%BD%BF%E7%94%A8"><span class="toc-text">三、安装与使用</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%89%E8%A3%85-Pinia-Colada"><span class="toc-text">3.1 安装 Pinia Colada</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%9C%A8-Vue-%E5%BA%94%E7%94%A8%E4%B8%AD%E9%9B%86%E6%88%90"><span class="toc-text">3.2 在 Vue 应用中集成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%9C%A8%E7%BB%84%E4%BB%B6%E4%B8%AD%E4%BD%BF%E7%94%A8"><span class="toc-text">3.3 在组件中使用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%AB%98%E7%BA%A7%E7%89%B9%E6%80%A7%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">四、高级特性与最佳实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E8%87%AA%E5%8A%A8%E5%88%B7%E6%96%B0%E4%B8%8E%E5%90%8E%E5%8F%B0%E5%90%8C%E6%AD%A5"><span class="toc-text">4.1 自动刷新与后台同步</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E4%B9%90%E8%A7%82%E6%9B%B4%E6%96%B0"><span class="toc-text">4.2 乐观更新</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%95%B0%E6%8D%AE%E9%A2%84%E5%8F%96-Prefetching"><span class="toc-text">4.3 数据预取 (Prefetching)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86"><span class="toc-text">4.4 错误处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E4%B8%8E-Pinia-%E5%8E%9F%E7%94%9F%E7%89%B9%E6%80%A7%E7%9A%84%E7%BB%93%E5%90%88"><span class="toc-text">4.5 与 Pinia 原生特性的结合</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="常用限流算法的Go语言实现详解"/></a><div class="content"><a class="title" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解">常用限流算法的Go语言实现详解</a><time datetime="2025-10-15T22:24:00.000Z" title="发表于 2025-10-16 06:24:00">2025-10-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-08_Hyper-V%20%E6%B7%B1%E5%BA%A6%E8%AF%A6%E8%A7%A3%EF%BC%9AWindows%20%E5%B9%B3%E5%8F%B0%E4%B8%8A%E7%9A%84%E4%B8%93%E4%B8%9A%E7%BA%A7%E8%99%9A%E6%8B%9F%E5%8C%96%E6%8A%80%E6%9C%AF/" title="Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术"/></a><div class="content"><a class="title" href="/2025/2025-10-08_Hyper-V%20%E6%B7%B1%E5%BA%A6%E8%AF%A6%E8%A7%A3%EF%BC%9AWindows%20%E5%B9%B3%E5%8F%B0%E4%B8%8A%E7%9A%84%E4%B8%93%E4%B8%9A%E7%BA%A7%E8%99%9A%E6%8B%9F%E5%8C%96%E6%8A%80%E6%9C%AF/" title="Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术">Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术</a><time datetime="2025-10-07T22:24:00.000Z" title="发表于 2025-10-08 06:24:00">2025-10-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-06_TresJS%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8Vue%E7%9A%84%E6%96%B9%E5%BC%8F%E6%9E%84%E5%BB%BAThree.js%E5%9C%BA%E6%99%AF/" title="TresJS详解：用Vue的方式构建Three.js场景"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="TresJS详解：用Vue的方式构建Three.js场景"/></a><div class="content"><a class="title" href="/2025/2025-10-06_TresJS%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8Vue%E7%9A%84%E6%96%B9%E5%BC%8F%E6%9E%84%E5%BB%BAThree.js%E5%9C%BA%E6%99%AF/" title="TresJS详解：用Vue的方式构建Three.js场景">TresJS详解：用Vue的方式构建Three.js场景</a><time datetime="2025-10-05T22:24:00.000Z" title="发表于 2025-10-06 06:24:00">2025-10-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-01_Go%E8%AF%AD%E8%A8%80%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88(Pointer%20to%20Pointer)%E8%AF%A6%E8%A7%A3/" title="Go语言指向指针的指针(Pointer to Pointer)详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言指向指针的指针(Pointer to Pointer)详解"/></a><div class="content"><a class="title" href="/2025/2025-10-01_Go%E8%AF%AD%E8%A8%80%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88(Pointer%20to%20Pointer)%E8%AF%A6%E8%A7%A3/" title="Go语言指向指针的指针(Pointer to Pointer)详解">Go语言指向指针的指针(Pointer to Pointer)详解</a><time datetime="2025-09-30T22:24:00.000Z" title="发表于 2025-10-01 06:24:00">2025-10-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-09-28_HTMX%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8HTML%E5%B1%9E%E6%80%A7%E7%9B%B4%E6%8E%A5%E9%A9%B1%E5%8A%A8AJAX%E3%80%81CSS%E8%BF%87%E6%B8%A1%E5%92%8CWebSocket/" title="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket"/></a><div class="content"><a class="title" href="/2025/2025-09-28_HTMX%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8HTML%E5%B1%9E%E6%80%A7%E7%9B%B4%E6%8E%A5%E9%A9%B1%E5%8A%A8AJAX%E3%80%81CSS%E8%BF%87%E6%B8%A1%E5%92%8CWebSocket/" title="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket">HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket</a><time datetime="2025-09-27T22:24:00.000Z" title="发表于 2025-09-28 06:24:00">2025-09-28</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-07.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/tags/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/tags/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/tags/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><script src="/self/sakura.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>
