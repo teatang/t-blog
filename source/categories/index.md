@@ -5,5 +5,5 @@ layout: "categories"
 type: "categories"
 top_img: /img/index_img/index_img-02.jpg
 comments: false
-aside: true
+aside: false
 ---

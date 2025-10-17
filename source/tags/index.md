@@ -6,5 +6,5 @@ orderby: length
 top_img: /img/index_img/index_img-01.jpg
 order: -1
 comments: false
-aside: true
+aside: false
 ---
