@@ -1,0 +1,571 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>重放攻击 (Replay Attack) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="重放攻击 (Replay Attack)，又称回放攻击或重播攻击，是计算机网络安全领域中的一种常见攻击方式。其基本原理是攻击者通过窃听（截获）合法的网络通信数据包，然后将这些截获到的数据包原封不动地重新发送给一个或多个目标系统，以此来欺骗系统或获得未授权的效应。即使攻击者不知道数据包内容的具体含义，也可以通过重放这些合法的数据包来达到攻击目的。  核心思想：攻击者窃取一次成功的会话或请求，并在之">
+<meta property="og:type" content="article">
+<meta property="og:title" content="重放攻击 (Replay Attack) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2024/2024-05-21_%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%20(Replay%20Attack)%20%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="重放攻击 (Replay Attack)，又称回放攻击或重播攻击，是计算机网络安全领域中的一种常见攻击方式。其基本原理是攻击者通过窃听（截获）合法的网络通信数据包，然后将这些截获到的数据包原封不动地重新发送给一个或多个目标系统，以此来欺骗系统或获得未授权的效应。即使攻击者不知道数据包内容的具体含义，也可以通过重放这些合法的数据包来达到攻击目的。  核心思想：攻击者窃取一次成功的会话或请求，并在之">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-06.jpg">
+<meta property="article:published_time" content="2024-05-20T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-10-19T15:09:54.241Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络安全">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="重放攻击">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-06.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "重放攻击 (Replay Attack) 详解",
+  "url": "https://blog.tbf1211.xx.kg/2024/2024-05-21_%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%20(Replay%20Attack)%20%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-06.jpg",
+  "datePublished": "2024-05-20T22:24:00.000Z",
+  "dateModified": "2025-10-19T15:09:54.241Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2024/2024-05-21_%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%20(Replay%20Attack)%20%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '重放攻击 (Replay Attack) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">150</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">147</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">54</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-06.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">重放攻击 (Replay Attack) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">重放攻击 (Replay Attack) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-05-20T22:24:00.000Z" title="发表于 2024-05-21 06:24:00">2024-05-21</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>8分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2024/2024-05-21_%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%20(Replay%20Attack)%20%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>重放攻击 (Replay Attack)</strong>，又称<strong>回放攻击</strong>或<strong>重播攻击</strong>，是计算机网络安全领域中的一种常见攻击方式。其基本原理是攻击者通过窃听（截获）合法的网络通信数据包，然后将这些截获到的数据包原封不动地重新发送给一个或多个目标系统，以此来欺骗系统或获得未授权的效应。即使攻击者不知道数据包内容的具体含义，也可以通过重放这些合法的数据包来达到攻击目的。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想</strong>：攻击者窃取一次成功的会话或请求，并在之后的时间里重复发送这段数据，以冒充合法用户获得同样的权限或发起相同的操作。</p>
+</div>
+
+<h2 id="一、重放攻击的工作原理"><a href="#一、重放攻击的工作原理" class="headerlink" title="一、重放攻击的工作原理"></a>一、重放攻击的工作原理</h2><p>重放攻击的步骤通常如下：</p>
+<ol>
+<li><strong>窃听 (Eavesdropping)</strong>：攻击者使用网络嗅探工具（如 Wireshark）在网络上监听和截获合法用户与服务器之间的通信。这可能包括登录凭证（尽管通常是哈希或加密的）、交易请求、授权令牌等。</li>
+<li><strong>截获 (Interception)</strong>：攻击者捕获到完整的、有效的通信数据包或消息序列。</li>
+<li><strong>重放 (Replay)</strong>：在一段时间之后，攻击者将这些截获到的数据包原封不动地重新发送给目标服务器。</li>
+<li><strong>欺骗 (Deception)</strong>：如果目标服务器没有有效的机制来验证请求的新鲜性（即判断该请求是否是第一次接收到的），它可能会将重放的请求视为合法的，并执行相应的操作，从而导致未经授权的访问、重复交易或服务拒绝等问题。</li>
+</ol>
+<p><strong>示例场景</strong>：</p>
+<p>假设用户 A 登录银行网站并成功转账 100 元给用户 B。攻击者截获了这次转账的请求数据包。即使攻击者不知道数据包中包含了用户 A 的密码（因为密码可能被加密或哈希），也不知道转账的具体目标和金额，但如果他重放这个数据包，且银行系统没有防重放机制，银行系统可能会再次执行“用户 A 转账 100 元给用户 B”的操作。</p>
+<h2 id="二、重放攻击的分类与危害"><a href="#二、重放攻击的分类与危害" class="headerlink" title="二、重放攻击的分类与危害"></a>二、重放攻击的分类与危害</h2><h3 id="2-1-分类"><a href="#2-1-分类" class="headerlink" title="2.1 分类"></a>2.1 分类</h3><p>重放攻击可以根据其目标和性质进行分类：</p>
+<ol>
+<li><strong>认证重放攻击 (Authentication Replay)</strong>：攻击者重放合法的用户登录请求，试图绕过认证机制。例如，重放一个已经过期的会话令牌或一次成功的登录握手过程，以获取访问权限。</li>
+<li><strong>交易重放攻击 (Transaction Replay)</strong>：攻击者重放合法的操作请求，如银行转账、商品购买、命令执行等，导致重复操作或未经授权的操作。</li>
+<li><strong>授权重放攻击 (Authorization Replay)</strong>：攻击者重放具有特定权限的请求，以执行敏感操作，即便他们无法伪造新的带有相同权限的请求。</li>
+<li><strong>反射重放攻击 (Reflection Replay)</strong>：攻击者将从客户端 A 窃取的消息重放到服务器 B，而服务器 B 将此消息视为来自客户端 B 的合法请求，并可能将响应发送回客户端 A。</li>
+</ol>
+<h3 id="2-2-危害"><a href="#2-2-危害" class="headerlink" title="2.2 危害"></a>2.2 危害</h3><p>重放攻击可能导致多种安全问题：</p>
+<ul>
+<li><strong>未经授权的访问</strong>：攻击者可能通过重放登录凭证或会话令牌，取得合法用户的身份。</li>
+<li><strong>重复执行敏感操作</strong>：如多次转账、多次购买商品，造成经济损失。</li>
+<li><strong>绕过安全控制</strong>：重放某些特定的控制命令，可能绕过防火墙或访问控制列表。</li>
+<li><strong>拒绝服务 (DoS)</strong>：攻击者可以反复重放大量请求，耗尽服务器资源，导致服务不可用。</li>
+<li><strong>数据损坏或不一致</strong>：重复的写入或更新操作可能使数据处于不一致状态。</li>
+</ul>
+<h2 id="三、重放攻击的防御机制"><a href="#三、重放攻击的防御机制" class="headerlink" title="三、重放攻击的防御机制"></a>三、重放攻击的防御机制</h2><p>防御重放攻击的核心思想是确保每个请求都是<strong>新鲜的 (Freshness)</strong>，即服务器只处理接收到的每一个请求一次。常用的防御方法包括：</p>
+<h3 id="3-1-时间戳-Timestamps"><a href="#3-1-时间戳-Timestamps" class="headerlink" title="3.1 时间戳 (Timestamps)"></a>3.1 时间戳 (Timestamps)</h3><ul>
+<li><strong>原理</strong>：在每个请求中包含一个时间戳。服务器接收到请求后，会检查时间戳是否在合理的时间窗内（例如，与当前时间相差不超过几分钟），并且该时间戳是否已在该时间窗内处理过。</li>
+<li><strong>优点</strong>：实现简单。</li>
+<li><strong>缺点</strong>：<ul>
+<li>需要客户端和服务器时钟同步，否则可能导致合法请求被拒绝。</li>
+<li>仍然需要一个近期请求的<strong>缓存&#x2F;列表</strong>来防止在时间窗内再次接收具有相同时间戳的请求。</li>
+<li>时间戳可以被篡改（如果未加密或签名）。</li>
+</ul>
+</li>
+<li><strong>应用</strong>：Kerberos 协议（部分使用时间戳）</li>
+</ul>
+<h3 id="3-2-随机数-Nonces"><a href="#3-2-随机数-Nonces" class="headerlink" title="3.2 随机数 (Nonces)"></a>3.2 随机数 (Nonces)</h3><ul>
+<li><strong>原理</strong>：<ul>
+<li><strong>客户端生成 Nonce</strong>：客户端在发起请求时生成一个唯一的随机数 (Nonce)，并将其包含在请求中。服务器在处理请求后将 Nonce 记录下来，并在一定时间内拒绝任何带有相同 Nonce 的后续请求。</li>
+<li><strong>服务器生成 Nonce</strong>：服务器在响应客户端的某个初始化请求时，生成一个 Nonce 返回给客户端。客户端在后续的请求中必须包含这个 Nonce。如果服务器接收到带有旧 Nonce 的请求，则拒绝。</li>
+</ul>
+</li>
+<li><strong>优点</strong>：安全性高，不依赖时钟同步。</li>
+<li><strong>缺点</strong>：<ul>
+<li>服务器需要维护一个已用 Nonce 的列表或缓存，这会增加状态管理负担。</li>
+<li>需要确保 Nonce 真正具有高随机性和唯一性。</li>
+</ul>
+</li>
+<li><strong>应用</strong>：OAuth 2.0 (state 参数)、TLS&#x2F;SSL (ClientHello.random, ServerHello.random)、HTTP Digest Authentication 等。</li>
+</ul>
+<h3 id="3-3-序号-计数器-Sequence-Numbers-Counters"><a href="#3-3-序号-计数器-Sequence-Numbers-Counters" class="headerlink" title="3.3 序号&#x2F;计数器 (Sequence Numbers&#x2F;Counters)"></a>3.3 序号&#x2F;计数器 (Sequence Numbers&#x2F;Counters)</h3><ul>
+<li><strong>原理</strong>：客户端和服务器维护一个同步的请求序号。每个成功的请求，序号都会递增。服务器只接受序号大于当前已处理序号的请求，并拒绝任何序号小于或等于当前序号的请求。</li>
+<li><strong>优点</strong>：简单有效，适用于需要严格按序处理的通信。</li>
+<li><strong>缺点</strong>：<ul>
+<li>如果序号丢失或不同步，可能需要复杂的同步机制来恢复。</li>
+<li>需要持久化存储当前序号，以防止服务器重启导致序号重置。</li>
+</ul>
+</li>
+<li><strong>应用</strong>：某些特定协议（如某些工业控制协议）、TCP 协议（内部的序列号和确认号机制）。</li>
+</ul>
+<h3 id="3-4-一次性令牌-会话令牌-One-Time-Tokens-Session-Tokens"><a href="#3-4-一次性令牌-会话令牌-One-Time-Tokens-Session-Tokens" class="headerlink" title="3.4 一次性令牌&#x2F;会话令牌 (One-Time Tokens&#x2F;Session Tokens)"></a>3.4 一次性令牌&#x2F;会话令牌 (One-Time Tokens&#x2F;Session Tokens)</h3><ul>
+<li><strong>原理</strong>：对于敏感操作，服务器可以签发一个<strong>只能使用一次</strong>的令牌。客户端在发起操作时携带该令牌，服务器验证后立即使其失效。</li>
+<li><strong>优点</strong>：安全性强，操作的原子性高。</li>
+<li><strong>缺点</strong>：增加了请求-响应的交互次数，不适合频繁操作。</li>
+</ul>
+<h3 id="3-5-结合密码技术"><a href="#3-5-结合密码技术" class="headerlink" title="3.5 结合密码技术"></a>3.5 结合密码技术</h3><p>以上机制通常需要与加密和数字签名相结合，以防止攻击者篡改时间戳、Nonce 或序号。</p>
+<ul>
+<li><strong>数字签名 (Digital Signatures)</strong>：客户端对整个请求（包括时间戳、Nonce 等）进行数字签名。服务器使用客户端的公钥验证签名，确保内容未被篡改且确实来自合法方。</li>
+<li><strong>带 MAC 的加密 (Authenticated Encryption with Associated Data, AEAD)</strong>：使用 ChaCha20-Poly1305 或 AES-GCM 等 AEAD 模式加密整个请求，可以同时提供机密性、数据完整性和真实性。其中，Nonc&#x2F;IV 是必不可少的一部分。</li>
+</ul>
+<h2 id="四、具体防范措施的示例"><a href="#四、具体防范措施的示例" class="headerlink" title="四、具体防范措施的示例"></a>四、具体防范措施的示例</h2><h3 id="4-1-HTTPS-TLS-SSL"><a href="#4-1-HTTPS-TLS-SSL" class="headerlink" title="4.1 HTTPS (TLS&#x2F;SSL)"></a>4.1 HTTPS (TLS&#x2F;SSL)</h3><p>几乎所有现代 Web 应用都使用 HTTPS。TLS 协议本身就包含了对抗重放攻击的机制：</p>
+<ul>
+<li><strong>随机数 (Nonces)</strong>：客户端和服务器在握手过程中会交换随机数 (<code>ClientHello.random</code> 和 <code>ServerHello.random</code>)。这些随机数用于协商对称密钥，并确保每次会话的唯一性。</li>
+<li><strong>序列号和 MAC</strong>：TLS 记录协议为每个包维护隐式的序列号，并使用 MAC (Message Authentication Code) 来验证数据的完整性和真实性。如果攻击者重放一个旧的 TLS 记录，MAC 验证会失败，因为序列号已过期。</li>
+</ul>
+<h3 id="4-2-OAuth-2-0-State-参数"><a href="#4-2-OAuth-2-0-State-参数" class="headerlink" title="4.2 OAuth 2.0 (State 参数)"></a>4.2 OAuth 2.0 (State 参数)</h3><p>OAuth 2.0 协议在授权请求中建议使用 <code>state</code> 参数来防止 CSRF 和重放攻击。<code>state</code> 是一个由客户端生成的随机字符串，在授权请求中发送到授权服务器，并在回调时由授权服务器原封不动地返回给客户端。客户端验证 <code>state</code> 参数，确保它与最初生成的一致。</p>
+<h3 id="4-3-JWT-JSON-Web-Tokens-和-JTI"><a href="#4-3-JWT-JSON-Web-Tokens-和-JTI" class="headerlink" title="4.3 JWT (JSON Web Tokens) 和 JTI"></a>4.3 JWT (JSON Web Tokens) 和 JTI</h3><p>虽然 JWT 本身是无状态的，难以直接防御重放攻击（因为一旦签发，攻击者就可以在有效期内重放），但可以通过以下方式缓解：</p>
+<ul>
+<li><strong>短过期时间 (exp)</strong>：设置 JWT 的过期时间尽可能短，减少重放窗口。</li>
+<li><strong>JTI (JWT ID)</strong>：在 JWT 的 Payload 中包含一个唯一的 <code>jti</code> (JWT ID) 声明。服务端维护一个已用 <code>jti</code> 的缓存或黑名单。每次收到 JWT，检查 <code>jti</code> 是否已使用过。这本质上也是一种 Nonce 或一次性令牌的变种，但它会引入服务器端状态。</li>
+<li><strong>Refresh Token 机制</strong>：使用短寿命的 Access Token 和长寿命的 Refresh Token。Refresh Token 也可以有 <code>jti</code> 并在服务端严格管理。</li>
+</ul>
+<h3 id="4-4-HTTP-Headers"><a href="#4-4-HTTP-Headers" class="headerlink" title="4.4 HTTP Headers"></a>4.4 HTTP Headers</h3><ul>
+<li><strong><code>If-Match</code> 或 <code>If-None-Match</code> (ETag)</strong>：用于条件请求，确保操作基于最新的资源版本。</li>
+<li><strong><code>Cache-Control: no-cache</code> 或 <code>max-age=0</code></strong>：防止浏览器和代理服务器缓存敏感请求。</li>
+</ul>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>重放攻击是一种隐蔽且危险的网络攻击方式，它利用了通信请求的<strong>新鲜性</strong>缺失。虽然攻击者可能不理解或无法篡改截获的数据内容，但通过简单地重放这些数据，就可以欺骗系统并造成损失。有效的防御机制通常涉及在请求中引入<strong>不可预测的唯一性元素</strong>（如时间戳、随机数或序号），并结合<strong>加密和认证技术</strong>（如数字签名或 MAC），以确保每个请求都是新鲜、真实且未被篡改的。在设计任何网络通信协议或应用时，都必须把防重放攻击作为一项重要的安全考量。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2024/2024-05-21_%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%20(Replay%20Attack)%20%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2024/2024-05-21_%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%20(Replay%20Attack)%20%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB/">重放攻击</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-06.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2024/2024-05-25_AEAD%20(Authenticated%20Encryption%20with%20Associated%20Data)%20%E5%8A%A0%E5%AF%86%E6%96%B9%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="AEAD (Authenticated Encryption with Associated Data) 加密方式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">AEAD (Authenticated Encryption with Associated Data) 加密方式详解</div></div><div class="info-2"><div class="info-item-1"> AEAD (Authenticated Encryption with Associated Data)，即带关联数据的认证加密，是现代密码学中的一个重要概念和加密模式。它不仅仅提供传统加密算法的机密性 (Confidentiality)，还能同时保障数据的完整性 (Integrity) 和真实性 (Authenticity)。此外，AEAD 模式允许对“关联数据”进行认证，这些数据不需要加密，但其完整性也需要被验证。  核心思想：将加密（提供机密性）和消息认证码 (MAC, 提供完整性和真实性) 组合到一个单一的密码操作中，同时允许对非加密数据进行认证。   一、为什么需要 AEAD？在 AEAD 出现之前，密码学中存在两种主要的安全目标：  机密性 (Confidentiality)：通过加密手段（如 AES、ChaCha20）使未经授权的方无法读取数据。 完整性 (Integrity) 和真实性 (Authenticity)：通过消息认证码 (MAC) 或数字签名来确保数据在传输过程中未被篡改，并确认数据确实来自声称的发送方。  传统的加密方式（如 ECB、CBC 模式的...</div></div></div></a><a class="pagination-related" href="/2024/2024-05-17_SQLite%20%E8%AF%A6%E7%BB%86%E6%95%99%E7%A8%8B%EF%BC%9A%E4%BB%8E%E5%85%A5%E9%97%A8%E5%88%B0%E5%AE%9E%E8%B7%B5/" title="SQLite 详细教程：从入门到实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">SQLite 详细教程：从入门到实践</div></div><div class="info-2"><div class="info-item-1"> SQLite 是一个非常流行且强大的嵌入式关系型数据库管理系统。它与其他数据库（如 MySQL、PostgreSQL）最大的不同在于，它不是一个独立的服务器进程，而是以库的形式被集成到应用程序中。这意味着 SQLite 数据库是一个单一的文件，易于部署、备份和传输。它零配置、无服务器、自包含的特性，使其成为移动应用、桌面应用、小型网站、物联网设备以及开发测试等场景的理想选择。  “轻量级却不失强大，SQLite 让数据库操作变得前所未有的简单。”   一、什么是 SQLite？SQLite 是一个 C 语言库，实现了一个小型、快速、自包含的 SQL 数据库引擎。它的名字“Lite”就说明了它的轻量级特性。 核心特点：  无服务器 (Serverless): 与传统的客户端-服务器模式数据库不同，SQLite 应用程序直接读写磁盘上的数据库文件，无需独立的数据库服务器进程。 零配置 (Zero-configuration): 无需安装、配置或管理。你只需直接使用其库。 自包含 (Self-contained): 作为一个单一的文件，整个数据库都存储在这个文件中。 事务支持 (Tr...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2024/2024-03-16_%E6%B8%97%E9%80%8F%E6%B5%8B%E8%AF%95%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3%EF%BC%9A%E6%B7%B1%E5%85%A5%E4%BA%86%E8%A7%A3%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%94%BB%E9%98%B2/" title="渗透测试原理详解：深入了解网络安全攻防"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-16</div><div class="info-item-2">渗透测试原理详解：深入了解网络安全攻防</div></div><div class="info-2"><div class="info-item-1"> 渗透测试（Penetration Testing） 是一种有目的、有计划的模拟攻击行为，旨在评估信息系统、网络、应用程序或组织的安全防护能力。它模拟恶意攻击者可能使用的技术和方法，主动发现系统中的安全漏洞、弱点和配置错误，并评估这些漏洞可能造成的潜在影响。渗透测试的最终目标是帮助组织识别并修复安全缺陷，提高整体的安全韧性，而非破坏或窃取数据。  核心思想：渗透测试像一次“模拟实战演习”，由专业的“红队”（渗透测试人员）扮演“黑客”，通过合法授权的攻击手段，挑战组织的“蓝队”（安全防护系统），从而发现真实世界中可能存在的安全盲点和薄弱环节。   一、为什么需要渗透测试？在当今高度互联的世界中，网络攻击日益频繁且复杂。传统的安全审计、漏洞扫描、代码审查等方法虽然重要，但它们往往局限于静态分析或已知漏洞的检测。渗透测试的价值在于：  主动发现未知漏洞：通过模拟真实攻击者的思维和手法，发现仅靠工具扫描难以识别的逻辑漏洞、业务漏洞和组合漏洞。 验证安全控制的有效性：测试已部署的安全设备（如防火墙、IDS&#x2F;IPS）、安全策略和人员响应机制是否能有效抵御攻击。 评估业务影响：清晰地...</div></div></div></a><a class="pagination-related" href="/2024/2024-05-25_AEAD%20(Authenticated%20Encryption%20with%20Associated%20Data)%20%E5%8A%A0%E5%AF%86%E6%96%B9%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="AEAD (Authenticated Encryption with Associated Data) 加密方式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-25</div><div class="info-item-2">AEAD (Authenticated Encryption with Associated Data) 加密方式详解</div></div><div class="info-2"><div class="info-item-1"> AEAD (Authenticated Encryption with Associated Data)，即带关联数据的认证加密，是现代密码学中的一个重要概念和加密模式。它不仅仅提供传统加密算法的机密性 (Confidentiality)，还能同时保障数据的完整性 (Integrity) 和真实性 (Authenticity)。此外，AEAD 模式允许对“关联数据”进行认证，这些数据不需要加密，但其完整性也需要被验证。  核心思想：将加密（提供机密性）和消息认证码 (MAC, 提供完整性和真实性) 组合到一个单一的密码操作中，同时允许对非加密数据进行认证。   一、为什么需要 AEAD？在 AEAD 出现之前，密码学中存在两种主要的安全目标：  机密性 (Confidentiality)：通过加密手段（如 AES、ChaCha20）使未经授权的方无法读取数据。 完整性 (Integrity) 和真实性 (Authenticity)：通过消息认证码 (MAC) 或数字签名来确保数据在传输过程中未被篡改，并确认数据确实来自声称的发送方。  传统的加密方式（如 ECB、CBC 模式的...</div></div></div></a><a class="pagination-related" href="/2023/2023-10-12_%E5%B8%B8%E8%A7%81%E7%BD%91%E7%BB%9C%E6%94%BB%E5%87%BB%E8%AF%A6%E8%A7%A3%E4%B8%8E%E9%A2%84%E9%98%B2%EF%BC%9A%E6%9E%84%E5%BB%BA%E6%95%B0%E5%AD%97%E5%AE%89%E5%85%A8%E9%98%B2%E7%BA%BF/" title="常见网络攻击详解与预防：构建数字安全防线"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-12</div><div class="info-item-2">常见网络攻击详解与预防：构建数字安全防线</div></div><div class="info-2"><div class="info-item-1"> 在数字时代，网络攻击已成为无处不在的威胁。从个人数据泄露到企业系统瘫痪，网络攻击的危害日益增长，形式也越来越多样化。理解这些S攻击类型、攻击原理以及如何有效预防它们，是构建强大数字安全防线的基石。本文将详细介绍一些最常见的网络攻击及其相应的防范措施。  “网络安全不是一蹴而就的，而是一个持续不断的过程，需要技术、策略和人的共同努力。”   一、概述：网络攻击的种类与威胁网络攻击通常利用系统、应用或协议的漏洞，试图破坏数据的机密性（Confidentiality）、完整性（Integrity）和可用性（Availability），即所谓的 CIA 三要素。 根据攻击目标和手段，网络攻击可以分为多种类型：  拒绝服务攻击 (DoS&#x2F;DDoS)：破坏系统的可用性。 数据窃取&#x2F;泄露：破坏数据的机密性。 数据篡改：破坏数据的完整性。 恶意程序感染：破坏系统的可控性，窃取数据或进行其他恶意活动。 社会工程学攻击：利用人性的弱点进行欺骗。  接下来，我们将详细解析几种最常见的攻击类型。 二、常见网络攻击详解与预防2.1 拒绝服务攻击 (DoS &#x2F; DDoS)2....</div></div></div></a><a class="pagination-related" href="/2023/2023-12-21_JWT%20(JSON%20Web%20Tokens)%20%E8%AF%A6%E8%A7%A3/" title="JWT (JSON Web Tokens) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-12-21</div><div class="info-item-2">JWT (JSON Web Tokens) 详解</div></div><div class="info-2"><div class="info-item-1"> JWT (JSON Web Token) 是一个开放标准 (RFC 7519)，它定义了一种简洁、自包含且安全的方式，用于在各方之间安全地传输信息。这些信息通过数字签名进行验证，可以被信任。JWT 通常用作无状态 (Stateless) 认证机制，替代传统的 Session-Cookie 模式。  核心思想：将用户认证信息和少量授权信息编码进 Token 本身，并通过签名确保其不可篡改。 服务端无需存储 Session 状态，只需验证 Token 即可。   一、为什么需要 JWT？传统的基于 Session-Cookie 的认证方式有其局限性：  有状态 (Stateful)：服务端需要存储每个用户的 Session 信息。随着用户量增加，存储和管理 Session 成为负担，特别是分布式部署和微服务架构下，Session 共享和同步变得复杂。 跨域问题：Cookie 默认是同源策略，跨域请求携带 Cookie 会比较复杂，需要复杂的 CORS (Cross-Origin Resource Sharing) 配置。 移动端不友好：移动应用通常不依赖 Cookie，需要更灵活的...</div></div></div></a><a class="pagination-related" href="/2024/2024-01-18_%E6%97%A0%E6%84%9F%E5%88%B7%E6%96%B0Token%E8%AF%A6%E8%A7%A3%EF%BC%9A%E6%8F%90%E5%8D%87%E7%94%A8%E6%88%B7%E4%BD%93%E9%AA%8C%E4%B8%8E%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E7%9A%84%E8%AE%A4%E8%AF%81%E7%AD%96%E7%95%A5/" title="无感刷新Token详解：提升用户体验与系统安全的认证策略"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-18</div><div class="info-item-2">无感刷新Token详解：提升用户体验与系统安全的认证策略</div></div><div class="info-2"><div class="info-item-1"> 在现代 Web 和移动应用中，基于 Token 的认证方式（如 JWT）已成为主流。它解决了传统 Session-Cookie 认证在分布式系统和跨域场景下的诸多痛点。然而，Token 的有效期问题又带来了新的挑战：如果 Access Token 长期有效，一旦泄露风险巨大；如果短期有效，用户又会频繁因 Token 过期而被迫重新登录，严重影响用户体验。无感刷新 Token (Silent Token Refresh) 正是为了解决这一矛盾而生，它旨在提升安全性、兼顾用户体验，让用户在不感知的情况下，始终保持登录状态。  “无感刷新 Token 的核心思想是：使用一个短期有效的 Access Token 负责日常业务访问，同时使用一个长期有效但受严密保护的 Refresh Token 来在 Access Token 过期时重新获取新的 Access Token，从而实现长期登录且不牺牲安全性的目标。”   一、为什么需要无感刷新 Token？在基于 Token 的认证系统中，通常会涉及到两种 Token：  Access Token (访问令牌)：  用途：用于访问受保护的资源...</div></div></div></a><a class="pagination-related" href="/2024/2024-06-18_MD5%20(Message-Digest%20Algorithm%205)%E7%AE%97%E6%B3%95%E8%AF%A6%E8%A7%A3/" title="MD5 (Message-Digest Algorithm 5)算法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-18</div><div class="info-item-2">MD5 (Message-Digest Algorithm 5)算法详解</div></div><div class="info-2"><div class="info-item-1"> MD5 (Message-Digest Algorithm 5) 是一种广泛使用的加密散列函数，它能够将任意长度的输入数据（也称为“消息”或“原文”）转换成一个固定长度的、128 位（16 字节）的散列值，通常表示为一个 32 位的十六进制字符串。这个散列值被称为消息摘要 (Message Digest) 或 指纹 (Fingerprint)。MD5 由 Ronald Rivest 于 1991 年设计，并取代了旧的 MD4 算法。  核心思想：将一个大数据块（可以是文件、字符串等）通过一个不可逆的数学运算映射为一个固定长度的小数据块，这个小数据块就是其“指纹”。任何对原始数据的微小改动都会导致指纹发生巨大的变化。   一、MD5 的主要特性MD5 作为一种散列函数，具有以下关键特性：  压缩性 (Compression)：无论输入数据有多大，输出的散列值长度都是固定的 128 位。 例如：无论是 1 个字节的字符串还是 1GB 的文件，MD5 结果都是 128 位。   易计算性 (Ease of Computation)：对于给定消息 M，计算其 MD5 摘要 h = MD...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">150</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">147</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">54</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">一、重放攻击的工作原理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%E7%9A%84%E5%88%86%E7%B1%BB%E4%B8%8E%E5%8D%B1%E5%AE%B3"><span class="toc-text">二、重放攻击的分类与危害</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%88%86%E7%B1%BB"><span class="toc-text">2.1 分类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%8D%B1%E5%AE%B3"><span class="toc-text">2.2 危害</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB%E7%9A%84%E9%98%B2%E5%BE%A1%E6%9C%BA%E5%88%B6"><span class="toc-text">三、重放攻击的防御机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%97%B6%E9%97%B4%E6%88%B3-Timestamps"><span class="toc-text">3.1 时间戳 (Timestamps)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E9%9A%8F%E6%9C%BA%E6%95%B0-Nonces"><span class="toc-text">3.2 随机数 (Nonces)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%BA%8F%E5%8F%B7-%E8%AE%A1%E6%95%B0%E5%99%A8-Sequence-Numbers-Counters"><span class="toc-text">3.3 序号&#x2F;计数器 (Sequence Numbers&#x2F;Counters)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%80%E6%AC%A1%E6%80%A7%E4%BB%A4%E7%89%8C-%E4%BC%9A%E8%AF%9D%E4%BB%A4%E7%89%8C-One-Time-Tokens-Session-Tokens"><span class="toc-text">3.4 一次性令牌&#x2F;会话令牌 (One-Time Tokens&#x2F;Session Tokens)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E7%BB%93%E5%90%88%E5%AF%86%E7%A0%81%E6%8A%80%E6%9C%AF"><span class="toc-text">3.5 结合密码技术</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%85%B7%E4%BD%93%E9%98%B2%E8%8C%83%E6%8E%AA%E6%96%BD%E7%9A%84%E7%A4%BA%E4%BE%8B"><span class="toc-text">四、具体防范措施的示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-HTTPS-TLS-SSL"><span class="toc-text">4.1 HTTPS (TLS&#x2F;SSL)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-OAuth-2-0-State-%E5%8F%82%E6%95%B0"><span class="toc-text">4.2 OAuth 2.0 (State 参数)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-JWT-JSON-Web-Tokens-%E5%92%8C-JTI"><span class="toc-text">4.3 JWT (JSON Web Tokens) 和 JTI</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-HTTP-Headers"><span class="toc-text">4.4 HTTP Headers</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="常用限流算法的Go语言实现详解"/></a><div class="content"><a class="title" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解">常用限流算法的Go语言实现详解</a><time datetime="2025-10-15T22:24:00.000Z" title="发表于 2025-10-16 06:24:00">2025-10-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NativeScript-Vue3详解"/></a><div class="content"><a class="title" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解">NativeScript-Vue3详解</a><time datetime="2025-10-09T22:24:00.000Z" title="发表于 2025-10-10 06:24:00">2025-10-10</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-08_Hyper-V%20%E6%B7%B1%E5%BA%A6%E8%AF%A6%E8%A7%A3%EF%BC%9AWindows%20%E5%B9%B3%E5%8F%B0%E4%B8%8A%E7%9A%84%E4%B8%93%E4%B8%9A%E7%BA%A7%E8%99%9A%E6%8B%9F%E5%8C%96%E6%8A%80%E6%9C%AF/" title="Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术"/></a><div class="content"><a class="title" href="/2025/2025-10-08_Hyper-V%20%E6%B7%B1%E5%BA%A6%E8%AF%A6%E8%A7%A3%EF%BC%9AWindows%20%E5%B9%B3%E5%8F%B0%E4%B8%8A%E7%9A%84%E4%B8%93%E4%B8%9A%E7%BA%A7%E8%99%9A%E6%8B%9F%E5%8C%96%E6%8A%80%E6%9C%AF/" title="Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术">Hyper-V 深度详解：Windows 平台上的专业级虚拟化技术</a><time datetime="2025-10-07T22:24:00.000Z" title="发表于 2025-10-08 06:24:00">2025-10-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-06_TresJS%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8Vue%E7%9A%84%E6%96%B9%E5%BC%8F%E6%9E%84%E5%BB%BAThree.js%E5%9C%BA%E6%99%AF/" title="TresJS详解：用Vue的方式构建Three.js场景"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="TresJS详解：用Vue的方式构建Three.js场景"/></a><div class="content"><a class="title" href="/2025/2025-10-06_TresJS%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%94%A8Vue%E7%9A%84%E6%96%B9%E5%BC%8F%E6%9E%84%E5%BB%BAThree.js%E5%9C%BA%E6%99%AF/" title="TresJS详解：用Vue的方式构建Three.js场景">TresJS详解：用Vue的方式构建Three.js场景</a><time datetime="2025-10-05T22:24:00.000Z" title="发表于 2025-10-06 06:24:00">2025-10-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-01_Go%E8%AF%AD%E8%A8%80%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88(Pointer%20to%20Pointer)%E8%AF%A6%E8%A7%A3/" title="Go语言指向指针的指针(Pointer to Pointer)详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言指向指针的指针(Pointer to Pointer)详解"/></a><div class="content"><a class="title" href="/2025/2025-10-01_Go%E8%AF%AD%E8%A8%80%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88(Pointer%20to%20Pointer)%E8%AF%A6%E8%A7%A3/" title="Go语言指向指针的指针(Pointer to Pointer)详解">Go语言指向指针的指针(Pointer to Pointer)详解</a><time datetime="2025-09-30T22:24:00.000Z" title="发表于 2025-10-01 06:24:00">2025-10-01</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-06.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/tags/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/tags/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/tags/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><script src="/self/sakura.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>
