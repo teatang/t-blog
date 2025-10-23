@@ -58,14 +58,14 @@ graph TD
 {% mermaid %}
 graph TD
     start("patch（oldVnode, newVnode）") --> A{oldVnode是真实DOM元素?<br>（如 #app 首次挂载）};
-    A -- 是, 首次挂载 --> B[创建 newVnode.elm 并替换真实DOM];
+    A -- 是, 首次挂载 --> B[创建 newVnode.elm <br>并替换真实DOM];
     A -- 否 --> C{newVnode 存在?};
     C -- 否, oldVnode需删除 --> D[移除 oldVnode.elm];
     C -- 是 --> E{newVnode是文本VNode?};
-    E -- 是, 文本节点 --> F[更新 oldVnode.elm.textContent = newVnode.text];
-    E -- 否 --> G{sameVnode（oldVnode, newVnode）相同VNode?};
-    G -- 是, 相同VNode --> H(patchVnode（oldVnode, newVnode）);
-    G -- 否, 不同VNode --> I[销毁 oldVnode.elm, 创建并插入 newVnode.elm];
+    E -- 是, 文本节点 --> F[更新 oldVnode.elm.textContent<br> = newVnode.text];
+    E -- 否 --> G{sameVnode（oldVnode, <br>newVnode）相同VNode?};
+    G -- 是, 相同VNode --> H(patchVnode（oldVnode, <br>newVnode）);
+    G -- 否, 不同VNode --> I[销毁 oldVnode.elm, <br>创建并插入 newVnode.elm];
     B --> K[返回 newVnode.elm];
     F --> K;
     H --> K;
@@ -133,42 +133,48 @@ graph TD
 {% mermaid %}
 graph TD
     start("开始") --> A[初始化四个指针:<br>oldStartIdx, oldEndIdx<br>newStartIdx, newEndIdx];
-    A --> B{while （oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx）};
-    B -- 是 （循环中） --> CurrentOldStart[获取 VNode: oldChildren【oldStartIdx】];
-    CurrentOldStart --> CurrentOldEnd[获取 VNode: oldChildren【oldEndIdx】];
-    CurrentOldEnd --> CurrentNewStart[获取 VNode: newChildren【newStartIdx】];
-    CurrentNewStart --> CurrentNewEnd[获取 VNode: newChildren【newEndIdx】];
 
-    CurrentNewEnd --> C{currentOldStartVnode为空值?<br>（跳过已处理或空的旧节点）};
-    C -- 是 --> D[oldStartIdx++ （跳过）];
-    C -- 否 --> E{currentOldEndVnode为空值?<br>（跳过已处理或空的旧节点）};
-    E -- 是 --> F[oldEndIdx-- （跳过）];
-    E -- 否 --> G{sameVnode（currentOldStartVnode, currentNewStartVnode）?<br>（头头匹配）};
-    G -- 是 （匹配） --> H[patchVnode（头头）, oldStartIdx++, newStartIdx++];
-    G -- 否 --> I{sameVnode（currentOldEndVnode, currentNewEndVnode）?<br>（尾尾匹配）};
-    I -- 是 （匹配） --> J[patchVnode（尾尾）, oldEndIdx--, newEndIdx--];
-    I -- 否 --> K{sameVnode（currentOldStartVnode, currentNewEndVnode）?<br>（旧头新尾）};
-    K -- 是 （匹配） --> L[patchVnode（旧头新尾）, 移动DOM到oldEndVnode之后, oldStartIdx++, newEndIdx--];
-    K -- 否 --> M{sameVnode（currentOldEndVnode, currentNewStartVnode）?<br>（旧尾新头）};
-    M -- 是 （匹配） --> N[patchVnode（旧尾新头）, 移动DOM到oldStartVnode之前, oldEndIdx--, newStartIdx++];
-    M -- 否 （四种快速匹配失败） --> Fallback[Fallback（通用匹配）:<br>1. 查找 newStartVnode 在 oldChildren 中是否有相同key的VNode<br>2. 如果找到: patchVnode, 移动DOM, 标记旧VNode已处理<br>3. 否则: 创建新VNode对应的真实DOM并插入<br>4. newStartIdx++];
-    
-    D --> B;
-    F --> B;
-    H --> B;
-    J --> B;
-    L --> B;
-    N --> B;
-    Fallback --> B;
+    A --> B{"while (oldStartIdx <= oldEndIdx<br>&& newStartIdx <= newEndIdx)"};
 
-    B -- 否 （循环结束） --> O{newStartIdx <= newEndIdx?<br>（新数组还有剩余节点，说明是新增的）};
-    O -- 是 --> P[批量插入剩余的新节点];
-    O -- 否 --> Q{oldStartIdx <= oldEndIdx?<br>（旧数组还有剩余节点，说明是被删除的）};
-    Q -- 是 --> R[批量移除剩余的旧节点];
-    Q -- 否 --> S("结束");
-    P --> S;
-    R --> S;
+    B -- 是 --> GetNodes[获取当前VNode:<br>oldStartV, oldEndV<br>newStartV, newEndV];
+
+    GetNodes --> SkipOldStart{oldStartV 为空?};
+    SkipOldStart -- 是 --> IncOldStart[oldStartIdx++];
+    SkipOldStart -- 否 --> SkipOldEnd{oldEndV 为空?};
+    SkipOldEnd -- 是 --> DecOldEnd[oldEndIdx--];
+    SkipOldEnd -- 否 --> MatchHeadHead{"sameVnode(oldStartV, newStartV)?"};
+
+    MatchHeadHead -- 是 --> PatchHeadHead["patchVnode(头头),<br>oldStartIdx++, newStartIdx++"];
+    MatchHeadHead -- 否 --> MatchTailTail{"sameVnode(oldEndV, newEndV)?"};
+
+    MatchTailTail -- 是 --> PatchTailTail["patchVnode(尾尾),<br>oldEndIdx--, newEndIdx--"];
+    MatchTailTail -- 否 --> MatchOldHeadNewTail{"sameVnode(oldStartV, newEndV)?"};
+
+    MatchOldHeadNewTail -- 是 --> PatchOldHeadNewTail["patchVnode(旧头新尾),<br>移动 oldStartV DOM到oldEndV DOM之后,<br>oldStartIdx++, newEndIdx--"];
+    MatchOldHeadNewTail -- 否 --> MatchOldTailNewHead{"sameVnode(oldEndV, newStartV)?"};
+
+    MatchOldTailNewHead -- 是 --> PatchOldTailNewHead["patchVnode(旧尾新头),<br>移动 oldEndV DOM到oldStartV DOM之前,<br>oldEndIdx--, newStartIdx++"];
+    MatchOldTailNewHead -- 否 --> FallbackStrategy["通用匹配 (Fallback):<br>1. 尝试在 oldChildren 中查找 newStartV 的匹配VNode (By Key)<br>2. 如果找到: patchVnode, 移动DOM, 标记旧VNode已处理<br>3. 否则: 创建 newStartV 对应的DOM并插入<br>4. newStartIdx++"];
+
+    IncOldStart --> B;
+    DecOldEnd --> B;
+    PatchHeadHead --> B;
+    PatchTailTail --> B;
+    PatchOldHeadNewTail --> B;
+    PatchOldTailNewHead --> B;
+    FallbackStrategy --> B;
+
+    B -- 否 --> CheckNewRemaining{"newStartIdx <= newEndIdx?<br>(新节点剩余 - 新增)"};
+    CheckNewRemaining -- 是 --> InsertRemaining[批量插入剩余新节点];
+    CheckNewRemaining -- 否 --> CheckOldRemaining{"oldStartIdx <= oldEndIdx?<br>(旧节点剩余 - 删除)"};
+
+    CheckOldRemaining -- 是 --> RemoveRemaining[批量移除剩余旧节点];
+    CheckOldRemaining -- 否 --> endNode("结束");
+
+    InsertRemaining --> endNode;
+    RemoveRemaining --> endNode;
 {% endmermaid %}
+
 
 **关键逻辑点**：
 

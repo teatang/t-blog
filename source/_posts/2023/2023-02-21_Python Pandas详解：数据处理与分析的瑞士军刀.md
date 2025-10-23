@@ -413,15 +413,17 @@ print(f"\n按月重采样求平均:\n{ts.resample('M').mean()}")
 graph TD
     A[数据源: CSV, Excel, DB, JSON] --> B(pd.read_csv/excel/sql/json)
     B --> C[DataFrame/Series]
-    C -- 探索性数据分析 (EDA) --> D[df.head（）, df.info（）, df.describe（）]
-    C -- 数据选择 & 过滤 --> E[df【】, df.loc【】, df.iloc【】, 布尔索引]
-    C -- 数据清洗 --> F[df.fillna（）, df.dropna（）, df.drop_duplicates（）]
-    C -- 数据转换 --> G[df.apply（）, df.astype（）, df.groupby（）, df.merge（）, df.pivot_table（）]
-    G --> H{分析结果}
-    H -- 可视化 --> I[Matplotlib, Seaborn]
-    H -- 存储 --> J[df.to_csv/excel/sql/json]
-    J --> K[报告/模型训练]
+    C -- 探索性数据分析 (EDA) --> D["df.head(), df.info(), <br>df.describe(), nunique(), <br>value_counts()"]
+    C -- 数据选择 & 过滤 --> E["df[], df.loc[], df.iloc[], <br>布尔索引, query()"]
+    C -- 数据清洗 --> F["df.fillna(), df.dropna(), <br>df.drop_duplicates(), replace(), <br>rename()"]
+    C -- 数据转换 & 特征工程 --> G["df.apply(), df.astype(), <br>df.groupby(), df.merge(), <br>df.pivot_table(), pd.concat(), <br>pd.get_dummies()"]
+    G --> H{分析结果/处理后的数据}
+    H -- 可视化 --> I[Matplotlib, Seaborn, Plotly]
+    H -- 存储 --> J["df.to_csv/excel/sql/json, <br>to_pickle()"]
+    J --> K[报告/模型训练/进一步分析]
+
 {% endmermaid %}
+
 
 ## 九、性能优化
 
