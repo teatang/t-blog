@@ -15,6 +15,7 @@ categories:
 {% note info %}
 “拥有 Home Assistant，意味着拥有一个由你完全掌控的智能家居大脑。”
 {% endnote %}
+------
 
 ## 一、Home Assistant 是什么？
 

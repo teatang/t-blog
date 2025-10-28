@@ -16,6 +16,7 @@ categories:
 {% note info %}
 “The `defineModel` macro simplifies the implementation of two-way binding props, providing idiomatic and easier-to-understand syntax for both child components and their parent components.” —— Vue.js Documentation
 {% endnote %}
+------
 
 ## 一、什么是 `defineModel`？
 

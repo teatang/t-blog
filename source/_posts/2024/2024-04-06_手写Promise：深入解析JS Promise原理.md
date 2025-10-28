@@ -18,6 +18,7 @@ categories:
 {% note info %}
 “理解 Promise 的精髓，就是理解异步状态管理和时序控制。”
 {% endnote %}
+------
 
 ## 一、Promise 的基本概念复习
 

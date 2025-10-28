@@ -17,6 +17,7 @@ categories:
 {% note info %}
 **核心思想**：Pinia Colada 致力于将**数据获取 (Fetching)**、**数据缓存 (Caching)**、**数据持久化 (Persistence)** 和 **后端状态同步 (Synchronization)** 等复杂逻辑封装在易于使用的 Pinia Store 抽象之上。它使得处理异步数据像管理本地状态一样简单，同时提供声明式的 API 来控制数据的生命周期。
 {% endnote %}
+------
 
 ## 一、为什么需要 Pinia Colada？
 

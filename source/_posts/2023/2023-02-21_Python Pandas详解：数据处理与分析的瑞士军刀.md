@@ -17,6 +17,7 @@ categories:
 {% note info %}
 核心思想：Pandas 将表格数据抽象为 `DataFrame` 和 `Series` 对象，提供类似 SQL 和 Excel 的操作，通过向量化和 C/Cython 实现的底层优化，极大提升了数据处理效率。
 {% endnote %}
+------
 
 ## 一、为什么选择 Pandas？
 

@@ -19,6 +19,7 @@ categories:
 {% note info %}
 核心思想：lxml 利用底层的 C 库，提供了比纯 Python 解析器快得多的性能，同时通过 Pythonic 的接口，使得 XML/HTML 的解析、导航和数据提取变得高效而直观。
 {% endnote %}
+------
 
 ## 一、为什么选择 lxml？
 

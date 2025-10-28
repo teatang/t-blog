@@ -17,6 +17,7 @@ categories:
 {% note info %}
 “WSL 2 从根本上改变了 Windows 上的 Linux 体验，它提供了一个真正的 Linux 内核，这意味着你可以在 Windows 上运行更多原生的 Linux 应用和工具。”
 {% endnote %}
+------
 
 ## 一、WSL 2 的核心：轻量级虚拟机与真实 Linux 内核
 

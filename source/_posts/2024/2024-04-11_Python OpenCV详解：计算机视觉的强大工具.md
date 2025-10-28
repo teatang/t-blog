@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：OpenCV 提供了一套全面且高性能的工具集，以简化图像和视频的处理与分析，使计算机能够“看清”并理解世界。
 {% endnote %}
+------
 
 ## 一、为什么选择 OpenCV-Python？
 

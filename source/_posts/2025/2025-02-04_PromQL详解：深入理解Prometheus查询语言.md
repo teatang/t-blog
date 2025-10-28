@@ -15,6 +15,7 @@ categories:
 {% note info %}
 “PromQL 让你能够将原始指标数据转化为有意义的洞察和可操作的智能信息。”
 {% endnote %}
+------
 
 ## 一、Prometheus 指标类型回顾
 

@@ -13,6 +13,7 @@ categories: Docker
 {% note info %}
 “Docker 镜像本质上是文件系统和配置的组合，它通过层（Layer）的概念实现了高效的存储和复用。理解 `Dockerfile` 的每一条指令以及如何优化构建过程，是成为 Docker 高手的必经之路。”
 {% endnote %}
+------
 
 ## 一、Docker 镜像构建概述
 

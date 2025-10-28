@@ -15,6 +15,7 @@ categories:
 {% note info %}
 核心思想：**将用户认证信息和少量授权信息编码进 Token 本身，并通过签名确保其不可篡改。** 服务端无需存储 Session 状态，只需验证 Token 即可。
 {% endnote %}
+------
 
 ## 一、为什么需要 JWT？
 

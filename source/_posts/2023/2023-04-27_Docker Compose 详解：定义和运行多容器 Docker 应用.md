@@ -13,6 +13,7 @@ categories: Docker
 {% note info %}
 在实际的生产环境中，一个完整的应用程序通常由多个服务组成，例如一个 Web 应用可能包含一个 Web 服务器（Nginx/Apache）、一个应用服务（Python/Node.js/Java）、一个数据库（PostgreSQL/MySQL）和一个缓存服务（Redis）。手动管理这些独立容器的创建、网络连接和启动顺序非常繁琐且容易出错。`Docker Compose` 的出现正是为了解决这些多容器应用的管理复杂性。
 {% endnote %}
+------
 
 ## 一、Docker Compose 简介与核心优势
 

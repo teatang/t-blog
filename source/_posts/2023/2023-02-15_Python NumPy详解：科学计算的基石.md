@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：NumPy 引入了高效的 `ndarray` 数据结构，通过向量化操作显著提升了 Python 处理数值数据的性能。
 {% endnote %}
+------
 
 ## 一、为什么选择 NumPy？
 

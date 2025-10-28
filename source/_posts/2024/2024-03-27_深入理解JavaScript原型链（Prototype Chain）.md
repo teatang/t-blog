@@ -16,6 +16,7 @@ categories:
 {% note info %}
 **核心思想**：每个 JavaScript 对象都有一个指向其**原型 (prototype)** 的内部链接。当访问一个对象的属性或方法时，如果该对象本身没有这个属性或方法，JavaScript 就会沿着这条链向上查找，直到找到该属性或方法，或者查找到原型链的末端（`null`）。
 {% endnote %}
+------
 
 ## 一、理解原型链的基石：`[[Prototype]]`、`__proto__` 和 `prototype`
 

@@ -15,6 +15,7 @@ categories:
 {% note info %}
 核心思想：**WebAssembly 是一种高效的、可移植的二进制指令格式，作为编译目标，使得 C/C++, Rust 等宿主语言编写的代码能在浏览器、服务器等 WebAssembly 运行时中以接近原生性能执行，弥补了 JavaScript 在计算密集型任务上的短板，并扩展了 Web 应用的能力边界。**
 {% endnote %}
+------
 
 ## 一、WebAssembly 简介
 

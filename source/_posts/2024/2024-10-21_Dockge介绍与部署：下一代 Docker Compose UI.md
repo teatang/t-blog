@@ -14,6 +14,7 @@ categories:
 {% note info %}
 “好的工具让复杂的事情变得简单，Dockge 就是让 Docker Compose 更友好的工具。”
 {% endnote %}
+------
 
 ## 一、Dockge 是什么？
 

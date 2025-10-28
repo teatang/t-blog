@@ -15,6 +15,7 @@ categories:
 {% note info %}
 “Fetch API 的设计哲学：将 HTTP 响应的元数据与实际数据流分离处理。”
 {% endnote %}
+------
 
 ## 一、`fetch` API 概览
 

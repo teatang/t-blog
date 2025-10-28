@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：**帮助内网主机探测 NAT 类型和获取公网 IP:Port，为 P2P 连接做准备。**
 {% endnote %}
+------
 
 ## 一、为什么需要 STUN？
 

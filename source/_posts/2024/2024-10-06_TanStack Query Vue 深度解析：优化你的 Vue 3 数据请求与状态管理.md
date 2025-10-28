@@ -17,6 +17,7 @@ categories:
 {% note info %}
 在现代前端应用中，数据请求和状态管理是核心且复杂的任务。传统的 `fetch` 或 `axios` + `useState`/`ref` 组合在处理缓存、刷新、分页、错误重试、乐观更新等方面常常力不从心，导致代码冗余、逻辑复杂、用户体验不佳。`TanStack Query`（以前称作 `Vue Query` 或 `React Query`）应运而生，它提供了一套强大的工具集，旨在解决这些痛点，让数据请求变得像客户端状态管理一样简单而强大。
 {% endnote %}
+------
 
 ## 一、为什么选择 TanStack Query？
 

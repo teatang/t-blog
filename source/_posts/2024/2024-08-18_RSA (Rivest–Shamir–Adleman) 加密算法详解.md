@@ -16,6 +16,7 @@ categories:
 {% note info %}
 **核心思想**：使用**一对密钥**——一个**公钥 (Public Key)** 和一个**私钥 (Private Key)**。公钥可以公开给任何人，私钥必须严格保密。公钥加密的数据只能用对应的私钥解密，私钥签名的数据只能用对应的公钥验证。
 {% endnote %}
+------
 
 ## 一、非对称密钥加密 (Public-key Cryptography)
 

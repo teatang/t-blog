@@ -16,6 +16,7 @@ mathjax: true
 {% note info %}
 “The load factor of a hash table is a measure of how full the hash table is during its operation.” —— Wikipedia
 {% endnote %}
+------
 
 ## 一、什么是负载因子？
 

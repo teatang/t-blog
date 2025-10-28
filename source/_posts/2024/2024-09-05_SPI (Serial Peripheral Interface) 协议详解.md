@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：**基于四条线（SCLK、MOSI、MISO、CS）实现同步全双工通信，Master 驱动时钟，并通过 CS 选择 Slave。** 速度快，但线材多且不具备地址分配能力。
 {% endnote %}
+------
 
 ## 一、SPI 协议概述
 

@@ -16,6 +16,7 @@ categories:
 {% note info %}
 “Tailwind CSS 的核心理念是：**直接在你的 HTML 中编写样式**。”
 {% endnote %}
+------
 
 ## 一、为什么选择 Tailwind CSS？
 

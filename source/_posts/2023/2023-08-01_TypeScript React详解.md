@@ -17,6 +17,7 @@ categories:
 {% note info %}
 “Adding TypeScript to your React project can feel like adding a safety net. It catches bugs early, improves code readability, and makes refactoring a breeze, especially as your application grows.”
 {% endnote %}
+------
 
 ## 一、为什么在 React 中使用 TypeScript？
 

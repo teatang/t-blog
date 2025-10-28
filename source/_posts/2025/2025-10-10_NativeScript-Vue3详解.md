@@ -17,6 +17,7 @@ categories:
 {% note info %}
 **核心亮点**：使用 Vue 3 渲染原生 UI 组件，实现高性能、媲美原生体验的跨平台移动应用开发。
 {% endnote %}
+------
 
 ## 一、什么是 NativeScript-Vue 3？
 

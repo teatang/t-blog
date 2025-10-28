@@ -15,6 +15,7 @@ categories:
 {% note info %}
 “让你的摄像头变得更智能，只记录你真正关心的事件。”
 {% endnote %}
+------
 
 ## 一、Frigate 是什么？
 

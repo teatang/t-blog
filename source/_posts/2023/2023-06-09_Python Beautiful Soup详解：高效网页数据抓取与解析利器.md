@@ -17,6 +17,7 @@ categories:
 {% note info %}
 核心思想：Beautiful Soup 将杂乱的 HTML/XML 文档“煲成一锅美味的汤”，让你能够轻松地在其中挑选出你需要的数据元素，如同在厨房里筛选食材一样简单。
 {% endnote %}
+------
 
 ## 一、为什么需要 Beautiful Soup？
 

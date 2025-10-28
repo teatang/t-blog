@@ -15,6 +15,7 @@ categories:
 {% note info %}
 “好的工具能让开发者专注于创造，而不是重复劳动。GitHub Actions 就是这样的工具。”
 {% endnote %}
+------
 
 ## 一、什么是 GitHub Actions？
 

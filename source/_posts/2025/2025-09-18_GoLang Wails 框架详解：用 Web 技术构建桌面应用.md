@@ -16,6 +16,7 @@ categories:
 {% note info %}
 传统的桌面应用开发通常需要学习特定的 GUI 框架（如 Qt, Electron, WPF/WinForms 等），这对于 Web 开发者来说学习曲线陡峭。Electron 虽然解决了 Web 技术栈的问题，但其应用体积庞大、内存占用高，且集成了 Node.js 运行时，额外增加了依赖。Wails 则提供了一种优雅的解决方案：它使用原生 WebView 渲染界面，后端逻辑全部由 Go 语言编写，实现了轻量级、高性能和原生体验的桌面应用。
 {% endnote %}
+------
 
 ## 一、Wails 简介与核心优势
 

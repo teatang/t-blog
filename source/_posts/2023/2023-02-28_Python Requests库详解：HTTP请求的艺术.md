@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：`requests` 封装了底层 HTTP 协议的复杂性，提供简洁的 API，让开发者专注于业务逻辑而非网络通信的细节。
 {% endnote %}
+------
 
 ## 一、为什么选择 Requests？
 

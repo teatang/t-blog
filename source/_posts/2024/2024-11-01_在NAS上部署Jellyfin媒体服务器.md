@@ -15,6 +15,7 @@ categories:
 {% note info %}
 “拥有自己的媒体服务器，意味着你的影音世界，你做主。”
 {% endnote %}
+------
 
 ## 一、为什么选择 Jellyfin 和 NAS？
 

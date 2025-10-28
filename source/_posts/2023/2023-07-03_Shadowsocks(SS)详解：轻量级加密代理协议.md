@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：Shadowsocks 通过特定的加密算法对SOCKS5代理流量进行加密，并通常通过在TCP层提供一个“看起来像随机数据”的加密层，来隐藏其代理本质，而非像 VPN 那样建立一个完整的隧道。
 {% endnote %}
+------
 
 ## 一、为什么需要 Shadowsocks？
 

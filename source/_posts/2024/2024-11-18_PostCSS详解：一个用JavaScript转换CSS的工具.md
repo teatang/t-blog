@@ -16,6 +16,7 @@ categories:
 {% note info %}
 PostCSS 的核心理念：**提供 CSS 的 AST (Abstract Syntax Tree)，让开发者可以通过插件以 JavaScript 的强大能力处理 CSS。**
 {% endnote %}
+------
 
 ## 一、什么是 PostCSS？
 

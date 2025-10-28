@@ -17,6 +17,7 @@ categories:
 {% note info %}
 “虚拟 DOM 是前端性能优化的基石，而 Vue 的 `patch()` 系列函数正是将这块基石转化为实际渲染效率的魔法棒。”
 {% endnote %}
+------
 
 ## 一、虚拟 DOM (Virtual DOM) 再探
 

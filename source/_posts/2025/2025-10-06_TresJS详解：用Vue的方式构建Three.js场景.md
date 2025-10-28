@@ -18,6 +18,7 @@ categories:
 {% note info %}
 核心思想：**将 Three.js 对象抽象为 Vue 组件，用 Vue 的响应式和组件化思维管理 3D 场景。**
 {% endnote %}
+------
 
 ## 一、什么是 TresJS？
 

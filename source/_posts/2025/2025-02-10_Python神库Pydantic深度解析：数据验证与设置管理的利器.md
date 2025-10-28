@@ -16,6 +16,7 @@ categories:
 {% note info %}
 核心思想：将 Python 的类型提示转化为强大的运行时数据验证和序列化工具，从而提高代码的健壮性和开发效率。
 {% endnote %}
+------
 
 ## 一、为什么需要 Pydantic？
 
