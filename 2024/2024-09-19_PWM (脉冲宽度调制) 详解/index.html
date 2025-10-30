@@ -1,0 +1,607 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>PWM (脉冲宽度调制) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PWM (Pulse Width Modulation)，即脉冲宽度调制，是一种利用数字信号（脉冲）来模拟模拟信号电平输出的强大技术。它通过调整一个方波信号的高电平持续时间（即脉冲宽度）来改变其在一个固定周期内的平均电压，从而实现对输出功率、速度、亮度等模拟量的精确控制。  核心思想：在固定周期内，通过改变高电平持续时间（占空比），来改变输出信号的平均值，实现对模拟量的数字控制。   一、为什么">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PWM (脉冲宽度调制) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="PWM (Pulse Width Modulation)，即脉冲宽度调制，是一种利用数字信号（脉冲）来模拟模拟信号电平输出的强大技术。它通过调整一个方波信号的高电平持续时间（即脉冲宽度）来改变其在一个固定周期内的平均电压，从而实现对输出功率、速度、亮度等模拟量的精确控制。  核心思想：在固定周期内，通过改变高电平持续时间（占空比），来改变输出信号的平均值，实现对模拟量的数字控制。   一、为什么">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg">
+<meta property="article:published_time" content="2024-09-18T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-10-30T10:10:33.516Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="开发工具">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="嵌入式系统">
+<meta property="article:tag" content="硬件编程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PWM (脉冲宽度调制) 详解",
+  "url": "https://blog.tbf1211.xx.kg/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg",
+  "datePublished": "2024-09-18T22:24:00.000Z",
+  "dateModified": "2025-10-30T10:10:33.516Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'PWM (脉冲宽度调制) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">190</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">168</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">58</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-20.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PWM (脉冲宽度调制) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PWM (脉冲宽度调制) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-09-18T22:24:00.000Z" title="发表于 2024-09-19 06:24:00">2024-09-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>8分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>PWM (Pulse Width Modulation)</strong>，即<strong>脉冲宽度调制</strong>，是一种利用数字信号（脉冲）来模拟模拟信号电平输出的强大技术。它通过调整一个方波信号的<strong>高电平持续时间</strong>（即<strong>脉冲宽度</strong>）来改变其在一个固定周期内的<strong>平均电压</strong>，从而实现对输出功率、速度、亮度等模拟量的精确控制。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>在固定周期内，通过改变高电平持续时间（占空比），来改变输出信号的平均值，实现对模拟量的数字控制。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-PWM？"><a href="#一、为什么需要-PWM？" class="headerlink" title="一、为什么需要 PWM？"></a>一、为什么需要 PWM？</h2><p>在许多应用中，我们需要控制设备的模拟量，例如：</p>
+<ul>
+<li><strong>LED 亮度</strong>：希望 LED 渐亮渐灭，而不是只有亮或灭。</li>
+<li><strong>直流电机速度</strong>：需要精确控制电机的转速。</li>
+<li><strong>加热器功率</strong>：需要调节加热器的输出功率。</li>
+<li><strong>模拟电压输出</strong>：模拟 DA 转换器输出。</li>
+</ul>
+<p>传统的模拟控制需要复杂的模拟电路，并且容易受到噪声、温度漂移等因素的影响。而微控制器（如 Arduino、ESP32）通常只能直接输出<strong>数字信号</strong>（高电平或低电平）。PWM 技术就成为了连接数字世界和模拟世界的重要桥梁，它允许我们用简单的数字输出引脚来有效地控制模拟设备。</p>
+<h2 id="二、PWM-的核心概念"><a href="#二、PWM-的核心概念" class="headerlink" title="二、PWM 的核心概念"></a>二、PWM 的核心概念</h2><p>PWM 信号是一个周期性的方波，它有两个关键参数：</p>
+<ol>
+<li><p><strong>周期 (Period) &#x2F; 频率 (Frequency)</strong>：</p>
+<ul>
+<li><strong>周期</strong>：一个完整的 PWM 脉冲（包括高电平和低电平）所需的时间。</li>
+<li><strong>频率</strong>：周期分之一。例如，如果周期是 20 毫秒，那么频率就是 50 Hz。</li>
+<li><strong>重要性</strong>：频率的选择取决于应用。对于 LED，频率通常为几百 Hz 到几 KHz，高到人眼无法察觉闪烁；对于电机，频率过低可能导致电机抖动或噪声。</li>
+</ul>
+</li>
+<li><p><strong>占空比 (Duty Cycle)</strong>：</p>
+<ul>
+<li>占空比定义为在一个周期内，<strong>高电平持续时间</strong> (Ton) 占<strong>总周期时间</strong> (Tperiod) 的比例。</li>
+<li><code>占空比 = (高电平时间 / 周期时间) × 100%</code></li>
+<li>例如，如果周期是 20 毫秒，高电平持续时间是 10 毫秒，则占空比为 50%。</li>
+<li><strong>重要性</strong>：占空比直接决定了 PWM 信号的<strong>平均电压</strong>或<strong>平均功率</strong>。<ul>
+<li>占空比为 0%：输出始终为低电平（0V）。</li>
+<li>占空比为 50%：高电平持续时间等于低电平持续时间，平均电压为电源电压的一半。</li>
+<li>占空比为 100%：输出始终为高电平（例如 5V）。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    graph TD
+    A[PWM 信号] --&gt; B{&quot;周期 (T)&quot;};
+    A --&gt; C{&quot;高电平时间 (Ton)&quot;};
+
+    B -- 定义 --&gt; D[&quot;频率 (f &#x3D; 1&#x2F;T)&quot;];
+    C -- 占一个周期的比例 --&gt; E[占空比 &#x3D; Ton &#x2F; T];
+
+    subgraph 示例波形
+        SquareWave1[&quot;Ton &#x3D; 0, Duty Cycle &#x3D; 0%&quot;]
+        SquareWave2[&quot;Ton &#x3D; 1&#x2F;4 T, Duty Cycle &#x3D; 25%&quot;]
+        SquareWave3[&quot;Ton &#x3D; 1&#x2F;2 T, Duty Cycle &#x3D; 50%&quot;]
+        SquareWave4[&quot;Ton &#x3D; 3&#x2F;4 T, Duty Cycle &#x3D; 75%&quot;]
+        SquareWave5[&quot;Ton &#x3D; T, Duty Cycle &#x3D; 100%&quot;]
+    end
+
+    SquareWave1 -- 平均电压 0V --&gt; F[输出低];
+    SquareWave2 -- 平均电压 1&#x2F;4 VCC --&gt; G[输出低中等];
+    SquareWave3 -- 平均电压 1&#x2F;2 VCC --&gt; H[输出中等];
+    SquareWave4 -- 平均电压 3&#x2F;4 VCC --&gt; I[输出高中等];
+    SquareWave5 -- 平均电压 VCC --&gt; J[输出高];
+
+  </pre></div>
+
+<h3 id="2-1-平均电压计算"><a href="#2-1-平均电压计算" class="headerlink" title="2.1 平均电压计算"></a>2.1 平均电压计算</h3><p>在一个周期内，PWM 信号的平均电压 (V_avg) 可以近似为：<br><code>V_avg = 占空比 × V_max</code><br>其中 V_max 是高电平电压（例如，Arduino 为 5V，ESP32 为 3.3V）。</p>
+<p>例如，一个 5V 的 PWM 信号，占空比为 50%，其平均电压就是 2.5V。虽然瞬间电压只有 0V 或 5V，但对于许多设备（如 LED、电机），它们响应的是这种平均电压&#x2F;功率。</p>
+<h2 id="三、PWM-的实现方式"><a href="#三、PWM-的实现方式" class="headerlink" title="三、PWM 的实现方式"></a>三、PWM 的实现方式</h2><p>PWM 信号通常由微控制器内部的<strong>硬件定时器 (Timer)</strong> 模块生成。</p>
+<h3 id="3-1-硬件定时器的工作原理"><a href="#3-1-硬件定时器的工作原理" class="headerlink" title="3.1 硬件定时器的工作原理"></a>3.1 硬件定时器的工作原理</h3><ol>
+<li><strong>计数器 (Counter)</strong>：定时器内部有一个计数器，它以一个固定的频率（由系统时钟和预分频器决定）从 0 开始递增。</li>
+<li><strong>周期寄存器 (TOP &#x2F; ARR)</strong>：计数器达到一个预设值（通常称为 TOP 或 ARR - Auto-Reload Register）后，会重新从 0 开始计数，完成一个周期。这个值决定了 PWM 信号的<strong>周期或频率</strong>。</li>
+<li><strong>比较匹配寄存器 (Compare Match &#x2F; CCR)</strong>：定时器内部还有一个比较匹配寄存器。当计数器的值与这个寄存器中的值相等时，PWM 输出引脚的状态会发生翻转（通常是从高电平变为低电平或反之）。这个值决定了 PWM 信号的<strong>高电平持续时间或低电平持续时间</strong>，从而决定了<strong>占空比</strong>。</li>
+</ol>
+<p>通过修改周期寄存器和比较匹配寄存器的值，就可以灵活地控制 PWM 信号的频率和占空比。</p>
+<h2 id="四、PWM-在-Arduino-中的应用"><a href="#四、PWM-在-Arduino-中的应用" class="headerlink" title="四、PWM 在 Arduino 中的应用"></a>四、PWM 在 Arduino 中的应用</h2><h3 id="4-1-Arduino-Uno-AVR-微控制器"><a href="#4-1-Arduino-Uno-AVR-微控制器" class="headerlink" title="4.1 Arduino Uno (AVR 微控制器)"></a>4.1 Arduino Uno (AVR 微控制器)</h3><p>Arduino Uno (ATmega328P) 提供 6 个 PWM 引脚 (通常是 D3, D5, D6, D9, D10, D11)。这些引脚的 PWM 功能由其内部的 Timer0、Timer1 和 Timer2 模块提供。</p>
+<ul>
+<li><strong><code>analogWrite(pin, value);</code></strong><ul>
+<li>这是 Arduino 提供的一个高层抽象函数。</li>
+<li><code>pin</code>: 支持 PWM 的引脚编号。</li>
+<li><code>value</code>: 0 到 255 之间的整数值。<ul>
+<li><code>value = 0</code>：占空比 0%（输出低电平）。</li>
+<li><code>value = 127</code>：约占空比 50%。</li>
+<li><code>value = 255</code>：占空比 100%（输出高电平）。</li>
+</ul>
+</li>
+<li><strong>默认频率</strong>：<code>analogWrite()</code> 函数默认使用 490 Hz (D5, D6) 或 980 Hz (D3, D9, D10, D11) 的 PWM 频率，分辨率为 8 位（0-255）。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例：LED 亮度调节</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">int</span> ledPin = <span class="number">9</span>; <span class="comment">// 使用支持 PWM 的引脚</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">setup</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="built_in">pinMode</span>(ledPin, OUTPUT);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">loop</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 渐亮</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> brightness = <span class="number">0</span>; brightness &lt;= <span class="number">255</span>; brightness += <span class="number">5</span>) &#123;</span><br><span class="line">    <span class="built_in">analogWrite</span>(ledPin, brightness);</span><br><span class="line">    <span class="built_in">delay</span>(<span class="number">30</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 渐灭</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> brightness = <span class="number">255</span>; brightness &gt;= <span class="number">0</span>; brightness -= <span class="number">5</span>) &#123;</span><br><span class="line">    <span class="built_in">analogWrite</span>(ledPin, brightness);</span><br><span class="line">    <span class="built_in">delay</span>(<span class="number">30</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-ESP32-Arduino"><a href="#4-2-ESP32-Arduino" class="headerlink" title="4.2 ESP32 Arduino"></a>4.2 ESP32 Arduino</h3><p>ESP32 拥有强大的 <strong>LEDC (LED Controller)</strong> 模块，提供多达 16 个独立的 PWM 通道，支持 1 到 16 位的分辨率，并且频率可调范围更广。这使得 ESP32 在生成精确、多通道 PWM 信号方面远超 AVR 微控制器。</p>
+<p><strong>ESP32 的 PWM 函数 (<code>ledc</code>)：</strong></p>
+<ul>
+<li><code>ledcSetup(channel, freq, resolution_bits)</code>: 配置 LEDC 通道。<ul>
+<li><code>channel</code>: LEDC 通道编号 (0-15)。</li>
+<li><code>freq</code>: PWM 频率 (Hz)。</li>
+<li><code>resolution_bits</code>: 占空比分辨率 (1-16)。例如，8 位分辨率意味着占空比范围是 0 到 (2^8 - 1) &#x3D; 255。</li>
+</ul>
+</li>
+<li><code>ledcAttachPin(pin, channel)</code>: 将 LEDC 通道与一个 GPIO 引脚关联。</li>
+<li><code>ledcWrite(channel, duty_cycle)</code>: 设置指定通道的占空比。<ul>
+<li><code>duty_cycle</code>: 值范围取决于 <code>resolution_bits</code>。对于 8 位分辨率，范围是 0-255。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例：ESP32 LED 亮度调节</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">int</span> ledPin = <span class="number">13</span>; <span class="comment">// 任意 GPIO 引脚</span></span><br><span class="line"><span class="type">const</span> <span class="type">int</span> ledcChannel = <span class="number">0</span>; <span class="comment">// 使用 LEDC 通道 0</span></span><br><span class="line"><span class="type">const</span> <span class="type">int</span> frequency = <span class="number">5000</span>; <span class="comment">// PWM 频率 5 KHz</span></span><br><span class="line"><span class="type">const</span> <span class="type">int</span> resolution = <span class="number">8</span>; <span class="comment">// 8 位分辨率，占空比范围 0-255</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">setup</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  Serial.<span class="built_in">begin</span>(<span class="number">115200</span>);</span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;ESP32 PWM (LEDC) Example&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 配置 LEDC 通道</span></span><br><span class="line">  <span class="built_in">ledcSetup</span>(ledcChannel, frequency, resolution);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将通道与 GPIO 引脚关联</span></span><br><span class="line">  <span class="built_in">ledcAttachPin</span>(ledPin, ledcChannel);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">loop</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 渐亮</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> dutyCycle = <span class="number">0</span>; dutyCycle &lt;= <span class="built_in">pow</span>(<span class="number">2</span>, resolution) - <span class="number">1</span>; dutyCycle += <span class="number">5</span>) &#123;</span><br><span class="line">    <span class="built_in">ledcWrite</span>(ledcChannel, dutyCycle);</span><br><span class="line">    <span class="built_in">delay</span>(<span class="number">30</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 渐灭</span></span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> dutyCycle = <span class="built_in">pow</span>(<span class="number">2</span>, resolution) - <span class="number">1</span>; dutyCycle &gt;= <span class="number">0</span>; dutyCycle -= <span class="number">5</span>) &#123;</span><br><span class="line">    <span class="built_in">ledcWrite</span>(ledcChannel, dutyCycle);</span><br><span class="line">    <span class="built_in">delay</span>(<span class="number">30</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、PWM-的应用场景"><a href="#五、PWM-的应用场景" class="headerlink" title="五、PWM 的应用场景"></a>五、PWM 的应用场景</h2><ul>
+<li><strong>直流电机速度控制</strong>：改变电机两端电压的平均值，从而控制电机转速。</li>
+<li><strong>LED 亮度调节</strong>：通过改变 LED 的平均电流，控制 LED 的发光亮度。</li>
+<li><strong>舵机控制</strong>：通过调整特定频率下（通常 50Hz）的脉冲宽度，控制舵机的角度或连续旋转速度。</li>
+<li><strong>D&#x2F;A 转换 (数字模拟转换)</strong>：通过低通滤波器平滑 PWM 信号，可以生成近似的模拟电压。</li>
+<li><strong>加热控制</strong>：通过控制加热设备的通电时间比例，调节其平均功率。</li>
+<li><strong>音频信号生成</strong>：通过快速改变占空比，模拟复杂的音频波形（需要较高的 PWM 频率和分辨率）。</li>
+<li><strong>电源转换器 (如 Buck&#x2F;Boost)</strong>：用于高效地转换电压。</li>
+</ul>
+<h2 id="六、PWM-的优缺点"><a href="#六、PWM-的优缺点" class="headerlink" title="六、PWM 的优缺点"></a>六、PWM 的优缺点</h2><h3 id="6-1-优点"><a href="#6-1-优点" class="headerlink" title="6.1 优点"></a>6.1 优点</h3><ol>
+<li><strong>高效率</strong>：当开关器件（如 MOS 管）处于完全导通（低压降）或完全截止（低电流）状态时，功率损耗最小。PWM 通过快速切换状态，避免了模拟电路中晶体管长时间工作在线性区导致的能量损耗。</li>
+<li><strong>数字控制</strong>：可以使用微控制器直接生成和控制，编程简单。</li>
+<li><strong>精确控制</strong>：可以实现非常精细的调节，例如 8 位分辨率提供 256 级调节，16 位分辨率提供 65536 级调节。</li>
+<li><strong>抗干扰能力强</strong>：数字信号相对于模拟信号更不容易受到噪声干扰。</li>
+<li><strong>成本低</strong>：无需复杂的模拟电路。</li>
+</ol>
+<h3 id="6-2-缺点"><a href="#6-2-缺点" class="headerlink" title="6.2 缺点"></a>6.2 缺点</h3><ol>
+<li><strong>噪声</strong>：PWM 信号的开关特性可能会产生电磁干扰 (EMI) 和噪声，尤其是在高功率应用中。</li>
+<li><strong>非线性响应</strong>：某些负载（如白炽灯）对平均电压的响应可能不是线性的，可能需要通过查找表或算法进行校正。</li>
+<li><strong>需要滤波</strong>：如果需要获得纯净的模拟电压，PWM 信号需要经过低通滤波器进行平滑。</li>
+<li><strong>频率选择</strong>：不合适的 PWM 频率可能导致可闻噪声（电机）或可见闪烁（LED）。</li>
+</ol>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>PWM 是一种简单而强大的技术，它极大地拓展了微控制器在控制模拟世界方面的能力。从简单的 LED 调光到复杂的电机控制和电源管理，PWM 都扮演着核心角色。理解其基本原理、核心参数和在不同平台上的实现方式，是进行嵌入式开发和物联网项目不可或缺的知识。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><a class="post-meta__tags" href="/tags/%E7%A1%AC%E4%BB%B6%E7%BC%96%E7%A8%8B/">硬件编程</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-20.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2024/2024-10-02_Python%E6%8E%A8%E5%AF%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%88%97%E8%A1%A8%E3%80%81%E5%AD%97%E5%85%B8%E3%80%81%E9%9B%86%E5%90%88%E4%B8%8E%E7%94%9F%E6%88%90%E5%99%A8%E6%8E%A8%E5%AF%BC%E5%BC%8F/" title="Python推导式详解：列表、字典、集合与生成器推导式"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Python推导式详解：列表、字典、集合与生成器推导式</div></div><div class="info-2"><div class="info-item-1"> Python 推导式 (Comprehensions) 是一种简洁、优雅的语法糖 (Syntactic Sugar)，它允许我们以一行代码的形式创建列表、字典、集合和生成器。推导式是 Python 语言的一大特色，它能够显著提高代码的可读性和执行效率，是 Pythonic 编程风格的重要组成部分。  核心思想：推导式提供了一种声明式的方式来生成序列，通过将 for 循环和 if 条件语句内联到数据结构（列表、字典、集合）的创建中，从而避免了冗长的传统循环结构，使代码更加紧凑和富有表达力。   一、为什么使用推导式？在没有推导式之前，我们需要使用传统的 for 循环来创建新的列表、字典或集合。例如，创建一个包含平方数的列表： 传统 for 循环： 1234squares = []for i in range(10):    squares.append(i * i)print(squares) # Output: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]  使用列表推导式 (List Comprehension)，同样的操作可以简化为一行： 12s...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/" title="ESP32 Arduino 舵机详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">ESP32 Arduino 舵机详解</div></div><div class="info-2"><div class="info-item-1"> 舵机 (Servo Motor) 是一种集成了直流电机、减速齿轮组、电位器和控制电路的微型直流电机。它能够精确地控制输出轴的角度位置，通常在 0 到 180 度之间旋转（标准舵机），或者实现连续旋转（连续旋转舵机）。在机器人、航模、自动化控制等领域，舵机因其小巧、控制简单、定位精确而广受欢迎。  核心思想：通过调整 PWM (脉冲宽度调制) 信号的脉冲宽度来控制舵机的角度。ESP32 凭借其强大的 LEDC (LED Controller) 模块，能够轻松、精确地驱动多个舵机。   一、舵机工作原理舵机通过接收一个PWM (脉冲宽度调制) 信号来确定其旋转角度。  供电：舵机通常需要 5V 的电源供电。请注意，单个舵机在工作时可能会消耗数百毫安的电流，多个舵机同时工作时电流需求会更大，因此需要一个外部电源为舵机供电，而不是直接由 ESP32 的 3.3V 或 5V 引脚供电（除非是微型舵机且数量极少）。 控制信号：舵机的控制线接收一个周期为 20 毫秒（即 50 Hz）的 PWM 信号。 脉冲宽度决定角度： 1.5 毫秒的脉冲宽度通常对应舵机的中心位置 (90 度)。 1 毫秒...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2024/2024-06-01_PlatformIO%20%E8%AF%A6%E8%A7%A3/" title="PlatformIO 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-01</div><div class="info-item-2">PlatformIO 详解</div></div><div class="info-2"><div class="info-item-1"> PlatformIO 是一个开源的生态系统，用于物联网 (IoT) 和嵌入式系统的开发。它提供了一个跨平台、多框架、集成开发环境 (IDE) 独立的开发工具集。PlatformIO 的目标是简化嵌入式开发的复杂性，让开发者能够专注于代码逻辑，而不用花费大量时间在工具链的配置和管理上。它支持数百种开发板、多种流行的开发框架（如 Arduino, ESP-IDF, STM32Cube, Zephyr 等），并集成了调试器、库管理器、单元测试等功能。  核心思想：统一嵌入式开发工作流，抽象底层工具链细节，提供高度可配置和自动化的开发环境。 开发者可以使用自己喜欢的编辑器（如 VS Code）配合 PlatformIO 的强大后端进行项目管理、编译和烧录。   一、为什么选择 PlatformIO？传统嵌入式开发的痛点传统的嵌入式开发常常伴随着一系列挑战：  工具链碎片化：不同的微控制器和开发板通常需要不同的编译器、烧录工具和调试器。例如，为 AVR 芯片开发需要 AVR-GCC，为 ESP32 开发需要 xtensa-esp32-elf-gcc。 IDE 绑定和限制：许多官方 IDE...</div></div></div></a><a class="pagination-related" href="/2024/2024-07-14_U8g2lib%20%E8%AF%A6%E8%A7%A3/" title="U8g2lib 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-14</div><div class="info-item-2">U8g2lib 详解</div></div><div class="info-2"><div class="info-item-1"> U8g2lib 是一个用于单色图形显示器 (monochrome graphics displays) 的开源嵌入式图形库。它支持各种 OLED 和 LCD 显示器，例如经典的 128x64 SSD1306 OLED 显示器。U8g2lib 以其广泛的硬件支持、丰富的字体集、高效的内存使用以及强大的图形绘制功能而闻名。它是 U8glib 的继任者，相比 U8glib，U8g2lib 在内存效率和功能上进行了优化和扩展，支持帧缓冲模式 (full buffer) 和页缓冲模式 (page buffer)。  核心思想：提供一个统一的 API 接口，驱动各种单色图形显示器，并提供一套完整的图形绘制和字体渲染功能，同时兼顾嵌入式设备的资源限制。 开发者无需关心底层显示器的驱动细节，专注于界面设计。   一、为什么需要 U8g2lib？嵌入式显示器的痛点在嵌入式系统中集成单色图形显示器时，开发者常常面临以下挑战：  硬件驱动复杂：不同的显示器控制器 (如 SSD1306, SH1106, ST7920) 有不同的初始化序列、命令集和数据传输协议（SPI, I2C, 并行）。手动编写驱动...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-12_%E4%B8%AD%E6%96%AD%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/" title="中断机制详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-12</div><div class="info-item-2">中断机制详解</div></div><div class="info-2"><div class="info-item-1"> 中断 (Interrupt) 是指当 CPU 在执行程序时，由于发生了某个事件（如 I&#x2F;O 完成、硬件故障、定时器溢出、程序错误等），导致 CPU 暂停当前程序的执行，转而去处理该事件，处理完毕后，再回到原程序继续执行的过程。中断是实现多任务、设备管理、错误处理等操作系统核心功能的基础。  核心思想：打破 CPU 顺序执行指令的模式，允许外部或内部事件暂时接管 CPU 控制权，提高系统效率和响应性。   一、为什么需要中断？在没有中断的早期计算机系统中，CPU 必须通过轮询 (Polling) 的方式来检查外部设备的状态。例如，CPU 需要不断地询问键盘是否有按键按下，或者打印机是否完成打印。这种方式存在明显的问题：  效率低下：CPU 大部分时间都在等待慢速设备，造成宝贵的计算资源浪费。 实时性差：如果 CPU 在执行一个耗时任务，无法及时响应其他设备的请求。 编程复杂：程序员需要手动编写大量轮询代码，增加了开发难度。  中断机制旨在解决这些问题，提供一种更高效、更灵活的事件处理方式：  提高 CPU 利用率：当设备忙碌或等待事件时，CPU 可以执行其他任务，而不是...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-16_ESP32%20Arduino%20%E5%AE%9A%E6%97%B6%E5%99%A8%E8%AF%A6%E8%A7%A3/" title="ESP32 Arduino 定时器详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-16</div><div class="info-item-2">ESP32 Arduino 定时器详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 定时器 在 Arduino 环境下提供了高度灵活且强大的时间管理和事件调度能力。与传统的 AVR 微控制器（如 Arduino Uno）相比，ESP32 拥有更丰富、更复杂的定时器资源，包括硬件定时器、看门狗定时器以及基于 FreeRTOS 的软件定时器，这些都为多任务处理、精确时间控制和外设驱动提供了坚实的基础。  核心思想：利用 ESP32 强大的定时器硬件和 FreeRTOS 软件定时器，实现高度灵活和精确的时间管理，支持复杂的并发任务调度和外设控制。   一、ESP32 定时器概述ESP32 是一个双核（或单核）的 32 位 LX6 微控制器，运行着 FreeRTOS 操作系统。其定时器资源远超一般的 8 位 AVR 芯片。 ESP32 主要提供以下类型的定时器：  通用目的定时器 (General Purpose Timer - GPTimer)： ESP32 集成了 2 个定时器组 (Timer Group)。 每个定时器组包含 2 个通用定时器，总共有 4 个硬件定时器 (Timer0, Timer1 in Group0; Timer0, Timer1...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/" title="ESP32 Arduino 舵机详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-18</div><div class="info-item-2">ESP32 Arduino 舵机详解</div></div><div class="info-2"><div class="info-item-1"> 舵机 (Servo Motor) 是一种集成了直流电机、减速齿轮组、电位器和控制电路的微型直流电机。它能够精确地控制输出轴的角度位置，通常在 0 到 180 度之间旋转（标准舵机），或者实现连续旋转（连续旋转舵机）。在机器人、航模、自动化控制等领域，舵机因其小巧、控制简单、定位精确而广受欢迎。  核心思想：通过调整 PWM (脉冲宽度调制) 信号的脉冲宽度来控制舵机的角度。ESP32 凭借其强大的 LEDC (LED Controller) 模块，能够轻松、精确地驱动多个舵机。   一、舵机工作原理舵机通过接收一个PWM (脉冲宽度调制) 信号来确定其旋转角度。  供电：舵机通常需要 5V 的电源供电。请注意，单个舵机在工作时可能会消耗数百毫安的电流，多个舵机同时工作时电流需求会更大，因此需要一个外部电源为舵机供电，而不是直接由 ESP32 的 3.3V 或 5V 引脚供电（除非是微型舵机且数量极少）。 控制信号：舵机的控制线接收一个周期为 20 毫秒（即 50 Hz）的 PWM 信号。 脉冲宽度决定角度： 1.5 毫秒的脉冲宽度通常对应舵机的中心位置 (90 度)。 1 毫秒...</div></div></div></a><a class="pagination-related" href="/2024/2024-05-08_51%E5%8D%95%E7%89%87%E6%9C%BA%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%BB%8F%E5%85%B8%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%85%A5%E9%97%A8%E5%BE%AE%E6%8E%A7%E5%88%B6%E5%99%A8/" title="51单片机详解：经典嵌入式入门微控制器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-08</div><div class="info-item-2">51单片机详解：经典嵌入式入门微控制器</div></div><div class="info-2"><div class="info-item-1"> 51单片机，通常指基于 Intel MCS-51 架构的微控制器，是微控制器发展史上一个里程碑式的产品系列。它因其结构简单、指令系统精炼、价格低廉、易于上手等特点，在教育、工业控制、消费电子等领域得到了广泛应用，至今仍是许多入门级嵌入式系统设计和学习的首选平台。虽然其性能可能不及现代的 ARM 等32位微控制器，但其经典的架构和丰富的外设资源，使其成为理解微控制器工作原理、学习底层编程的绝佳工具。  核心思想：51单片机集成了 CPU、RAM、ROM、并行I&#x2F;O口、定时器&#x2F;计数器、串行通信口等基本功能于一体的微型计算机，在一个芯片上实现了“控制”的核心功能，是嵌入式系统最基础的构成单元。   一、51单片机的起源与发展51单片机最初由 Intel 公司于 1980 年代推出，型号为 80C51&#x2F;8051，属于其 MCS-51 系列。其经典的哈佛指令结构、8位数据宽度、16位地址宽度等特性，迅速成为市场上的主流微控制器。随着技术发展，多家厂商（如 Atmel、NXP、STC、华大等）推出了兼容 MCS-51 指令集的增强型或改进型单片机，如 AT89...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">190</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">168</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">58</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-PWM%EF%BC%9F"><span class="toc-text">一、为什么需要 PWM？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81PWM-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、PWM 的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%B9%B3%E5%9D%87%E7%94%B5%E5%8E%8B%E8%AE%A1%E7%AE%97"><span class="toc-text">2.1 平均电压计算</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81PWM-%E7%9A%84%E5%AE%9E%E7%8E%B0%E6%96%B9%E5%BC%8F"><span class="toc-text">三、PWM 的实现方式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E7%A1%AC%E4%BB%B6%E5%AE%9A%E6%97%B6%E5%99%A8%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">3.1 硬件定时器的工作原理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81PWM-%E5%9C%A8-Arduino-%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8"><span class="toc-text">四、PWM 在 Arduino 中的应用</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-Arduino-Uno-AVR-%E5%BE%AE%E6%8E%A7%E5%88%B6%E5%99%A8"><span class="toc-text">4.1 Arduino Uno (AVR 微控制器)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-ESP32-Arduino"><span class="toc-text">4.2 ESP32 Arduino</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81PWM-%E7%9A%84%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">五、PWM 的应用场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81PWM-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">六、PWM 的优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9"><span class="toc-text">6.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">6.2 缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="nftables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解">nftables 详解</a><time datetime="2025-10-27T22:24:00.000Z" title="发表于 2025-10-28 06:24:00">2025-10-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="iptables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解">iptables 详解</a><time datetime="2025-10-24T22:24:00.000Z" title="发表于 2025-10-25 06:24:00">2025-10-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言并发与并行详解"/></a><div class="content"><a class="title" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解">Go语言并发与并行详解</a><time datetime="2025-10-22T22:24:00.000Z" title="发表于 2025-10-23 06:24:00">2025-10-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="常用限流算法的Go语言实现详解"/></a><div class="content"><a class="title" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解">常用限流算法的Go语言实现详解</a><time datetime="2025-10-15T22:24:00.000Z" title="发表于 2025-10-16 06:24:00">2025-10-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NativeScript-Vue3详解"/></a><div class="content"><a class="title" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解">NativeScript-Vue3详解</a><time datetime="2025-10-09T22:24:00.000Z" title="发表于 2025-10-10 06:24:00">2025-10-10</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-20.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>

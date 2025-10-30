@@ -1,0 +1,628 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>ESP32 Arduino 舵机详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="舵机 (Servo Motor) 是一种集成了直流电机、减速齿轮组、电位器和控制电路的微型直流电机。它能够精确地控制输出轴的角度位置，通常在 0 到 180 度之间旋转（标准舵机），或者实现连续旋转（连续旋转舵机）。在机器人、航模、自动化控制等领域，舵机因其小巧、控制简单、定位精确而广受欢迎。  核心思想：通过调整 PWM (脉冲宽度调制) 信号的脉冲宽度来控制舵机的角度。ESP32 凭借其强大">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ESP32 Arduino 舵机详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="舵机 (Servo Motor) 是一种集成了直流电机、减速齿轮组、电位器和控制电路的微型直流电机。它能够精确地控制输出轴的角度位置，通常在 0 到 180 度之间旋转（标准舵机），或者实现连续旋转（连续旋转舵机）。在机器人、航模、自动化控制等领域，舵机因其小巧、控制简单、定位精确而广受欢迎。  核心思想：通过调整 PWM (脉冲宽度调制) 信号的脉冲宽度来控制舵机的角度。ESP32 凭借其强大">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg">
+<meta property="article:published_time" content="2024-09-17T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-10-30T10:10:33.516Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="开发工具">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="嵌入式系统">
+<meta property="article:tag" content="硬件编程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ESP32 Arduino 舵机详解",
+  "url": "https://blog.tbf1211.xx.kg/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg",
+  "datePublished": "2024-09-17T22:24:00.000Z",
+  "dateModified": "2025-10-30T10:10:33.516Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'ESP32 Arduino 舵机详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">190</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">168</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">58</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-01.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">ESP32 Arduino 舵机详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">ESP32 Arduino 舵机详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-09-17T22:24:00.000Z" title="发表于 2024-09-18 06:24:00">2024-09-18</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>舵机 (Servo Motor)</strong> 是一种集成了直流电机、减速齿轮组、电位器和控制电路的微型直流电机。它能够精确地控制输出轴的角度位置，通常在 0 到 180 度之间旋转（标准舵机），或者实现连续旋转（连续旋转舵机）。在机器人、航模、自动化控制等领域，舵机因其小巧、控制简单、定位精确而广受欢迎。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>通过调整 PWM (脉冲宽度调制) 信号的脉冲宽度来控制舵机的角度。ESP32 凭借其强大的 LEDC (LED Controller) 模块，能够轻松、精确地驱动多个舵机。</strong></p>
+</div>
+<hr>
+<h2 id="一、舵机工作原理"><a href="#一、舵机工作原理" class="headerlink" title="一、舵机工作原理"></a>一、舵机工作原理</h2><p>舵机通过接收一个<strong>PWM (脉冲宽度调制) 信号</strong>来确定其旋转角度。</p>
+<ul>
+<li><strong>供电</strong>：舵机通常需要 5V 的电源供电。请注意，单个舵机在工作时可能会消耗数百毫安的电流，多个舵机同时工作时电流需求会更大，因此需要一个外部电源为舵机供电，而不是直接由 ESP32 的 3.3V 或 5V 引脚供电（除非是微型舵机且数量极少）。</li>
+<li><strong>控制信号</strong>：舵机的控制线接收一个周期为 20 毫秒（即 50 Hz）的 PWM 信号。</li>
+<li><strong>脉冲宽度决定角度</strong>：<ul>
+<li><strong>1.5 毫秒</strong>的脉冲宽度通常对应舵机的<strong>中心位置</strong> (90 度)。</li>
+<li><strong>1 毫秒</strong>的脉冲宽度通常对应舵机的<strong>最小角度</strong> (0 度)。</li>
+<li><strong>2 毫秒</strong>的脉冲宽度通常对应舵机的<strong>最大角度</strong> (180 度)。</li>
+</ul>
+</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    graph TD
+    A[ESP32] --&gt; B{PWM 信号};
+    B -- 20ms 周期 (50Hz) --&gt; C[舵机];
+    B -- 脉冲宽度 --&gt; D{舵机控制电路};
+    D -- 调整电机方向&#x2F;时间 --&gt; E[齿轮组];
+    E -- 改变角度 --&gt; F[输出轴];
+
+    subgraph 脉冲宽度与角度
+        PWM_1ms[1ms 脉冲宽度] --&gt; Angle_0[0度];
+        PWM_1_5ms[1.5ms 脉冲宽度] --&gt; Angle_90[90度];
+        PWM_2ms[2ms 脉冲宽度] --&gt; Angle_180[180度];
+    end
+  </pre></div>
+
+<p>这些脉冲宽度值是舵机的标准定义，但不同的舵机型号可能会有轻微差异，有时 0 度可能对应 0.5ms，180 度可能对应 2.5ms。通常，舵机的规格书会给出这些参数。</p>
+<h2 id="二、ESP32-驱动舵机的优势"><a href="#二、ESP32-驱动舵机的优势" class="headerlink" title="二、ESP32 驱动舵机的优势"></a>二、ESP32 驱动舵机的优势</h2><p>传统的 AVR Arduino (如 Uno) 驱动多个舵机时，通常会受限于定时器资源，<code>Servo</code> 库会占用 Timer1，且同时驱动的舵机数量有限。</p>
+<p>ESP32 在驱动舵机方面具有显著优势：</p>
+<ol>
+<li><strong>多个 PWM 通道</strong>：ESP32 的 <strong>LEDC (LED Controller)</strong> 模块提供多达 <strong>16 个独立通道</strong> (Arduino 库通常只开放 8 个通道)，每个通道都可以独立配置频率和占空比。这意味着 ESP32 可以轻松同时驱动多个舵机，而不会互相干扰。</li>
+<li><strong>高精度 PWM</strong>：LEDC 模块支持 1 到 16 位的占空比分辨率，这使得舵机角度控制更加精细和平滑。</li>
+<li><strong>硬件驱动</strong>：PWM 信号由硬件生成，不占用 CPU 资源，CPU 可以同时执行其他任务。</li>
+</ol>
+<h2 id="三、ESP32-Arduino-ESP32Servo-库详解"><a href="#三、ESP32-Arduino-ESP32Servo-库详解" class="headerlink" title="三、ESP32 Arduino ESP32Servo 库详解"></a>三、ESP32 Arduino <code>ESP32Servo</code> 库详解</h2><p>Arduino IDE 为 ESP32 提供了一个专门的 <code>ESP32Servo</code> 库，它基于 ESP32 的 LEDC 模块，使得舵机控制变得非常简单。这个库的使用方式与标准的 Arduino <code>Servo</code> 库非常相似。</p>
+<h3 id="3-1-库的安装"><a href="#3-1-库的安装" class="headerlink" title="3.1 库的安装"></a>3.1 库的安装</h3><p>如果你的 Arduino IDE 已经安装了 ESP32 板支持，通常 <code>ESP32Servo</code> 库也会随之安装。如果没有，可以通过以下步骤手动安装：</p>
+<ol>
+<li>打开 Arduino IDE。</li>
+<li><code>工具</code> -&gt; <code>管理库...</code>。</li>
+<li>搜索 <code>ESP32Servo</code> 并安装。</li>
+</ol>
+<h3 id="3-2-常用函数"><a href="#3-2-常用函数" class="headerlink" title="3.2 常用函数"></a>3.2 常用函数</h3><p><code>ESP32Servo</code> 库的核心是 <code>Servo</code> 类。</p>
+<ul>
+<li><strong><code>#include &lt;ESP32Servo.h&gt;</code></strong>：在代码开头包含库。</li>
+<li><strong><code>Servo myservo;</code></strong>：创建一个 <code>Servo</code> 对象。你可以创建多个 <code>Servo</code> 对象来控制多个舵机。</li>
+<li><strong><code>myservo.attach(pin);</code></strong>：将舵机对象附加到指定的 GPIO 引脚。这个函数会自动配置 LEDC 通道。<ul>
+<li><code>pin</code>: ESP32 的任何 GPIO 引脚都可以用作 PWM 输出。</li>
+<li><code>attach(pin, minPulse, maxPulse)</code>: 可以选择性地指定最小和最大脉冲宽度（微秒），覆盖库的默认值 (通常是 500us 和 2400us)。</li>
+</ul>
+</li>
+<li><strong><code>myservo.write(angle);</code></strong>：将舵机移动到指定角度。<ul>
+<li><code>angle</code>: 0 到 180 度的整数值。</li>
+</ul>
+</li>
+<li><strong><code>myservo.writeMicroseconds(us);</code></strong>：直接设置 PWM 脉冲宽度（微秒）。这在需要更精细控制或处理不同规格舵机时很有用。<ul>
+<li><code>us</code>: 500 到 2500 微秒之间的整数值。</li>
+</ul>
+</li>
+<li><strong><code>myservo.read();</code></strong>：读取舵机当前的角度值。</li>
+<li><strong><code>myservo.attached();</code></strong>：检查舵机是否已附加到引脚。</li>
+<li><strong><code>myservo.detach();</code></strong>：将舵机从引脚分离，释放 LEDC 通道资源。</li>
+</ul>
+<h3 id="3-3-示例：控制一个标准舵机"><a href="#3-3-示例：控制一个标准舵机" class="headerlink" title="3.3 示例：控制一个标准舵机"></a>3.3 示例：控制一个标准舵机</h3><p>这个例子将连接到 GPIO 13 的舵机从 0 度旋转到 180 度，然后再返回。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;ESP32Servo.h&gt;</span> <span class="comment">// 包含 ESP32Servo 库</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义舵机连接的GPIO引脚</span></span><br><span class="line"><span class="comment">// 你可以选择任何一个PWM支持的GPIO引脚</span></span><br><span class="line"><span class="comment">// 常见的PWM引脚包括：13, 14, 27, 26, 25, 33, 32, 18, 19, 23 (注意有些引脚在开发板上可能已被其他功能占用)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SERVO_PIN 13 <span class="comment">// 例如，使用GPIO 13</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建一个Servo对象</span></span><br><span class="line">Servo myServo;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">setup</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  Serial.<span class="built_in">begin</span>(<span class="number">115200</span>); <span class="comment">// 初始化串口用于调试输出</span></span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;ESP32 Servo Demo Start!&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 允许使用GPIO进行PWM输出 (ESP32Servo库的特殊设置)</span></span><br><span class="line">  <span class="comment">// 这是为了确保库正确初始化了PWM通道</span></span><br><span class="line">  ESP32PWM::<span class="built_in">allocateTimer</span>(<span class="number">0</span>); <span class="comment">// 为PWM分配一个计时器 (0-3)</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将舵机对象附加到指定的GPIO引脚</span></span><br><span class="line">  <span class="comment">// myServo.attach(SERVO_PIN); // 默认频率是50Hz (20ms周期)，脉宽范围是500us到2400us</span></span><br><span class="line">  <span class="comment">// 可以自定义脉宽范围来更精确地控制舵机，比如SG90通常是500us到2400us或1000us到2000us</span></span><br><span class="line">  <span class="comment">// 建议查阅舵机的数据手册以获取准确的脉宽范围</span></span><br><span class="line">  myServo.<span class="built_in">attach</span>(SERVO_PIN, <span class="number">500</span>, <span class="number">2400</span>); <span class="comment">// 附加舵机，设置最小和最大脉宽 (微秒)</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 初始位置设置，移动到0度</span></span><br><span class="line">  myServo.<span class="built_in">write</span>(<span class="number">0</span>);</span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;Initial position: 0 degrees&quot;</span>);</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>); <span class="comment">// 等待1秒让舵机移动到位</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">loop</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 从0度缓慢移动到180度</span></span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;Moving from 0 to 180 degrees...&quot;</span>);</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> pos = <span class="number">0</span>; pos &lt;= <span class="number">180</span>; pos += <span class="number">1</span>) &#123; <span class="comment">// 每次增加1度</span></span><br><span class="line">    myServo.<span class="built_in">write</span>(pos);                     <span class="comment">// 告诉舵机移动到指定角度</span></span><br><span class="line">    <span class="built_in">delay</span>(<span class="number">15</span>);                              <span class="comment">// 延迟一点时间，让舵机缓慢移动</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>); <span class="comment">// 在180度位置停留1秒</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 从180度缓慢移动到0度</span></span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;Moving from 180 to 0 degrees...&quot;</span>);</span><br><span class="line">  <span class="keyword">for</span> (<span class="type">int</span> pos = <span class="number">180</span>; pos &gt;= <span class="number">0</span>; pos -= <span class="number">1</span>) &#123; <span class="comment">// 每次减少1度</span></span><br><span class="line">    myServo.<span class="built_in">write</span>(pos);                     <span class="comment">// 告诉舵机移动到指定角度</span></span><br><span class="line">    <span class="built_in">delay</span>(<span class="number">15</span>);                              <span class="comment">// 延迟一点时间，让舵机缓慢移动</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">1000</span>); <span class="comment">// 在0度位置停留1秒</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-示例：使用-writeMicroseconds-精确控制"><a href="#3-4-示例：使用-writeMicroseconds-精确控制" class="headerlink" title="3.4 示例：使用 writeMicroseconds() 精确控制"></a>3.4 示例：使用 <code>writeMicroseconds()</code> 精确控制</h3><p>如果你需要更精确的控制，或者你的舵机不是标准的 1ms-2ms 脉冲范围，可以使用 <code>writeMicroseconds()</code>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;ESP32Servo.h&gt;</span></span></span><br><span class="line"></span><br><span class="line">Servo myservo;</span><br><span class="line"><span class="type">const</span> <span class="type">int</span> servoPin = <span class="number">13</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">setup</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  Serial.<span class="built_in">begin</span>(<span class="number">115200</span>);</span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;ESP32 Servo writeMicroseconds Example&quot;</span>);</span><br><span class="line"></span><br><span class="line">  ESP32PWM::<span class="built_in">setup</span>();</span><br><span class="line">  <span class="comment">// 使用自定义的最小和最大脉冲宽度，这里我们使用库的默认值来示例</span></span><br><span class="line">  <span class="comment">// minPulseWidth: 500us, maxPulseWidth: 2400us 是库的默认值</span></span><br><span class="line">  myservo.<span class="built_in">attach</span>(servoPin, <span class="number">500</span>, <span class="number">2400</span>); </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">loop</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 移动到最小角度 (例如 0度，对应 500us)</span></span><br><span class="line">  myservo.<span class="built_in">writeMicroseconds</span>(<span class="number">500</span>); </span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;Moved to 500us (Min Angle)&quot;</span>);</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">2000</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 移动到中心位置 (例如 90度，对应 1500us)</span></span><br><span class="line">  myservo.<span class="built_in">writeMicroseconds</span>(<span class="number">1500</span>);</span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;Moved to 1500us (Center)&quot;</span>);</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">2000</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 移动到最大角度 (例如 180度，对应 2400us)</span></span><br><span class="line">  myservo.<span class="built_in">writeMicroseconds</span>(<span class="number">2400</span>);</span><br><span class="line">  Serial.<span class="built_in">println</span>(<span class="string">&quot;Moved to 2400us (Max Angle)&quot;</span>);</span><br><span class="line">  <span class="built_in">delay</span>(<span class="number">2000</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="四、舵机供电注意事项"><a href="#四、舵机供电注意事项" class="headerlink" title="四、舵机供电注意事项"></a>四、舵机供电注意事项</h2><p>这是使用舵机时最关键的考虑因素之一，尤其是使用 ESP32 这样的微控制器：</p>
+<ol>
+<li><strong>独立电源</strong>：<ul>
+<li><strong>切勿</strong>直接使用 ESP32 开发板的 3.3V 或 5V 引脚为多个舵机供电。ESP32 板载稳压器的电流输出能力有限，通常只有几百毫安。</li>
+<li>单个标准舵机在空载时可能消耗 100-200mA，在堵转或带载时可能瞬间达到 500mA - 1A 甚至更高。</li>
+<li>多个舵机同时启动或工作时，瞬时电流会非常大，可能导致 ESP32 复位、工作不稳定，甚至损坏开发板。</li>
+<li><strong>正确做法</strong>：使用一个独立的、足够强大的 5V 外部电源为舵机供电。</li>
+</ul>
+</li>
+<li><strong>共地连接</strong>：<ul>
+<li><strong>极其重要！</strong> 尽管舵机由外部电源供电，但它的地线<strong>必须</strong>与 ESP32 的地线连接在一起（共地），否则控制信号将无法正确传递。</li>
+<li><strong>接线示意图：</strong><ul>
+<li>舵机红色线 (VCC) -&gt; 外部 5V 电源正极</li>
+<li>舵机棕色&#x2F;黑色线 (GND) -&gt; 外部 5V 电源负极 <strong>AND</strong> ESP32 的 GND 引脚</li>
+<li>舵机黄色&#x2F;橙色&#x2F;白色线 (Signal) -&gt; ESP32 的任意 GPIO 引脚</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    graph TD
+    subgraph 外部电源
+        Ext_VCC[5V Output]
+        Ext_GND[GND]
+    end
+
+    subgraph ESP32 板
+        ESP32_GPIO[GPIO Pin]
+        ESP32_GND[GND]
+    end
+
+    subgraph 舵机
+        Servo_VCC[&quot;VCC (Red)&quot;]
+        Servo_GND[&quot;GND (Brown&#x2F;Black)&quot;]
+        Servo_Signal[&quot;Signal (Yellow&#x2F;Orange&#x2F;White)&quot;]
+    end
+
+    Ext_VCC --&gt; Servo_VCC;
+    Ext_GND --&gt; Servo_GND;
+    ESP32_GND --&gt; Servo_GND;
+    ESP32_GPIO --&gt; Servo_Signal;
+
+    style Ext_VCC fill:#f9f,stroke:#333,stroke-width:2px;
+    style Ext_GND fill:#ccc,stroke:#333,stroke-width:2px;
+    style ESP32_GPIO fill:#9cf,stroke:#333,stroke-width:2px;
+    style ESP32_GND fill:#ccc,stroke:#333,stroke-width:2px;
+    style Servo_VCC fill:#f9f,stroke:#333,stroke-width:2px;
+    style Servo_GND fill:#ccc,stroke:#333,stroke-width:2px;
+    style Servo_Signal fill:#9cf,stroke:#333,stroke-width:2px;
+  </pre></div>
+
+<h2 id="五、连续旋转舵机-Continuous-Rotation-Servo"><a href="#五、连续旋转舵机-Continuous-Rotation-Servo" class="headerlink" title="五、连续旋转舵机 (Continuous Rotation Servo)"></a>五、连续旋转舵机 (Continuous Rotation Servo)</h2><p>连续旋转舵机的工作原理与标准舵机类似，但它的目标不是特定的角度，而是<strong>旋转速度和方向</strong>。</p>
+<ul>
+<li><strong>1.5 毫秒脉冲</strong>：停止旋转。</li>
+<li><strong>小于 1.5 毫秒脉冲</strong> (例如 1 毫秒)：以不同的速度向一个方向旋转。</li>
+<li><strong>大于 1.5 毫秒脉冲</strong> (例如 2 毫秒)：以不同的速度向另一个方向旋转。</li>
+</ul>
+<p>使用 <code>ESP32Servo</code> 库控制连续旋转舵机时：</p>
+<ul>
+<li><code>myservo.write(90);</code> 会让舵机停止。</li>
+<li><code>myservo.write(0);</code> 会让舵机以最大速度向一个方向旋转。</li>
+<li><code>myservo.write(180);</code> 会让舵机以最大速度向另一个方向旋转。</li>
+<li>通过 <code>myservo.write(angle);</code> 传入 0 到 90 之间的值，或 90 到 180 之间的值，可以控制不同的旋转速度。</li>
+<li><code>myservo.writeMicroseconds()</code> 提供更精细的速度控制。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>ESP32 凭借其强大的 LEDC 模块和 <code>ESP32Servo</code> 库，为舵机控制提供了高效、灵活且易于使用的解决方案。无论是单个还是多个舵机，标准型还是连续旋转型，ESP32 都能胜任。</p>
+<p><strong>关键要点回顾：</strong></p>
+<ul>
+<li>舵机通过 PWM 信号的<strong>脉冲宽度</strong>控制角度。</li>
+<li>ESP32 的 LEDC 模块提供<strong>多个高精度 PWM 通道</strong>，适合驱动多个舵机。</li>
+<li>使用 <code>ESP32Servo</code> 库简化舵机编程。</li>
+<li><strong>务必使用独立电源为舵机供电，并确保舵机电源的地线与 ESP32 的地线共地。</strong></li>
+<li>理解标准舵机与连续旋转舵机的控制差异。</li>
+</ul>
+<p>掌握这些知识，你就可以在你的 ESP32 项目中自信地集成和控制舵机，为你的机器人、自动化设备或创意项目赋予运动能力。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2024/2024-09-18_ESP32%20Arduino%20%E8%88%B5%E6%9C%BA%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><a class="post-meta__tags" href="/tags/%E7%A1%AC%E4%BB%B6%E7%BC%96%E7%A8%8B/">硬件编程</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-01.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/" title="PWM (脉冲宽度调制) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">PWM (脉冲宽度调制) 详解</div></div><div class="info-2"><div class="info-item-1"> PWM (Pulse Width Modulation)，即脉冲宽度调制，是一种利用数字信号（脉冲）来模拟模拟信号电平输出的强大技术。它通过调整一个方波信号的高电平持续时间（即脉冲宽度）来改变其在一个固定周期内的平均电压，从而实现对输出功率、速度、亮度等模拟量的精确控制。  核心思想：在固定周期内，通过改变高电平持续时间（占空比），来改变输出信号的平均值，实现对模拟量的数字控制。   一、为什么需要 PWM？在许多应用中，我们需要控制设备的模拟量，例如：  LED 亮度：希望 LED 渐亮渐灭，而不是只有亮或灭。 直流电机速度：需要精确控制电机的转速。 加热器功率：需要调节加热器的输出功率。 模拟电压输出：模拟 DA 转换器输出。  传统的模拟控制需要复杂的模拟电路，并且容易受到噪声、温度漂移等因素的影响。而微控制器（如 Arduino、ESP32）通常只能直接输出数字信号（高电平或低电平）。PWM 技术就成为了连接数字世界和模拟世界的重要桥梁，它允许我们用简单的数字输出引脚来有效地控制模拟设备。 二、PWM 的核心概念PWM 信号是一个周期性的方波，它有两个关键参数：  周期...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-16_ESP32%20Arduino%20%E5%AE%9A%E6%97%B6%E5%99%A8%E8%AF%A6%E8%A7%A3/" title="ESP32 Arduino 定时器详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">ESP32 Arduino 定时器详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 定时器 在 Arduino 环境下提供了高度灵活且强大的时间管理和事件调度能力。与传统的 AVR 微控制器（如 Arduino Uno）相比，ESP32 拥有更丰富、更复杂的定时器资源，包括硬件定时器、看门狗定时器以及基于 FreeRTOS 的软件定时器，这些都为多任务处理、精确时间控制和外设驱动提供了坚实的基础。  核心思想：利用 ESP32 强大的定时器硬件和 FreeRTOS 软件定时器，实现高度灵活和精确的时间管理，支持复杂的并发任务调度和外设控制。   一、ESP32 定时器概述ESP32 是一个双核（或单核）的 32 位 LX6 微控制器，运行着 FreeRTOS 操作系统。其定时器资源远超一般的 8 位 AVR 芯片。 ESP32 主要提供以下类型的定时器：  通用目的定时器 (General Purpose Timer - GPTimer)： ESP32 集成了 2 个定时器组 (Timer Group)。 每个定时器组包含 2 个通用定时器，总共有 4 个硬件定时器 (Timer0, Timer1 in Group0; Timer0, Timer1...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2024/2024-06-01_PlatformIO%20%E8%AF%A6%E8%A7%A3/" title="PlatformIO 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-01</div><div class="info-item-2">PlatformIO 详解</div></div><div class="info-2"><div class="info-item-1"> PlatformIO 是一个开源的生态系统，用于物联网 (IoT) 和嵌入式系统的开发。它提供了一个跨平台、多框架、集成开发环境 (IDE) 独立的开发工具集。PlatformIO 的目标是简化嵌入式开发的复杂性，让开发者能够专注于代码逻辑，而不用花费大量时间在工具链的配置和管理上。它支持数百种开发板、多种流行的开发框架（如 Arduino, ESP-IDF, STM32Cube, Zephyr 等），并集成了调试器、库管理器、单元测试等功能。  核心思想：统一嵌入式开发工作流，抽象底层工具链细节，提供高度可配置和自动化的开发环境。 开发者可以使用自己喜欢的编辑器（如 VS Code）配合 PlatformIO 的强大后端进行项目管理、编译和烧录。   一、为什么选择 PlatformIO？传统嵌入式开发的痛点传统的嵌入式开发常常伴随着一系列挑战：  工具链碎片化：不同的微控制器和开发板通常需要不同的编译器、烧录工具和调试器。例如，为 AVR 芯片开发需要 AVR-GCC，为 ESP32 开发需要 xtensa-esp32-elf-gcc。 IDE 绑定和限制：许多官方 IDE...</div></div></div></a><a class="pagination-related" href="/2024/2024-07-14_U8g2lib%20%E8%AF%A6%E8%A7%A3/" title="U8g2lib 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-14</div><div class="info-item-2">U8g2lib 详解</div></div><div class="info-2"><div class="info-item-1"> U8g2lib 是一个用于单色图形显示器 (monochrome graphics displays) 的开源嵌入式图形库。它支持各种 OLED 和 LCD 显示器，例如经典的 128x64 SSD1306 OLED 显示器。U8g2lib 以其广泛的硬件支持、丰富的字体集、高效的内存使用以及强大的图形绘制功能而闻名。它是 U8glib 的继任者，相比 U8glib，U8g2lib 在内存效率和功能上进行了优化和扩展，支持帧缓冲模式 (full buffer) 和页缓冲模式 (page buffer)。  核心思想：提供一个统一的 API 接口，驱动各种单色图形显示器，并提供一套完整的图形绘制和字体渲染功能，同时兼顾嵌入式设备的资源限制。 开发者无需关心底层显示器的驱动细节，专注于界面设计。   一、为什么需要 U8g2lib？嵌入式显示器的痛点在嵌入式系统中集成单色图形显示器时，开发者常常面临以下挑战：  硬件驱动复杂：不同的显示器控制器 (如 SSD1306, SH1106, ST7920) 有不同的初始化序列、命令集和数据传输协议（SPI, I2C, 并行）。手动编写驱动...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-12_%E4%B8%AD%E6%96%AD%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/" title="中断机制详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-12</div><div class="info-item-2">中断机制详解</div></div><div class="info-2"><div class="info-item-1"> 中断 (Interrupt) 是指当 CPU 在执行程序时，由于发生了某个事件（如 I&#x2F;O 完成、硬件故障、定时器溢出、程序错误等），导致 CPU 暂停当前程序的执行，转而去处理该事件，处理完毕后，再回到原程序继续执行的过程。中断是实现多任务、设备管理、错误处理等操作系统核心功能的基础。  核心思想：打破 CPU 顺序执行指令的模式，允许外部或内部事件暂时接管 CPU 控制权，提高系统效率和响应性。   一、为什么需要中断？在没有中断的早期计算机系统中，CPU 必须通过轮询 (Polling) 的方式来检查外部设备的状态。例如，CPU 需要不断地询问键盘是否有按键按下，或者打印机是否完成打印。这种方式存在明显的问题：  效率低下：CPU 大部分时间都在等待慢速设备，造成宝贵的计算资源浪费。 实时性差：如果 CPU 在执行一个耗时任务，无法及时响应其他设备的请求。 编程复杂：程序员需要手动编写大量轮询代码，增加了开发难度。  中断机制旨在解决这些问题，提供一种更高效、更灵活的事件处理方式：  提高 CPU 利用率：当设备忙碌或等待事件时，CPU 可以执行其他任务，而不是...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-16_ESP32%20Arduino%20%E5%AE%9A%E6%97%B6%E5%99%A8%E8%AF%A6%E8%A7%A3/" title="ESP32 Arduino 定时器详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-16</div><div class="info-item-2">ESP32 Arduino 定时器详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 定时器 在 Arduino 环境下提供了高度灵活且强大的时间管理和事件调度能力。与传统的 AVR 微控制器（如 Arduino Uno）相比，ESP32 拥有更丰富、更复杂的定时器资源，包括硬件定时器、看门狗定时器以及基于 FreeRTOS 的软件定时器，这些都为多任务处理、精确时间控制和外设驱动提供了坚实的基础。  核心思想：利用 ESP32 强大的定时器硬件和 FreeRTOS 软件定时器，实现高度灵活和精确的时间管理，支持复杂的并发任务调度和外设控制。   一、ESP32 定时器概述ESP32 是一个双核（或单核）的 32 位 LX6 微控制器，运行着 FreeRTOS 操作系统。其定时器资源远超一般的 8 位 AVR 芯片。 ESP32 主要提供以下类型的定时器：  通用目的定时器 (General Purpose Timer - GPTimer)： ESP32 集成了 2 个定时器组 (Timer Group)。 每个定时器组包含 2 个通用定时器，总共有 4 个硬件定时器 (Timer0, Timer1 in Group0; Timer0, Timer1...</div></div></div></a><a class="pagination-related" href="/2024/2024-09-19_PWM%20(%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6)%20%E8%AF%A6%E8%A7%A3/" title="PWM (脉冲宽度调制) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-19</div><div class="info-item-2">PWM (脉冲宽度调制) 详解</div></div><div class="info-2"><div class="info-item-1"> PWM (Pulse Width Modulation)，即脉冲宽度调制，是一种利用数字信号（脉冲）来模拟模拟信号电平输出的强大技术。它通过调整一个方波信号的高电平持续时间（即脉冲宽度）来改变其在一个固定周期内的平均电压，从而实现对输出功率、速度、亮度等模拟量的精确控制。  核心思想：在固定周期内，通过改变高电平持续时间（占空比），来改变输出信号的平均值，实现对模拟量的数字控制。   一、为什么需要 PWM？在许多应用中，我们需要控制设备的模拟量，例如：  LED 亮度：希望 LED 渐亮渐灭，而不是只有亮或灭。 直流电机速度：需要精确控制电机的转速。 加热器功率：需要调节加热器的输出功率。 模拟电压输出：模拟 DA 转换器输出。  传统的模拟控制需要复杂的模拟电路，并且容易受到噪声、温度漂移等因素的影响。而微控制器（如 Arduino、ESP32）通常只能直接输出数字信号（高电平或低电平）。PWM 技术就成为了连接数字世界和模拟世界的重要桥梁，它允许我们用简单的数字输出引脚来有效地控制模拟设备。 二、PWM 的核心概念PWM 信号是一个周期性的方波，它有两个关键参数：  周期...</div></div></div></a><a class="pagination-related" href="/2024/2024-05-08_51%E5%8D%95%E7%89%87%E6%9C%BA%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%BB%8F%E5%85%B8%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%85%A5%E9%97%A8%E5%BE%AE%E6%8E%A7%E5%88%B6%E5%99%A8/" title="51单片机详解：经典嵌入式入门微控制器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-08</div><div class="info-item-2">51单片机详解：经典嵌入式入门微控制器</div></div><div class="info-2"><div class="info-item-1"> 51单片机，通常指基于 Intel MCS-51 架构的微控制器，是微控制器发展史上一个里程碑式的产品系列。它因其结构简单、指令系统精炼、价格低廉、易于上手等特点，在教育、工业控制、消费电子等领域得到了广泛应用，至今仍是许多入门级嵌入式系统设计和学习的首选平台。虽然其性能可能不及现代的 ARM 等32位微控制器，但其经典的架构和丰富的外设资源，使其成为理解微控制器工作原理、学习底层编程的绝佳工具。  核心思想：51单片机集成了 CPU、RAM、ROM、并行I&#x2F;O口、定时器&#x2F;计数器、串行通信口等基本功能于一体的微型计算机，在一个芯片上实现了“控制”的核心功能，是嵌入式系统最基础的构成单元。   一、51单片机的起源与发展51单片机最初由 Intel 公司于 1980 年代推出，型号为 80C51&#x2F;8051，属于其 MCS-51 系列。其经典的哈佛指令结构、8位数据宽度、16位地址宽度等特性，迅速成为市场上的主流微控制器。随着技术发展，多家厂商（如 Atmel、NXP、STC、华大等）推出了兼容 MCS-51 指令集的增强型或改进型单片机，如 AT89...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">190</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">168</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">58</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%88%B5%E6%9C%BA%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">一、舵机工作原理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81ESP32-%E9%A9%B1%E5%8A%A8%E8%88%B5%E6%9C%BA%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">二、ESP32 驱动舵机的优势</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81ESP32-Arduino-ESP32Servo-%E5%BA%93%E8%AF%A6%E8%A7%A3"><span class="toc-text">三、ESP32 Arduino ESP32Servo 库详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%BA%93%E7%9A%84%E5%AE%89%E8%A3%85"><span class="toc-text">3.1 库的安装</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%B8%B8%E7%94%A8%E5%87%BD%E6%95%B0"><span class="toc-text">3.2 常用函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E7%A4%BA%E4%BE%8B%EF%BC%9A%E6%8E%A7%E5%88%B6%E4%B8%80%E4%B8%AA%E6%A0%87%E5%87%86%E8%88%B5%E6%9C%BA"><span class="toc-text">3.3 示例：控制一个标准舵机</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E7%A4%BA%E4%BE%8B%EF%BC%9A%E4%BD%BF%E7%94%A8-writeMicroseconds-%E7%B2%BE%E7%A1%AE%E6%8E%A7%E5%88%B6"><span class="toc-text">3.4 示例：使用 writeMicroseconds() 精确控制</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E8%88%B5%E6%9C%BA%E4%BE%9B%E7%94%B5%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">四、舵机供电注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E8%BF%9E%E7%BB%AD%E6%97%8B%E8%BD%AC%E8%88%B5%E6%9C%BA-Continuous-Rotation-Servo"><span class="toc-text">五、连续旋转舵机 (Continuous Rotation Servo)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="nftables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解">nftables 详解</a><time datetime="2025-10-27T22:24:00.000Z" title="发表于 2025-10-28 06:24:00">2025-10-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="iptables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解">iptables 详解</a><time datetime="2025-10-24T22:24:00.000Z" title="发表于 2025-10-25 06:24:00">2025-10-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言并发与并行详解"/></a><div class="content"><a class="title" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解">Go语言并发与并行详解</a><time datetime="2025-10-22T22:24:00.000Z" title="发表于 2025-10-23 06:24:00">2025-10-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="常用限流算法的Go语言实现详解"/></a><div class="content"><a class="title" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解">常用限流算法的Go语言实现详解</a><time datetime="2025-10-15T22:24:00.000Z" title="发表于 2025-10-16 06:24:00">2025-10-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NativeScript-Vue3详解"/></a><div class="content"><a class="title" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解">NativeScript-Vue3详解</a><time datetime="2025-10-09T22:24:00.000Z" title="发表于 2025-10-10 06:24:00">2025-10-10</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-01.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>
