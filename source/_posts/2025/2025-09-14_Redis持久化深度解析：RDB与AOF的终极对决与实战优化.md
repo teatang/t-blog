@@ -9,7 +9,7 @@ categories:
     - Redis
 ---
 
-> 本文由 [简悦 SimpRead](http://ksria.com/simpread/) 转码， 原文地址 [mp.weixin.qq.com](https://mp.weixin.qq.com/s/jjhUpP2eVCt31dw2ViJ2mA)
+> 原文地址 [mp.weixin.qq.com](https://mp.weixin.qq.com/s/jjhUpP2eVCt31dw2ViJ2mA)
 
 {% note info %}
 Redis 持久化不仅仅是简单的数据备份，更是保障系统高可用的关键防线。
