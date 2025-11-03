@@ -1,0 +1,580 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>ArtPlayer 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="ArtPlayer 是一个基于 HTML5 的视频播放器，它设计简洁、功能强大且高度可定制。与传统播放器如 Video.js 相比，ArtPlayer 更加专注于现代 Web 场景，提供了丰富的配置选项、事件系统以及插件机制，旨在为开发者提供一个美观、易用且可扩展的视频播放解决方案。它支持多种视频格式，并且可以无缝集成 HLS、DASH 等流媒体协议（通常通过与其他库如 hls.js 或 das">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ArtPlayer 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2025/2025-06-20_ArtPlayer%20%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="ArtPlayer 是一个基于 HTML5 的视频播放器，它设计简洁、功能强大且高度可定制。与传统播放器如 Video.js 相比，ArtPlayer 更加专注于现代 Web 场景，提供了丰富的配置选项、事件系统以及插件机制，旨在为开发者提供一个美观、易用且可扩展的视频播放解决方案。它支持多种视频格式，并且可以无缝集成 HLS、DASH 等流媒体协议（通常通过与其他库如 hls.js 或 das">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-16.jpg">
+<meta property="article:published_time" content="2025-06-19T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-03T06:10:41.865Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="HLS">
+<meta property="article:tag" content="Web影音">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-16.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ArtPlayer 详解",
+  "url": "https://blog.tbf1211.xx.kg/2025/2025-06-20_ArtPlayer%20%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-16.jpg",
+  "datePublished": "2025-06-19T22:24:00.000Z",
+  "dateModified": "2025-11-03T06:10:41.865Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2025/2025-06-20_ArtPlayer%20%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'ArtPlayer 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">199</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">172</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">58</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-16.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">ArtPlayer 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">ArtPlayer 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-06-19T22:24:00.000Z" title="发表于 2025-06-20 06:24:00">2025-06-20</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/Web/">Web</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.8k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>11分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2025/2025-06-20_ArtPlayer%20%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>ArtPlayer</strong> 是一个基于 HTML5 的视频播放器，它设计简洁、功能强大且高度可定制。与传统播放器如 Video.js 相比，ArtPlayer 更加专注于现代 Web 场景，提供了丰富的配置选项、事件系统以及插件机制，旨在为开发者提供一个美观、易用且可扩展的视频播放解决方案。它支持多种视频格式，并且可以无缝集成 HLS、DASH 等流媒体协议（通常通过与其他库如 hls.js 或 dash.js 配合）。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>ArtPlayer 提供了一个高度可定制的、现代化的 HTML5 视频播放器解决方案，通过丰富的配置、插件系统和简洁的 API，帮助开发者快速构建符合个性化需求的视频播放体验。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么选择-ArtPlayer？"><a href="#一、为什么选择-ArtPlayer？" class="headerlink" title="一、为什么选择 ArtPlayer？"></a>一、为什么选择 ArtPlayer？</h2><p>在 Web 开发中，视频播放器是常见且重要的组件。虽然浏览器自带 <code>&lt;video&gt;</code> 标签，但其功能和样式都非常基础，无法满足复杂应用的需求。常见的定制化播放器有很多，选择 ArtPlayer 的原因主要包括：</p>
+<ol>
+<li><strong>现代化设计</strong>：界面美观，符合现代审美，用户体验良好。</li>
+<li><strong>高度可定制</strong>：提供了海量的配置选项，可以控制播放器的每一个细节，从 UI 元素到交互行为。</li>
+<li><strong>插件机制</strong>：强大的插件系统使得播放器功能可以无限扩展，方便集成第三方库或自定义功能。</li>
+<li><strong>简洁的 API</strong>：易于学习和使用，提供了清晰的 JavaScript API 接口。</li>
+<li><strong>支持多种视频格式和流媒体</strong>：除了 MP4 等常见格式，通过集成 hls.js&#x2F;dash.js 等库，可以轻松支持 HLS 和 MPEG-DASH 流媒体。</li>
+<li><strong>文档完善</strong>：官方文档详细且提供丰富的示例。</li>
+<li><strong>轻量级</strong>：相比一些功能大而全的播放器，ArtPlayer 在保持功能强大的同时，尽可能保持了轻量。</li>
+</ol>
+<h2 id="二、ArtPlayer-的基本使用"><a href="#二、ArtPlayer-的基本使用" class="headerlink" title="二、ArtPlayer 的基本使用"></a>二、ArtPlayer 的基本使用</h2><h3 id="2-1-安装"><a href="#2-1-安装" class="headerlink" title="2.1 安装"></a>2.1 安装</h3><p>你可以通过 npm&#x2F;yarn 安装 ArtPlayer：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">npm install artplayer</span><br><span class="line"><span class="comment"># 或</span></span><br><span class="line">yarn add artplayer</span><br></pre></td></tr></table></figure>
+
+<p>或者通过 CDN 引入：</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">script</span> <span class="attr">src</span>=<span class="string">&quot;https://unpkg.com/artplayer/dist/artplayer.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-基本播放示例"><a href="#2-2-基本播放示例" class="headerlink" title="2.2 基本播放示例"></a>2.2 基本播放示例</h3><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span> <span class="attr">lang</span>=<span class="string">&quot;en&quot;</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">charset</span>=<span class="string">&quot;UTF-8&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">&quot;viewport&quot;</span> <span class="attr">content</span>=<span class="string">&quot;width=device-width, initial-scale=1.0&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">title</span>&gt;</span>ArtPlayer Basic Example<span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">style</span>&gt;</span><span class="language-css"></span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">body</span> &#123; <span class="attribute">font-family</span>: sans-serif; <span class="attribute">text-align</span>: center; <span class="attribute">background-color</span>: <span class="number">#f0f2f5</span>; <span class="attribute">margin</span>: <span class="number">0</span>; <span class="attribute">padding</span>: <span class="number">20px</span>; &#125;</span></span><br><span class="line"><span class="language-css">        <span class="selector-class">.artplayer-app</span> &#123;</span></span><br><span class="line"><span class="language-css">            <span class="attribute">width</span>: <span class="number">80%</span>;</span></span><br><span class="line"><span class="language-css">            <span class="attribute">max-width</span>: <span class="number">960px</span>;</span></span><br><span class="line"><span class="language-css">            <span class="attribute">height</span>: <span class="number">540px</span>; <span class="comment">/* 16:9 比例 */</span></span></span><br><span class="line"><span class="language-css">            <span class="attribute">margin</span>: <span class="number">20px</span> auto;</span></span><br><span class="line"><span class="language-css">            <span class="attribute">box-shadow</span>: <span class="number">0</span> <span class="number">4px</span> <span class="number">15px</span> <span class="built_in">rgba</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0.1</span>);</span></span><br><span class="line"><span class="language-css">            <span class="attribute">border-radius</span>: <span class="number">8px</span>;</span></span><br><span class="line"><span class="language-css">            <span class="attribute">overflow</span>: hidden; <span class="comment">/* 确保圆角显示 */</span></span></span><br><span class="line"><span class="language-css">        &#125;</span></span><br><span class="line"><span class="language-css">    </span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">h1</span>&gt;</span>ArtPlayer Video Player<span class="tag">&lt;/<span class="name">h1</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">&quot;artplayer-app&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!-- 引入 ArtPlayer CDN --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">script</span> <span class="attr">src</span>=<span class="string">&quot;https://unpkg.com/artplayer/dist/artplayer.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">script</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">        <span class="variable language_">document</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;DOMContentLoaded&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span></span><br><span class="line"><span class="language-javascript">            <span class="keyword">const</span> art = <span class="keyword">new</span> <span class="title class_">ArtPlayer</span>(&#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="attr">container</span>: <span class="string">&#x27;.artplayer-app&#x27;</span>, <span class="comment">// 播放器容器的选择器</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">url</span>: <span class="string">&#x27;https://artplayer.org/assets/sample/video.mp4&#x27;</span>, <span class="comment">// 视频地址</span></span></span><br><span class="line"><span class="language-javascript">                <span class="comment">// url: &#x27;https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8&#x27;, // HLS 示例 (需要 hls.js 插件)</span></span></span><br><span class="line"><span class="language-javascript">                <span class="comment">// url: &#x27;https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd&#x27;, // DASH 示例 (需要 dash.js 插件)</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">autoplay</span>: <span class="literal">true</span>, <span class="comment">// 自动播放</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">muted</span>: <span class="literal">false</span>,   <span class="comment">// 是否静音</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">loop</span>: <span class="literal">false</span>,    <span class="comment">// 是否循环播放</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">fullscreen</span>: <span class="literal">true</span>, <span class="comment">// 是否显示全屏按钮</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">playbackRate</span>: <span class="literal">true</span>, <span class="comment">// 是否显示播放速度控制</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">aspectRatio</span>: <span class="literal">true</span>, <span class="comment">// 是否显示画面比例控制</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">setting</span>: <span class="literal">true</span>,     <span class="comment">// 是否显示设置按钮</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">pip</span>: <span class="literal">true</span>,         <span class="comment">// 是否显示画中画按钮</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">theme</span>: <span class="string">&#x27;#23ade5&#x27;</span>,  <span class="comment">// 主题颜色</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">volume</span>: <span class="number">0.5</span>,       <span class="comment">// 默认音量 (0-1)</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">poster</span>: <span class="string">&#x27;https://artplayer.org/assets/sample/poster.jpg&#x27;</span>, <span class="comment">// 视频封面</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">flip</span>: <span class="literal">true</span>,        <span class="comment">// 翻转视频功能</span></span></span><br><span class="line"><span class="language-javascript">                <span class="attr">rotate</span>: <span class="literal">true</span>,      <span class="comment">// 旋转视频功能</span></span></span><br><span class="line"><span class="language-javascript">                <span class="comment">// ... 更多配置项</span></span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 监听播放器事件</span></span></span><br><span class="line"><span class="language-javascript">            art.<span class="title function_">on</span>(<span class="string">&#x27;play&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Video started playing&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            art.<span class="title function_">on</span>(<span class="string">&#x27;pause&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Video paused&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            art.<span class="title function_">on</span>(<span class="string">&#x27;ended&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Video ended&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            art.<span class="title function_">on</span>(<span class="string">&#x27;error&#x27;</span>, <span class="function">(<span class="params">error, element</span>) =&gt;</span> &#123;</span></span><br><span class="line"><span class="language-javascript">                <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;Player error:&#x27;</span>, error, element);</span></span><br><span class="line"><span class="language-javascript">            &#125;);</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 获取播放器实例的属性</span></span></span><br><span class="line"><span class="language-javascript">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Current volume:&#x27;</span>, art.<span class="property">volume</span>);</span></span><br><span class="line"><span class="language-javascript">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Is playing:&#x27;</span>, art.<span class="property">playing</span>);</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 也可以通过 API 控制播放</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// setTimeout(() =&gt; &#123;</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">//     art.pause();</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">//     console.log(&#x27;Video paused after 5 seconds&#x27;);</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// &#125;, 5000);</span></span></span><br><span class="line"><span class="language-javascript">        &#125;);</span></span><br><span class="line"><span class="language-javascript">    </span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>代码解释：</strong></p>
+<ol>
+<li><strong><code>new ArtPlayer(options)</code></strong>：创建 ArtPlayer 实例。<code>options</code> 是一个配置对象。</li>
+<li><strong><code>container</code></strong>：必需，指定播放器挂载的 DOM 元素的选择器或直接传入 DOM 元素。</li>
+<li><strong><code>url</code></strong>：必需，视频源地址。可以是 MP4、WebM 等直接视频文件，也可以是 HLS&#x2F;DASH 的 manifest 文件（但需要对应插件）。</li>
+<li><strong>常用配置项</strong>：<code>autoplay</code>, <code>muted</code>, <code>loop</code>, <code>fullscreen</code>, <code>playbackRate</code>, <code>theme</code>, <code>volume</code>, <code>poster</code> 等，通过这些配置可以轻松控制播放器的行为和样式。</li>
+<li><strong>事件系统</strong>：ArtPlayer 实例提供了 <code>.on(eventName, callback)</code> 方法来监听各种播放器事件，如 <code>play</code>、<code>pause</code>、<code>ended</code>、<code>error</code> 等。</li>
+<li><strong>API 访问</strong>：ArtPlayer 实例提供了丰富的属性和方法，可以用来获取播放状态 (<code>art.playing</code>, <code>art.volume</code>) 或控制播放 (<code>art.play()</code>, <code>art.pause()</code>, <code>art.seek(time)</code> 等)。</li>
+</ol>
+<h2 id="三、核心功能与配置"><a href="#三、核心功能与配置" class="headerlink" title="三、核心功能与配置"></a>三、核心功能与配置</h2><p>ArtPlayer 提供了极其丰富的配置选项，涵盖了播放器从 UI 到功能的方方面面。以下是一些关键的配置类别和示例：</p>
+<h3 id="3-1-基础配置"><a href="#3-1-基础配置" class="headerlink" title="3.1 基础配置"></a>3.1 基础配置</h3><ul>
+<li><code>container</code>: 播放器容器。</li>
+<li><code>url</code>: 视频源地址。</li>
+<li><code>title</code>: 视频标题，会显示在控制栏或标题栏。</li>
+<li><code>poster</code>: 视频封面图。</li>
+<li><code>autoplay</code>: 是否自动播放。</li>
+<li><code>muted</code>: 是否静音。</li>
+<li><code>volume</code>: 默认音量。</li>
+<li><code>loop</code>: 是否循环播放。</li>
+<li><code>playbackRate</code>: 是否显示播放速度控制，可以配置速度列表。</li>
+<li><code>aspectRatio</code>: 是否显示画面比例控制，可以配置比例列表。</li>
+<li><code>flip</code>: 是否显示画面翻转控制。</li>
+<li><code>rotate</code>: 是否显示画面旋转控制。</li>
+<li><code>fullscreen</code>: 是否显示全屏按钮。</li>
+<li><code>pip</code>: 是否显示画中画按钮。</li>
+<li><code>miniPlayer</code>: 是否显示小窗播放按钮。</li>
+<li><code>screenshot</code>: 是否显示截图按钮。</li>
+<li><code>setting</code>: 是否显示设置菜单。</li>
+<li><code>hotkey</code>: 是否启用快捷键。</li>
+<li><code>theme</code>: 主题颜色。</li>
+</ul>
+<h3 id="3-2-界面与交互配置"><a href="#3-2-界面与交互配置" class="headerlink" title="3.2 界面与交互配置"></a>3.2 界面与交互配置</h3><ul>
+<li><code>autoOrientation</code>: 移动端是否自动横屏播放。</li>
+<li><code>lock</code>: 是否显示锁定按钮，防止误触。</li>
+<li><code>mobile</code>: 是否启用移动端适配模式。</li>
+<li><code>controls</code>: 是否显示控制栏。</li>
+<li><code>plugins</code>: 插件列表（详见下文）。</li>
+<li><code>customType</code>: 自定义视频类型解析器（用于 HLS&#x2F;DASH 集成）。</li>
+<li><code>lang</code>: 播放器语言。</li>
+<li><code>highlight</code>: 进度条高亮提示点。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> art = <span class="keyword">new</span> <span class="title class_">ArtPlayer</span>(&#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    <span class="attr">playbackRate</span>: [<span class="number">0.5</span>, <span class="number">0.75</span>, <span class="number">1</span>, <span class="number">1.25</span>, <span class="number">1.5</span>, <span class="number">2</span>], <span class="comment">// 自定义播放速度列表</span></span><br><span class="line">    <span class="attr">aspectRatio</span>: [</span><br><span class="line">        <span class="string">&#x27;default&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;4:3&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;16:9&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;21:9&#x27;</span></span><br><span class="line">    ], <span class="comment">// 自定义画面比例列表</span></span><br><span class="line">    <span class="attr">quality</span>: [</span><br><span class="line">        &#123; <span class="attr">default</span>: <span class="literal">true</span>, <span class="attr">html</span>: <span class="string">&#x27;高清 1080P&#x27;</span>, <span class="attr">url</span>: <span class="string">&#x27;...&#x27;</span> &#125;,</span><br><span class="line">        &#123; <span class="attr">html</span>: <span class="string">&#x27;高清 720P&#x27;</span>, <span class="attr">url</span>: <span class="string">&#x27;...&#x27;</span> &#125;</span><br><span class="line">    ], <span class="comment">// 清晰度切换</span></span><br><span class="line">    <span class="attr">highlight</span>: [ <span class="comment">// 进度条高亮提示</span></span><br><span class="line">        &#123; <span class="attr">time</span>: <span class="number">10</span>, <span class="attr">text</span>: <span class="string">&#x27;开始&#x27;</span> &#125;,</span><br><span class="line">        &#123; <span class="attr">time</span>: <span class="number">60</span>, <span class="attr">text</span>: <span class="string">&#x27;精彩片段&#x27;</span> &#125;,</span><br><span class="line">    ],</span><br><span class="line">    <span class="attr">layers</span>: [ <span class="comment">// 自定义层，可以放置广告、水印等</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="attr">html</span>: <span class="string">&#x27;&lt;img width=&quot;60&quot; src=&quot;https://artplayer.org/assets/img/logo.png&quot;&gt;&#x27;</span>,</span><br><span class="line">            <span class="attr">style</span>: &#123;</span><br><span class="line">                <span class="attr">position</span>: <span class="string">&#x27;absolute&#x27;</span>,</span><br><span class="line">                <span class="attr">top</span>: <span class="string">&#x27;20px&#x27;</span>,</span><br><span class="line">                <span class="attr">right</span>: <span class="string">&#x27;20px&#x27;</span>,</span><br><span class="line">                <span class="attr">opacity</span>: <span class="string">&#x27;.7&#x27;</span>,</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;,</span><br><span class="line">    ],</span><br><span class="line">    <span class="attr">controls</span>: [ <span class="comment">// 自定义控制栏按钮</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="attr">position</span>: <span class="string">&#x27;right&#x27;</span>,</span><br><span class="line">            <span class="attr">html</span>: <span class="string">&#x27;&lt;button&gt;我的按钮&lt;/button&gt;&#x27;</span>,</span><br><span class="line">            <span class="attr">click</span>: <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;我的按钮被点击了&#x27;</span>);</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;,</span><br><span class="line">    ],</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-事件系统"><a href="#3-3-事件系统" class="headerlink" title="3.3 事件系统"></a>3.3 事件系统</h3><p>ArtPlayer 继承了事件发布&#x2F;订阅模式，通过 <code>.on()</code>, <code>.once()</code>, <code>.off()</code>, <code>.emit()</code> 等方法管理事件。</p>
+<ul>
+<li><strong>常用事件</strong>：<code>play</code>, <code>pause</code>, <code>ended</code>, <code>volumechange</code>, <code>seeked</code>, <code>ready</code>, <code>error</code>, <code>resize</code>, <code>fullscreen</code>, <code>webfullscreen</code>, <code>miniplayer</code>, <code>pip</code> 等。</li>
+<li><strong>自定义事件</strong>：可以通过 <code>art.emit(&#39;myCustomEvent&#39;, data)</code> 触发，并通过 <code>art.on(&#39;myCustomEvent&#39;, callback)</code> 监听。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">art.<span class="title function_">on</span>(<span class="string">&#x27;ready&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;ArtPlayer is ready!&#x27;</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">art.<span class="title function_">on</span>(<span class="string">&#x27;volumechange&#x27;</span>, <span class="function">(<span class="params">volume</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Volume changed to:&#x27;</span>, volume);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-API"><a href="#3-4-API" class="headerlink" title="3.4 API"></a>3.4 API</h3><p>ArtPlayer 实例提供了丰富的 API 供外部控制播放器。</p>
+<ul>
+<li><strong>播放控制</strong>：<code>art.play()</code>, <code>art.pause()</code>, <code>art.seek(time)</code>, <code>art.toggle()</code>, <code>art.destroy()</code>。</li>
+<li><strong>状态获取</strong>：<code>art.playing</code>, <code>art.paused</code>, <code>art.ended</code>, <code>art.volume</code>, <code>art.currentTime</code>, <code>art.duration</code>, <code>art.url</code>, <code>art.fullScreen</code>, <code>art.webFullScreen</code>。</li>
+<li><strong>设置</strong>：<code>art.switchUrl(url, type)</code>, <code>art.setVolume(value)</code>, <code>art.setPlaybackRate(value)</code>。</li>
+<li><strong>其他</strong>：<code>art.toggleFullscreen()</code>, <code>art.toggleWebFullscreen()</code>, <code>art.togglePip()</code>, <code>art.toggleMiniPlayer()</code>。</li>
+</ul>
+<h2 id="四、插件机制"><a href="#四、插件机制" class="headerlink" title="四、插件机制"></a>四、插件机制</h2><p>ArtPlayer 最大的亮点之一是其强大的插件机制。插件是一个函数，接收 <code>art</code> 实例作为参数，并可以返回一个对象。插件可以在播放器的生命周期中注入逻辑、添加自定义 UI、集成第三方库等。</p>
+<h3 id="4-1-集成-hls-js-播放-HLS"><a href="#4-1-集成-hls-js-播放-HLS" class="headerlink" title="4.1 集成 hls.js (播放 HLS)"></a>4.1 集成 hls.js (播放 HLS)</h3><p>播放 HLS 流媒体是常见的需求，ArtPlayer 通过插件的形式与 hls.js 无缝集成。</p>
+<ol>
+<li><p><strong>安装 hls.js 和 ArtPlayer HLS 插件</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install hls.js artplayer-plugin-hls</span><br></pre></td></tr></table></figure></li>
+<li><p><strong>使用示例</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> <span class="title class_">ArtPlayer</span> <span class="keyword">from</span> <span class="string">&#x27;artplayer&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> <span class="title class_">Hls</span> <span class="keyword">from</span> <span class="string">&#x27;hls.js&#x27;</span>; <span class="comment">// 注意这里引入的是 hls.js</span></span><br><span class="line"><span class="keyword">import</span> artplayerPluginHls <span class="keyword">from</span> <span class="string">&#x27;artplayer-plugin-hls&#x27;</span>; <span class="comment">// 引入 ArtPlayer HLS 插件</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// ... (在DOMContentLoaded中初始化)</span></span><br><span class="line"><span class="keyword">const</span> art = <span class="keyword">new</span> <span class="title class_">ArtPlayer</span>(&#123;</span><br><span class="line">    <span class="attr">container</span>: <span class="string">&#x27;.artplayer-app&#x27;</span>,</span><br><span class="line">    <span class="attr">url</span>: <span class="string">&#x27;https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8&#x27;</span>, <span class="comment">// HLS 视频地址</span></span><br><span class="line">    <span class="attr">autoplay</span>: <span class="literal">true</span>,</span><br><span class="line">    <span class="attr">plugins</span>: [</span><br><span class="line">        <span class="title function_">artplayerPluginHls</span>(&#123;</span><br><span class="line">            <span class="attr">hls</span>: <span class="title class_">Hls</span>, <span class="comment">// 将 hls.js 库的引用传递给插件</span></span><br><span class="line">            <span class="comment">// hlsjsConfig: &#123; // 可选：hls.js 的配置项</span></span><br><span class="line">            <span class="comment">//     debug: true,</span></span><br><span class="line">            <span class="comment">//     // ...</span></span><br><span class="line">            <span class="comment">// &#125;,</span></span><br><span class="line">        &#125;),</span><br><span class="line">    ],</span><br><span class="line">    <span class="comment">// ... 其他配置</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听 HLS 插件事件</span></span><br><span class="line">art.<span class="title function_">on</span>(<span class="string">&#x27;artplayerPluginHls:ready&#x27;</span>, <span class="function">(<span class="params">hlsInstance</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;hls.js instance ready:&#x27;</span>, hlsInstance);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：插件会自动识别 <code>.m3u8</code> 后缀并使用 hls.js 播放。你也可以通过 <code>customType</code> 配置手动指定。</p>
+</li>
+</ol>
+<h3 id="4-2-集成-dash-js-播放-MPEG-DASH"><a href="#4-2-集成-dash-js-播放-MPEG-DASH" class="headerlink" title="4.2 集成 dash.js (播放 MPEG-DASH)"></a>4.2 集成 dash.js (播放 MPEG-DASH)</h3><p>类似 HLS，ArtPlayer 也可以通过插件集成 dash.js 来播放 MPEG-DASH 流媒体。</p>
+<ol>
+<li><p><strong>安装 dash.js 和 ArtPlayer DASH 插件</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install dashjs artplayer-plugin-dash</span><br></pre></td></tr></table></figure></li>
+<li><p><strong>使用示例</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> <span class="title class_">ArtPlayer</span> <span class="keyword">from</span> <span class="string">&#x27;artplayer&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> <span class="title class_">Dash</span> <span class="keyword">from</span> <span class="string">&#x27;dashjs&#x27;</span>; <span class="comment">// 注意这里引入的是 dash.js</span></span><br><span class="line"><span class="keyword">import</span> artplayerPluginDash <span class="keyword">from</span> <span class="string">&#x27;artplayer-plugin-dash&#x27;</span>; <span class="comment">// 引入 ArtPlayer DASH 插件</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// ... (在DOMContentLoaded中初始化)</span></span><br><span class="line"><span class="keyword">const</span> art = <span class="keyword">new</span> <span class="title class_">ArtPlayer</span>(&#123;</span><br><span class="line">    <span class="attr">container</span>: <span class="string">&#x27;.artplayer-app&#x27;</span>,</span><br><span class="line">    <span class="attr">url</span>: <span class="string">&#x27;https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd&#x27;</span>, <span class="comment">// DASH 视频地址</span></span><br><span class="line">    <span class="attr">autoplay</span>: <span class="literal">true</span>,</span><br><span class="line">    <span class="attr">plugins</span>: [</span><br><span class="line">        <span class="title function_">artplayerPluginDash</span>(&#123;</span><br><span class="line">            <span class="attr">dash</span>: <span class="title class_">Dash</span>, <span class="comment">// 将 dash.js 库的引用传递给插件</span></span><br><span class="line">            <span class="comment">// dashjsConfig: &#123; // 可选：dash.js 的配置项</span></span><br><span class="line">            <span class="comment">//     debug: true,</span></span><br><span class="line">            <span class="comment">//     // ...</span></span><br><span class="line">            <span class="comment">// &#125;,</span></span><br><span class="line">        &#125;),</span><br><span class="line">    ],</span><br><span class="line">    <span class="comment">// ... 其他配置</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="4-3-自定义插件"><a href="#4-3-自定义插件" class="headerlink" title="4.3 自定义插件"></a>4.3 自定义插件</h3><p>你可以编写自己的插件来扩展 ArtPlayer 的功能。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// my-custom-plugin.js</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">myCustomPlugin</span>(<span class="params">art</span>) &#123;</span><br><span class="line">    <span class="comment">// 插件可以访问 art 实例的所有 API 和事件</span></span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;My Custom Plugin loaded!&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> myButton = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&#x27;div&#x27;</span>);</span><br><span class="line">    myButton.<span class="property">innerHTML</span> = <span class="string">&#x27;&lt;span&gt;🚀&lt;/span&gt;&#x27;</span>;</span><br><span class="line">    myButton.<span class="property">className</span> = <span class="string">&#x27;art-control-my-button&#x27;</span>;</span><br><span class="line">    myButton.<span class="property">onclick</span> = <span class="function">() =&gt;</span> &#123;</span><br><span class="line">        <span class="title function_">alert</span>(<span class="string">&#x27;Hello from custom plugin!&#x27;</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加到控制栏</span></span><br><span class="line">    art.<span class="property">controls</span>.<span class="title function_">add</span>(&#123;</span><br><span class="line">        <span class="attr">name</span>: <span class="string">&#x27;myButton&#x27;</span>,</span><br><span class="line">        <span class="attr">index</span>: <span class="number">10</span>, <span class="comment">// 排序</span></span><br><span class="line">        <span class="attr">html</span>: myButton,</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 监听播放事件</span></span><br><span class="line">    art.<span class="title function_">on</span>(<span class="string">&#x27;play&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Custom plugin: Video is now playing!&#x27;</span>);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 插件可以返回一个对象，该对象会被挂载到 art.plugins 上</span></span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">        <span class="attr">greet</span>: <span class="function">() =&gt;</span> <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Custom plugin says hello!&#x27;</span>),</span><br><span class="line">        <span class="attr">version</span>: <span class="string">&#x27;1.0.0&#x27;</span>,</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 在 ArtPlayer 初始化时使用</span></span><br><span class="line"><span class="keyword">import</span> <span class="title class_">ArtPlayer</span> <span class="keyword">from</span> <span class="string">&#x27;artplayer&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> myCustomPlugin <span class="keyword">from</span> <span class="string">&#x27;./my-custom-plugin&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> art = <span class="keyword">new</span> <span class="title class_">ArtPlayer</span>(&#123;</span><br><span class="line">    <span class="attr">container</span>: <span class="string">&#x27;.artplayer-app&#x27;</span>,</span><br><span class="line">    <span class="attr">url</span>: <span class="string">&#x27;https://artplayer.org/assets/sample/video.mp4&#x27;</span>,</span><br><span class="line">    <span class="attr">plugins</span>: [</span><br><span class="line">        myCustomPlugin,</span><br><span class="line">    ],</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">art.<span class="property">plugins</span>.<span class="property">myButton</span>.<span class="title function_">greet</span>(); <span class="comment">// 访问插件返回的方法</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>ArtPlayer 是一个专为现代 Web 设计的 HTML5 视频播放器，它通过提供丰富且灵活的配置选项、强大的事件系统和可扩展的插件机制，极大地简化了定制化视频播放器的开发。无论是需要美观的 UI、多样的功能、还是与 HLS&#x2F;DASH 等流媒体协议的集成，ArtPlayer 都能提供一套优雅且高效的解决方案。其简洁的 API 和完善的文档也使得开发者能够快速上手并根据项目需求进行深度定制。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2025/2025-06-20_ArtPlayer%20%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2025/2025-06-20_ArtPlayer%20%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/HLS/">HLS</a><a class="post-meta__tags" href="/tags/Web%E5%BD%B1%E9%9F%B3/">Web影音</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-16.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2025/2025-06-22_HLS%20(HTTP%20Live%20Streaming)%20%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3/" title="HLS (HTTP Live Streaming) 协议详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">HLS (HTTP Live Streaming) 协议详解</div></div><div class="info-2"><div class="info-item-1"> HLS (HTTP Live Streaming) 是 Apple 公司在 2009 年推出的一种基于 HTTP 的自适应比特率流媒体传输协议。它将整个媒体流切割成一系列小的、基于 HTTP 的文件片段，通常是 MPEG-2 Transport Stream (TS) 格式。客户端下载这些片段，并通过一个被称为 “manifest” 或 “playlist” 的 M3U8 文件来获取片段的顺序和可用的比特率版本。HLS 最初是为了在 iOS 设备上播放流媒体而设计，但由于其简单、CDN 友好以及自适应比特率等优势，现已成为互联网上最流行的流媒体协议之一。  核心思想：将视频内容切分成小段（TS 文件），用 M3U8 文件描述这些片段的顺序和不同质量版本，客户端通过 HTTP 渐进下载和播放，并根据网络状况动态切换视频质量。   一、为什么需要 HLS？在 HLS 出现之前，传统的流媒体协议如 RTMP (Real-Time Messaging Protocol) 依赖于特定的服务器和协议栈，需要专门的流媒体服务器，并且在防火墙和 CDN 部署方面存在一些挑战。HLS 的出现旨在...</div></div></div></a><a class="pagination-related" href="/2025/2025-06-17_hls.js%20%E8%AF%A6%E8%A7%A3/" title="hls.js 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">hls.js 详解</div></div><div class="info-2"><div class="info-item-1"> hls.js 是一个开源的 JavaScript 库，它实现了 HTTP Live Streaming (HLS) 协议，使浏览器能够通过标准的 HTML5 &lt;video&gt; 标签播放 HLS 视频流。HLS 是 Apple 公司开发的一种流媒体传输协议，被广泛应用于音视频内容的分发。由于原生浏览器通常只支持播放 MP4 等直接文件格式或特定 HLS 实现（如 Safari），而 Chrome、Firefox 等浏览器缺乏对 HLS 的原生支持，hls.js 填补了这一空白，让开发者能够在几乎所有现代浏览器中提供 HLS 流媒体服务。  核心思想：hls.js 通过 JavaScript 解析 HLS manifest (M3U8) 文件，动态加载和拼接 TS (MPEG-2 Transport Stream) 片段，并利用 Media Source Extensions (MSE) API 将这些片段喂给 HTML5 &lt;video&gt; 元素进行播放，从而实现浏览器对 HLS 流媒体的广泛支持。   一、为什么需要 hls.js？HLS 协议是目前最流行的流...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2025/2025-06-17_hls.js%20%E8%AF%A6%E8%A7%A3/" title="hls.js 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-17</div><div class="info-item-2">hls.js 详解</div></div><div class="info-2"><div class="info-item-1"> hls.js 是一个开源的 JavaScript 库，它实现了 HTTP Live Streaming (HLS) 协议，使浏览器能够通过标准的 HTML5 &lt;video&gt; 标签播放 HLS 视频流。HLS 是 Apple 公司开发的一种流媒体传输协议，被广泛应用于音视频内容的分发。由于原生浏览器通常只支持播放 MP4 等直接文件格式或特定 HLS 实现（如 Safari），而 Chrome、Firefox 等浏览器缺乏对 HLS 的原生支持，hls.js 填补了这一空白，让开发者能够在几乎所有现代浏览器中提供 HLS 流媒体服务。  核心思想：hls.js 通过 JavaScript 解析 HLS manifest (M3U8) 文件，动态加载和拼接 TS (MPEG-2 Transport Stream) 片段，并利用 Media Source Extensions (MSE) API 将这些片段喂给 HTML5 &lt;video&gt; 元素进行播放，从而实现浏览器对 HLS 流媒体的广泛支持。   一、为什么需要 hls.js？HLS 协议是目前最流行的流...</div></div></div></a><a class="pagination-related" href="/2025/2025-06-22_HLS%20(HTTP%20Live%20Streaming)%20%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3/" title="HLS (HTTP Live Streaming) 协议详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-22</div><div class="info-item-2">HLS (HTTP Live Streaming) 协议详解</div></div><div class="info-2"><div class="info-item-1"> HLS (HTTP Live Streaming) 是 Apple 公司在 2009 年推出的一种基于 HTTP 的自适应比特率流媒体传输协议。它将整个媒体流切割成一系列小的、基于 HTTP 的文件片段，通常是 MPEG-2 Transport Stream (TS) 格式。客户端下载这些片段，并通过一个被称为 “manifest” 或 “playlist” 的 M3U8 文件来获取片段的顺序和可用的比特率版本。HLS 最初是为了在 iOS 设备上播放流媒体而设计，但由于其简单、CDN 友好以及自适应比特率等优势，现已成为互联网上最流行的流媒体协议之一。  核心思想：将视频内容切分成小段（TS 文件），用 M3U8 文件描述这些片段的顺序和不同质量版本，客户端通过 HTTP 渐进下载和播放，并根据网络状况动态切换视频质量。   一、为什么需要 HLS？在 HLS 出现之前，传统的流媒体协议如 RTMP (Real-Time Messaging Protocol) 依赖于特定的服务器和协议栈，需要专门的流媒体服务器，并且在防火墙和 CDN 部署方面存在一些挑战。HLS 的出现旨在...</div></div></div></a><a class="pagination-related" href="/2025/2025-01-12_Go%E8%AF%AD%E8%A8%80embed%E5%8C%85%E8%AF%A6%E8%A7%A3/" title="Go语言embed包详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-12</div><div class="info-item-2">Go语言embed包详解</div></div><div class="info-2"><div class="info-item-1"> Go 1.16 版本引入了 embed 包，它提供了一种将静态资源（如HTML、CSS、JavaScript、图片、配置文件等）直接嵌入 (embed) 到 Go 程序二进制文件中的功能。这极大地简化了应用程序的部署流程，尤其是对于需要捆绑前端资源或配置文件的后端服务。  “The embed package provides access to files embedded in the program during compilation.” —— Go embed 官方文档   一、为什么需要 embed 包？在 embed 包出现之前，Go 应用程序通常需要通过以下方式处理静态资源：  文件系统访问: 在运行时从文件系统加载资源。这意味着在部署时，除了可执行文件，还需要打包额外的资源文件。 go:generate 工具: 使用第三方工具（如 go-bindata、statik 等）将资源文件转换为 Go 源代码文件，然后在运行时加载这些生成的 Go 文件。这种方法引入了额外的构建步骤和依赖。  embed 包的出现，解决了上述痛点：  单一二进制文件: 应用程序和所有静...</div></div></div></a><a class="pagination-related" href="/2025/2025-03-15_%E6%B5%8F%E8%A7%88%E5%99%A8%E6%8C%87%E7%BA%B9%20(Browser%20Fingerprinting)%20%E8%AF%A6%E8%A7%A3/" title="浏览器指纹 (Browser Fingerprinting) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-15</div><div class="info-item-2">浏览器指纹 (Browser Fingerprinting) 详解</div></div><div class="info-2"><div class="info-item-1"> 浏览器指纹 (Browser Fingerprinting) 是一种用于识别或追踪用户在线行为的技术，即使在用户清除了 cookies、使用无痕模式甚至更换 IP 地址之后，它也能尝试标识出唯一的用户或设备。与 cookies 不同，浏览器指纹不是存储在用户设备上的数据，而是通过收集用户浏览器的各种配置和设置信息来生成的。  “你的浏览器就像你的手纹一样，看似普通，却独一无二。”   一、什么是浏览器指纹？浏览器指纹是指网站或在线服务通过收集用户浏览器和设备的大量可公开信息（如操作系统、浏览器类型和版本、屏幕分辨率、字体、插件、MIME 类型、时区、语言设置、GPU 信息、Canvas 渲染结果、AudioContext 信息等），并将这些信息综合起来生成一个近似唯一的“指纹”，从而在一定概率上识别单个用户或设备的技术。 这个“指纹”的强大之处在于其持久性和隐蔽性，用户很难通过常规手段进行清除或规避。 二、浏览器指纹的工作原理网站通过 JavaScript 或其他客户端脚本，在用户访问时执行一系列操作来获取其浏览器和设备特征。这些特征包括： 1. HTTP 请求头信息 (HTT...</div></div></div></a><a class="pagination-related" href="/2025/2025-07-14_Three.js%20%E8%BF%9B%E9%98%B6%E6%95%99%E7%A8%8B%EF%BC%9A%E4%BB%8E%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E5%88%B0%E9%AB%98%E7%BA%A7%E5%BA%94%E7%94%A8/" title="Three.js 进阶教程：从核心概念到高级应用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-07-14</div><div class="info-item-2">Three.js 进阶教程：从核心概念到高级应用</div></div><div class="info-2"><div class="info-item-1"> Three.js 不仅仅是一个库，它是一个通往 3D 世界的大门。通过它，我们可以在 Web 浏览器中构建出令人惊叹的交互式体验。本教程将带你超越入门，深入了解 Three.js 的核心组件、工作原理以及一些高级技巧，助你构建更复杂、更酷炫的 3D 应用。  “深入 Three.js，你将发现 Web 前端的无限可能性。”   一、Three.js 核心工作流回顾与进阶在入门教程中，我们介绍了 Three.js 的“四大件”：场景 (Scene)、相机 (Camera)、渲染器 (Renderer) 和物体 (Object &#x3D; Geometry + Material)。它们是构建任何 Three.js 应用的基础。 1.1 渲染管线概览     graph TD     A[JavaScript Code （Three.js）] --&gt; B(初始化: Scene, Camera, Renderer);     B --&gt; C(创建 Mesh: Geometry + Material);     C --&gt; D(添加 Lights);     C --...</div></div></div></a><a class="pagination-related" href="/2025/2025-08-03_Vue3%20defineModel%E8%AF%A6%E8%A7%A3/" title="Vue3 defineModel详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-03</div><div class="info-item-2">Vue3 defineModel详解</div></div><div class="info-2"><div class="info-item-1"> defineModel 是 Vue 3.4+ 版本中引入的一个新的 &lt;script setup&gt; 宏，旨在简化 v-model 的实现。它将组件的 props 和 emit 事件的复杂性抽象化，使得声明和使用双向绑定属性变得前所未有的直观和简洁。本篇将详细解释 defineModel 的用法、原理以及它带来的优势。  “The defineModel macro simplifies the implementation of two-way binding props, providing idiomatic and easier-to-understand syntax for both child components and their parent components.” —— Vue.js Documentation   一、什么是 defineModel？在 Vue 中，v-model 是一个强大的语法糖，用于在表单输入元素或者组件上实现双向数据绑定。在 Vue 3 (以及 defineModel 之前)，组件要支持 v-model，需要手动声明一个...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">199</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">172</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">58</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9-ArtPlayer%EF%BC%9F"><span class="toc-text">一、为什么选择 ArtPlayer？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81ArtPlayer-%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8"><span class="toc-text">二、ArtPlayer 的基本使用</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%89%E8%A3%85"><span class="toc-text">2.1 安装</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%9F%BA%E6%9C%AC%E6%92%AD%E6%94%BE%E7%A4%BA%E4%BE%8B"><span class="toc-text">2.2 基本播放示例</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E4%B8%8E%E9%85%8D%E7%BD%AE"><span class="toc-text">三、核心功能与配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE"><span class="toc-text">3.1 基础配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E7%95%8C%E9%9D%A2%E4%B8%8E%E4%BA%A4%E4%BA%92%E9%85%8D%E7%BD%AE"><span class="toc-text">3.2 界面与交互配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E4%BA%8B%E4%BB%B6%E7%B3%BB%E7%BB%9F"><span class="toc-text">3.3 事件系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-API"><span class="toc-text">3.4 API</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%8F%92%E4%BB%B6%E6%9C%BA%E5%88%B6"><span class="toc-text">四、插件机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%9B%86%E6%88%90-hls-js-%E6%92%AD%E6%94%BE-HLS"><span class="toc-text">4.1 集成 hls.js (播放 HLS)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E9%9B%86%E6%88%90-dash-js-%E6%92%AD%E6%94%BE-MPEG-DASH"><span class="toc-text">4.2 集成 dash.js (播放 MPEG-DASH)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E8%87%AA%E5%AE%9A%E4%B9%89%E6%8F%92%E4%BB%B6"><span class="toc-text">4.3 自定义插件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="nftables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解">nftables 详解</a><time datetime="2025-10-27T22:24:00.000Z" title="发表于 2025-10-28 06:24:00">2025-10-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="iptables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解">iptables 详解</a><time datetime="2025-10-24T22:24:00.000Z" title="发表于 2025-10-25 06:24:00">2025-10-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言并发与并行详解"/></a><div class="content"><a class="title" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解">Go语言并发与并行详解</a><time datetime="2025-10-22T22:24:00.000Z" title="发表于 2025-10-23 06:24:00">2025-10-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="常用限流算法的Go语言实现详解"/></a><div class="content"><a class="title" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解">常用限流算法的Go语言实现详解</a><time datetime="2025-10-15T22:24:00.000Z" title="发表于 2025-10-16 06:24:00">2025-10-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NativeScript-Vue3详解"/></a><div class="content"><a class="title" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解">NativeScript-Vue3详解</a><time datetime="2025-10-09T22:24:00.000Z" title="发表于 2025-10-10 06:24:00">2025-10-10</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-16.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>
