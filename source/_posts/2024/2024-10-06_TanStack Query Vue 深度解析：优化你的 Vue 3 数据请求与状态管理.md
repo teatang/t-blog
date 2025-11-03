@@ -5,7 +5,6 @@ tags:
   - 2024
   - Vue
   - TanStackQuery
-  - Nuxt
   - 前端技术
 categories:
   - 前端技术

@@ -10,7 +10,7 @@ tags:
   - WebGL
 categories:
   - 前端技术
-  - WebGL
+  - Web
 ---
 
 > **TresJS** 是一个基于 [Vue.js](https://vuejs.org/) 和 [Three.js](https://threejs.org/) 的声明式 3D 渲染框架。它允许开发者像编写 Vue 组件一样，通过声明式的方式构建复杂的 Three.js 场景，从而大大降低 Three.js 的学习曲线和开发复杂度，特别适合 Vue 开发者快速进入 3D 领域。
