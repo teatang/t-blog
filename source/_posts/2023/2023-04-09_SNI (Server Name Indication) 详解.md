@@ -3,7 +3,7 @@ title: SNI (Server Name Indication) 详解
 date: 2023-04-09 06:24:00
 tags:
   - 2023
-  - SNI
+  - TLS
   - 计算机网络
   - 网络协议
 categories:

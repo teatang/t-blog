@@ -97,7 +97,7 @@ graph TD
         D[目标服务器]
     end
 
-    A1 --> |"1. TCP 连接建立 + 2. TLS 握手 (SNI 伪装)"| P1
+    A1 --> |"1. TCP 连接建立 + <br/>2. TLS 握手 (SNI 伪装)"| P1
     A1 --> |"3. WebSocket 升级请求 (在TLS内)"| P1
 
     P1 --> |4. WebSocket 隧道建立| P2
