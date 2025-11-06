@@ -1,0 +1,692 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>ESP-IDF 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="ESP-IDF (Espressif IoT Development Framework) 是乐鑫科技 (Espressif Systems) 官方为其 Wi-Fi 和蓝牙 SoC（如 ESP32、ESP32-S 系列、ESP32-C 系列、ESP32-H 系列）提供的官方开发框架。它集成了 FreeRTOS 实时操作系统、lwIP TCP&#x2F;IP 协议栈以及一系列驱动程序、库和工具链，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ESP-IDF 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2025/2025-02-04_ESP-IDF%20%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="ESP-IDF (Espressif IoT Development Framework) 是乐鑫科技 (Espressif Systems) 官方为其 Wi-Fi 和蓝牙 SoC（如 ESP32、ESP32-S 系列、ESP32-C 系列、ESP32-H 系列）提供的官方开发框架。它集成了 FreeRTOS 实时操作系统、lwIP TCP&#x2F;IP 协议栈以及一系列驱动程序、库和工具链，">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-16.jpg">
+<meta property="article:published_time" content="2025-02-03T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-06T09:00:41.780Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="ESP32单片机">
+<meta property="article:tag" content="ESP-IDF">
+<meta property="article:tag" content="嵌入式系统">
+<meta property="article:tag" content="硬件编程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-16.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ESP-IDF 详解",
+  "url": "https://blog.tbf1211.xx.kg/2025/2025-02-04_ESP-IDF%20%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-16.jpg",
+  "datePublished": "2025-02-03T22:24:00.000Z",
+  "dateModified": "2025-11-06T09:00:41.780Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2025/2025-02-04_ESP-IDF%20%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'ESP-IDF 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">222</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">172</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">62</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-16.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">ESP-IDF 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">ESP-IDF 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-02-03T22:24:00.000Z" title="发表于 2025-02-04 06:24:00">2025-02-04</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/ESP-IDF/">ESP-IDF</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2025/2025-02-04_ESP-IDF%20%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>ESP-IDF (Espressif IoT Development Framework)</strong> 是乐鑫科技 (Espressif Systems) 官方为其 Wi-Fi 和蓝牙 SoC（如 ESP32、ESP32-S 系列、ESP32-C 系列、ESP32-H 系列）提供的<strong>官方开发框架</strong>。它集成了 FreeRTOS 实时操作系统、lwIP TCP&#x2F;IP 协议栈以及一系列驱动程序、库和工具链，旨在帮助开发者快速、高效地构建基于 ESP 芯片的物联网 (IoT) 应用程序。</p>
+</blockquote>
+<div class="note info flat"><p>ESP-IDF 的核心价值在于：<strong>提供了一个全面且高度集成的软件开发环境，将底层硬件抽象、操作系统调度、网络通信和各种外设驱动封装起来，使得开发者可以专注于应用层逻辑的实现，大幅降低了基于 ESP 芯片进行物联网开发的门槛和复杂度。</strong></p>
+</div>
+
+<hr>
+<h2 id="一、为什么选择-ESP-IDF？"><a href="#一、为什么选择-ESP-IDF？" class="headerlink" title="一、为什么选择 ESP-IDF？"></a>一、为什么选择 ESP-IDF？</h2><p>乐鑫科技的 ESP 芯片因其内置 Wi-Fi&#x2F;蓝牙、低功耗、高性价比等特点，在物联网领域广受欢迎。ESP-IDF 作为官方提供的开发框架，相较于其他开发方式（如 Arduino IDE、MicroPython），具有以下显著优势：</p>
+<ul>
+<li><strong>完整的功能集</strong>：<ul>
+<li><strong>FreeRTOS 集成</strong>：提供强大的实时操作系统能力，支持多任务并发。</li>
+<li><strong>lwIP TCP&#x2F;IP 协议栈</strong>：完整的网络功能支持，包括 TCP、UDP、HTTP、MQTT 等。</li>
+<li><strong>丰富的驱动和库</strong>：涵盖了 ESP 芯片所有外设（GPIO、UART、SPI、I2C、ADC、DAC、PWM、计时器等）的驱动，以及 Wi-Fi、蓝牙、电源管理、安全、OTA 升级等高级功能库。</li>
+<li><strong>内存管理</strong>：提供灵活的内存分配和管理机制。</li>
+<li><strong>硬件加速</strong>：充分利用 ESP 芯片的硬件加速功能，如加密、数字信号处理等。</li>
+</ul>
+</li>
+<li><strong>高性能和灵活性</strong>：<ul>
+<li>直接访问底层硬件，允许进行深度优化。</li>
+<li>支持 C&#x2F;C++ 编程，代码执行效率高。</li>
+<li>高度可配置，可根据项目需求裁剪功能和优化资源。</li>
+</ul>
+</li>
+<li><strong>强大的工具链</strong>：<ul>
+<li>基于 GCC 的交叉编译工具链。</li>
+<li><code>idf.py</code> 命令行构建系统 (基于 CMake)，简化了项目配置、编译、烧录和监控过程。</li>
+<li>支持 Eclipse、VS Code 等主流 IDE 集成。</li>
+<li>提供调试支持。</li>
+</ul>
+</li>
+<li><strong>活跃的社区和文档</strong>：<ul>
+<li>乐鑫官方提供详细、最新的文档和示例。</li>
+<li>全球开发者社区活跃，遇到问题容易找到解决方案。</li>
+</ul>
+</li>
+<li><strong>持续更新和维护</strong>：乐鑫官方持续更新 ESP-IDF，支持最新的 ESP 芯片型号和功能，修复 bug。</li>
+</ul>
+<h2 id="二、ESP-IDF-架构概述"><a href="#二、ESP-IDF-架构概述" class="headerlink" title="二、ESP-IDF 架构概述"></a>二、ESP-IDF 架构概述</h2><p>ESP-IDF 建立在 FreeRTOS 和 lwIP 的基础上，并在此之上封装了乐鑫 SoC 的底层驱动和各种高级服务。其架构可以概括为以下几个层次：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    graph TD
+    subgraph Application Layer
+        User_App(用户应用程序)
+    end
+
+    subgraph ESP-IDF Framework
+        Components(ESP-IDF 组件库)
+        Drivers(外设驱动)
+        Network_Stack(网络栈: Wi-Fi, Bluetooth, lwIP)
+        System_Services(系统服务: OTA, NVS, Event Loop, SPIFFS&#x2F;FATFS)
+        Security(安全: TLS, 硬件加密加速)
+        FreeRTOS(FreeRTOS RTOS Kernel)
+    end
+
+    subgraph Hardware Abstraction Layer
+        SOC_Layer(SoC 抽象层)
+        Hardware_Modules(ESP32&#x2F;ESP32-S&#x2F;C&#x2F;H SoC 硬件模块)
+    end
+
+    User_App -- 使用 --&gt; Components
+    User_App -- 使用 --&gt; Drivers
+    User_App -- 使用 --&gt; Network_Stack
+    User_App -- 使用 --&gt; System_Services
+    User_App -- 使用 --&gt; Security
+    Components --&gt; FreeRTOS
+    Drivers --&gt; FreeRTOS
+    Network_Stack --&gt; FreeRTOS
+    System_Services --&gt; FreeRTOS
+    Security --&gt; FreeRTOS
+
+    FreeRTOS --&gt; SOC_Layer
+    SOC_Layer --&gt; Hardware_Modules
+  </pre></div>
+
+<p><strong>关键组件说明：</strong></p>
+<ol>
+<li><strong>用户应用程序 (User Application)</strong>：开发者编写的代码，通常包含多个 FreeRTOS 任务，实现具体的业务逻辑。</li>
+<li><strong>ESP-IDF 组件库 (Components)</strong>：ESP-IDF 最核心的部分。它是由一系列独立的组件构成的，每个组件负责特定的功能。常见的组件包括：<ul>
+<li><strong><code>esp_common</code></strong>: 基础系统功能。</li>
+<li><strong><code>driver</code></strong>: 通用外设驱动（GPIO, UART, I2C, SPI, ADC, DAC, LEDC, MCPWM 等）。</li>
+<li><strong><code>esp_netif</code></strong>: 网络接口管理。</li>
+<li><strong><code>esp_wifi</code></strong>: Wi-Fi 驱动和管理。</li>
+<li><strong><code>esp_bluedroid</code> &#x2F; <code>esp_nimble</code></strong>: 蓝牙协议栈。</li>
+<li><strong><code>nvs_flash</code></strong>: 非易失性存储 (Non-Volatile Storage)，用于存储配置参数。</li>
+<li><strong><code>mbedtls</code></strong>: TLS&#x2F;SSL 加密库。</li>
+<li><strong><code>esp_event</code></strong>: ESP 事件循环，用于处理系统事件。</li>
+<li><strong><code>esp_http_client</code> &#x2F; <code>esp_https_server</code></strong>: HTTP 客户端&#x2F;服务器。</li>
+<li><strong><code>mqtt</code></strong>: MQTT 客户端。</li>
+<li><strong><code>cJSON</code></strong>: JSON 解析库。</li>
+<li><strong><code>esp_system</code></strong>: 系统级别操作，如重启、复位等。</li>
+<li><strong><code>esp_log</code></strong>: 日志系统。</li>
+<li><strong><code>heap</code></strong>: 内存分配管理。</li>
+<li><strong><code>fatfs</code> &#x2F; <code>spiffs</code></strong>: 文件系统支持。</li>
+<li><strong><code>esp_ota_ops</code></strong>: OTA (Over-The-Air) 固件升级。</li>
+<li>等等…</li>
+</ul>
+</li>
+<li><strong>FreeRTOS RTOS Kernel</strong>：作为底层的实时操作系统，管理任务调度、任务间通信和同步。ESP-IDF 充分利用 FreeRTOS 的多任务特性。</li>
+<li><strong>lwIP TCP&#x2F;IP 协议栈</strong>：一个轻量级的 TCP&#x2F;IP 协议栈，为 ESP 芯片提供完整的网络通信能力。</li>
+<li><strong>SoC 抽象层 (SOC Layer)</strong>：针对不同的 ESP 芯片型号（ESP32, ESP32-S3, ESP32-C3 等）提供统一的接口，屏蔽底层硬件差异。</li>
+<li><strong>硬件模块 (Hardware Modules)</strong>：ESP 芯片内部的各种物理模块，如 CPU (Xtensa LX6&#x2F;LX7 或 RISC-V)、内存 (SRAM, Flash)、Wi-Fi&#x2F;蓝牙模块、各种外设。</li>
+</ol>
+<h2 id="三、ESP-IDF-开发流程"><a href="#三、ESP-IDF-开发流程" class="headerlink" title="三、ESP-IDF 开发流程"></a>三、ESP-IDF 开发流程</h2><p>使用 ESP-IDF 进行开发通常遵循以下步骤：</p>
+<ol>
+<li><strong>环境搭建</strong>：<ul>
+<li>安装 ESP-IDF 工具链（GCC 交叉编译器、Python 环境、CMake、Ninja 等）。</li>
+<li>克隆 ESP-IDF 仓库。</li>
+<li>运行安装脚本，设置环境变量。</li>
+</ul>
+</li>
+<li><strong>创建或选择项目</strong>：<ul>
+<li>可以使用 <code>idf.py create-project &lt;project_name&gt;</code> 创建新项目骨架。</li>
+<li>或者从 ESP-IDF 提供的示例项目开始修改。</li>
+</ul>
+</li>
+<li><strong>配置项目</strong>：<ul>
+<li>进入项目目录，运行 <code>idf.py menuconfig</code>。</li>
+<li>这是一个基于 <code>ncurses</code> 的图形化配置工具，允许配置 FreeRTOS 行为、Wi-Fi 模式、蓝牙功能、外设驱动选项、日志级别、内存分配等各种系统参数。</li>
+</ul>
+</li>
+<li><strong>编写代码</strong>：<ul>
+<li>使用 C&#x2F;C++ 语言编写应用程序逻辑。</li>
+<li>利用 ESP-IDF 提供的各种 API 函数来初始化外设、连接网络、处理数据、创建任务等。</li>
+</ul>
+</li>
+<li><strong>编译项目</strong>：<ul>
+<li>在项目根目录运行 <code>idf.py build</code>。</li>
+<li>CMake 构建系统会根据配置生成 Makefiles 或 Ninja build 文件，并调用交叉编译器生成固件。</li>
+</ul>
+</li>
+<li><strong>烧录固件</strong>：<ul>
+<li>将 ESP 开发板连接到电脑。</li>
+<li>运行 <code>idf.py -p &lt;PORT&gt; flash</code>（将 <code>&lt;PORT&gt;</code> 替换为串口号，如 <code>COMx</code> 或 <code>/dev/ttyUSBx</code>）。</li>
+<li>固件会被烧录到 ESP 芯片的 Flash 存储器中。</li>
+</ul>
+</li>
+<li><strong>监控串口输出</strong>：<ul>
+<li>运行 <code>idf.py -p &lt;PORT&gt; monitor</code>。</li>
+<li>这会打开串口终端，显示 ESP 芯片的日志输出，方便调试。</li>
+</ul>
+</li>
+<li><strong>调试 (可选)</strong>：<ul>
+<li>ESP-IDF 支持 JTAG&#x2F;SWD 硬件调试，配合 OpenOCD 和 GDB，可以进行断点、单步、变量查看等高级调试。</li>
+</ul>
+</li>
+</ol>
+<h2 id="四、ESP-IDF-关键特性和常用-API"><a href="#四、ESP-IDF-关键特性和常用-API" class="headerlink" title="四、ESP-IDF 关键特性和常用 API"></a>四、ESP-IDF 关键特性和常用 API</h2><h3 id="4-1-FreeRTOS-任务管理"><a href="#4-1-FreeRTOS-任务管理" class="headerlink" title="4.1 FreeRTOS 任务管理"></a>4.1 FreeRTOS 任务管理</h3><ul>
+<li><strong><code>xTaskCreate()</code></strong>: 创建新任务。</li>
+<li><strong><code>vTaskDelay()</code></strong>: 任务延时。</li>
+<li><strong><code>vTaskDelete()</code></strong>: 删除任务。</li>
+<li><strong><code>xQueueCreate()</code> &#x2F; <code>xQueueSend()</code> &#x2F; <code>xQueueReceive()</code></strong>: 队列操作。</li>
+<li><strong><code>xSemaphoreCreateMutex()</code> &#x2F; <code>xSemaphoreTake()</code> &#x2F; <code>xSemaphoreGive()</code></strong>: 互斥量操作。</li>
+<li><strong><code>xEventGroupCreate()</code> &#x2F; <code>xEventGroupSetBits()</code> &#x2F; <code>xEventGroupWaitBits()</code></strong>: 事件组操作。</li>
+<li><strong><code>xTaskNotifyGive()</code> &#x2F; <code>ulTaskNotifyTake()</code></strong>: 任务通知（高效 IPC）。</li>
+</ul>
+<h3 id="4-2-Wi-Fi-和网络"><a href="#4-2-Wi-Fi-和网络" class="headerlink" title="4.2 Wi-Fi 和网络"></a>4.2 Wi-Fi 和网络</h3><ul>
+<li><strong><code>esp_netif_init()</code> &#x2F; <code>esp_event_loop_create_default()</code></strong>: 初始化网络和事件循环。</li>
+<li><strong><code>esp_netif_create_default_wifi_sta()</code> &#x2F; <code>esp_netif_create_default_wifi_ap()</code></strong>: 创建 STA 或 AP 网络接口。</li>
+<li><strong><code>esp_wifi_init()</code></strong>: 初始化 Wi-Fi 驱动。</li>
+<li><strong><code>esp_wifi_start()</code></strong>: 启动 Wi-Fi。</li>
+<li><strong><code>esp_wifi_connect()</code></strong>: 连接到 AP。</li>
+<li><strong><code>esp_wifi_set_config()</code></strong>: 设置 Wi-Fi 配置。</li>
+<li><strong><code>esp_event_handler_register()</code></strong>: 注册 Wi-Fi 和 IP 事件处理器。</li>
+<li><strong>Socket API</strong>: 基于 lwIP 的标准 BSD Socket API 进行 TCP&#x2F;UDP 通信。</li>
+<li><strong><code>esp_http_client_</code> 系列函数</strong>: HTTP&#x2F;HTTPS 客户端。</li>
+<li><strong><code>esp_https_server_</code> 系列函数</strong>: HTTPS 服务器。</li>
+<li><strong><code>esp_mqtt_client_</code> 系列函数</strong>: MQTT 客户端。</li>
+</ul>
+<h3 id="4-3-外设驱动"><a href="#4-3-外设驱动" class="headerlink" title="4.3 外设驱动"></a>4.3 外设驱动</h3><ul>
+<li><strong>GPIO</strong>: <code>gpio_set_direction()</code>, <code>gpio_set_level()</code>, <code>gpio_get_level()</code>, <code>gpio_install_isr_service()</code>, <code>gpio_isr_handler_add()</code>。</li>
+<li><strong>UART</strong>: <code>uart_driver_install()</code>, <code>uart_write_bytes()</code>, <code>uart_read_bytes()</code>, <code>uart_set_pin()</code>, <code>uart_param_config()</code>。</li>
+<li><strong>SPI</strong>: <code>spi_bus_initialize()</code>, <code>spi_bus_add_device()</code>, <code>spi_device_polling_transmit()</code>, <code>spi_device_transmit()</code>。</li>
+<li><strong>I2C</strong>: <code>i2c_driver_install()</code>, <code>i2c_cmd_link_create()</code>, <code>i2c_master_start()</code>, <code>i2c_master_write_byte()</code>, <code>i2c_master_read_byte()</code>, <code>i2c_master_stop()</code>, <code>i2c_master_cmd_begin()</code>。</li>
+<li><strong>ADC&#x2F;DAC</strong>: <code>adc_oneshot_read()</code>, <code>dac_output_voltage()</code>。</li>
+<li><strong>PWM (LEDC)</strong>: <code>ledc_timer_config()</code>, <code>ledc_channel_config()</code>, <code>ledc_set_duty()</code>, <code>ledc_update_duty()</code>, <code>ledc_start()</code>。</li>
+<li><strong>定时器</strong>: <code>esp_timer_create()</code>, <code>esp_timer_start_periodic()</code>, <code>esp_timer_stop()</code>。</li>
+</ul>
+<h3 id="4-4-存储与文件系统"><a href="#4-4-存储与文件系统" class="headerlink" title="4.4 存储与文件系统"></a>4.4 存储与文件系统</h3><ul>
+<li><strong>NVS (Non-Volatile Storage)</strong>: <code>nvs_flash_init()</code>, <code>nvs_open()</code>, <code>nvs_get_i32()</code>, <code>nvs_set_i32()</code>，用于存储配置和少量数据。</li>
+<li><strong>SPIFFS&#x2F;FATFS</strong>: 用于在外部 SPI Flash 上创建文件系统，存储大文件。<ul>
+<li><code>esp_vfs_spiffs_register()</code> &#x2F; <code>esp_vfs_fat_sdmmc_mount()</code>: 注册文件系统。</li>
+<li>标准的 <code>fopen()</code>, <code>fread()</code>, <code>fwrite()</code>, <code>fclose()</code> 等 C 语言文件操作函数。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-5-OTA-升级"><a href="#4-5-OTA-升级" class="headerlink" title="4.5 OTA 升级"></a>4.5 OTA 升级</h3><ul>
+<li><strong><code>esp_ota_begin()</code> &#x2F; <code>esp_ota_write()</code> &#x2F; <code>esp_ota_end()</code></strong>: 进行固件 OTA 升级。</li>
+<li><strong><code>esp_ota_set_boot_partition()</code></strong>: 设置下次启动的分区。</li>
+</ul>
+<h3 id="4-6-日志系统"><a href="#4-6-日志系统" class="headerlink" title="4.6 日志系统"></a>4.6 日志系统</h3><ul>
+<li><strong><code>ESP_LOGI()</code> &#x2F; <code>ESP_LOGW()</code> &#x2F; <code>ESP_LOGE()</code> &#x2F; <code>ESP_LOGD()</code> &#x2F; <code>ESP_LOGV()</code></strong>: 不同级别的日志输出。</li>
+<li><strong><code>esp_log_level_set()</code></strong>: 动态设置日志级别。</li>
+</ul>
+<h2 id="五、内存管理"><a href="#五、内存管理" class="headerlink" title="五、内存管理"></a>五、内存管理</h2><p>ESP32 芯片具有复杂的内存结构，包括内部 SRAM (IRAM, DRAM)、外部 SPI RAM (PSRAM) 和 Flash 存储。ESP-IDF 提供了多种内存分配函数，以适应不同内存区域的需求：</p>
+<ul>
+<li><strong><code>heap_caps_malloc()</code> &#x2F; <code>heap_caps_free()</code></strong>: 这是 ESP-IDF 推荐的通用内存分配函数。它允许指定分配内存的“能力 (capabilities)”，例如：<ul>
+<li><code>MALLOC_CAP_INTERNAL</code>: 分配内部 RAM。</li>
+<li><code>MALLOC_CAP_DMA</code>: 分配可用于 DMA 的内部 RAM。</li>
+<li><code>MALLOC_CAP_EXEC</code>: 分配可执行的 RAM (IRAM)。</li>
+<li><code>MALLOC_CAP_SPIRAM</code>: 分配外部 PSRAM。</li>
+</ul>
+</li>
+<li><strong><code>malloc()</code> &#x2F; <code>free()</code></strong>: C 标准库函数，通常默认映射到 <code>heap_caps_malloc()</code>。</li>
+<li><strong><code>xPortGetFreeHeapSize()</code></strong>: 获取当前 FreeRTOS 管理的堆可用大小。</li>
+</ul>
+<p>理解 ESP 芯片的内存特性并正确使用 <code>heap_caps_malloc()</code> 可以有效避免内存碎片化和分配失败。</p>
+<h2 id="六、多核支持-ESP32"><a href="#六、多核支持-ESP32" class="headerlink" title="六、多核支持 (ESP32)"></a>六、多核支持 (ESP32)</h2><p>ESP32 包含两个 Xtensa LX6 CPU 核（Pro CPU 和 App CPU）。ESP-IDF 利用 FreeRTOS 对多核的支持：</p>
+<ul>
+<li>默认情况下，所有 FreeRTOS 任务都可以在这两个核心上运行。</li>
+<li>可以通过 <code>xTaskCreatePinnedToCore()</code> 函数将任务固定到特定 CPU 核心上，这在需要严格区分 CPU 负载或避免特定硬件资源争用时非常有用。</li>
+<li><strong>Pro CPU (Core 0)</strong>：主要负责 Wi-Fi&#x2F;蓝牙协议栈和大部分系统任务。</li>
+<li><strong>App CPU (Core 1)</strong>：主要用于运行用户应用程序任务，以确保用户代码不会干扰系统级操作。</li>
+</ul>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>ESP-IDF 是一个功能全面、强大且灵活的开发框架，为乐鑫 ESP 系列芯片的物联网应用开发提供了坚实的基础。它将实时操作系统、网络协议栈、丰富的外设驱动和各种系统服务整合在一起，并提供了强大的工具链和活跃的社区支持。对于追求高性能、深度定制和长期维护的 ESP 芯片项目，ESP-IDF 是不二之选。虽然它可能比 Arduino IDE 学习曲线稍陡峭，但其提供的强大能力和灵活性无疑能让开发者构建出更复杂、更可靠的物联网解决方案。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2025/2025-02-04_ESP-IDF%20%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2025/2025-02-04_ESP-IDF%20%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/ESP32%E5%8D%95%E7%89%87%E6%9C%BA/">ESP32单片机</a><a class="post-meta__tags" href="/tags/ESP-IDF/">ESP-IDF</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><a class="post-meta__tags" href="/tags/%E7%A1%AC%E4%BB%B6%E7%BC%96%E7%A8%8B/">硬件编程</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-16.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2025/2025-02-04_PromQL%E8%AF%A6%E8%A7%A3%EF%BC%9A%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Prometheus%E6%9F%A5%E8%AF%A2%E8%AF%AD%E8%A8%80/" title="PromQL详解：深入理解Prometheus查询语言"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">PromQL详解：深入理解Prometheus查询语言</div></div><div class="info-2"><div class="info-item-1"> PromQL (Prometheus Query Language) 是 Prometheus 监控系统中用于查询、聚合和分析时间序列数据的一种功能强大的查询语言。它是 Prometheus 核心价值的体现之一。无论你是要构建仪表盘、创建告警规则，还是进行故障排查，PromQL 都是你与 Prometheus 数据进行交互的唯一途径。掌握 PromQL 是有效利用 Prometheus 的关键。  “PromQL 让你能够将原始指标数据转化为有意义的洞察和可操作的智能信息。”   一、Prometheus 指标类型回顾在深入 PromQL 之前，我们先快速回顾一下 Prometheus 的四种核心指标类型，因为 PromQL 的查询行为会根据指标类型有所不同：  Counter (计数器)：一种累计型指标，只增不减（重置除外）。通常用于统计请求总数、错误总数等。 例子：http_requests_total 适用 PromQL 函数：rate()、irate()、increase()   Gauge (测量仪)：一种可任意上下变动的指标，反映当前状态。通常用于表示内存使用量、C...</div></div></div></a><a class="pagination-related" href="/2025/2025-01-27_Prometheus%E4%B8%8EGrafana%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%8E%B0%E4%BB%A3%E7%9B%91%E6%8E%A7%E7%9A%84%E9%BB%84%E9%87%91%E7%BB%84%E5%90%88/" title="Prometheus与Grafana详解：现代监控的黄金组合"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Prometheus与Grafana详解：现代监控的黄金组合</div></div><div class="info-2"><div class="info-item-1"> 在现代复杂的 IT 基础设施中，如何高效、准确地监控系统和应用的健康状况，并及时发现潜在问题，是运维和开发团队面临的巨大挑战。Prometheus 和 Grafana 正是为此而生的一对黄金搭档。Prometheus 负责数据的收集、存储和查询，而 Grafana 则负责数据的可视化和告警展示。它们共同构建了一个强大的开源监控解决方案，已成为云原生时代监控领域的事实标准。  “没有监控的系统就像在黑暗中航行的船只，随时可能触礁。”   一、Prometheus 详解1.1 Prometheus 是什么？Prometheus 是一个开源的时间序列数据库 (TSDB) 和监控系统，由 SoundCloud 公司开发并于 2016 年加入云原生计算基金会 (CNCF)，是其第二个毕业项目。它采用了一种拉取 (Pull) 模型来收集指标数据，并通过强大的多维度数据模型和灵活的查询语言 (PromQL) 来支持复杂的告警和分析。 1.2 Prometheus 的核心特点与优势 多维数据模型：所有指标都是以时间戳和键值对（称为标签或 labels）的形式存储的。例如，http_reques...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2024/2024-05-27_ESP32%20%E8%8A%AF%E7%89%87%E8%AF%A6%E8%A7%A3/" title="ESP32 芯片详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-27</div><div class="info-item-2">ESP32 芯片详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 是由乐鑫科技 (Espressif Systems) 开发的一系列低成本、低功耗的系统级芯片 (SoC)，集成了 Wi-Fi 和双模蓝牙功能。它专为物联网 (IoT) 应用、移动设备、可穿戴电子产品以及其他新兴的物联网领域而设计。凭借其强大的性能、丰富的硬件资源和极具竞争力的价格，ESP32 已经成为全球创客、开发者和公司在物联网项目中的首选芯片之一。  核心思想：将强大的双核处理器、Wi-Fi、双模蓝牙、大量外设集成在一个小巧的芯片中，并通过成本效益极高的方式提供给开发者，极大地降低了物联网开发的门槛。   一、ESP32 简介与发展历程1.1 ESP 系列芯片概述乐鑫科技的 ESP 系列芯片在物联网领域取得了巨大成功，主要包括：  ESP8266：乐鑫的第一款里程碑式产品，集成了 Wi-Fi 功能。它凭借极低的成本和开源社区的强大支持，迅速占领了物联网市场，成为智能家居、远程控制等应用的首选。 ESP32：在 ESP8266 的基础上进行了全面升级，引入了双核处理器、双模蓝牙（经典蓝牙 + 低功耗蓝牙 BLE）以及更丰富的外设接口，性能和功能都有了质的飞跃。 E...</div></div></div></a><a class="pagination-related" href="/2024/2024-05-28_ESP32%20Arduino%20%E8%AF%AD%E6%B3%95%E8%AF%A6%E8%A7%A3/" title="ESP32 Arduino 语法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-28</div><div class="info-item-2">ESP32 Arduino 语法详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 Arduino 语法 是指在使用 Arduino IDE 或 PlatformIO 配合 Arduino 核心开发 ESP32 应用时所遵循的编程规范和 API。它将 ESP32 强大的硬件功能封装成简单易用的函数和类，使得开发者能够以 Arduino 熟悉的编程范式来操控 ESP32 的 Wi-Fi、蓝牙、GPIO、串口等功能，极大地降低了 ESP32 的学习曲线和开发难度。  核心思想：将复杂底层的 ESP-IDF 功能抽象成 Arduino 风格的函数调用，让开发者能够像使用 Arduino Uno&#x2F;Mega 一样，快速上手 ESP32 的 Wi-Fi、蓝牙和多核特性。   一、Arduino 核心与 ESP321.1 什么是 Arduino 核心 (Board Support Package - BSP)？Arduino 核心是一套针对特定微控制器（如 AVR 芯片、STM32 芯片、ESP32 芯片）的底层驱动、库和编译器配置，旨在将微控制器的复杂硬件操作抽象成 Arduino 统一的 API。当我们在 Arduino IDE 中选择“ESP32...</div></div></div></a><a class="pagination-related" href="/2024/2024-06-01_PlatformIO%20%E8%AF%A6%E8%A7%A3/" title="PlatformIO 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-01</div><div class="info-item-2">PlatformIO 详解</div></div><div class="info-2"><div class="info-item-1"> PlatformIO 是一个开源的生态系统，用于物联网 (IoT) 和嵌入式系统的开发。它提供了一个跨平台、多框架、集成开发环境 (IDE) 独立的开发工具集。PlatformIO 的目标是简化嵌入式开发的复杂性，让开发者能够专注于代码逻辑，而不用花费大量时间在工具链的配置和管理上。它支持数百种开发板、多种流行的开发框架（如 Arduino, ESP-IDF, STM32Cube, Zephyr 等），并集成了调试器、库管理器、单元测试等功能。  核心思想：统一嵌入式开发工作流，抽象底层工具链细节，提供高度可配置和自动化的开发环境。 开发者可以使用自己喜欢的编辑器（如 VS Code）配合 PlatformIO 的强大后端进行项目管理、编译和烧录。   一、为什么选择 PlatformIO？传统嵌入式开发的痛点传统的嵌入式开发常常伴随着一系列挑战：  工具链碎片化：不同的微控制器和开发板通常需要不同的编译器、烧录工具和调试器。例如，为 AVR 芯片开发需要 AVR-GCC，为 ESP32 开发需要 xtensa-esp32-elf-gcc。 IDE 绑定和限制：许多官方 IDE...</div></div></div></a><a class="pagination-related" href="/2024/2024-06-08_ESP32%20%E5%BC%95%E8%84%9A%E5%8F%8A%E7%BC%96%E5%8F%B7%E8%AF%A6%E8%A7%A3/" title="ESP32 引脚及编号详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-08</div><div class="info-item-2">ESP32 引脚及编号详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 是一款由乐鑫科技 (Espressif Systems) 开发的低成本、低功耗的 Wi-Fi 和蓝牙双模芯片。它集成了强大的 Tensilica Xtensa LX6 双核处理器、Wi-Fi、蓝牙、以及丰富的周边接口（如 GPIO, ADC, DAC, SPI, I2C, UART, I2S, RMT, TWAI 等），使其成为物联网 (IoT) 应用的理想选择。理解 ESP32 的引脚功能和编号对于任何 ESP32 项目都至关重要。  核心思想：ESP32 芯片提供了大量的通用输入&#x2F;输出 (GPIO) 引脚，这些引脚除了基本的数字输入&#x2F;输出功能外，还复用 (multiplexing) 了多种外设功能。正确识别和使用这些引脚是成功开发 ESP32 应用的基础。   一、ESP32 芯片与开发板在讨论引脚之前，需要明确 ESP32 芯片本身和基于 ESP32 芯片的开发板（如 ESP32-DevKitC, ESP32-WROOM-32D&#x2F;U 等模组）的区别：  ESP32 芯片：指的是裸芯片，例如 ESP32-D0WDQ6。它具有 39 ...</div></div></div></a><a class="pagination-related" href="/2024/2024-07-14_U8g2lib%20%E8%AF%A6%E8%A7%A3/" title="U8g2lib 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-14</div><div class="info-item-2">U8g2lib 详解</div></div><div class="info-2"><div class="info-item-1"> U8g2lib 是一个用于单色图形显示器 (monochrome graphics displays) 的开源嵌入式图形库。它支持各种 OLED 和 LCD 显示器，例如经典的 128x64 SSD1306 OLED 显示器。U8g2lib 以其广泛的硬件支持、丰富的字体集、高效的内存使用以及强大的图形绘制功能而闻名。它是 U8glib 的继任者，相比 U8glib，U8g2lib 在内存效率和功能上进行了优化和扩展，支持帧缓冲模式 (full buffer) 和页缓冲模式 (page buffer)。  核心思想：提供一个统一的 API 接口，驱动各种单色图形显示器，并提供一套完整的图形绘制和字体渲染功能，同时兼顾嵌入式设备的资源限制。 开发者无需关心底层显示器的驱动细节，专注于界面设计。   一、为什么需要 U8g2lib？嵌入式显示器的痛点在嵌入式系统中集成单色图形显示器时，开发者常常面临以下挑战：  硬件驱动复杂：不同的显示器控制器 (如 SSD1306, SH1106, ST7920) 有不同的初始化序列、命令集和数据传输协议（SPI, I2C, 并行）。手动编写驱动...</div></div></div></a><a class="pagination-related" href="/2024/2024-05-06_MCU%20%E4%B8%8E%20SoC%20%E5%AF%B9%E6%AF%94%E4%B8%8E%E8%AF%A6%E8%A7%A3/" title="MCU 与 SoC 对比与详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-06</div><div class="info-item-2">MCU 与 SoC 对比与详解</div></div><div class="info-2"><div class="info-item-1"> MCU (Microcontroller Unit) 和 SoC (System on Chip) 是嵌入式系统设计中常用的两种核心集成电路（IC）。它们都旨在将多个功能集成到单个芯片上，以实现更紧凑、更高效的电子设备。然而，它们在设计理念、集成度、复杂度和应用场景上存在显著差异。理解这些差异对于选择合适的芯片进行产品开发至关重要。  核心思想：MCU是高度集成的专用微型计算机，强调自给自足和实时控制；SoC是高度集成的系统级芯片，旨在将整个电子系统所需的大多数甚至所有组件集成在一个芯片上，提供更强大的处理能力和更广泛的功能。   一、MCU (Microcontroller Unit) 微控制器1.1 定义与核心特点MCU 是一种将中央处理器 (CPU)、存储器 (RAM、ROM&#x2F;Flash)、定时器、输入&#x2F;输出 (I&#x2F;O) 端口以及各种外设接口 (如UART、SPI、I2C、ADC、DAC) 等功能模块集成在单一芯片上的微型计算机。 核心特点：  高度集成性：一个芯片即可构成一个完整的计算机系统，无需大量外部元件。 自给自足 (Self-con...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">222</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">172</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">62</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9-ESP-IDF%EF%BC%9F"><span class="toc-text">一、为什么选择 ESP-IDF？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81ESP-IDF-%E6%9E%B6%E6%9E%84%E6%A6%82%E8%BF%B0"><span class="toc-text">二、ESP-IDF 架构概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81ESP-IDF-%E5%BC%80%E5%8F%91%E6%B5%81%E7%A8%8B"><span class="toc-text">三、ESP-IDF 开发流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81ESP-IDF-%E5%85%B3%E9%94%AE%E7%89%B9%E6%80%A7%E5%92%8C%E5%B8%B8%E7%94%A8-API"><span class="toc-text">四、ESP-IDF 关键特性和常用 API</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-FreeRTOS-%E4%BB%BB%E5%8A%A1%E7%AE%A1%E7%90%86"><span class="toc-text">4.1 FreeRTOS 任务管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-Wi-Fi-%E5%92%8C%E7%BD%91%E7%BB%9C"><span class="toc-text">4.2 Wi-Fi 和网络</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%A4%96%E8%AE%BE%E9%A9%B1%E5%8A%A8"><span class="toc-text">4.3 外设驱动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%AD%98%E5%82%A8%E4%B8%8E%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F"><span class="toc-text">4.4 存储与文件系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-OTA-%E5%8D%87%E7%BA%A7"><span class="toc-text">4.5 OTA 升级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F"><span class="toc-text">4.6 日志系统</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="toc-text">五、内存管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%A4%9A%E6%A0%B8%E6%94%AF%E6%8C%81-ESP32"><span class="toc-text">六、多核支持 (ESP32)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="nftables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解">nftables 详解</a><time datetime="2025-10-27T22:24:00.000Z" title="发表于 2025-10-28 06:24:00">2025-10-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="iptables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解">iptables 详解</a><time datetime="2025-10-24T22:24:00.000Z" title="发表于 2025-10-25 06:24:00">2025-10-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go语言并发与并行详解"/></a><div class="content"><a class="title" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解">Go语言并发与并行详解</a><time datetime="2025-10-22T22:24:00.000Z" title="发表于 2025-10-23 06:24:00">2025-10-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="常用限流算法的Go语言实现详解"/></a><div class="content"><a class="title" href="/2025/2025-10-16_%E5%B8%B8%E7%94%A8%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95%E7%9A%84Go%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E8%AF%A6%E8%A7%A3/" title="常用限流算法的Go语言实现详解">常用限流算法的Go语言实现详解</a><time datetime="2025-10-15T22:24:00.000Z" title="发表于 2025-10-16 06:24:00">2025-10-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NativeScript-Vue3详解"/></a><div class="content"><a class="title" href="/2025/2025-10-10_NativeScript-Vue3%E8%AF%A6%E8%A7%A3/" title="NativeScript-Vue3详解">NativeScript-Vue3详解</a><time datetime="2025-10-09T22:24:00.000Z" title="发表于 2025-10-10 06:24:00">2025-10-10</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-16.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.1"></script><script src="/js/main.js?v=5.5.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0.33/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.1"></script></div></div></body></html>
