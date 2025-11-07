@@ -68,7 +68,7 @@ wsl --install
 
 如果已安装 WSL 1 或需要特定步骤，可以：
 
-1.  **确保已启用“适用于 Linux 的 Windows 子系统”和“虚拟机平台”**：
+1.  **确保已启用“适用于 Linux 的 Windows 子系统”和“虚拟机平台**”：
     ```powershell
     dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
     dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
