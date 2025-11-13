@@ -7,7 +7,7 @@ tags:
   - CI/CD
 categories:
   - 开发工具
-  - GitHub
+  - CI/CD
 ---
 
 > GitHub Actions 是 GitHub 提供的持续集成 (CI) 和持续部署 (CD) 服务，它可以帮助开发者自动化软件开发生命周期中的各种任务，例如代码构建、测试、部署，甚至代码审查和发布管理。通过 GitHub Actions，你可以在代码仓库中定义一系列自动化工作流，让你的开发过程更加高效、可靠。
