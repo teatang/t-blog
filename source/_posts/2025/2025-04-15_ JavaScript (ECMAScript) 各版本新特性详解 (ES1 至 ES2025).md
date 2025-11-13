@@ -57,8 +57,8 @@ ES6 是 JavaScript 发展史上最重要的版本，引入了大量革命性的�
     *   更简洁的函数语法 (`(param1, param2) => expression`)。
     *   没有自己的 `this` 绑定，`this` 绑定到定义时所在的上下文。
 *   **模板字面量 (Template Literals)**：
-    *   使用反引号 `` ` `` 定义多行字符串和内嵌表达式 (`${expression}`)。
-    *   `const name = "World"; console.log(`Hello, ${name}!`);`
+    *   使用反引号 `` ` `` 定义多行字符串和内嵌表达式 (\`${expression}\`)。
+    *   const name = "World"; console.log(\`Hello, ${name}!\`);
 *   **解构赋值 (Destructuring Assignment)**：
     *   从数组或对象中提取值并赋给变量，简化了数据提取。
     *   `const [a, b] = [1, 2];`
@@ -210,11 +210,11 @@ ES6 是 JavaScript 发展史上最重要的版本，引入了大量革命性的�
     *   `Object.hasOwn(obj, 'prop');`
 *   **类字段声明 (Class Field Declarations)**：
     *   允许在类的构造函数外部直接声明类属性（公有和私有）。
-    *   ```javascript
+        ```javascript
         class MyClass {
-          publicField = 1;
-          #privateField = 2; // 私有字段
-          static staticField = 3;
+            publicField = 1;
+            #privateField = 2; // 私有字段
+            static staticField = 3;
         }
         ```
 *   **私有方法和访问器 (Private Class Methods and Accessors)**：
@@ -252,7 +252,7 @@ ES2024 仍在开发中，以下是几个已达到 Stage 4 阶段（准备发布�
 
 *   **装饰器 (Decorators)**：
     *   允许通过一种简洁的语法来修改类、方法、属性和访问器。它是一个元编程功能，可以用于例如日志、验证、依赖注入等。
-    *   ```javascript
+        ```javascript
         @logMethod
         class MyClass {
           @timeMethod
