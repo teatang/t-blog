@@ -5,6 +5,7 @@ tags:
   - 2025
   - Hyper-V
   - 虚拟机
+  - Windows
 categories:
   - 开发工具
   - 虚拟机

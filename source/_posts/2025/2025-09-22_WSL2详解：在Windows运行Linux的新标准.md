@@ -5,6 +5,7 @@ tags:
   - 2025
   - WSL2
   - Linux
+  - Windows
   - Hyper-V
   - 虚拟机
 categories:

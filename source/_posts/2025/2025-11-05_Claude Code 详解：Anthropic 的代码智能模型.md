@@ -211,11 +211,11 @@ Claude Code 继承了 Claude 基础模型的强大语言理解能力，并将其
     ```
 ### 3.9 9. 2. 为claude code指定大模型
 *   **Mac OS - 在终端输入以下命令：**
-    export ANTHROPIC_BASE_URL="https://open.bigmodel.cn/api/anthropic"
-    export ANTHROPIC_AUTH_TOKEN="你刚刚获取的智谱apikey"
+    export ANTHROPIC_BASE_URL="https://api-inference.modelscope.cn/v1"
+    export ANTHROPIC_AUTH_TOKEN="apikey"
 *   **Windows- 在终端输入以下命令：**
-    $Env:ANTHROPIC_BASE_URL="https://api-inference.modelscope.cn/v1"
-    $Env:ANTHROPIC_AUTH_TOKEN="ms-786512e9-d483-44bb-9a7e-3037a57a6112"
+    $Env:ANTHROPIC_BASE_URL="https://api-inference.modelscope.cn"
+    $Env:ANTHROPIC_AUTH_TOKEN="apikey"
 
 ## 四、Claude Code 的工作流程 (通用)
 
