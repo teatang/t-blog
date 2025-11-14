@@ -1,0 +1,627 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Golang Goroutine 同步方法详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Goroutine 是 Go 语言并发编程的核心，它是一种轻量级的执行单元，由 Go 运行时调度。然而，当多个 Goroutine 并发执行并访问共享资源时，如果不加以适当的控制，就可能导致数据竞争 (Data Race)、死锁 (Deadlock) 或其他难以调试的并发问题。因此，Goroutine 同步是编写健壮、高效 Go 并发程序的关键。  核心思想：Go 语言推崇通过通信来共享内存，而">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Golang Goroutine 同步方法详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2025/2025-08-12_Golang%20Goroutine%20%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Goroutine 是 Go 语言并发编程的核心，它是一种轻量级的执行单元，由 Go 运行时调度。然而，当多个 Goroutine 并发执行并访问共享资源时，如果不加以适当的控制，就可能导致数据竞争 (Data Race)、死锁 (Deadlock) 或其他难以调试的并发问题。因此，Goroutine 同步是编写健壮、高效 Go 并发程序的关键。  核心思想：Go 语言推崇通过通信来共享内存，而">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg">
+<meta property="article:published_time" content="2025-08-11T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-14T04:04:01.949Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="goroutine">
+<meta property="article:tag" content="转载">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Golang Goroutine 同步方法详解",
+  "url": "https://blog.tbf1211.xx.kg/2025/2025-08-12_Golang%20Goroutine%20%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg",
+  "datePublished": "2025-08-11T22:24:00.000Z",
+  "dateModified": "2025-11-14T04:04:01.949Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2025/2025-08-12_Golang%20Goroutine%20%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Golang Goroutine 同步方法详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">268</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">188</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">66</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-20.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Golang Goroutine 同步方法详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Golang Goroutine 同步方法详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-08-11T22:24:00.000Z" title="发表于 2025-08-12 06:24:00">2025-08-12</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/goroutine/">goroutine</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>18分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2025/2025-08-12_Golang%20Goroutine%20%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Goroutine</strong> 是 Go 语言并发编程的核心，它是一种轻量级的执行单元，由 Go 运行时调度。然而，当多个 Goroutine 并发执行并访问共享资源时，如果不加以适当的控制，就可能导致<strong>数据竞争 (Data Race)</strong>、<strong>死锁 (Deadlock)</strong> 或其他难以调试的并发问题。因此，<strong>Goroutine 同步</strong>是编写健壮、高效 Go 并发程序的关键。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>Go 语言推崇通过通信来共享内存，而不是通过共享内存来通信 (Don’t communicate by sharing memory; share memory by communicating)。这体现在其核心的同步机制——Channel 上。然而，Go 也提供了传统的共享内存同步原语，如 Mutex，以应对不同的并发场景。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-Goroutine-同步？"><a href="#一、为什么需要-Goroutine-同步？" class="headerlink" title="一、为什么需要 Goroutine 同步？"></a>一、为什么需要 Goroutine 同步？</h2><p>当多个 Goroutine 同时访问和修改同一块内存区域（共享资源）时，操作的顺序变得不确定。这可能导致：</p>
+<ol>
+<li><strong>数据竞争 (Data Race)</strong>：当至少两个 Goroutine 并发访问同一个内存位置，并且至少有一个是写操作，且没有同步机制来协调这些访问时，就会发生数据竞争。结果是不可预测的，可能导致程序崩溃或产生错误的结果。</li>
+<li><strong>结果不一致</strong>：例如，一个 Goroutine 读取了一个变量，而另一个 Goroutine 在读取过程中修改了它，导致读取到的是一个中间状态或过时的数据。</li>
+<li><strong>死锁 (Deadlock)</strong>：多个 Goroutine 互相等待对方释放资源，导致所有 Goroutine 都无法继续执行。</li>
+<li><strong>活锁 (Livelock)</strong>：Goroutine 忙于响应其他 Goroutine 的动作，但都无法取得进展。</li>
+<li><strong>饿死 (Starvation)</strong>：某些 Goroutine 始终无法获取到所需的资源而无法执行。</li>
+</ol>
+<p>Goroutine 同步方法旨在解决这些问题，确保共享资源的访问是<strong>安全 (Safe)</strong> 和<strong>有序 (Ordered)</strong> 的。</p>
+<h2 id="二、Channels-通信共享内存"><a href="#二、Channels-通信共享内存" class="headerlink" title="二、Channels (通信共享内存)"></a>二、Channels (通信共享内存)</h2><p><strong>Channel</strong> 是 Go 语言在 CSP (Communicating Sequential Processes) 模型下实现 Goroutine 间通信和同步的主要方式。它允许 Goroutine 安全地发送和接收数据。</p>
+<h3 id="2-1-Channel-的基本特性"><a href="#2-1-Channel-的基本特性" class="headerlink" title="2.1 Channel 的基本特性"></a>2.1 Channel 的基本特性</h3><ul>
+<li><strong>类型化 (Typed)</strong>：Channel 只能传输特定类型的数据。</li>
+<li><strong>发送与接收 (Send &amp; Receive)</strong>：使用 <code>&lt;-</code> 操作符进行发送和接收。</li>
+<li><strong>阻塞 (Blocking)</strong>：发送和接收操作在某些条件下会阻塞 Goroutine。</li>
+<li><strong>关闭 (Closing)</strong>：可以关闭 Channel，表示不再有数据发送。</li>
+</ul>
+<p><strong>Channel 操作示意</strong>：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    Sender[发送 Goroutine] --&gt;|数据| Channel(Channel)
+    Channel --&gt;|数据| Receiver[接收 Goroutine]
+
+    Sender -- 阻塞 --&gt; Channel
+    Receiver -- 阻塞 --&gt; Channel
+  </pre></div>
+
+<h3 id="2-2-无缓冲-Channel-Unbuffered-Channel"><a href="#2-2-无缓冲-Channel-Unbuffered-Channel" class="headerlink" title="2.2 无缓冲 Channel (Unbuffered Channel)"></a>2.2 无缓冲 Channel (Unbuffered Channel)</h3><p>无缓冲 Channel 的容量为零。发送操作会阻塞，直到有 Goroutine 准备好接收；接收操作会阻塞，直到有 Goroutine 准备好发送。这实现了<strong>同步通信</strong>。</p>
+<p><strong>示例：Goroutine 间的信号通知</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">worker</span><span class="params">(done <span class="keyword">chan</span> <span class="type">bool</span>)</span></span> &#123;</span><br><span class="line">	fmt.Println(<span class="string">&quot;Worker: 开始工作...&quot;</span>)</span><br><span class="line">	time.Sleep(<span class="number">2</span> * time.Second) <span class="comment">// 模拟耗时操作</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;Worker: 完成工作。&quot;</span>)</span><br><span class="line"></span><br><span class="line">	done &lt;- <span class="literal">true</span> <span class="comment">// 工作完成后，向 done channel 发送信号</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	done := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">bool</span>) <span class="comment">// 创建一个无缓冲的 boolean channel</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> worker(done) <span class="comment">// 启动一个 worker Goroutine</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// main Goroutine 等待 worker 发送完成信号</span></span><br><span class="line">	&lt;-done</span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: Worker 已完成，程序退出。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>main</code> Goroutine 会在 <code>&lt;-done</code> 处阻塞，直到 <code>worker</code> Goroutine 向 <code>done</code> channel 发送一个 <code>true</code> 值。这确保了 <code>main</code> Goroutine 在 <code>worker</code> 完成其任务之前不会继续执行。</p>
+<h3 id="2-3-有缓冲-Channel-Buffered-Channel"><a href="#2-3-有缓冲-Channel-Buffered-Channel" class="headerlink" title="2.3 有缓冲 Channel (Buffered Channel)"></a>2.3 有缓冲 Channel (Buffered Channel)</h3><p>有缓冲 Channel 具有一定的容量。发送操作只有在 Channel 满时才会阻塞；接收操作只有在 Channel 空时才会阻塞。</p>
+<p><strong>示例：限制并发数量</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">process</span><span class="params">(id <span class="type">int</span>, semaphore <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;)</span></span> &#123;</span><br><span class="line">	&lt;-semaphore <span class="comment">// 获取信号量，表示开始处理</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;处理任务 %d: 开始...\n&quot;</span>, id)</span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second) <span class="comment">// 模拟处理时间</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;处理任务 %d: 完成。\n&quot;</span>, id)</span><br><span class="line">	semaphore &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125; <span class="comment">// 释放信号量，表示处理完成</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 创建一个容量为 3 的缓冲 Channel 作为信号量</span></span><br><span class="line">	<span class="comment">// 最多允许 3 个 Goroutine 同时运行 process 函数</span></span><br><span class="line">	semaphore := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;, <span class="number">3</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">1</span>; i &lt;= <span class="number">10</span>; i++ &#123;</span><br><span class="line">		semaphore &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125; <span class="comment">// 填充信号量，如果满则阻塞</span></span><br><span class="line">		<span class="keyword">go</span> process(i, semaphore)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 等待所有任务完成（另一种方法是使用 WaitGroup）</span></span><br><span class="line">	<span class="comment">// 这里通过再次消耗所有信号量来确保所有 process Goroutine 都已完成并释放了信号量</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="built_in">cap</span>(semaphore); i++ &#123;</span><br><span class="line">		&lt;-semaphore</span><br><span class="line">	&#125;</span><br><span class="line">	fmt.Println(<span class="string">&quot;所有任务处理完毕。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>semaphore</code> Channel 被用作一个计数信号量。在 <code>for</code> 循环中，每次启动 <code>process</code> Goroutine 之前，会尝试向 <code>semaphore</code> 发送一个空结构体。如果 Channel 已满（即已有 3 个 Goroutine 正在运行），则会阻塞，直到有 Goroutine 完成并释放信号量。这有效地限制了同时运行的 <code>process</code> Goroutine 的数量。</p>
+<h3 id="2-4-select-语句"><a href="#2-4-select-语句" class="headerlink" title="2.4 select 语句"></a>2.4 <code>select</code> 语句</h3><p><code>select</code> 语句用于在多个 Channel 操作中进行选择，它会阻塞直到其中一个 case 可以执行。</p>
+<p><strong>示例：带有超时的操作</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">doWork</span><span class="params">(result <span class="keyword">chan</span> <span class="type">string</span>)</span></span> &#123;</span><br><span class="line">	time.Sleep(<span class="number">3</span> * time.Second) <span class="comment">// 模拟长时间工作</span></span><br><span class="line">	result &lt;- <span class="string">&quot;工作完成!&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	result := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">string</span>)</span><br><span class="line">	<span class="keyword">go</span> doWork(result)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> res := &lt;-result:</span><br><span class="line">		fmt.Println(res)</span><br><span class="line">	<span class="keyword">case</span> &lt;-time.After(<span class="number">2</span> * time.Second): <span class="comment">// 设置 2 秒超时</span></span><br><span class="line">		fmt.Println(<span class="string">&quot;操作超时!&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>select</code> 语句会等待 <code>result</code> channel 接收数据，或 <code>time.After</code> channel 发送数据（在 2 秒后）。如果 <code>doWork</code> 在 2 秒内完成，则打印“工作完成!”；否则打印“操作超时!”。这提供了一种优雅的方式来处理并发操作中的超时或多个事件。</p>
+<h2 id="三、Mutexes-共享内存同步"><a href="#三、Mutexes-共享内存同步" class="headerlink" title="三、Mutexes (共享内存同步)"></a>三、Mutexes (共享内存同步)</h2><p><strong><code>sync.Mutex</code></strong> 是互斥锁，用于保护共享资源，确保在任何给定时刻只有一个 Goroutine 可以访问该资源。这是一种传统的共享内存同步方法。</p>
+<h3 id="3-1-sync-Mutex-互斥锁"><a href="#3-1-sync-Mutex-互斥锁" class="headerlink" title="3.1 sync.Mutex (互斥锁)"></a>3.1 <code>sync.Mutex</code> (互斥锁)</h3><ul>
+<li><strong><code>Lock()</code></strong>：获取锁，如果锁已被其他 Goroutine 持有，则阻塞。</li>
+<li><strong><code>Unlock()</code></strong>：释放锁，允许其他等待的 Goroutine 获取锁。</li>
+</ul>
+<p><strong>示例：安全的并发计数器</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> SafeCounter <span class="keyword">struct</span> &#123;</span><br><span class="line">	mu    sync.Mutex</span><br><span class="line">	count <span class="type">int</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SafeCounter)</span></span> Inc() &#123;</span><br><span class="line">	c.mu.Lock()         <span class="comment">// 获取锁</span></span><br><span class="line">	<span class="keyword">defer</span> c.mu.Unlock() <span class="comment">// 确保锁在函数退出时被释放</span></span><br><span class="line">	c.count++</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *SafeCounter)</span></span> Value() <span class="type">int</span> &#123;</span><br><span class="line">	c.mu.Lock()</span><br><span class="line">	<span class="keyword">defer</span> c.mu.Unlock()</span><br><span class="line">	<span class="keyword">return</span> c.count</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	counter := SafeCounter&#123;&#125;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup <span class="comment">// 用于等待所有 Goroutine 完成</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			counter.Inc() <span class="comment">// 安全地增加计数</span></span><br><span class="line">		&#125;()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	wg.Wait() <span class="comment">// 等待所有 Goroutine 完成</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;最终计数: %d\n&quot;</span>, counter.Value()) <span class="comment">// 输出应为 1000</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>SafeCounter</code> 结构体使用 <code>sync.Mutex</code> 来保护 <code>count</code> 字段。每次调用 <code>Inc()</code> 或 <code>Value()</code> 时都会先获取锁，然后释放锁。这保证了在任何时刻只有一个 Goroutine 可以修改或读取 <code>count</code>，从而避免了数据竞争。<code>defer c.mu.Unlock()</code> 是 Go 中推荐的写法，确保锁在函数返回时总是被释放，即使发生 panic。</p>
+<h3 id="3-2-sync-RWMutex-读写互斥锁"><a href="#3-2-sync-RWMutex-读写互斥锁" class="headerlink" title="3.2 sync.RWMutex (读写互斥锁)"></a>3.2 <code>sync.RWMutex</code> (读写互斥锁)</h3><p><code>sync.RWMutex</code> 允许多个 Goroutine 同时进行<strong>读操作</strong>，但在<strong>写操作</strong>时，会阻塞所有读写操作。这在读多写少的场景下能提高并发性能。</p>
+<ul>
+<li><strong><code>RLock()</code></strong>：获取读锁。多个 Goroutine 可以同时持有读锁。</li>
+<li><strong><code>RUnlock()</code></strong>：释放读锁。</li>
+<li><strong><code>Lock()</code></strong>：获取写锁。会阻塞所有读锁和写锁，直到锁被释放。</li>
+<li><strong><code>Unlock()</code></strong>：释放写锁。</li>
+</ul>
+<p><strong>示例：并发读写</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> SafeData <span class="keyword">struct</span> &#123;</span><br><span class="line">	mu   sync.RWMutex</span><br><span class="line">	data <span class="keyword">map</span>[<span class="type">string</span>]<span class="type">string</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sd *SafeData)</span></span> Read(key <span class="type">string</span>) <span class="type">string</span> &#123;</span><br><span class="line">	sd.mu.RLock()         <span class="comment">// 获取读锁</span></span><br><span class="line">	<span class="keyword">defer</span> sd.mu.RUnlock() <span class="comment">// 释放读锁</span></span><br><span class="line">	time.Sleep(<span class="number">10</span> * time.Millisecond) <span class="comment">// 模拟读取耗时</span></span><br><span class="line">	<span class="keyword">return</span> sd.data[key]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sd *SafeData)</span></span> Write(key, value <span class="type">string</span>) &#123;</span><br><span class="line">	sd.mu.Lock()         <span class="comment">// 获取写锁</span></span><br><span class="line">	<span class="keyword">defer</span> sd.mu.Unlock() <span class="comment">// 释放写锁</span></span><br><span class="line">	time.Sleep(<span class="number">50</span> * time.Millisecond) <span class="comment">// 模拟写入耗时</span></span><br><span class="line">	sd.data[key] = value</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	sd := SafeData&#123;</span><br><span class="line">		data: <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">string</span>]<span class="type">string</span>),</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 启动多个读 Goroutine</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">5</span>; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(id <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			fmt.Printf(<span class="string">&quot;读 Goroutine %d: 读取 &#x27;key1&#x27; -&gt; %s\n&quot;</span>, id, sd.Read(<span class="string">&quot;key1&quot;</span>))</span><br><span class="line">		&#125;(i)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 启动一个写 Goroutine</span></span><br><span class="line">	wg.Add(<span class="number">1</span>)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">defer</span> wg.Done()</span><br><span class="line">		fmt.Println(<span class="string">&quot;写 Goroutine: 写入 &#x27;key1&#x27; = &#x27;newValue&#x27;&quot;</span>)</span><br><span class="line">		sd.Write(<span class="string">&quot;key1&quot;</span>, <span class="string">&quot;newValue&quot;</span>)</span><br><span class="line">		fmt.Println(<span class="string">&quot;写 Goroutine: 写入完成。&quot;</span>)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 再次启动多个读 Goroutine</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">5</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(id <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			fmt.Printf(<span class="string">&quot;读 Goroutine %d: 读取 &#x27;key1&#x27; -&gt; %s\n&quot;</span>, id, sd.Read(<span class="string">&quot;key1&quot;</span>))</span><br><span class="line">		&#125;(i)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	wg.Wait()</span><br><span class="line">	fmt.Println(<span class="string">&quot;所有操作完成。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：在 <code>sd.Read()</code> 方法中，多个 Goroutine 可以同时获取读锁，从而并发执行。但在 <code>sd.Write()</code> 方法中，获取写锁会阻塞所有其他读写操作，直到写入完成并释放写锁。这保证了数据的一致性，同时在读操作频繁的场景下提高了并发度。</p>
+<h2 id="四、WaitGroups-Goroutine-编排"><a href="#四、WaitGroups-Goroutine-编排" class="headerlink" title="四、WaitGroups (Goroutine 编排)"></a>四、WaitGroups (Goroutine 编排)</h2><p><strong><code>sync.WaitGroup</code></strong> 用于等待一组 Goroutine 完成执行。它不是用来保护共享资源的，而是用于 Goroutine 的<strong>生命周期管理</strong>和<strong>同步完成</strong>。</p>
+<h3 id="4-1-WaitGroup-的方法"><a href="#4-1-WaitGroup-的方法" class="headerlink" title="4.1 WaitGroup 的方法"></a>4.1 <code>WaitGroup</code> 的方法</h3><ul>
+<li><strong><code>Add(delta int)</code></strong>：增加或减少等待的 Goroutine 计数器。通常在启动 Goroutine 之前调用 <code>Add(1)</code>。</li>
+<li><strong><code>Done()</code></strong>：减少等待的 Goroutine 计数器。通常在 Goroutine 完成任务后调用 <code>defer wg.Done()</code>。</li>
+<li><strong><code>Wait()</code></strong>：阻塞当前 Goroutine，直到计数器归零。</li>
+</ul>
+<p><strong>示例：等待所有 Goroutine 完成</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">performTask</span><span class="params">(id <span class="type">int</span>, wg *sync.WaitGroup)</span></span> &#123;</span><br><span class="line">	<span class="keyword">defer</span> wg.Done() <span class="comment">// 任务完成后，通知 WaitGroup 计数器减 1</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Goroutine %d: 开始执行任务。\n&quot;</span>, id)</span><br><span class="line">	time.Sleep(time.Duration(id) * <span class="number">500</span> * time.Millisecond) <span class="comment">// 模拟不同耗时</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Goroutine %d: 任务完成。\n&quot;</span>, id)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup <span class="comment">// 声明一个 WaitGroup</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">1</span>; i &lt;= <span class="number">5</span>; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>) <span class="comment">// 启动一个 Goroutine 前，计数器加 1</span></span><br><span class="line">		<span class="keyword">go</span> performTask(i, &amp;wg)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	wg.Wait() <span class="comment">// 阻塞直到所有 Goroutine 都调用了 Done()</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;所有 Goroutine 都已完成。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>main</code> Goroutine 启动 5 个 <code>performTask</code> Goroutine。每启动一个任务，<code>wg.Add(1)</code> 计数器加 1。每个任务结束后，<code>defer wg.Done()</code> 计数器减 1。<code>wg.Wait()</code> 会阻塞 <code>main</code> Goroutine，直到计数器变为 0，确保所有任务都已执行完毕。</p>
+<h2 id="五、Atomic-Operations-原子操作"><a href="#五、Atomic-Operations-原子操作" class="headerlink" title="五、Atomic Operations (原子操作)"></a>五、Atomic Operations (原子操作)</h2><p><strong><code>sync/atomic</code></strong> 包提供了一组低级别的原子操作，用于对基本数据类型（如整数、指针）进行并发安全的修改，而无需使用 Mutex。原子操作由硬件指令保证其不可中断性，因此通常比 Mutex 拥有更好的性能，但仅适用于简单的数据操作。</p>
+<h3 id="5-1-常用原子操作"><a href="#5-1-常用原子操作" class="headerlink" title="5.1 常用原子操作"></a>5.1 常用原子操作</h3><ul>
+<li><strong><code>AddInt32/AddInt64</code></strong>：原子地增加指定值。</li>
+<li><strong><code>LoadInt32/LoadInt64/LoadPointer</code></strong>：原子地加载值。</li>
+<li><strong><code>StoreInt32/StoreInt64/StorePointer</code></strong>：原子地存储值。</li>
+<li><strong><code>CompareAndSwapInt32/CompareAndSwapInt64/CompareAndSwapPointer</code></strong>：比较并交换，如果当前值等于期望值，则原子地替换为新值。</li>
+</ul>
+<p><strong>示例：原子计数器</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;sync/atomic&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> ops atomic.Uint64 <span class="comment">// 使用 Go 1.19+ 的 atomic.Uint64</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">50</span>; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			<span class="keyword">for</span> c := <span class="number">0</span>; c &lt; <span class="number">1000</span>; c++ &#123;</span><br><span class="line">				ops.Add(<span class="number">1</span>) <span class="comment">// 原子地增加计数</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	wg.Wait()</span><br><span class="line">	fmt.Printf(<span class="string">&quot;最终原子计数: %d\n&quot;</span>, ops.Load()) <span class="comment">// 原子地加载计数</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>atomic.Uint64</code> 变量 <code>ops</code> 被多个 Goroutine 并发地通过 <code>ops.Add(1)</code> 进行递增。这个操作是原子性的，因此即使没有使用 <code>sync.Mutex</code>，也能保证 <code>ops</code> 的值是准确的。<code>ops.Load()</code> 也是一个原子操作，用于读取最终的计数。</p>
+<h2 id="六、Context-Goroutine-生命周期管理"><a href="#六、Context-Goroutine-生命周期管理" class="headerlink" title="六、Context (Goroutine 生命周期管理)"></a>六、Context (Goroutine 生命周期管理)</h2><p><strong><code>context</code></strong> 包提供了一种在 Goroutine 树中传递截止时间 (deadline)、取消信号 (cancellation signal) 和请求范围值 (request-scoped values) 的方法。它主要用于管理 Goroutine 的生命周期，尤其是优雅地取消 Goroutine。</p>
+<h3 id="6-1-context-的主要接口与函数"><a href="#6-1-context-的主要接口与函数" class="headerlink" title="6.1 context 的主要接口与函数"></a>6.1 <code>context</code> 的主要接口与函数</h3><ul>
+<li><strong><code>context.Context</code></strong> 接口：定义了 <code>Done()</code> 方法（返回一个 Channel），<code>Err()</code> 方法（返回取消或超时的错误），以及 <code>Value()</code> 方法（用于传递请求范围值）。</li>
+<li><strong><code>context.Background()</code></strong> 和 <strong><code>context.TODO()</code></strong>：创建根 Context。</li>
+<li><strong><code>context.WithCancel(parent Context)</code></strong>：返回一个可取消的子 Context 和一个 <code>CancelFunc</code>。调用 <code>CancelFunc</code> 会取消该 Context。</li>
+<li><strong><code>context.WithTimeout(parent Context, timeout time.Duration)</code></strong>：返回一个带超时的子 Context 和一个 <code>CancelFunc</code>。超时或调用 <code>CancelFunc</code> 会取消 Context。</li>
+<li><strong><code>context.WithDeadline(parent Context, deadline time.Time)</code></strong>：返回一个带截止时间的子 Context 和一个 <code>CancelFunc</code>。截止时间到达或调用 <code>CancelFunc</code> 会取消 Context。</li>
+<li><strong><code>context.WithValue(parent Context, key, val any)</code></strong>：返回一个带值的子 Context。</li>
+</ul>
+<p><strong>示例：Goroutine 取消</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">longRunningTask</span><span class="params">(ctx context.Context, id <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-ctx.Done(): <span class="comment">// 监听 Context 的取消信号</span></span><br><span class="line">			fmt.Printf(<span class="string">&quot;Goroutine %d: 收到取消信号，优雅退出。\n&quot;</span>, id)</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Goroutine %d: 正在工作...\n&quot;</span>, id)</span><br><span class="line">			time.Sleep(<span class="number">500</span> * time.Millisecond) <span class="comment">// 模拟工作</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 创建一个可取消的 Context</span></span><br><span class="line">	ctx, cancel := context.WithCancel(context.Background())</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">1</span>; i &lt;= <span class="number">3</span>; i++ &#123;</span><br><span class="line">		<span class="keyword">go</span> longRunningTask(ctx, i) <span class="comment">// 启动多个 Goroutine</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	time.Sleep(<span class="number">2</span> * time.Second) <span class="comment">// 主 Goroutine 运行一段时间</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;\n主 Goroutine: 发送取消信号...&quot;</span>)</span><br><span class="line">	cancel() <span class="comment">// 取消所有子 Goroutine 的 Context</span></span><br><span class="line"></span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second) <span class="comment">// 等待 Goroutine 退出</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;主 Goroutine: 程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>解释</strong>：<code>main</code> Goroutine 创建了一个可取消的 <code>Context</code>，并将其传递给 <code>longRunningTask</code>。<code>longRunningTask</code> 内部通过 <code>select &#123; case &lt;-ctx.Done(): ... &#125;</code> 监听 Context 的取消信号。当 <code>main</code> Goroutine 调用 <code>cancel()</code> 时，<code>ctx.Done()</code> Channel 会被关闭，所有监听该 Channel 的 Goroutine 都能收到信号并优雅退出。</p>
+<h2 id="七、其他同步原语"><a href="#七、其他同步原语" class="headerlink" title="七、其他同步原语"></a>七、其他同步原语</h2><h3 id="7-1-sync-Once-一次性初始化"><a href="#7-1-sync-Once-一次性初始化" class="headerlink" title="7.1 sync.Once (一次性初始化)"></a>7.1 <code>sync.Once</code> (一次性初始化)</h3><p><code>sync.Once</code> 用于确保某个操作只执行一次，即使有多个 Goroutine 同时尝试执行。常用于单例模式或懒加载初始化。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	once     sync.Once</span><br><span class="line">	instance *SomeResource</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> SomeResource <span class="keyword">struct</span> &#123;</span><br><span class="line">	Name <span class="type">string</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">GetInstance</span><span class="params">()</span></span> *SomeResource &#123;</span><br><span class="line">	once.Do(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// 这个函数只会被执行一次</span></span><br><span class="line">		fmt.Println(<span class="string">&quot;Initializing SomeResource...&quot;</span>)</span><br><span class="line">		instance = &amp;SomeResource&#123;Name: <span class="string">&quot;MySingleton&quot;</span>&#125;</span><br><span class="line">	&#125;)</span><br><span class="line">	<span class="keyword">return</span> instance</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">5</span>; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(id <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			res := GetInstance()</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Goroutine %d got instance: %s\n&quot;</span>, id, res.Name)</span><br><span class="line">		&#125;(i)</span><br><span class="line">	&#125;</span><br><span class="line">	wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="7-2-sync-Cond-条件变量"><a href="#7-2-sync-Cond-条件变量" class="headerlink" title="7.2 sync.Cond (条件变量)"></a>7.2 <code>sync.Cond</code> (条件变量)</h3><p><code>sync.Cond</code> 允许 Goroutine 在满足特定条件时等待或被唤醒。它通常与 <code>sync.Mutex</code> 结合使用。</p>
+<ul>
+<li><strong><code>Wait()</code></strong>：阻塞当前 Goroutine，直到被 <code>Signal()</code> 或 <code>Broadcast()</code> 唤醒。</li>
+<li><strong><code>Signal()</code></strong>：唤醒一个等待的 Goroutine。</li>
+<li><strong><code>Broadcast()</code></strong>：唤醒所有等待的 Goroutine。</li>
+</ul>
+<p>这是一个较高级的同步原语，适用于 Goroutine 需要等待某个复杂状态或条件才能继续执行的场景。</p>
+<h3 id="7-3-golang-org-x-sync-errgroup-错误组"><a href="#7-3-golang-org-x-sync-errgroup-错误组" class="headerlink" title="7.3 golang.org/x/sync/errgroup (错误组)"></a>7.3 <code>golang.org/x/sync/errgroup</code> (错误组)</h3><p><code>errgroup.Group</code> 结合了 <code>sync.WaitGroup</code> 和 <code>context</code> 的功能，用于等待一组 Goroutine 完成，并处理它们可能返回的错误。如果任何一个 Goroutine 返回错误，<code>Group</code> 会取消所有其他 Goroutine，并返回第一个错误。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;golang.org/x/sync/errgroup&quot;</span> <span class="comment">// 需要 go get golang.org/x/sync</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	g, ctx := errgroup.WithContext(context.Background())</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 任务 1: 正常完成</span></span><br><span class="line">	g.Go(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> <span class="type">error</span> &#123;</span><br><span class="line">		time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">		fmt.Println(<span class="string">&quot;任务 1 完成&quot;</span>)</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 任务 2: 模拟失败</span></span><br><span class="line">	g.Go(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> <span class="type">error</span> &#123;</span><br><span class="line">		time.Sleep(<span class="number">500</span> * time.Millisecond)</span><br><span class="line">		fmt.Println(<span class="string">&quot;任务 2 失败&quot;</span>)</span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;任务 2 出现错误&quot;</span>)</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 任务 3: 在 Context 被取消后退出</span></span><br><span class="line">	g.Go(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> <span class="type">error</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-time.After(<span class="number">3</span> * time.Second):</span><br><span class="line">			fmt.Println(<span class="string">&quot;任务 3 完成&quot;</span>)</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		<span class="keyword">case</span> &lt;-ctx.Done(): <span class="comment">// 监听取消信号</span></span><br><span class="line">			fmt.Println(<span class="string">&quot;任务 3 被取消&quot;</span>)</span><br><span class="line">			<span class="keyword">return</span> ctx.Err() <span class="comment">// 返回 context.Canceled 错误</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 等待所有 Goroutine 完成，或直到第一个 Goroutine 出现错误</span></span><br><span class="line">	<span class="keyword">if</span> err := g.Wait(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;检测到错误: %v\n&quot;</span>, err)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		fmt.Println(<span class="string">&quot;所有任务成功完成&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="八、选择合适的同步方法"><a href="#八、选择合适的同步方法" class="headerlink" title="八、选择合适的同步方法"></a>八、选择合适的同步方法</h2><p>Go 语言提供了多种同步机制，选择哪一种取决于具体的并发场景和需求：</p>
+<ol>
+<li><p><strong>Channels (通信共享内存)</strong>：</p>
+<ul>
+<li><strong>推荐场景</strong>：Goroutine 之间需要传递数据，或进行精确的信号传递和编排。当 Goroutine 之间存在明确的“生产者-消费者”或“任务-完成”关系时，Channel 是 Go 语言首选的通信方式。</li>
+<li><strong>优点</strong>：符合 Go 的 CSP 哲学，易于理解和实现安全的 Goroutine 间通信，能有效避免死锁。</li>
+<li><strong>缺点</strong>：对于简单的共享变量保护，可能显得冗余。</li>
+</ul>
+</li>
+<li><p><strong><code>sync.Mutex</code> &#x2F; <code>sync.RWMutex</code> (共享内存同步)</strong>：</p>
+<ul>
+<li><strong>推荐场景</strong>：当多个 Goroutine 需要访问和修改同一块共享内存（例如一个全局变量或结构体的字段），且 Goroutine 之间没有复杂的通信需求时。<code>RWMutex</code> 适用于读多写少的场景。</li>
+<li><strong>优点</strong>：与传统编程语言的锁机制相似，易于理解和移植。</li>
+<li><strong>缺点</strong>：容易引入死锁、活锁、饿死等问题，需要仔细管理锁的获取和释放。</li>
+</ul>
+</li>
+<li><p><strong><code>sync.WaitGroup</code> (Goroutine 编排)</strong>：</p>
+<ul>
+<li><strong>推荐场景</strong>：等待一组 Goroutine 完成它们的任务。它只处理 Goroutine 的完成同步，不处理数据同步。</li>
+<li><strong>优点</strong>：简洁高效，易于管理多个 Goroutine 的生命周期。</li>
+<li><strong>缺点</strong>：不能用于数据保护。</li>
+</ul>
+</li>
+<li><p><strong><code>sync/atomic</code> (原子操作)</strong>：</p>
+<ul>
+<li><strong>推荐场景</strong>：对简单数据类型（如计数器、布尔标志、指针）进行并发安全的读写或增减操作，且对性能要求极高。</li>
+<li><strong>优点</strong>：性能最好，无锁操作。</li>
+<li><strong>缺点</strong>：只适用于非常有限的简单操作，不适用于复杂的数据结构。</li>
+</ul>
+</li>
+<li><p><strong><code>context</code> (生命周期管理)</strong>：</p>
+<ul>
+<li><strong>推荐场景</strong>：管理 Goroutine 的生命周期，如超时、取消信号传递、传递请求范围的值。在微服务和网络编程中非常常见。</li>
+<li><strong>优点</strong>：提供了一种结构化的方式来管理 Goroutine 树。</li>
+<li><strong>缺点</strong>：本身不是数据同步机制，而是信号传递机制。</li>
+</ul>
+</li>
+</ol>
+<h2 id="九、总结"><a href="#九、总结" class="headerlink" title="九、总结"></a>九、总结</h2><p>Go 语言为并发编程提供了强大而丰富的同步原语。理解这些原语的特性、适用场景以及它们背后的设计哲学（“通过通信共享内存”），是编写高效、健壮 Go 并发程序的基石。在实践中，通常会根据不同的需求混合使用这些同步方法，以达到最佳的性能和代码可维护性。始终牢记并发编程的挑战，并选择最适合当前问题的同步工具。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2025/2025-08-12_Golang%20Goroutine%20%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3/">https://blog.tbf1211.xx.kg/2025/2025-08-12_Golang%20Goroutine%20%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/goroutine/">goroutine</a><a class="post-meta__tags" href="/tags/%E8%BD%AC%E8%BD%BD/">转载</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-20.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2025/2025-08-15_PayFi%E8%AF%A6%E8%A7%A3%EF%BC%9AWeb3%E6%94%AF%E4%BB%98%E4%B8%8E%E9%87%91%E8%9E%8D%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD/" title="PayFi详解：Web3支付与金融基础设施"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">PayFi详解：Web3支付与金融基础设施</div></div><div class="info-2"><div class="info-item-1"> PayFi 并非一个单一的产品或公司名称，而是对 Web3 支付和金融基础设施 的一个统称。随着 Web3 的兴起，对支持加密货币交易、提供去中心化金融服务以及连接传统金融与区块链世界的工具和协议的需求日益增长。PayFi 代表着这一新兴领域，致力于构建一个更高效、更透明、更去中心化的支付和金融生态系统。  “PayFi encapsulates the evolving landscape of decentralized payment solutions and financial primitives that bridge the gap between traditional commerce and the blockchain economy.”   一、理解 PayFi 的概念：Web3 支付与金融基础设施的集合广义上讲，PayFi 是指一系列旨在促进 Web3 领域内支付和金融活动的协议、平台、服务和工具。它包括但不限于：  加密支付网关: 允许商家接收加密货币付款。 法币入口&#x2F;出口 (On&#x2F;Off-Ramps): 连接区块链资产与传统法...</div></div></div></a><a class="pagination-related" href="/2025/2025-08-11_Go%20%E8%AF%AD%E8%A8%80%E5%9B%9B%E7%A7%8D%E9%AB%98%E6%95%88%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95/" title="告别 goroutine 等待烦恼：Go 语言四种高效同步方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">告别 goroutine 等待烦恼：Go 语言四种高效同步方法详解</div></div><div class="info-2"><div class="info-item-1"> 原文地址 mp.weixin.qq.com  大家好！在 Go 语言的世界里，goroutine 是并发编程的核心，但主 goroutine 常常需要等待其他 goroutine 完成任务后才能继续执行或退出程序。这是并发同步的常见需求。今天，我将为大家介绍 4 种在 Go 中等待多个 goroutine 的核心方法，从基础到高级，帮助你在不同场景下都能优雅地处理并发任务等待问题。   一、sync.WaitGroup：最常用的并发任务协调员1.1 基础概念与工作原理sync.WaitGroup 是 Go 语言中最常用的并发同步工具，专为等待一组 goroutine 完成任务而设计。它通过一个计数器机制工作，特别适合主 goroutine 需要等待多个子 goroutine 的场景。 想象一下，你是一个老师，需要等待所有学生完成作业才能放学。sync.WaitGroup 就像是一个点名器，记录需要等待的学生数量，每个学生完成作业后就会报告一声，直到所有学生都报告完毕，老师才能放学。 1.2 代码示例与执行流程让我们通过一个简单的例子来理解它的工作原理： 123456789101...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2025/2025-08-11_Go%20%E8%AF%AD%E8%A8%80%E5%9B%9B%E7%A7%8D%E9%AB%98%E6%95%88%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95/" title="告别 goroutine 等待烦恼：Go 语言四种高效同步方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-11</div><div class="info-item-2">告别 goroutine 等待烦恼：Go 语言四种高效同步方法详解</div></div><div class="info-2"><div class="info-item-1"> 原文地址 mp.weixin.qq.com  大家好！在 Go 语言的世界里，goroutine 是并发编程的核心，但主 goroutine 常常需要等待其他 goroutine 完成任务后才能继续执行或退出程序。这是并发同步的常见需求。今天，我将为大家介绍 4 种在 Go 中等待多个 goroutine 的核心方法，从基础到高级，帮助你在不同场景下都能优雅地处理并发任务等待问题。   一、sync.WaitGroup：最常用的并发任务协调员1.1 基础概念与工作原理sync.WaitGroup 是 Go 语言中最常用的并发同步工具，专为等待一组 goroutine 完成任务而设计。它通过一个计数器机制工作，特别适合主 goroutine 需要等待多个子 goroutine 的场景。 想象一下，你是一个老师，需要等待所有学生完成作业才能放学。sync.WaitGroup 就像是一个点名器，记录需要等待的学生数量，每个学生完成作业后就会报告一声，直到所有学生都报告完毕，老师才能放学。 1.2 代码示例与执行流程让我们通过一个简单的例子来理解它的工作原理： 123456789101...</div></div></div></a><a class="pagination-related" href="/2025/2025-09-05_Go%E8%AF%AD%E8%A8%80%E5%8D%8F%E7%A8%8B%E8%AE%BE%E8%AE%A1%E4%B8%8E%E8%B0%83%E5%BA%A6%E5%8E%9F%E7%90%86/" title="Go 语言协程设计与调度原理"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-05</div><div class="info-item-2">Go 语言协程设计与调度原理</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言并发编程的核心原语。它不是操作系统线程，而是 Go 运行时 (Runtime) 管理的轻量级协程 (coroutine)。Go 语言设计了一套独特的调度模型，能够高效地将数百万个 Goroutine 调度到有限的操作系统线程上运行，从而实现高并发和高性能。  核心思想：Go 运行时（Runtime）扮演着操作系统内核的角色，它负责 Go 应用程序内部的 Goroutine 调度，以最低的成本实现高度并发。   一、为什么 Go 要设计 Goroutine 而非直接使用线程？传统的操作系统线程，虽然也能实现并发，但在高性能和大规模并发场景下存在一些挑战：  资源开销大： 内存：操作系统线程栈空间通常较大（MB 级别），即便其中大部分未被使用，也会占用大量内存。创建数万个线程会导致巨大的内存消耗。 CPU：线程创建、销毁和上下文切换的开销相对较大，因为这涉及到内核态的参与，需要保存和恢复更多的寄存器、内存页表等信息。   调度开销大：操作系统线程的调度由内核完成，其调度算法通常是通用的，难以针对特定应用场景进行优化，且用户态程序无法感知和影响线程调...</div></div></div></a><a class="pagination-related" href="/2025/2025-10-23_Go%E8%AF%AD%E8%A8%80%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%B9%B6%E8%A1%8C%E8%AF%A6%E8%A7%A3/" title="Go语言并发与并行详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-23</div><div class="info-item-2">Go语言并发与并行详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言（Golang） 被设计为一门天然支持并发的语言，其并发模型是基于 CSP (Communicating Sequential Processes) 理论的实现。Go 语言通过轻量级的** Goroutine (协程)** 和原生的** Channel (管道)** 机制，极大地简化了并发编程的复杂性，使得开发者能够更容易地编写出高并发、高性能的应用程序。  核心思想：不要通过共享内存来通信；相反，通过通信来共享内存。 这是 Go 并发哲学中的核心原则。   一、并发 (Concurrency) 与并行 (Parallelism)在深入 Go 语言的并发机制之前，理解并发与并行的区别至关重要。 1.1 并发 (Concurrency) 定义：并发是指系统能够同时处理多个任务的能力。这些任务不一定在同一时刻运行，它们可能在单个 CPU 核心上通过时间片轮转的方式快速切换执行，给人一种“同时进行”的错觉。 特性： 处理多个任务：关注如何设计程序来处理事件流，即使只有一个处理器。 任务切换：通过快速切换执行上下文来模拟同时执行。 目的：提高程序的吞吐量和响应速度。   类比...</div></div></div></a><a class="pagination-related" href="/2024/2024-08-03_Go%20Context%E8%AF%A6%E8%A7%A3%EF%BC%9A%E5%B9%B6%E5%8F%91%E6%8E%A7%E5%88%B6%E4%B8%8E%E6%95%B0%E6%8D%AE%E4%BC%A0%E9%80%92%E7%9A%84%E5%88%A9%E5%99%A8/" title="Go Context详解：并发控制与数据传递的利器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-03</div><div class="info-item-2">Go Context详解：并发控制与数据传递的利器</div></div><div class="info-2"><div class="info-item-1"> Go Context (上下文) 包是 Go 语言中用于在 goroutine 之间传递截止时间(deadline)、取消信号(cancellation signal)以及请求范围值(request-scoped values) 的一种标准机制。在编写并发程序时，尤其是在微服务架构中，处理请求的生命周期、超时控制和优雅中止 goroutine 变得至关重要，context 包就是为了解决这些问题而生。  “context 包提供了一种标准的方式来管理并发操作的生命周期。它使得我们能够更加优雅地控制 goroutine 的取消、超时，并方便地在调用链中传递请求相关数据。”   一、为什么需要 Context？设想一个场景：你的 Web 服务接收到一个请求，这个请求会触发一系列的数据库操作、RPC 调用、文件读写等。这些操作可能分布在多个 goroutine 中。 如果没有 context：  超时控制：如果请求长时间未完成，用户可能会失去耐心。你希望能在一定时间后自动取消所有相关的耗时操作。如何通知所有 goroutine 停止工作？ 取消信号：如果用户主动取消了请求，或者上游服...</div></div></div></a><a class="pagination-related" href="/2025/2025-01-12_Go%E8%AF%AD%E8%A8%80embed%E5%8C%85%E8%AF%A6%E8%A7%A3/" title="Go语言embed包详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-12</div><div class="info-item-2">Go语言embed包详解</div></div><div class="info-2"><div class="info-item-1"> Go 1.16 版本引入了 embed 包，它提供了一种将静态资源（如HTML、CSS、JavaScript、图片、配置文件等）直接嵌入 (embed) 到 Go 程序二进制文件中的功能。这极大地简化了应用程序的部署流程，尤其是对于需要捆绑前端资源或配置文件的后端服务。  “The embed package provides access to files embedded in the program during compilation.” —— Go embed 官方文档   一、为什么需要 embed 包？在 embed 包出现之前，Go 应用程序通常需要通过以下方式处理静态资源：  文件系统访问: 在运行时从文件系统加载资源。这意味着在部署时，除了可执行文件，还需要打包额外的资源文件。 go:generate 工具: 使用第三方工具（如 go-bindata、statik 等）将资源文件转换为 Go 源代码文件，然后在运行时加载这些生成的 Go 文件。这种方法引入了额外的构建步骤和依赖。  embed 包的出现，解决了上述痛点：  单一二进制文件: 应用程序和所有静...</div></div></div></a><a class="pagination-related" href="/2025/2025-02-17_Golang%20%E9%A1%B9%E7%9B%AE%E7%9A%84%20Makefile%20%E8%AF%A6%E8%A7%A3/" title="Golang 项目的 Makefile 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-17</div><div class="info-item-2">Golang 项目的 Makefile 详解</div></div><div class="info-2"><div class="info-item-1"> Makefile 是一种自动化构建工具，它通过定义文件之间的依赖关系和生成这些文件的命令，帮助开发者管理和自动化项目中的各种任务。尽管 Golang 自身提供了强大的内置工具链 (go build, go test, go run 等)，Makefile 在 Go 项目中依然扮演着重要角色，尤其是在需要协调多个任务、管理复杂构建流程、实现跨平台编译、集成外部工具或自动化部署脚本的场景下。  核心思想：将一系列 go 命令、Shell 脚本以及其他工具的调用封装成可复用的、有依赖关系的任务，实现一键式项目管理和自动化。   一、为什么 Go 项目需要 Makefile？Go 语言的工具链设计得非常出色，go build 能够自动处理依赖，go test 能够运行测试，go run 可以直接运行源代码。那么，为什么我们还需要 Makefile 呢？  任务编排与自动化： 一个 Go 项目通常不仅仅是编译代码。它可能涉及代码格式化 (go fmt)、静态分析 (go vet, golangci-lint)、代码生成 (go generate)、测试、构建 Docker 镜像、部署、清...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">268</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">188</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">66</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Goroutine-%E5%90%8C%E6%AD%A5%EF%BC%9F"><span class="toc-text">一、为什么需要 Goroutine 同步？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Channels-%E9%80%9A%E4%BF%A1%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98"><span class="toc-text">二、Channels (通信共享内存)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Channel-%E7%9A%84%E5%9F%BA%E6%9C%AC%E7%89%B9%E6%80%A7"><span class="toc-text">2.1 Channel 的基本特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%97%A0%E7%BC%93%E5%86%B2-Channel-Unbuffered-Channel"><span class="toc-text">2.2 无缓冲 Channel (Unbuffered Channel)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E6%9C%89%E7%BC%93%E5%86%B2-Channel-Buffered-Channel"><span class="toc-text">2.3 有缓冲 Channel (Buffered Channel)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-select-%E8%AF%AD%E5%8F%A5"><span class="toc-text">2.4 select 语句</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Mutexes-%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E5%90%8C%E6%AD%A5"><span class="toc-text">三、Mutexes (共享内存同步)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-sync-Mutex-%E4%BA%92%E6%96%A5%E9%94%81"><span class="toc-text">3.1 sync.Mutex (互斥锁)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-sync-RWMutex-%E8%AF%BB%E5%86%99%E4%BA%92%E6%96%A5%E9%94%81"><span class="toc-text">3.2 sync.RWMutex (读写互斥锁)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81WaitGroups-Goroutine-%E7%BC%96%E6%8E%92"><span class="toc-text">四、WaitGroups (Goroutine 编排)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-WaitGroup-%E7%9A%84%E6%96%B9%E6%B3%95"><span class="toc-text">4.1 WaitGroup 的方法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Atomic-Operations-%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C"><span class="toc-text">五、Atomic Operations (原子操作)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E5%B8%B8%E7%94%A8%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C"><span class="toc-text">5.1 常用原子操作</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Context-Goroutine-%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E7%AE%A1%E7%90%86"><span class="toc-text">六、Context (Goroutine 生命周期管理)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-context-%E7%9A%84%E4%B8%BB%E8%A6%81%E6%8E%A5%E5%8F%A3%E4%B8%8E%E5%87%BD%E6%95%B0"><span class="toc-text">6.1 context 的主要接口与函数</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%85%B6%E4%BB%96%E5%90%8C%E6%AD%A5%E5%8E%9F%E8%AF%AD"><span class="toc-text">七、其他同步原语</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-sync-Once-%E4%B8%80%E6%AC%A1%E6%80%A7%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">7.1 sync.Once (一次性初始化)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-sync-Cond-%E6%9D%A1%E4%BB%B6%E5%8F%98%E9%87%8F"><span class="toc-text">7.2 sync.Cond (条件变量)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-golang-org-x-sync-errgroup-%E9%94%99%E8%AF%AF%E7%BB%84"><span class="toc-text">7.3 golang.org&#x2F;x&#x2F;sync&#x2F;errgroup (错误组)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E9%80%89%E6%8B%A9%E5%90%88%E9%80%82%E7%9A%84%E5%90%8C%E6%AD%A5%E6%96%B9%E6%B3%95"><span class="toc-text">八、选择合适的同步方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">九、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-11-07_Codex%20%E8%AF%A6%E8%A7%A3%E4%B8%8E%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7%EF%BC%9AOpenAI%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/2025/2025-11-07_Codex%20%E8%AF%A6%E8%A7%A3%E4%B8%8E%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7%EF%BC%9AOpenAI%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-11-05_Claude%20Code%20%E8%AF%A6%E8%A7%A3%EF%BC%9AAnthropic%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/2025/2025-11-05_Claude%20Code%20%E8%AF%A6%E8%A7%A3%EF%BC%9AAnthropic%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-11-01_Ubuntu%20UFW%20(Uncomplicated%20Firewall)%20%E8%AF%A6%E8%A7%A3/" title="Ubuntu UFW (Uncomplicated Firewall) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Ubuntu UFW (Uncomplicated Firewall) 详解"/></a><div class="content"><a class="title" href="/2025/2025-11-01_Ubuntu%20UFW%20(Uncomplicated%20Firewall)%20%E8%AF%A6%E8%A7%A3/" title="Ubuntu UFW (Uncomplicated Firewall) 详解">Ubuntu UFW (Uncomplicated Firewall) 详解</a><time datetime="2025-10-31T22:24:00.000Z" title="发表于 2025-11-01 06:24:00">2025-11-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="nftables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解">nftables 详解</a><time datetime="2025-10-27T22:24:00.000Z" title="发表于 2025-10-28 06:24:00">2025-10-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="iptables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解">iptables 详解</a><time datetime="2025-10-24T22:24:00.000Z" title="发表于 2025-10-25 06:24:00">2025-10-25</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-20.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
