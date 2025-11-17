@@ -1,0 +1,642 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Nginx 深度解析 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Nginx (发音为 “engine-x”) 是一个高性能的 HTTP 和反向代理服务器，也可以用作 邮件代理服务器 和通用的 TCP&#x2F;UDP 代理服务器。它最初由 Igor Sysoev 为俄罗斯最大的门户网站和搜索引擎 Rambler 开发，并于 2004 年公开发布。Nginx 因其卓越的性能、稳定性、丰富的功能集和低资源消耗而广受欢迎，是构建现代高并发 Web 应用程序和微服务">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Nginx 深度解析">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2023/2023-05-26_Nginx%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Nginx (发音为 “engine-x”) 是一个高性能的 HTTP 和反向代理服务器，也可以用作 邮件代理服务器 和通用的 TCP&#x2F;UDP 代理服务器。它最初由 Igor Sysoev 为俄罗斯最大的门户网站和搜索引擎 Rambler 开发，并于 2004 年公开发布。Nginx 因其卓越的性能、稳定性、丰富的功能集和低资源消耗而广受欢迎，是构建现代高并发 Web 应用程序和微服务">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg">
+<meta property="article:published_time" content="2023-05-25T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-17T03:45:43.280Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="Server">
+<meta property="article:tag" content="开发工具">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Nginx 深度解析",
+  "url": "https://blog.tbf1211.xx.kg/2023/2023-05-26_Nginx%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg",
+  "datePublished": "2023-05-25T22:24:00.000Z",
+  "dateModified": "2025-11-17T03:45:43.280Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2023/2023-05-26_Nginx%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Nginx 深度解析',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">275</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">189</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">67</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-30.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Nginx 深度解析</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Nginx 深度解析</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-05-25T22:24:00.000Z" title="发表于 2023-05-26 06:24:00">2023-05-26</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/Server/">Server</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>12分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2023/2023-05-26_Nginx%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Nginx</strong> (发音为 “engine-x”) 是一个高性能的 <strong>HTTP 和反向代理服务器</strong>，也可以用作 <strong>邮件代理服务器</strong> 和通用的 <strong>TCP&#x2F;UDP 代理服务器</strong>。它最初由 Igor Sysoev 为俄罗斯最大的门户网站和搜索引擎 Rambler 开发，并于 2004 年公开发布。Nginx 因其卓越的性能、稳定性、丰富的功能集和低资源消耗而广受欢迎，是构建现代高并发 Web 应用程序和微服务架构不可或缺的组件。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>Nginx 采用事件驱动 (event-driven)、异步非阻塞 (asynchronous, non-blocking) 架构，使其在处理大量并发连接时表现出色，远超传统的基于进程&#x2F;线程模型的服务器。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么选择-Nginx？-优势"><a href="#一、为什么选择-Nginx？-优势" class="headerlink" title="一、为什么选择 Nginx？ (优势)"></a>一、为什么选择 Nginx？ (优势)</h2><p>Nginx 之所以成为众多高流量网站和云服务提供商的首选，主要得益于以下优势：</p>
+<ol>
+<li><strong>高性能高并发</strong>：<ul>
+<li><strong>事件驱动架构</strong>：Nginx 的核心是其事件驱动的异步非阻塞架构。这意味着单个工作进程可以处理数千个并发连接，而无需为每个连接创建单独的进程或线程。这大大减少了上下文切换的开销和内存消耗。</li>
+<li><strong>低内存消耗</strong>：相较于 Apache 等基于进程&#x2F;线程模型的服务器，Nginx 在高并发下占用更少的内存。</li>
+</ul>
+</li>
+<li><strong>稳定性与可靠性</strong>：<ul>
+<li>其设计使得在极端负载下也能保持稳定运行，很少崩溃。</li>
+</ul>
+</li>
+<li><strong>功能丰富</strong>：<ul>
+<li>除了作为高效的静态文件服务器，Nginx 还提供了强大的反向代理、负载均衡、缓存、SSL&#x2F;TLS 终止、HTTP&#x2F;2 支持、流媒体服务、限流等功能。</li>
+</ul>
+</li>
+<li><strong>模块化设计</strong>：<ul>
+<li>Nginx 的核心功能通过模块实现，这使得其易于扩展和定制。</li>
+</ul>
+</li>
+<li><strong>易于扩展</strong>：<ul>
+<li>可以通过配置实现高度灵活的路由规则和请求处理逻辑。</li>
+</ul>
+</li>
+<li><strong>活跃的社区支持</strong>：<ul>
+<li>拥有庞大而活跃的社区，提供丰富的文档、插件和支持。</li>
+</ul>
+</li>
+</ol>
+<h2 id="二、Nginx-的核心功能与概念"><a href="#二、Nginx-的核心功能与概念" class="headerlink" title="二、Nginx 的核心功能与概念"></a>二、Nginx 的核心功能与概念</h2><h3 id="2-1-Web-服务器-Serving-Static-Files"><a href="#2-1-Web-服务器-Serving-Static-Files" class="headerlink" title="2.1 Web 服务器 (Serving Static Files)"></a>2.1 Web 服务器 (Serving Static Files)</h3><p>Nginx 可以作为高效的静态文件服务器，直接提供 HTML、CSS、JavaScript 文件、图片等。由于其异步架构，Nginx 在处理静态文件请求方面性能卓越，特别适合作为 CDN 的边缘节点。</p>
+<h3 id="2-2-反向代理-Reverse-Proxy"><a href="#2-2-反向代理-Reverse-Proxy" class="headerlink" title="2.2 反向代理 (Reverse Proxy)"></a>2.2 反向代理 (Reverse Proxy)</h3><p><strong>定义</strong>：反向代理服务器接收来自客户端的请求，然后将这些请求转发给后端的一个或多个服务器，并将后端服务器的响应返回给客户端。客户端并不知道它连接的是一个代理服务器。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    Client --&gt; Internet
+    Internet --&gt; Nginx[Nginx 反向代理]
+    Nginx --&gt; BackendA[&quot;后端服务 A (e.g., Node.js App)&quot;]
+    Nginx --&gt; BackendB[&quot;后端服务 B (e.g., Go API)&quot;]
+    Nginx --&gt; BackendC[&quot;后端服务 C (e.g., Python Flask)&quot;]
+    BackendA --&gt; Nginx
+    BackendB --&gt; Nginx
+    BackendC --&gt; Nginx
+    Nginx --&gt; Internet
+    Internet --&gt; Client
+  </pre></div>
+
+<p><strong>作用</strong>：</p>
+<ul>
+<li><strong>隐藏后端服务器</strong>：客户端只看到 Nginx 的 IP 地址，提高了安全性。</li>
+<li><strong>负载均衡</strong>：可以将请求分发到多个后端服务器。</li>
+<li><strong>SSL&#x2F;TLS 终止</strong>：Nginx 可以处理 HTTPS 加密解密，将未加密的请求转发给后端服务器，减轻后端负担。</li>
+<li><strong>缓存</strong>：Nginx 可以缓存后端服务器的响应，减少对后端服务的压力。</li>
+<li><strong>请求过滤与限流</strong>：在请求到达后端服务之前进行处理。</li>
+</ul>
+<h3 id="2-3-负载均衡-Load-Balancer"><a href="#2-3-负载均衡-Load-Balancer" class="headerlink" title="2.3 负载均衡 (Load Balancer)"></a>2.3 负载均衡 (Load Balancer)</h3><p><strong>定义</strong>：当有多个后端服务器时，Nginx 可以作为负载均衡器，将客户端请求分发到这些服务器上，以平衡服务器负载、提高系统的可用性和可伸缩性。</p>
+<p><strong>负载均衡算法</strong>：</p>
+<ul>
+<li><strong>Round Robin (轮询)</strong>：默认算法。按顺序将请求分发给每个服务器。</li>
+<li><strong>Least Connections (最少连接)</strong>：将请求发送给当前活动连接数最少的服务器。</li>
+<li><strong>IP Hash (IP 哈希)</strong>：根据客户端 IP 地址的哈希值来分发请求，确保同一客户端的请求总是发送到同一台服务器，适用于会话保持。</li>
+<li><strong>Weighted Round Robin (加权轮询)</strong>：为不同的服务器设置权重，权重越高，分配到的请求越多。</li>
+<li><strong>Generic Hash (通用哈希)</strong>：根据用户自定义的键（如 URL、请求头等）的哈希值来分发。</li>
+</ul>
+<h3 id="2-4-代理缓存-Proxy-Cache"><a href="#2-4-代理缓存-Proxy-Cache" class="headerlink" title="2.4 代理缓存 (Proxy Cache)"></a>2.4 代理缓存 (Proxy Cache)</h3><p>Nginx 可以缓存反向代理的响应，将来自后端服务器的响应存储在本地磁盘上。当相同的请求再次到来时，Nginx 可以直接从缓存中提供响应，而无需再次访问后端服务器，大大提高了响应速度并减轻了后端服务的压力。</p>
+<h3 id="2-5-SSL-TLS-终止-SSL-TLS-Termination"><a href="#2-5-SSL-TLS-终止-SSL-TLS-Termination" class="headerlink" title="2.5 SSL&#x2F;TLS 终止 (SSL&#x2F;TLS Termination)"></a>2.5 SSL&#x2F;TLS 终止 (SSL&#x2F;TLS Termination)</h3><p>Nginx 可以在接收到客户端的 HTTPS 请求时，负责解密 SSL&#x2F;TLS 连接。这样，后端服务可以只处理 HTTP 请求，简化了后端配置，并减轻了其加密解密的计算负担。</p>
+<h2 id="三、Nginx-的架构"><a href="#三、Nginx-的架构" class="headerlink" title="三、Nginx 的架构"></a>三、Nginx 的架构</h2><p>Nginx 采用主进程 (Master Process) 和工作进程 (Worker Processes) 的架构模型：</p>
+<ul>
+<li><strong>Master Process (主进程)</strong>：<ul>
+<li>负责读取和验证配置文件。</li>
+<li>管理工作进程，如启动、停止、平滑升级 Nginx。</li>
+<li>监控工作进程的状态。</li>
+</ul>
+</li>
+<li><strong>Worker Processes (工作进程)</strong>：<ul>
+<li>实际处理客户端请求的进程。</li>
+<li>每个工作进程都是单线程的，但通过高效的事件循环 (Event Loop) 机制，可以并发处理数千个连接。</li>
+<li>Nginx 建议将工作进程数设置为 CPU 的核心数，以最大限度地利用 CPU 资源。</li>
+</ul>
+</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    subgraph Master Process
+        M[Nginx Master Process]
+    end
+
+    subgraph Worker Processes
+        W1[Worker Process 1]
+        W2[Worker Process 2]
+        Wn[Worker Process n]
+    end
+
+    M -- 管理 --&gt; W1
+    M -- 管理 --&gt; W2
+    M -- 管理 --&gt; Wn
+
+    Client1 --&gt; W1
+    Client2 --&gt; W1
+    Client3 --&gt; W2
+    Client4 --&gt; Wn
+    ClientN --&gt; Wn
+  </pre></div>
+
+<h2 id="四、Nginx-安装-以-Ubuntu-为例"><a href="#四、Nginx-安装-以-Ubuntu-为例" class="headerlink" title="四、Nginx 安装 (以 Ubuntu 为例)"></a>四、Nginx 安装 (以 Ubuntu 为例)</h2><p>通过包管理器安装是推荐的方式：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 更新包列表</span></span><br><span class="line"><span class="built_in">sudo</span> apt update</span><br><span class="line"></span><br><span class="line"><span class="comment"># 安装 Nginx</span></span><br><span class="line"><span class="built_in">sudo</span> apt install nginx</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动 Nginx</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl start nginx</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置开机自启动</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl <span class="built_in">enable</span> nginx</span><br><span class="line"></span><br><span class="line"><span class="comment"># 检查 Nginx 状态</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl status nginx</span><br></pre></td></tr></table></figure>
+
+<p>安装完成后，在浏览器中访问服务器的 IP 地址，如果看到 “Welcome to nginx!” 页面，则表示安装成功。</p>
+<h2 id="五、Nginx-配置详解-nginx-conf"><a href="#五、Nginx-配置详解-nginx-conf" class="headerlink" title="五、Nginx 配置详解 (nginx.conf)"></a>五、Nginx 配置详解 (<code>nginx.conf</code>)</h2><p>Nginx 的所有功能都通过配置文件来定义，通常位于 <code>/etc/nginx/nginx.conf</code> 或 <code>/etc/nginx/conf.d/*.conf</code>。配置文件由指令 (directives) 和上下文 (contexts) 组成。</p>
+<h3 id="5-1-配置上下文-Contexts"><a href="#5-1-配置上下文-Contexts" class="headerlink" title="5.1 配置上下文 (Contexts)"></a>5.1 配置上下文 (Contexts)</h3><p>指令根据其作用范围被放置在不同的上下文中：</p>
+<ul>
+<li><strong><code>main</code> (全局上下文)</strong>：最高层级，影响整个 Nginx 服务器的运行，如 <code>user</code>, <code>worker_processes</code>, <code>error_log</code>, <code>pid</code>。</li>
+<li><strong><code>events</code> (事件模型上下文)</strong>：配置 Nginx 工作进程如何处理连接，如 <code>worker_connections</code>, <code>use</code>。</li>
+<li><strong><code>http</code> (HTTP 协议上下文)</strong>：配置所有 HTTP 服务器的通用行为，如 <code>include mime.types</code>, <code>sendfile</code>, <code>gzip</code>。</li>
+<li><strong><code>server</code> (虚拟主机上下文)</strong>：定义一个虚拟主机，监听特定端口和域名，通常包含在 <code>http</code> 块中。一个 <code>http</code> 块可以有多个 <code>server</code> 块。</li>
+<li><strong><code>location</code> (URI 匹配上下文)</strong>：在 <code>server</code> 块内部，根据请求 URI 匹配并定义特定的请求处理规则。一个 <code>server</code> 块可以有多个 <code>location</code> 块。</li>
+<li><strong><code>upstream</code> (上游服务器上下文)</strong>：定义一组后端服务器，用于负载均衡和反向代理。通常包含在 <code>http</code> 块中。</li>
+</ul>
+<h3 id="5-2-常用指令示例"><a href="#5-2-常用指令示例" class="headerlink" title="5.2 常用指令示例"></a>5.2 常用指令示例</h3><p><strong>全局配置 (<code>main</code> context)</strong>：</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">user</span> nginx;               <span class="comment"># Nginx 工作进程运行的用户和组</span></span><br><span class="line"><span class="attribute">worker_processes</span> auto;    <span class="comment"># 工作进程数量，auto 表示根据 CPU 核心数自动设置</span></span><br><span class="line"><span class="attribute">error_log</span> /var/log/nginx/<span class="literal">error</span>.log <span class="literal">warn</span>; <span class="comment"># 错误日志路径和级别</span></span><br><span class="line"><span class="attribute">pid</span> /var/run/nginx.pid;   <span class="comment"># Nginx 主进程的 PID 文件路径</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>事件配置 (<code>events</code> context)</strong>：</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">events</span> &#123;</span><br><span class="line">    <span class="attribute">worker_connections</span> <span class="number">1024</span>;  <span class="comment"># 每个工作进程的最大连接数</span></span><br><span class="line">    <span class="comment"># use epoll;              # 指定事件处理模型，Linux 默认为 epoll</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>HTTP 配置 (<code>http</code> context)</strong>：</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">http</span> &#123;</span><br><span class="line">    <span class="attribute">include</span> /etc/nginx/mime.types; <span class="comment"># 包含 MIME 类型映射表</span></span><br><span class="line">    <span class="attribute">default_type</span> application/octet-stream; <span class="comment"># 默认 MIME 类型</span></span><br><span class="line"></span><br><span class="line">    <span class="attribute">sendfile</span> <span class="literal">on</span>;       <span class="comment"># 启用高效文件传输模式</span></span><br><span class="line">    <span class="attribute">tcp_nopush</span> <span class="literal">on</span>;     <span class="comment"># 在 sendfile 启用时，将头部和数据一起发送</span></span><br><span class="line">    <span class="attribute">tcp_nodelay</span> <span class="literal">on</span>;    <span class="comment"># 实时传输数据</span></span><br><span class="line"></span><br><span class="line">    <span class="attribute">keepalive_timeout</span> <span class="number">65</span>; <span class="comment"># 长连接超时时间，65秒</span></span><br><span class="line">    <span class="attribute">types_hash_max_size</span> <span class="number">2048</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">gzip</span> <span class="literal">on</span>; <span class="comment"># 启用 Gzip 压缩，减少传输数据量</span></span><br><span class="line">    <span class="attribute">gzip_vary</span> <span class="literal">on</span>;</span><br><span class="line">    <span class="attribute">gzip_proxied</span> any;</span><br><span class="line">    <span class="attribute">gzip_comp_level</span> <span class="number">6</span>;</span><br><span class="line">    <span class="attribute">gzip_buffers</span> <span class="number">16</span> <span class="number">8k</span>;</span><br><span class="line">    <span class="attribute">gzip_http_version</span> <span class="number">1</span>.<span class="number">1</span>;</span><br><span class="line">    <span class="attribute">gzip_types</span> text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 包含其他虚拟主机配置文件 (推荐按功能或域名拆分)</span></span><br><span class="line">    <span class="attribute">include</span> /etc/nginx/conf.d/<span class="regexp">*.conf</span>; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-server-块-虚拟主机"><a href="#5-3-server-块-虚拟主机" class="headerlink" title="5.3 server 块 (虚拟主机)"></a>5.3 <code>server</code> 块 (虚拟主机)</h3><p>一个 <code>server</code> 块定义了一个虚拟主机，监听特定的 IP 地址和端口，并根据 <code>server_name</code> 匹配请求域名。</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;                  <span class="comment"># 监听 80 端口（HTTP）</span></span><br><span class="line">    <span class="attribute">server_name</span> example.com www.example.com; <span class="comment"># 匹配的域名</span></span><br><span class="line"></span><br><span class="line">    <span class="attribute">root</span> /var/www/html;         <span class="comment"># 网站根目录</span></span><br><span class="line">    <span class="attribute">index</span> index.html index.htm; <span class="comment"># 默认索引文件</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># ... location 块定义</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-4-location-块-URI-匹配"><a href="#5-4-location-块-URI-匹配" class="headerlink" title="5.4 location 块 (URI 匹配)"></a>5.4 <code>location</code> 块 (URI 匹配)</h3><p><code>location</code> 块用于根据请求的 URI 路径定义不同的处理规则。Nginx 会按照优先级顺序查找匹配的 <code>location</code> 块。</p>
+<p><strong>匹配规则优先级 (从高到低)</strong>：</p>
+<ol>
+<li><code>=</code> <strong>(精确匹配)</strong>：<code>location = /</code> 只匹配 <code>/</code>。</li>
+<li><code>^~</code> <strong>(前缀匹配，优先于正则表达式)</strong>：<code>location ^~ /images/</code> 会匹配所有以 <code>/images/</code> 开头的 URI，并且如果匹配成功，Nginx 将停止搜索其他正则表达式匹配。</li>
+<li><code>~</code> 或 <code>~*</code> <strong>(正则表达式匹配)</strong>：<ul>
+<li><code>~</code>：区分大小写。<code>location ~ \.php$</code> 匹配所有以 <code>.php</code> 结尾的 URI。</li>
+<li><code>~*</code>：不区分大小写。<code>location ~* \.(jpg|jpeg|gif)$</code> 匹配所有以 <code>.jpg</code>, <code>.jpeg</code>, <code>.gif</code> 结尾的 URI。</li>
+</ul>
+</li>
+<li><code>无修饰符</code> <strong>(普通前缀匹配)</strong>：<code>location /</code> 或 <code>location /docs/</code>。匹配以指定字符串开头的 URI，选择最长匹配项。</li>
+<li><code>/</code> <strong>(通用匹配，默认处理)</strong>：<code>location /</code> 匹配所有请求，作为最终的备用处理。</li>
+</ol>
+<p><strong>示例</strong>：</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;</span><br><span class="line">    <span class="attribute">server_name</span> myapp.com;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">root</span> /var/www/myapp/public; <span class="comment"># 静态文件根目录</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 匹配精确的根路径</span></span><br><span class="line">    <span class="section">location</span> = / &#123;</span><br><span class="line">        <span class="attribute">index</span> index.html;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 匹配所有以 /api/ 开头的请求，并反向代理到后端服务</span></span><br><span class="line">    <span class="section">location</span> /api/ &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://localhost:8080; <span class="comment"># 转发到本地 8080 端口的后端服务</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> Host <span class="variable">$host</span>;      <span class="comment"># 传递原始 Host 头</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Real-IP <span class="variable">$remote_addr</span>; <span class="comment"># 传递客户端真实 IP</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Forwarded-For <span class="variable">$proxy_add_x_forwarded_for</span>; <span class="comment"># 传递代理链中的 IP</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Forwarded-Proto <span class="variable">$scheme</span>; <span class="comment"># 传递原始请求协议 (http/https)</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 匹配图片文件，并设置缓存</span></span><br><span class="line">    <span class="section">location</span> <span class="regexp">~* \.(jpg|jpeg|gif|png|ico|css|js)$</span> &#123;</span><br><span class="line">        <span class="attribute">expires</span> <span class="number">30d</span>; <span class="comment"># 缓存 30 天</span></span><br><span class="line">        <span class="attribute">add_header</span> Cache-Control <span class="string">&quot;public&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment"># SPA 单页面应用路由回退：对于所有不匹配的文件，返回 index.html</span></span><br><span class="line">    <span class="section">location</span> / &#123;</span><br><span class="line">        <span class="comment"># 尝试查找文件或目录，如果找不到，则返回 /index.html</span></span><br><span class="line">        <span class="attribute">try_files</span> <span class="variable">$uri</span> <span class="variable">$uri</span>/ /index.html; </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-5-upstream-块-负载均衡池"><a href="#5-5-upstream-块-负载均衡池" class="headerlink" title="5.5 upstream 块 (负载均衡池)"></a>5.5 <code>upstream</code> 块 (负载均衡池)</h3><p><code>upstream</code> 块定义一个后端服务器池，供 <code>proxy_pass</code> 指令引用。</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">upstream</span> backend_servers &#123;</span><br><span class="line">    <span class="comment"># 负载均衡算法默认为 round robin</span></span><br><span class="line">    <span class="attribute">server</span> <span class="number">192.168.1.100:8080</span> weight=<span class="number">5</span>; <span class="comment"># 权重为 5</span></span><br><span class="line">    <span class="attribute">server</span> <span class="number">192.168.1.101:8080</span>;</span><br><span class="line">    <span class="attribute">server</span> <span class="number">192.168.1.102:8080</span> backup;   <span class="comment"># 备份服务器，当所有主服务器都失效时才使用</span></span><br><span class="line">    <span class="comment"># least_conn;                       # 启用最少连接算法</span></span><br><span class="line">    <span class="comment"># ip_hash;                          # 启用 IP 哈希算法</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;</span><br><span class="line">    <span class="attribute">server_name</span> myapp.com;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> / &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://backend_servers; <span class="comment"># 请求转发给 upstream 定义的服务器组</span></span><br><span class="line">        <span class="comment"># ... proxy headers</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="六、常用配置场景示例"><a href="#六、常用配置场景示例" class="headerlink" title="六、常用配置场景示例"></a>六、常用配置场景示例</h2><h3 id="6-1-静态文件服务器"><a href="#6-1-静态文件服务器" class="headerlink" title="6.1 静态文件服务器"></a>6.1 静态文件服务器</h3><figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;</span><br><span class="line">    <span class="attribute">server_name</span> static.example.com;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">root</span> /usr/share/nginx/html/static;</span><br><span class="line">    <span class="attribute">index</span> index.html;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> / &#123;</span><br><span class="line">        <span class="attribute">try_files</span> <span class="variable">$uri</span> <span class="variable">$uri</span>/ =<span class="number">404</span>; <span class="comment"># 尝试查找文件或目录，否则返回 404</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> <span class="regexp">~* \.(css|js|gif|jpg|jpeg|png)$</span> &#123;</span><br><span class="line">        <span class="attribute">expires</span> <span class="number">30d</span>; <span class="comment"># 缓存 30 天</span></span><br><span class="line">        <span class="attribute">add_header</span> Cache-Control <span class="string">&quot;public&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-反向代理到后端应用-HTTP"><a href="#6-2-反向代理到后端应用-HTTP" class="headerlink" title="6.2 反向代理到后端应用 (HTTP)"></a>6.2 反向代理到后端应用 (HTTP)</h3><figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;</span><br><span class="line">    <span class="attribute">server_name</span> api.example.com;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> / &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://127.0.0.1:3000; <span class="comment"># 代理到本地 3000 端口的 Node.js/Go 应用</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> Host <span class="variable">$host</span>;</span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Real-IP <span class="variable">$remote_addr</span>;</span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Forwarded-For <span class="variable">$proxy_add_x_forwarded_for</span>;</span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Forwarded-Proto <span class="variable">$scheme</span>;</span><br><span class="line">        <span class="comment"># 允许 websocket 连接</span></span><br><span class="line">        <span class="attribute">proxy_http_version</span> <span class="number">1</span>.<span class="number">1</span>;</span><br><span class="line">        <span class="attribute">proxy_set_header</span> Upgrade <span class="variable">$http_upgrade</span>;</span><br><span class="line">        <span class="attribute">proxy_set_header</span> Connection <span class="string">&quot;upgrade&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-3-HTTPS-配置-SSL-TLS-Termination"><a href="#6-3-HTTPS-配置-SSL-TLS-Termination" class="headerlink" title="6.3 HTTPS 配置 (SSL&#x2F;TLS Termination)"></a>6.3 HTTPS 配置 (SSL&#x2F;TLS Termination)</h3><figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 强制 HTTP 重定向到 HTTPS</span></span><br><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;</span><br><span class="line">    <span class="attribute">server_name</span> secure.example.com;</span><br><span class="line">    <span class="attribute">return</span> <span class="number">301</span> https://<span class="variable">$host</span><span class="variable">$request_uri</span>; <span class="comment"># 301 永久重定向</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">443</span> ssl http2; <span class="comment"># 监听 443 端口，启用 SSL/TLS 和 HTTP/2</span></span><br><span class="line">    <span class="attribute">server_name</span> secure.example.com;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">ssl_certificate</span> /etc/nginx/ssl/secure.example.com.crt; <span class="comment"># SSL 证书路径</span></span><br><span class="line">    <span class="attribute">ssl_certificate_key</span> /etc/nginx/ssl/secure.example.com.key; <span class="comment"># SSL 私钥路径</span></span><br><span class="line">    <span class="attribute">ssl_session_cache</span> shared:SSL:<span class="number">10m</span>;</span><br><span class="line">    <span class="attribute">ssl_session_timeout</span> <span class="number">10m</span>;</span><br><span class="line">    <span class="attribute">ssl_ciphers</span> <span class="string">&quot;ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384&quot;</span>;</span><br><span class="line">    <span class="attribute">ssl_protocols</span> TLSv1.<span class="number">2</span> TLSv1.<span class="number">3</span>; <span class="comment"># 推荐只使用 TLSv1.2 和 TLSv1.3</span></span><br><span class="line">    <span class="attribute">ssl_prefer_server_ciphers</span> <span class="literal">on</span>;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> / &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://127.0.0.1:3000; <span class="comment"># 转发到后端 HTTP 服务</span></span><br><span class="line">        <span class="comment"># ... proxy headers</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="七、Nginx-的管理命令"><a href="#七、Nginx-的管理命令" class="headerlink" title="七、Nginx 的管理命令"></a>七、Nginx 的管理命令</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> nginx -t             <span class="comment"># 检查 Nginx 配置文件语法，很有用！</span></span><br><span class="line"><span class="built_in">sudo</span> nginx -s reload      <span class="comment"># 重新加载配置，平滑重启 (不中断连接)</span></span><br><span class="line"><span class="built_in">sudo</span> nginx -s stop        <span class="comment"># 快速停止 Nginx</span></span><br><span class="line"><span class="built_in">sudo</span> nginx -s quit        <span class="comment"># 优雅地停止 Nginx (等待当前请求处理完毕)</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl start nginx    <span class="comment"># 启动 Nginx</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl stop nginx     <span class="comment"># 停止 Nginx</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl restart nginx  <span class="comment"># 重启 Nginx</span></span><br><span class="line"><span class="built_in">sudo</span> systemctl status nginx   <span class="comment"># 查看 Nginx 运行状态</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>Nginx 是一个强大而灵活的工具，它不仅可以作为高性能的 Web 服务器，更因其出色的反向代理和负载均衡能力，成为现代 Web 架构中不可或缺的组成部分。理解 Nginx 的事件驱动架构、核心功能和配置方式，对于构建高可用、高性能的 Web 服务至关重要。通过合理配置，Nginx 能够显著提升应用的性能、安全性和可伸缩性。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2023/2023-05-26_Nginx%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/">https://blog.tbf1211.xx.kg/2023/2023-05-26_Nginx%20%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/Server/">Server</a><a class="post-meta__tags" href="/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-30.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2023/2023-06-01_MySQL%20%E7%B4%A2%E5%BC%95%E8%AF%A6%E8%A7%A3/" title="MySQL EXPLAIN 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">MySQL EXPLAIN 详解</div></div><div class="info-2"><div class="info-item-1"> EXPLAIN 是 MySQL 提供的一个非常强大的工具，用于分析 SELECT 语句的执行计划。通过 EXPLAIN 的输出结果，我们可以了解查询是如何执行的，包括使用了哪些索引、扫描了多少行、是否进行了文件排序等信息。这是数据库性能调优不可或缺的一环，能够帮助我们发现 SQL 语句中的性能瓶颈并进行优化。  “优化前，先 EXPLAIN。没有 EXPLAIN 的优化都是盲人摸象。” - 数据库优化格言   一、什么是 EXPLAIN？EXPLAIN 命令实际上是用来获取 MySQL 执行查询语句的执行计划的。执行计划描述了 MySQL 如何处理 SQL 语句，包括：  表的连接顺序 每个表使用的索引 是否使用了临时表 是否进行了文件排序 扫描的行数预估  通过分析这些信息，我们可以判断查询是否高效，是否可以进一步优化。 二、如何使用 EXPLAIN？使用 EXPLAIN 非常简单，只需将 EXPLAIN 关键字放在任何 SELECT 语句的前面。 1234EXPLAIN SELECT * FROM users WHERE username = &#x27;Alice&#x2...</div></div></div></a><a class="pagination-related" href="/2023/2023-05-24_%E4%BB%A5%E6%97%A5%E4%B8%BA%E9%89%B4%EF%BC%9A%E8%A1%B0%E9%80%80%E6%97%B6%E4%BB%A3%E7%94%9F%E5%AD%98%E6%8C%87%E5%8D%97/" title="以日为鉴：衰退时代生存指南"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">以日为鉴：衰退时代生存指南</div></div><div class="info-2"><div class="info-item-1"> 《以日为鉴：衰退时代生存指南》 (When the Money Runs Out: The End of Western Affluence) 是英国经济学者理查德·沃纳 (Richard A. Werner) 教授 2014 年出版的著作，中文译本由经济学家陈思呈翻译。本书通过深入剖析日本在“失去的三十年”中所经历的经济衰退与社会变迁，为当今面临类似挑战的国家和个人提供了宝贵的经验与警示。它不仅仅是对日本经济史的复盘，更是一份在衰退周期中如何生存、适应乃至寻找新机遇的实用指南。  核心思想：日本的“失去的三十年”并非偶然，而是由一系列政策失误和结构性问题导致。深入理解这些教训，对于西方乃至全球应对潜在的长期衰退，具有极强的借鉴意义。同时，本书也为个体如何在衰退环境中保持韧性、寻找出路提供了指引。   一、日本“失去的三十年”背景回顾20 世纪 80 年代末，日本经济达到了巅峰，房地产和股市泡沫达到惊人水平。然而，随着泡沫的破裂，日本陷入了长期的经济停滞，被称为“失去的十年”，后来又演变为“失去的三十年”。 1.1 泡沫的形成与破裂 宽松货币政策：1985 年“广场协议”后，日...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2023/2023-11-02_Git%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3%E4%B8%8E%E5%AE%9E%E8%B7%B5/" title="Git命令详解与实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-11-02</div><div class="info-item-2">Git命令详解与实践</div></div><div class="info-2"><div class="info-item-1"> Git 是一款免费、开源的分布式版本控制系统，旨在快速、高效地处理从小规模到超大规模的所有项目。它由 Linux 内核的创建者 Linus Torvalds 于 2005 年创建。Git 的核心理念是跟踪内容而非文件，并支持非线性开发（即多人并行开发，合并不同的工作流）。  本文将深入介绍 Git 的核心概念、常用命令、工作流程、分支管理策略以及一些最佳实践。 “Git is a free and open source distributed version control system designed to handle everything from small to very large projects with speed and efficiency.” —— Git 官方 Slogan   一、Git 核心概念在使用 Git 命令之前，理解其核心概念至关重要。 1. 工作区 (Working Directory) 你电脑上当前可见的目录，包含你项目的所有文件。 你正在进行修改和编辑的地方。  2. 暂存区 (Staging Area &#x2F; Index)...</div></div></div></a><a class="pagination-related" href="/2025/2025-04-24_Node.js%20%E6%9C%AC%E5%9C%B0%E9%9D%99%E6%80%81%E6%9C%8D%E5%8A%A1%E8%AF%A6%E8%A7%A3%EF%BC%9Ahttp-server%20%E4%B8%8E%20live-server/" title="Node.js 本地静态服务详解：http-server 与 live-server"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-24</div><div class="info-item-2">Node.js 本地静态服务详解：http-server 与 live-server</div></div><div class="info-2"><div class="info-item-1"> 在前端开发过程中，我们经常需要一个本地服务器来预览 HTML、CSS、JavaScript 等静态文件。虽然许多现代前端框架（如 React, Vue, Angular）都自带了开发服务器，但对于一些简单的项目、纯静态网站或快速原型开发，使用 Node.js 提供轻量级的本地静态服务器会更加方便快捷。本文将详细介绍两个广受欢迎的 Node.js 静态服务器工具：http-server 和 live-server。  “好的本地开发服务器，让你的前端工作流如丝般顺滑。”   一、为什么需要本地静态服务？在浏览器中直接打开本地的 HTML 文件（file:/// 协议）通常会有一些限制和问题：  AJAX&#x2F;Fetch 请求受限：浏览器出于安全考虑（同源策略），不允许 file:/// 协议下的页面进行跨域 AJAX 请求，甚至无法加载本地其他文件的 AJAX 请求。 动态加载问题：某些 JavaScript 模块加载器（如 ES Module import 语句）在 file:/// 协议下可能无法正常工作。 开发工具功能不全：一些浏览器扩展或开发工具可能依赖于 HTTP...</div></div></div></a><a class="pagination-related" href="/2025/2025-05-06_Caddy%20Web%20Server%E8%AF%A6%E8%A7%A3%EF%BC%9A%E7%8E%B0%E4%BB%A3Web%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%9A%84%E4%BC%98%E9%9B%85%E9%80%89%E6%8B%A9/" title="Caddy Web Server详解：现代Web服务器的优雅选择"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-06</div><div class="info-item-2">Caddy Web Server详解：现代Web服务器的优雅选择</div></div><div class="info-2"><div class="info-item-1"> Caddy 是一款用 Go 语言编写的开源 Web 服务器，以其自动 HTTPS 功能、简洁的配置以及强大的功能而闻名。它被设计成现代 Web 的瑞士军刀，能够胜任静态文件服务、反向代理、负载均衡、API 网关等多种任务，并且在安全性和易用性方面表现出色。  “Caddy 是未来 Web 服务器的样子：默认安全、易于管理、功能强大，并且能够自动处理 HTTPS 证书的申请和续期，让你的网站在几秒钟内上线并享受加密连接。”   一、Caddy 简介1.1 什么是 Caddy？Caddy 是一个高性能、可扩展的 Web 服务器，其核心特性包括：  自动 HTTPS：这是 Caddy 最吸引人的特性之一。对于绝大多数公共可访问的域名，Caddy 可以自动从 Let’s Encrypt 申请、配置和续期 SSL&#x2F;TLS 证书，无需手动干预。 配置简洁：Caddyfile 配置文件语法非常直观易懂，相比 Nginx 和 Apache 更加简洁。 HTTP&#x2F;2 和 HTTP&#x2F;3 支持：Caddy 默认启用 HTTP&#x2F;2，并且是首批支持 QUIC (H...</div></div></div></a><a class="pagination-related" href="/2023/2023-01-26_%E4%BB%8E%E5%8D%95%E6%9C%BA%E5%88%B0%E5%93%A8%E5%85%B5%E4%B8%80%E5%BC%A0%E5%9B%BE%E7%90%86%E6%B8%85redis%E6%9E%B6%E6%9E%84%E6%BC%94%E8%BF%9B/" title="从单机到哨兵，一张图理清redis架构演进！"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-26</div><div class="info-item-2">从单机到哨兵，一张图理清redis架构演进！</div></div><div class="info-2"><div class="info-item-1">Redis 的架构是逐步演进而来的，正所谓“罗马不是一天建成的”。    2010 年：单机版 Redis  当 Redis1.0在 2010 年首次发布时，整体架构非常简单，通常作为业务系统的缓存使用。不过，Redis 的数据是存储在内存中的，一旦重启，数据就会全部丢失，导致请求会直接打到数据库上，带来较大的压力。  2013 年：持久化机制上线  2013 年，Redis2.8版本发布，解决了之前“重启就丢数据”的问题。Redis 引入了 RDB（内存快照）机制，用于定时将内存中的数据持久化到磁盘。同时还支持 AOF（只追加文件）方式，将每一次写操作都记录到日志文件中，实现更高级别的持久化保障。  2013 年：主从复制机制  同样在 Redis2.8中，官方引入了主从复制功能，提升了系统的高可用性。主节点负责处理实时的读写请求，从节点则负责同步主节点的数据，起到备份和读扩展的作用。  2013 年：Sentinel 哨兵机制上线  在 Redis2.8版本中，引入了 Sentinel（哨兵）机制，用于实时监控 Redis 实例的运行状态。它主要负责以下几个方面的工作：   ...</div></div></div></a><a class="pagination-related" href="/2023/2023-01-27_MySQL%20%E7%B4%A2%E5%BC%95%E8%AF%A6%E8%A7%A3/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-27</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> 索引是数据库中用于提高查询速度的一种数据结构。在 MySQL 中，合理有效地使用索引能够显著提升数据库的查询性能，减少 I&#x2F;O 操作。然而，不恰当的索引也可能带来额外的开销。理解 MySQL 索引的原理和优化策略，是数据库性能调优的关键。  “好的索引，事半功倍；坏的索引，越帮越忙。” - 数据库优化格言   一、什么是索引？索引（Index）是一种特殊的查找表，数据库搜索引擎可以利用它来快速定位数据。可以将其类比为一本书的目录，通过目录我们可以快速找到感兴趣的章节，而不需要通读整本书。 在数据库中，没有索引的查询需要全表扫描，即逐行检查每条记录，直到找到符合条件的记录。当数据量非常大时，这种操作的效率会非常低下。索引通过创建指向数据物理位置的指针，使得数据库在查询时能够直接跳转到相关记录，从而大大加快查询速度。 二、索引的优缺点优点 显著提高数据检索速度：这是索引最核心、最主要的优点。 加快表与表之间的连接速度：对于 JOIN 操作，索引可以加速连接条件的匹配。 加快分组和排序操作：GROUP BY 和 ORDER BY 操作通常通过消除临时表和对文件进行排序来提高...</div></div></div></a><a class="pagination-related" href="/2023/2023-02-01_Docker%E9%95%9C%E5%83%8F%E6%9E%84%E5%BB%BA%E4%B8%8E%E7%AE%A1%E7%90%86%EF%BC%9A%E6%89%93%E9%80%A0%E6%A0%87%E5%87%86%E5%8C%96%E3%80%81%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%9A%84%E5%AE%B9%E5%99%A8%E9%95%9C%E5%83%8F/" title="Docker镜像构建与管理：打造标准化、可复用的容器镜像"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-01</div><div class="info-item-2">Docker镜像构建与管理：打造标准化、可复用的容器镜像</div></div><div class="info-2"><div class="info-item-1"> 原文地址 mp.weixin.qq.com  Docker 镜像构建与管理：打造标准化、可复用的容器镜像开篇：你是否也在镜像管理上栽过跟头？凌晨 2 点，生产环境突然告警，新部署的容器启动失败。排查后发现：开发环境用的镜像 800MB，生产环境的却有 3.2GB，里面塞满了编译工具、测试数据，甚至还有开发同学的 SSH 私钥… 这种 “镜像肥胖症” 你遇到过吗？或者更糟糕的：  同一个服务，测试环境能跑，生产环境启动就报错 镜像仓库里堆满了 latest、v1、v1-final、v1-final-final 这种让人崩溃的标签 构建一次镜像要等 20 分钟，因为每次都要重新下载依赖包  今天这篇文章，我会基于 5 年运维实战经验，教你构建一套标准化的镜像管理体系：从多阶段构建优化到镜像安全扫描，从版本管理策略到自动化构建流程，让你的镜像体积缩小 70%、构建速度提升 5 倍，并且永远不会再出现 “这个镜像到底能不能用” 的灵魂拷问。 一、镜像构建的三大核心原则（90% 的人都忽略了）1. 最小化原则：镜像里只放 “必需品”很多人写 Dockerfile 就像搬家，什么都往里塞。...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">275</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">189</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">67</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9-Nginx%EF%BC%9F-%E4%BC%98%E5%8A%BF"><span class="toc-text">一、为什么选择 Nginx？ (优势)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Nginx-%E7%9A%84%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E4%B8%8E%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Nginx 的核心功能与概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Web-%E6%9C%8D%E5%8A%A1%E5%99%A8-Serving-Static-Files"><span class="toc-text">2.1 Web 服务器 (Serving Static Files)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86-Reverse-Proxy"><span class="toc-text">2.2 反向代理 (Reverse Proxy)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1-Load-Balancer"><span class="toc-text">2.3 负载均衡 (Load Balancer)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E4%BB%A3%E7%90%86%E7%BC%93%E5%AD%98-Proxy-Cache"><span class="toc-text">2.4 代理缓存 (Proxy Cache)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-SSL-TLS-%E7%BB%88%E6%AD%A2-SSL-TLS-Termination"><span class="toc-text">2.5 SSL&#x2F;TLS 终止 (SSL&#x2F;TLS Termination)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Nginx-%E7%9A%84%E6%9E%B6%E6%9E%84"><span class="toc-text">三、Nginx 的架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Nginx-%E5%AE%89%E8%A3%85-%E4%BB%A5-Ubuntu-%E4%B8%BA%E4%BE%8B"><span class="toc-text">四、Nginx 安装 (以 Ubuntu 为例)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Nginx-%E9%85%8D%E7%BD%AE%E8%AF%A6%E8%A7%A3-nginx-conf"><span class="toc-text">五、Nginx 配置详解 (nginx.conf)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E9%85%8D%E7%BD%AE%E4%B8%8A%E4%B8%8B%E6%96%87-Contexts"><span class="toc-text">5.1 配置上下文 (Contexts)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4%E7%A4%BA%E4%BE%8B"><span class="toc-text">5.2 常用指令示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-server-%E5%9D%97-%E8%99%9A%E6%8B%9F%E4%B8%BB%E6%9C%BA"><span class="toc-text">5.3 server 块 (虚拟主机)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-location-%E5%9D%97-URI-%E5%8C%B9%E9%85%8D"><span class="toc-text">5.4 location 块 (URI 匹配)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-5-upstream-%E5%9D%97-%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E6%B1%A0"><span class="toc-text">5.5 upstream 块 (负载均衡池)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%B8%B8%E7%94%A8%E9%85%8D%E7%BD%AE%E5%9C%BA%E6%99%AF%E7%A4%BA%E4%BE%8B"><span class="toc-text">六、常用配置场景示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E9%9D%99%E6%80%81%E6%96%87%E4%BB%B6%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="toc-text">6.1 静态文件服务器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E5%88%B0%E5%90%8E%E7%AB%AF%E5%BA%94%E7%94%A8-HTTP"><span class="toc-text">6.2 反向代理到后端应用 (HTTP)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-HTTPS-%E9%85%8D%E7%BD%AE-SSL-TLS-Termination"><span class="toc-text">6.3 HTTPS 配置 (SSL&#x2F;TLS Termination)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81Nginx-%E7%9A%84%E7%AE%A1%E7%90%86%E5%91%BD%E4%BB%A4"><span class="toc-text">七、Nginx 的管理命令</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-11-07_Codex%20%E8%AF%A6%E8%A7%A3%E4%B8%8E%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7%EF%BC%9AOpenAI%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/2025/2025-11-07_Codex%20%E8%AF%A6%E8%A7%A3%E4%B8%8E%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7%EF%BC%9AOpenAI%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-11-05_Claude%20Code%20%E8%AF%A6%E8%A7%A3%EF%BC%9AAnthropic%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/2025/2025-11-05_Claude%20Code%20%E8%AF%A6%E8%A7%A3%EF%BC%9AAnthropic%20%E7%9A%84%E4%BB%A3%E7%A0%81%E6%99%BA%E8%83%BD%E6%A8%A1%E5%9E%8B/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-11-01_Ubuntu%20UFW%20(Uncomplicated%20Firewall)%20%E8%AF%A6%E8%A7%A3/" title="Ubuntu UFW (Uncomplicated Firewall) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Ubuntu UFW (Uncomplicated Firewall) 详解"/></a><div class="content"><a class="title" href="/2025/2025-11-01_Ubuntu%20UFW%20(Uncomplicated%20Firewall)%20%E8%AF%A6%E8%A7%A3/" title="Ubuntu UFW (Uncomplicated Firewall) 详解">Ubuntu UFW (Uncomplicated Firewall) 详解</a><time datetime="2025-10-31T22:24:00.000Z" title="发表于 2025-11-01 06:24:00">2025-11-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="nftables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-28_nftables%20%E8%AF%A6%E8%A7%A3/" title="nftables 详解">nftables 详解</a><time datetime="2025-10-27T22:24:00.000Z" title="发表于 2025-10-28 06:24:00">2025-10-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="iptables 详解"/></a><div class="content"><a class="title" href="/2025/2025-10-25_iptables%20%E8%AF%A6%E8%A7%A3/" title="iptables 详解">iptables 详解</a><time datetime="2025-10-24T22:24:00.000Z" title="发表于 2025-10-25 06:24:00">2025-10-25</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-30.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
