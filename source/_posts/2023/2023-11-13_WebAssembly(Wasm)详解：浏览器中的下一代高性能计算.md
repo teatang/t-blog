@@ -7,7 +7,7 @@ tags:
   - WebAssembly
 categories:
   - 前端技术
-  - Web
+  - 库
 ---
 
 > WebAssembly (Wasm) 是一种二进制指令格式，它提供了一种在 Web 浏览器中运行高性能代码的方式。它是一种可移植、大小紧凑、加载快、与 Web 生态系统兼容的技术，旨在作为 Web 的编译目标。简单来说，Wasm 允许你用 C/C++, Rust, Go 等多种语言编写代码，然后编译成 Wasm 格式，并在浏览器中以接近原生性能的速度运行。

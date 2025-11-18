@@ -7,7 +7,7 @@ tags:
   - ORM
 categories:
   - 前端技术
-  - Web
+  - 库
 ---
 
 > **Drizzle ORM** 是一款为 TypeScript 开发者设计的现代、类型安全、轻量级的 ORM (Object-Relational Mapper)。它旨在提供一种接近 SQL 的开发体验，同时利用 TypeScript 的强大类型推断能力，在编译时捕获数据库相关的错误，极大地提升了开发效率和代码的健壮性。Drizzle ORM 不像传统 ORM 那样抽象化所有 SQL，而是拥抱 SQL，提供了一个类型安全的 SQL 查询构建器。
