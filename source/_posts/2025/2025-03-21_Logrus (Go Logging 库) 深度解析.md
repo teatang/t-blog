@@ -80,11 +80,11 @@ graph TD
     B -- 设置默认配置 --> E(输出目的地)
     B -- 添加 --> F(Hooks)
 
-    B -- 调用 Info/Error/Debug 等方法 --> G(创建 Entry)
+    B -- 调用 Info/Error/<br>Debug 等方法 --> G(创建 Entry)
     G -- 包含 --> H(消息)
     G -- 包含 --> I(日志级别)
     G -- 包含 --> J(时间戳)
-    G -- 包含 --> K(通过WithField/WithFields添加的键值对)
+    G -- 包含 --> K(通过WithField/WithFields<br>添加的键值对)
     G -- 触发 --> F
     F -- 处理 Entry --> L(外部服务/告警)
     G -- 经过 --> D
