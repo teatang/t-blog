@@ -9,140 +9,203 @@ tags:
 categories:
   - 计算机网络
   - 加密算法
+mathjax: true
 ---
 
-> **AES (Advanced Encryption Standard)**，即**高级加密标准**，是目前全球范围内**最广泛使用且高度安全的对称密钥加密算法**。它于 2001 年由美国国家标准与技术研究院 (NIST) 发布，取代了 DES (Data Encryption Standard) 算法，成为美国联邦政府及全球范围内的推荐加密标准。AES 基于比利时密码学家 Joan Daemen 和 Vincent Rijmen 设计的 **Rijndael (读作 "Rhine-doll")** 算法。
+> **AES (Advanced Encryption Standard)**，即高级加密标准，是目前应用最广泛的对称密钥分组加密算法。它于 2001 年由美国国家标准与技术研究院 (NIST) 发布，取代了 DES (Data Encryption Standard) 成为联邦政府推荐的加密标准。AES 的设计基于**替代-置换网络 (Substitution-Permutation Network, SPN)** 结构，具有高效、安全和易于实现的特点，被广泛应用于网络通信、数据存储、文件加密等各种场景。
 
-{% note info %}
-**核心思想**：使用**相同的密钥**进行加密和解密。发送方使用密钥对明文进行加密生成密文，接收方使用**相同的密钥**对密文进行解密还原成明文。
-{% endnote %}
-------
+## 一、引言：对称加密的王者
 
-## 一、AES 的基本概念与特性
+在现代密码学中，对称加密算法因其加解密速度快而常用于对大量数据进行加密。AES 是其中的翘楚，被认为是当今最安全的对称加密算法之一。
 
-### 1.1 对称密钥加密 (Symmetric-key Encryption)
+*   **对称加密 (Symmetric Encryption)**：使用相同的密钥进行加密和解密。优点是效率高，适合加密大量数据；缺点是密钥分发和管理复杂。
+*   **分组密码 (Block Cipher)**：将明文数据分成固定大小的块（例如 AES 是 128 位），对每个块独立进行加密。
 
-AES 属于对称密钥加密算法。这意味着：
+AES 具有以下关键特性：
 
-*   **加密密钥和解密密钥是相同的**（或可相互轻易推导）。
-*   要求通信双方在进行加密通信前，必须通过安全的方式共享这个密钥。
-*   优点是加解密速度快，效率高。
-*   缺点是密钥分发和管理比较复杂，尤其是在大规模网络中。
+*   **块大小 (Block Size)**：固定为 128 位 (16 字节)。
+*   **密钥长度 (Key Size)**：支持 128 位、192 位和 256 位三种长度。密钥长度越长，安全性越高，但性能会略有下降。
+*   **轮数 (Number of Rounds)**：根据密钥长度不同，加密过程会重复多轮：
+    *   128 位密钥：10 轮
+    *   192 位密钥：12 轮
+    *   256 位密钥：14 轮
 
-### 1.2 分组密码 (Block Cipher)
+AES 的设计基于代数结构，其操作在有限域 GF($2^8$) 上进行，这使得其数学基础坚实且抗攻击能力强。
 
-AES 是一种**分组密码 (Block Cipher)**。
+## 二、AES 算法核心操作
 
-*   它将明文消息分割成固定大小的**数据块 (Block)**。
-*   每个数据块独立地进行加密。
-*   AES 算法处理的数据块大小固定为 **128 位 (16 字节)**。
+AES 算法（通常指 Rijndael 算法）的加密过程是将 128 位的明文块（16 字节）转化为一个 $4 \times 4$ 的字节矩阵，称为**状态 (State)**。然后对这个状态矩阵进行多轮迭代操作。每一轮操作都包含四个基本变换：
 
-### 1.3 密钥长度与轮数
+1.  **SubBytes (字节替换)**
+2.  **ShiftRows (行移位)**
+3.  **MixColumns (列混淆)**
+4.  **AddRoundKey (轮密钥加)**
 
-AES 算法支持三种不同的密钥长度，对应不同的加密轮数：
+除了最后一轮，所有轮都包含这四个操作。最后一轮不包含 MixColumns。解密过程则是将这些操作逆序执行。
 
-*   **AES-128**：使用 128 位 (16 字节) 密钥，加密 10 轮。
-*   **AES-192**：使用 192 位 (24 字节) 密钥，加密 12 轮。
-*   **AES-256**：使用 256 位 (32 字节) 密钥，加密 14 轮。
+### 2.1 状态矩阵表示
 
-密钥长度越长，加密轮数越多，算法的安全性越高，但计算开销也会相应增加。目前，AES-256 被认为是具备“军事级”安全强度。
+128 位的明文块（16 字节）被排列成一个 $4 \times 4$ 的字节矩阵，按列主序填充。
+例如，一个 128 位的块 $b_0, b_1, \dots, b_{15}$：
 
-### 1.4 算法结构
+$$
+\begin{pmatrix}
+b_0 & b_4 & b_8 & b_{12} \\\\
+b_1 & b_5 & b_9 & b_{13} \\\\
+b_2 & b_6 & b_{10} & b_{14} \\\\
+b_3 & b_7 & b_{11} & b_{15}
+\end{pmatrix}
+$$
 
-AES 算法基于一种称为**代换-置换网络 (Substitution-Permutation Network, SPN)** 的结构，它通过重复进行一系列的代换 (Substitution) 和置换 (Permutation) 操作来混淆明文。
+### 2.2 SubBytes (字节替换)
 
-## 二、AES 的操作步骤 (以 AES-128 为例)
+*   **目的**：提供算法的**非线性性 (Non-linearity)**，使得输出与输入之间不是简单的线性关系，抵抗线性攻击和差分攻击。
+*   **操作**：对状态矩阵中的每个字节进行非线性的字节替换。每个字节被替换成一个预定义的 $16 \times 16$ 的查找表 (Substitution Box, S-box) 中的对应值。S-box 是经过精心设计的，具有良好的数学性质。
 
-AES 的每一次加密（或解密）都基于一个 128 位的数据块、128 位 (或 192/256 位) 的密钥以及多次重复的轮函数。
+### 2.3 ShiftRows (行移位)
 
-一个 128 位的输入数据块被表示为一个 4x4 的字节矩阵，称为**状态 (State)**。
+*   **目的**：提供算法的**扩散性 (Diffusion)**，使明文或密钥的每个位变化尽可能多地影响密文的位，抵抗差分攻击。
+*   **操作**：
+    *   第 0 行：不移动
+    *   第 1 行：左移 1 字节
+    *   第 2 行：左移 2 字节
+    *   第 3 行：左移 3 字节
 
-### 2.1 预备步骤：密钥扩展 (Key Expansion)
+$$
+\begin{pmatrix}
+s_{0,0} & s_{0,1} & s_{0,2} & s_{0,3} \\\\
+s_{1,0} & s_{1,1} & s_{1,2} & s_{1,3} \\\\
+s_{2,0} & s_{2,1} & s_{2,2} & s_{2,3} \\\\
+s_{3,0} & s_{3,1} & s_{3,2} & s_{3,3}
+\end{pmatrix}
+\xrightarrow{\text{ShiftRows}}
+\begin{pmatrix}
+s_{0,0} & s_{0,1} & s_{0,2} & s_{0,3} \\\\
+s_{1,1} & s_{1,2} & s_{1,3} & s_{1,0} \\\\
+s_{2,2} & s_{2,3} & s_{2,0} & s_{2,1} \\\\
+s_{3,3} & s_{3,0} & s_{3,1} & s_{3,2}
+\end{pmatrix}
+$$
 
-AES 并不是直接使用原始密钥进行所有轮次的加密。相反，它会根据原始密钥生成一系列的**轮密钥 (Round Keys)**。加密过程中每轮操作都会使用一个不同的轮密钥。128 位的密钥会扩展成 11 个 128 位的轮密钥（初始轮密钥 + 10 轮的轮密钥）。
+### 2.4 MixColumns (列混淆)
 
-### 2.2 加密过程 (Encryption)
+*   **目的**：进一步增强**扩散性**，使状态矩阵中的每个字节都受到同一列中其他三个字节的影响。
+*   **操作**：对状态矩阵中的每一列进行矩阵乘法运算。这是在伽罗瓦域 GF($2^8$) 上的乘法。每一列被一个固定的 $4 \times 4$ 矩阵相乘。
 
-AES 加密过程包含 10、12 或 14 个轮次（取决于密钥长度）。除了最后一轮外，所有轮执行相同的四种操作，而最后一轮会跳过 MixColumns 步骤。
+$$
+\begin{pmatrix}
+s'\_{0,j} \\\\
+s'\_{1,j} \\\\
+s'\_{2,j} \\\\
+s'\_{3,j}
+\end{pmatrix}
+\=
+\begin{pmatrix}
+02 & 03 & 01 & 01 \\\\
+01 & 02 & 03 & 01 \\\\
+01 & 01 & 02 & 03 \\\\
+03 & 01 & 01 & 02
+\end{pmatrix}
+\begin{pmatrix}
+s_{0,j} \\\\
+s_{1,j} \\\\
+s_{2,j} \\\\
+s_{3,j}
+\end{pmatrix}
+$$
+其中，`01`, `02`, `03` 表示在 GF($2^8$) 上的系数。例如，$02 \cdot s_{0,j}$ 表示 $s_{0,j}$ 左移一位（乘以 x），然后如果溢出则异或 $0x1b$。
 
-1.  **初始轮 (Initial Round)**：
-    *   **AddRoundKey (加轮密钥)**：将状态矩阵的每个字节与当前轮密钥进行异或 (XOR) 操作。这是唯一使用密钥的步骤，也是唯一的基于密钥的混淆操作。
+### 2.5 AddRoundKey (轮密钥加)
 
-2.  **主循环 (Main Rounds)** (N-1 轮，例如 AES-128 是 9 轮)：
-    *   **SubBytes (字节代换)**：状态矩阵中的每个字节都通过一个固定的、非线性的**S-盒 (S-box)** 进行代换。这个 S-盒是一个 8 位输入、8 位输出的查找表，旨在提供算法的非线性性，抵御线性密码分析。
-    *   **ShiftRows (行移位)**：状态矩阵的四行进行不同位数的循环左移。
-        *   第 0 行：不移位。
-        *   第 1 行：循环左移 1 字节。
-        *   第 2 行：循环左移 2 字节。
-        *   第 3 行：循环左移 3 字节。
-        这个操作是为了在行之间混淆数据，抵御差分密码分析。
-    *   **MixColumns (列混合)**：状态矩阵的每一列都与一个固定的多项式进行数学运算（矩阵乘法）。这个操作目的是混合列中的字节，使一个字节的变化影响到其他三个字节，进一步增强扩散性。
-    *   **AddRoundKey (加轮密钥)**：与初始轮相同，异或当前轮的轮密钥。
+*   **目的**：引入**密钥依赖性**，使加密过程与密钥紧密关联。
+*   **操作**：将当前的状态矩阵与**轮密钥 (Round Key)** 进行逐位异或 (XOR) 操作。轮密钥是从主密钥通过**密钥扩展 (Key Expansion)** 算法生成的。
 
-3.  **最终轮 (Final Round)** (第 N 轮，例如 AES-128 是第 10 轮)：
-    *   **SubBytes (字节代换)**
-    *   **ShiftRows (行移位)**
-    *   **AddRoundKey (加轮密钥)**
-    *   **注意**：最终轮**不进行 MixColumns** 操作。
+### 2.6 密钥扩展 (Key Expansion)
 
-### 2.3 解密过程 (Decryption)
+AES 算法需要为每一轮生成一个独立的轮密钥。密钥扩展算法将原始的 128/192/256 位主密钥扩展成足够多的轮密钥。这个过程涉及：
 
-解密过程是加密过程的逆向操作，每个步骤都是其加密对应步骤的逆运算，并且操作的顺序也是逆向的。
+*   **RotWord**：将一个 4 字节的字循环左移。
+*   **SubWord**：对一个 4 字节的字中的每个字节应用 S-box 替换。
+*   **Rcon (Round Constant)**：与轮数相关的常量，防止对称性攻击。
+*   **XOR**：与之前的字进行异或操作。
 
-*   **InvAddRoundKey (逆加轮密钥)**
-*   **InvMixColumns (逆列混合)**
-*   **InvShiftRows (逆行移位)**
-*   **InvSubBytes (逆字节代换)**
+## 三、AES 加密流程概览
 
-通过这些操作的组合，AES 确保了加密过程的复杂性和数据的充分扩散与混淆，使得在不知道密钥的情况下，通过密文还原明文在计算上是不可行的。
+1.  **初始轮密钥加 (Initial AddRoundKey)**：明文块与初始轮密钥（即主密钥）进行异或。
+2.  **多轮迭代**：
+    *   对于除了最后一轮的每一轮：
+        *   SubBytes
+        *   ShiftRows
+        *   MixColumns
+        *   AddRoundKey
+    *   最后一轮：
+        *   SubBytes
+        *   ShiftRows
+        *   AddRoundKey (不执行 MixColumns)
 
-## 三、AES 的工作模式 (Modes of Operation)
+**AES 加密过程示意图：**
 
-由于 AES 仅能加密固定长度的 128 位数据块，对于任意长度的明文，需要引入**工作模式**来处理。不同的工作模式提供了不同的安全特性和性能考量。
+{% mermaid %}
+graph TD
+    A["明文块 (128 bits)"] --> B(初始 AddRoundKey);
+    B --> C{轮 1};
+    C --> D(SubBytes);
+    D --> E(ShiftRows);
+    E --> F(MixColumns);
+    F --> G(AddRoundKey);
+    G -- ... N-1 轮 ... --> H{"轮 N (最后一轮)"};
+    H --> I(SubBytes);
+    I --> J(ShiftRows);
+    J --> K(AddRoundKey);
+    K --> L["密文块 (128 bits)"];
+{% endmermaid %}
+其中，`N` 是总轮数 (10, 12 或 14)。
 
-常用的工作模式包括：
+## 四、工作模式 (Operating Modes)
+
+分组密码每次只能加密固定大小的明文块。为了加密任意长度的数据，并增强安全性，AES 通常会结合不同的**工作模式**来使用。
 
 1.  **ECB (Electronic Codebook Mode - 电子密码本模式)**
-    *   **原理**：将明文分成若干个 128 位块，每个块独立地用同一个密钥进行加密。
-    *   **优点**：实现简单，可以并行加密。
-    *   **缺点**：**安全性最差**。如果明文中存在相同的块，则加密后也会产生相同的密文块。这会暴露明文的模式和结构。**不建议在实际应用中使用**。
-    *   例如，加密一个纯色图片，ECB 模式加密后的图片仍然能看出轮廓。
+    *   **特点**：每个明文块独立加密。
+    *   **优点**：简单，可并行处理，错误不会扩散。
+    *   **缺点**：不安全！相同的明文块会产生相同的密文块，容易受到模式分析攻击，泄露信息。**不推荐用于加密数据。**
+    *   **适用场景**：密钥、哈希值等随机且长度固定的小数据。
 
-2.  **CBC (Cipher Block Chaining Mode - 密码分组链接模式)**
-    *   **原理**：除了第一个明文块外，每个明文块在加密前会先与前一个密文块进行 XOR 异或操作。第一个明文块与一个初始化向量 (IV) 进行 XOR。
-    *   **优点**：解决了 ECB 的模式暴露问题，相同明文块不会产生相同的密文块。安全性更高。
-    *   **缺点**：无法并行加密（解密可以并行）。需要 IV，且 IV 必须是随机的，每次加密都不同，但可以明文传输。
-    *   **广泛使用**。
+2.  **CBC (Cipher Block Chaining Mode - 密码块链模式)**
+    *   **特点**：每个明文块在加密前与前一个密文块进行异或。需要一个**初始化向量 (Initialization Vector, IV)** 来加密第一个块。
+    *   **优点**：安全性高，引入随机性，相同的明文块产生不同的密文块。
+    *   **缺点**：不能并行处理加密（解密可以并行），错误会扩散。
+    *   **适用场景**：大部分通用数据加密。
 
-3.  **CFB (Cipher Feedback Mode - 密码反馈模式)**
-    *   **原理**：将块密码转换为流密码。前一个密文块（或 IV）经过加密后，其输出的一部分与当前明文块进行 XOR 得到当前密文。
-    *   **优点**：可以加密任意位大小的明文（不一定是 128 位），适用于实时数据流。
-    *   **缺点**：同样无法并行加密。
+3.  **CTR (Counter Mode - 计数器模式)**
+    *   **特点**：将块密码转换为流密码。通过加密一个不断递增的计数器来生成密钥流，然后将密钥流与明文进行异或。也需要一个 IV。
+    *   **优点**：可以并行处理加解密，错误不会扩散，安全性高。
+    *   **缺点**：IV 必须是唯一的，且不可重复使用。
+    *   **适用场景**：高速数据传输，随机访问文件加密。
 
-4.  **OFB (Output Feedback Mode - 输出反馈模式)**
-    *   **原理**：与 CFB 类似，也是将块密码转换为流密码。但 OFB 模式中，加密器的输出是作为下一轮加密器的输入，与明文无关。
-    *   **优点**：可以预先生成密匙流，允许并行操作。误差不会扩散。
-    *   **缺点**：无法并行加密。
+4.  **GCM (Galois/Counter Mode - 伽罗瓦/计数器模式)**
+    *   **特点**：一种认证加密模式。在提供加密的同时，还提供**认证 (Authentication)** 和**完整性 (Integrity)** 检查。
+    *   **优点**：安全性高，性能好，可并行，支持关联数据 (Additional Authenticated Data, AAD)。
+    *   **缺点**：实现比 CTR 更复杂。
+    *   **适用场景**：TLS/SSL 协议、IPSec、SSH 等，是目前最推荐的通用加密模式。
 
-5.  **CTR (Counter Mode - 计数器模式)**
-    *   **原理**：使用一个不断递增的计数器和一个 IV 组合，每次加密都将计数器加密的结果与明文进行 XOR。
-    *   **优点**：**可并行加密和解密**。随机访问能力强（可以直接解密任何一个块），适用于大数据量和流媒体加密。安全性高。
-    *   **广泛使用**。
+**重要提示**：在实际应用中，**绝对不要使用 ECB 模式**。对于一般应用，推荐使用 **CBC** 或 **CTR**。如果需要数据认证和完整性（几乎所有现代应用都需要），则强烈推荐使用 **GCM**。IV (或 Nonce) 在 CBC 和 CTR/GCM 模式中**至关重要**，必须是不可预测且每次加密都独一无二的。
 
-6.  **GCM (Galois/Counter Mode - Galois 计数器模式)**
-    *   **原理**：结合了 CTR 模式的并行性和 Galois 字段乘法，提供了**认证加密 (Authenticated Encryption with Associated Data, AEAD)**。它不仅提供数据的机密性（加密），还提供数据的**完整性**和**真实性**验证，并支持处理**关联数据 (Associated Data, AD)**。
-    *   **优点**：**目前最推荐使用的模式**。提供机密性、完整性和真实性，且性能高效。
-    *   **广泛用于 TLS/SSL 协议，HTTPS 等。**
+## 五、安全性与最佳实践
 
-**总结**：在实际应用中，**强烈推荐使用 GCM 模式**，因为它同时提供了机密性、完整性和真实性，且性能优异。如果不需要认证加密，CTR 模式也是一个很好的选择。**切勿在生产环境中使用 ECB 模式。**
+*   **密钥长度**：选择 128、192 或 256 位的密钥。128 位已足够安全，但 256 位提供了更高的安全裕度。
+*   **密钥管理**：对称密钥是 AES 安全的核心。密钥必须安全地生成、存储、分发和销毁。这通常是 AES 实现中最薄弱的环节。
+*   **工作模式**：务必选择合适的安全工作模式 (如 CBC, CTR, GCM)，并正确使用 IV/Nonce。
+*   **初始化向量 (IV) / Nonce (Number used once)**：
+    *   CBC 和 CTR/GCM 模式都需要 IV/Nonce。
+    *   IV 必须是**不可预测且每次加密都独一无二**的。**绝不能重复使用相同的 (密钥, IV) 对进行加密。** 对于 CBC，IV 不必保密，但必须唯一且随机；对于 CTR/GCM，Nonce 同样必须唯一，通常可以是一个计数器。
+    *   IV/Nonce 通常随密文一起传输。
+*   **填充 (Padding)**：对于块密码，如果明文不是块大小的整数倍，需要进行填充。例如 PKCS#7 填充。GCM 等认证加密模式通常不需要额外的填充。
+*   **认证加密 (Authenticated Encryption)**：如果不仅需要保密性，还需要确保数据未被篡改，务必使用认证加密模式（如 GCM）。单纯的 CBC 或 CTR 只能保证机密性，无法防止密文被恶意修改。
 
-## 四、Go 语言实现 AES 加密与解密
+## 六、Go 语言实现示例
 
-Go 语言标准库提供了 `crypto/aes` 包用于实现 AES 算法，以及 `crypto/cipher` 包用于实现各种工作模式。
-
-### 4.1 使用 AES-256-GCM 进行对称加密解密
-
-这是最推荐的实践方式，因为它提供了机密性、完整性、真实性。
+Go 语言的 `crypto/aes` 和 `crypto/cipher` 包提供了 AES 算法及其常见工作模式的实现。
 
 ```go
 package main
@@ -151,184 +214,212 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 )
 
-// GenerateRandomBytes 生成指定长度的随机字节
-func GenerateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	if _, err := io.ReadFull(rand.Reader, b); err != nil {
-		return nil, err
+// generateKey 生成一个指定长度的随机 AES 密钥
+func generateKey(keyLen int) ([]byte, error) {
+	key := make([]byte, keyLen)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return nil, fmt.Errorf("生成密钥失败: %w", err)
 	}
-	return b, nil
+	return key, nil
 }
 
-// AESGCMEncrypt 使用 AES-256-GCM 加密数据
-func AESGCMEncrypt(plaintext []byte, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key) // 创建一个新的 AES 加密器块
+// encryptCBC 使用 AES-CBC 模式加密数据
+// plaintext: 原始明文
+// key: 16, 24 或 32 字节的 AES 密钥
+// iv: 16 字节的初始化向量 (IV), 必须唯一且随机
+func encryptCBC(plaintext []byte, key []byte, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("创建 AES 块失败: %w", err)
+		return nil, fmt.Errorf("创建 AES Cipher 失败: %w", err)
 	}
 
-	// 使用 Cipher 的块创建一个 GCM 模式的认证加密器
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("创建 GCM 模式失败: %w", err)
+	// 填充明文以匹配块大小
+	// 推荐使用 PKCS#7 填充 (这里简化为简单填充，实际应用应使用标准库或自定义函数)
+	padding := block.BlockSize() - len(plaintext)%block.BlockSize()
+	paddedPlaintext := make([]byte, len(plaintext)+padding)
+	copy(paddedPlaintext, plaintext)
+	for i := 0; i < padding; i++ {
+		paddedPlaintext[len(plaintext)+i] = byte(padding)
 	}
 
-	// GCM 模式需要一个随机的 Nonce (Number used once)
-	// Nonce 的长度由 gcm.NonceSize() 决定，对于 AES-GCM，通常是 12 字节
-	nonce, err := GenerateRandomBytes(gcm.NonceSize())
-	if err != nil {
-		return nil, fmt.Errorf("生成 Nonce 失败: %w", err)
-	}
+	ciphertext := make([]byte, len(paddedPlaintext))
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext, paddedPlaintext)
 
-	// 加密并认证数据
-	// Seal 方法的参数：
-	//    dst []byte：用于存储输出的切片，如果为 nil，则会分配一个新的切片
-	//    nonce []byte：每次加密都必须不同且随机的 Nonce
-	//    plaintext []byte：要加密的明文
-	//    additionalData []byte：可选的关联数据 (Authenticated Data)，不加密但会被认证
-	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil) // nonce 也作为输出密文的前缀
 	return ciphertext, nil
 }
 
-// AESGCMDecrypt 使用 AES-256-GCM 解密数据
-func AESGCMDecrypt(ciphertext []byte, key []byte) ([]byte, error) {
+// decryptCBC 使用 AES-CBC 模式解密数据
+func decryptCBC(ciphertext []byte, key []byte, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("创建 AES 块失败: %w", err)
+		return nil, fmt.Errorf("创建 AES Cipher 失败: %w", err)
+	}
+
+	if len(ciphertext)%block.BlockSize() != 0 {
+		return nil, fmt.Errorf("密文不是块大小的整数倍")
+	}
+
+	decryptedText := make([]byte, len(ciphertext))
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(decryptedText, ciphertext)
+
+	// 去除填充
+	// 实际应用应验证填充的有效性，防止填充预言攻击
+	padding := int(decryptedText[len(decryptedText)-1])
+	if padding > block.BlockSize() || padding == 0 { // 简单的填充检查，实际应更严格
+		return nil, fmt.Errorf("无效的填充")
+	}
+	return decryptedText[:len(decryptedText)-padding], nil
+}
+
+// encryptGCM 使用 AES-GCM 模式加密数据 (带认证)
+// plaintext: 原始明文
+// key: 16, 24 或 32 字节的 AES 密钥
+// additionalData: 额外认证数据 (AAD)，可以为 nil
+func encryptGCM(plaintext []byte, key []byte, additionalData []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("创建 AES Cipher 失败: %w", err)
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, fmt.Errorf("创建 GCM 模式失败: %w", err)
+		return nil, fmt.Errorf("创建 GCM 失败: %w", err)
+	}
+
+	nonce := make([]byte, gcm.NonceSize()) // GCM Nonce 长度通常为 12 字节
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, fmt.Errorf("生成 Nonce 失败: %w", err)
+	}
+
+	// seal 方法会返回 Nonce + 密文 + tag
+	ciphertext := gcm.Seal(nonce, nonce, plaintext, additionalData)
+	return ciphertext, nil
+}
+
+// decryptGCM 使用 AES-GCM 模式解密数据 (带认证)
+// ciphertext: 包含 Nonce, 密文和认证标签的完整密文
+// key: 16, 24 或 32 字节的 AES 密钥
+// additionalData: 额外认证数据 (AAD)，必须与加密时一致
+func decryptGCM(ciphertext []byte, key []byte, additionalData []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("创建 AES Cipher 失败: %w", err)
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("创建 GCM 失败: %w", err)
 	}
 
 	nonceSize := gcm.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return nil, fmt.Errorf("密文长度不足，可能不包含 Nonce")
+		return nil, fmt.Errorf("密文过短，不包含 Nonce")
 	}
 
-	// 从密文中分离 Nonce 和实际的加密数据
-	nonce := ciphertext[:nonceSize]
-	encryptedData := ciphertext[nonceSize:]
+	nonce, encryptedMessage := ciphertext[:nonceSize], ciphertext[nonceSize:]
 
-	// 解密并验证数据
-	// Open 方法的参数：
-	//    dst []byte：用于存储输出的明文，如果为 nil，则会分配一个新的切片
-	//    nonce []byte：与加密时使用的 Nonce 相同
-	//    ciphertext []byte：实际的加密数据
-	//    additionalData []byte：可选的关联数据 (Authenticated Data)，与加密时相同
-	plaintext, err := gcm.Open(nil, nonce, encryptedData, nil)
+	// open 方法会验证认证标签，如果验证失败则返回错误
+	plaintext, err := gcm.Open(nil, nonce, encryptedMessage, additionalData)
 	if err != nil {
-		return nil, fmt.Errorf("解密或验证失败: %w", err) // 如果数据被篡改，Open 会返回错误
+		return nil, fmt.Errorf("解密或认证失败: %w", err)
 	}
 	return plaintext, nil
 }
 
 func main() {
-	// 1. 生成 256 位 (32 字节) 的随机密钥
-	key, err := GenerateRandomBytes(32) // AES-256 需要 32 字节密钥
+	// 1. 生成 AES 密钥 (例如 256 位，即 32 字节)
+	aesKey, err := generateKey(32) // 32 字节密钥对应 AES-256
 	if err != nil {
-		fmt.Printf("生成密钥失败: %v\n", err)
-		return
+		log.Fatalf("生成 AES 密钥失败: %v", err)
 	}
-	fmt.Printf("使用的密钥 (Hex): %s\n", hex.EncodeToString(key))
+	fmt.Printf("生成的 AES-256 密钥 (Base64): %s\n", base64.StdEncoding.EncodeToString(aesKey))
 
-	// 2. 原始明文
-	plaintext := []byte("这是一段需要使用 AES-256-GCM 加密的明文！保护数据安全。")
-	fmt.Printf("原始明文: %s\n", plaintext)
+	originalMessage := []byte("这是一条需要加密的秘密消息，可以包含任意长度的数据。")
+	fmt.Printf("\n原始消息: %s\n", originalMessage)
 
-	// 3. 加密过程
-	fmt.Println("\n=== 加密过程 ===")
-	ciphertext, err := AESGCMEncrypt(plaintext, key)
-	if err != nil {
-		fmt.Printf("加密失败: %v\n", err)
-		return
+	// --- AES-CBC 模式示例 ---
+	fmt.Println("\n--- AES-CBC 模式 ---")
+	iv := make([]byte, aes.BlockSize) // AES BlockSize 是 16 字节
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		log.Fatalf("生成 IV 失败: %v", err)
 	}
-	fmt.Printf("加密后的密文 (Hex): %s\n", hex.EncodeToString(ciphertext))
-	fmt.Printf("密文长度: %d 字节 (其中包含 %d 字节的 Nonce 和 16 字节的认证标签)\n", len(ciphertext), aes.BlockSize/8) // Nonce 长度通常是 12 字节，但这里返回的是 BlockSize/8
+	fmt.Printf("生成的 CBC IV (Base64): %s\n", base64.StdEncoding.EncodeToString(iv))
 
-	// 4. 解密过程
-	fmt.Println("\n=== 解密过程 ===")
-	decryptedText, err := AESGCMDecrypt(ciphertext, key)
+	encryptedCBCMessage, err := encryptCBC(originalMessage, aesKey, iv)
 	if err != nil {
-		fmt.Printf("解密失败: %v\n", err)
-		return
+		log.Fatalf("CBC 加密失败: %v", err)
 	}
-	fmt.Printf("解密后的明文: %s\n", decryptedText)
+	fmt.Printf("CBC 加密后的密文 (Base64): %s\n", base64.StdEncoding.EncodeToString(encryptedCBCMessage))
 
-	// 5. 模拟数据篡改或密钥错误
-	fmt.Println("\n=== 模拟篡改/错误 ===")
-	// 篡改密文 (例如修改一个字节)
-	badCiphertext := make([]byte, len(ciphertext))
-	copy(badCiphertext, ciphertext)
-	badCiphertext[len(badCiphertext)-1] ^= 0x01 // 翻转密文最后一个字节的最低位
-
-	_, err = AESGCMDecrypt(badCiphertext, key)
+	decryptedCBCMessage, err := decryptCBC(encryptedCBCMessage, aesKey, iv)
 	if err != nil {
-		fmt.Printf("密文被篡改，解密验证失败 (预期): %v\n", err)
+		log.Fatalf("CBC 解密失败: %v", err)
+	}
+	fmt.Printf("CBC 解密后的消息: %s\n", decryptedCBCMessage)
+	if string(originalMessage) != string(decryptedCBCMessage) {
+		fmt.Println("⚠️ CBC 原始消息与解密消息不匹配！")
 	} else {
-		fmt.Println("密文被篡改，但解密成功 (不应该发生)!")
+		fmt.Println("✅ CBC 原始消息与解密消息匹配。")
 	}
 
-	// 使用错误的密钥
-	wrongKey, _ := GenerateRandomBytes(32)
-	_, err = AESGCMDecrypt(ciphertext, wrongKey)
+	// --- AES-GCM 模式示例 (推荐) ---
+	fmt.Println("\n--- AES-GCM 模式 (推荐用于现代应用) ---")
+	additionalData := []byte("这是额外认证数据，不加密但参与认证") // 例如，可以是版本号、用户ID等
+
+	encryptedGCMMessage, err := encryptGCM(originalMessage, aesKey, additionalData)
 	if err != nil {
-		fmt.Printf("使用错误密钥，解密验证失败 (预期): %v\n", err)
+		log.Fatalf("GCM 加密失败: %v", err)
+	}
+	fmt.Printf("GCM 加密后的密文 (包含 Nonce 和 Tag, Base64): %s\n", base64.StdEncoding.EncodeToString(encryptedGCMMessage))
+
+	decryptedGCMMessage, err := decryptGCM(encryptedGCMMessage, aesKey, additionalData)
+	if err != nil {
+		log.Fatalf("GCM 解密或认证失败: %v", err)
+	}
+	fmt.Printf("GCM 解密后的消息: %s\n", decryptedGCMMessage)
+	if string(originalMessage) != string(decryptedGCMMessage) {
+		fmt.Println("⚠️ GCM 原始消息与解密消息不匹配！")
 	} else {
-		fmt.Println("使用错误密钥，但解密成功 (不应该发生)!")
+		fmt.Println("✅ GCM 原始消息与解密消息匹配。")
+	}
+
+	// 尝试篡改 GCM 密文 (演示 GCM 的认证功能)
+	fmt.Println("\n--- 尝试篡改 GCM 密文 ---")
+	tamperedGCMMessage := make([]byte, len(encryptedGCMMessage))
+	copy(tamperedGCMMessage, encryptedGCMMessage)
+	if len(tamperedGCMMessage) > 10 {
+		tamperedGCMMessage[10] ^= 0x01 // 篡改密文的一个字节
+	}
+
+	_, err = decryptGCM(tamperedGCMMessage, aesKey, additionalData)
+	if err != nil {
+		fmt.Printf("GCM 解密或认证失败 (预期): %v\n", err)
+		fmt.Println("✅ GCM 成功检测到篡改。")
+	} else {
+		fmt.Println("❌ GCM 意外解密成功，未能检测到篡改！")
+	}
+
+	// 尝试修改 AAD 后解密 GCM 密文
+	fmt.Println("\n--- 尝试修改 AAD 后解密 GCM 密文 ---")
+	modifiedAdditionalData := []byte("这是被修改过的额外认证数据")
+	_, err = decryptGCM(encryptedGCMMessage, aesKey, modifiedAdditionalData)
+	if err != nil {
+		fmt.Printf("GCM 解密或认证失败 (预期): %v\n", err)
+		fmt.Println("✅ GCM 成功检测到 AAD 被篡改。")
+	} else {
+		fmt.Println("❌ GCM 意外解密成功，未能检测到 AAD 篡改！")
 	}
 }
 ```
 
-**运行结果示例**：
-```
-使用的密钥 (Hex): 919313ea595cb2e1c2554e2ac506f363c485097f5a8a47479ed3a5f9737190e2
-原始明文: 这是一段需要使用 AES-256-GCM 加密的明文！保护数据安全。
+## 七、总结
 
-=== 加密过程 ===
-加密后的密文 (Hex): d0d066343c4a259c760b21a8cd66aa1d43194a2f8c5c78652414704b2c174ca9a1036814041d5754020a1fc413e11f1856716a50
-密文长度: 60 字节 (其中包含 16 字节的 Nonce 和 16 字节的认证标签)
-
-=== 解密过程 ===
-解密后的明文: 这是一段需要使用 AES-256-GCM 加密的明文！保护数据安全。
-
-=== 模拟篡改/错误 ===
-密文被篡改，解密验证失败 (预期): 解密或验证失败: cipher: message authentication failed
-使用错误密钥，解密验证失败 (预期): 解密或验证失败: cipher: message authentication failed
-```
-从运行结果可以看出，AES-GCM 不仅能正确加解密，而且在密文被篡改或密钥错误时，能够可靠地检测到并拒绝解密，提供了强大的数据完整性和真实性保障。
-
-### 4.2 注意事项
-
-*   **密钥安全**：密钥是 AES 安全的基石，必须妥善保管，绝不能泄露。通常通过密钥管理系统 (KMS)、硬件安全模块 (HSM) 或安全的密钥交换协议（如 RSA、ECDH）进行分发。
-*   **Nonce/IV 的使用**：
-    *   对于 CBC、CFB、OFB 模式，**IV (Initialization Vector) 必须是随机的，每次加密都不同，但可以不保密传输**。
-    *   对于 GCM、CTR 模式，**Nonce (Number Used Once) 必须是随机的，每次加密都不同，且不能重复使用，但可以不保密传输**。
-    *   如果 Nonce/IV 重复使用，会导致严重的安全性问题，特别是对于 CTR/GCM 模式。
-*   **明文填充 (Padding)**：对于块密码，如果明文长度不是块大小的整数倍，需要进行填充。Go 语言的 `crypto/cipher` 在流模式或 GCM 模式下通常不需要手动填充（因为它们不直接依赖完整块操作），但在使用 `NewCBCEncrypter` 等直接块模式时，需要注意 PKCS#7 或其他填充方式。**GCM 模式不需要手动填充**。
-*   **关联数据 (Associated Data)**：GCM 模式中的 `additionalData` 参数非常有用，它允许你认证一些不加密但与密文和密钥关联的数据。例如，HTTP Headers、版本号等。这些数据在解密时必须与加密时提供的值完全一致，否则解密会失败。
-
-## 五、AES 的应用场景
-
-AES 在现代信息安全中无处不在：
-
-*   **HTTPS/TLS/SSL 协议**：用于加密网络通信数据。
-*   **VPN (虚拟私人网络)**：保护网络流量的机密性。
-*   **Wi-Fi 安全 (WPA2/WPA3)**：用于保护无线网络通信。
-*   **磁盘加密**：例如 BitLocker (Windows)、FileVault (macOS)、LUKS (Linux)。
-*   **数据库加密**：存储的敏感数据加密。
-*   **文件加密**：对存储的文件进行加密保护。
-*   **数字版权管理 (DRM)**：保护数字内容的版权。
-*   **安全通信应用**：如 Signal, Telegram 等。
-
-## 六、总结
-
-AES 是一个经过严格审查和广泛实践的高度安全的对称密钥加密算法。其强大的安全特性和高效的性能，使其成为保护数字世界机密性的黄金标准。在 Go 语言中，通过 `crypto/aes` 和 `crypto/cipher` 库，我们可以方便且安全地实现 AES 加密。
-
-在实际应用中，**强烈建议使用 AES-256-GCM 模式**，它不仅提供了数据机密性，还通过认证确保了数据的完整性和真实性，有效防御了篡改攻击。同时，妥善的密钥管理和正确的 Nonce/IV 使用是确保 AES 加密安全的关键。理解并遵循这些最佳实践，将有助于构建更健壮、更安全的系统。
+AES 算法是现代密码学中的基石，其强大的安全性和高效性使其成为保护数据机密性的首选。理解 AES 的核心操作（SubBytes, ShiftRows, MixColumns, AddRoundKey）和不同的工作模式（尤其是推荐的 GCM 模式）对于正确、安全地使用该算法至关重要。开发者在实现时，不仅要选择正确的密钥长度和工作模式，更要注重**密钥的安全管理**以及 **IV/Nonce 的正确生成与使用**，这是确保加密系统整体安全性的关键。
