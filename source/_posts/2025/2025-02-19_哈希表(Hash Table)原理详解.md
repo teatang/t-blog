@@ -13,7 +13,7 @@ categories:
 > **哈希表（Hash Table）**，又称散列表，是一种根据键（Key）直接访问存储位置的数据结构。它通过哈希函数将键映射到表中的一个位置来访问记录，从而实现平均 O(1) 时间复杂度的查找、插入和删除操作。哈希表是计算机科学中最重要的数据结构之一，广泛应用于数据库索引、缓存、符号表、唯一性检查等多种场景。
 
 {% note info %}
-“A hash table is a data structure that implements an associative array abstract data type, a structure that can map keys to values. A hash table uses a hash function to compute an index, also called a hash code or hash value, into an array of buckets or slots, from which the desired value can be found.” —— Wikipedia
+核心思想：哈希表通过哈希函数将任意大小的键映射到固定大小的数组索引，以实现快速的数据存取。
 {% endnote %}
 ------
 
