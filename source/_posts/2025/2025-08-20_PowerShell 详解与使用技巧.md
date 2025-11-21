@@ -4,6 +4,7 @@ date: 2025-08-20 06:24:00
 tags:
   - 2025
   - Windows
+  - Shell
 categories:
   - 开发工具
   - Windows

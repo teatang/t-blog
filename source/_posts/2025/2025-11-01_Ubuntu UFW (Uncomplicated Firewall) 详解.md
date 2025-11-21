@@ -9,8 +9,7 @@ tags:
   - Linux
   - Ubuntu
 categories:
-  - 计算机网络
-  - 网络技术
+  - Linux
 ---
 
 > **UFW (Uncomplicated Firewall)** 是 Ubuntu Linux 及其衍生发行版中一个**简化且易于使用**的防火墙配置工具。它作为 **`iptables`** 的前端，提供了一个用户友好的命令行界面，让普通用户和系统管理员能够更轻松地管理 Linux 内核的 Netfilter 防火墙规则。UFW 的目标是“不复杂”，即**简化防火墙的管理**，使其不再令人生畏。
