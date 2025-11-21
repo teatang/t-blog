@@ -1,0 +1,597 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>PostCSS详解：一个用JavaScript转换CSS的工具 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PostCSS 是一个使用 JavaScript 工具和插件来转换 CSS 代码的平台。它本身不是一个 CSS 预处理器（如 Sass、Less），也不是一个 CSS 后处理器，而是一个CSS 处理引擎。它的强大之处在于其插件生态系统，能够让你根据需求自定义 CSS 的转换流程。  PostCSS 的核心理念：提供 CSS 的 AST (Abstract Syntax Tree)，让开发者可以通">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PostCSS详解：一个用JavaScript转换CSS的工具">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/2d02d2ae2866/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="PostCSS 是一个使用 JavaScript 工具和插件来转换 CSS 代码的平台。它本身不是一个 CSS 预处理器（如 Sass、Less），也不是一个 CSS 后处理器，而是一个CSS 处理引擎。它的强大之处在于其插件生态系统，能够让你根据需求自定义 CSS 的转换流程。  PostCSS 的核心理念：提供 CSS 的 AST (Abstract Syntax Tree)，让开发者可以通">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg">
+<meta property="article:published_time" content="2024-11-17T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.539Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="PostCSS">
+<meta property="article:tag" content="CSS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PostCSS详解：一个用JavaScript转换CSS的工具",
+  "url": "https://blog.tbf1211.xx.kg/2d02d2ae2866/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg",
+  "datePublished": "2024-11-17T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.539Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2d02d2ae2866/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'PostCSS详解：一个用JavaScript转换CSS的工具',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-01.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PostCSS详解：一个用JavaScript转换CSS的工具</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PostCSS详解：一个用JavaScript转换CSS的工具</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-11-17T22:24:00.000Z" title="发表于 2024-11-18 06:24:00">2024-11-18</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/CSS/">CSS</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/2d02d2ae2866/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>PostCSS</strong> 是一个使用 JavaScript 工具和插件来转换 CSS 代码的平台。它本身不是一个 CSS 预处理器（如 Sass、Less），也不是一个 CSS 后处理器，而是一个<strong>CSS 处理引擎</strong>。它的强大之处在于其插件生态系统，能够让你根据需求自定义 CSS 的转换流程。</p>
+</blockquote>
+<div class="note info flat"><p>PostCSS 的核心理念：<strong>提供 CSS 的 AST (Abstract Syntax Tree)，让开发者可以通过插件以 JavaScript 的强大能力处理 CSS。</strong></p>
+</div>
+<hr>
+<h2 id="一、什么是-PostCSS？"><a href="#一、什么是-PostCSS？" class="headerlink" title="一、什么是 PostCSS？"></a>一、什么是 PostCSS？</h2><p>想象一下，你有一个工具箱，里面有各种功能不同的螺丝刀、扳手、锤子。PostCSS 就是这个工具箱本身，它提供了一个开放的结构，你可以往里面放各种插件（工具）。每个插件都负责一个特定的任务，比如给 CSS 属性自动添加浏览器前缀、将未来的 CSS 语法转换为当前可用的语法、优化 CSS 代码等等。</p>
+<p>PostCSS 的工作流程大致如下：</p>
+<ol>
+<li><strong>解析 (Parse)</strong>：PostCSS 接收原始 CSS 代码字符串。</li>
+<li><strong>生成 AST (Abstract Syntax Tree)</strong>：将 CSS 代码解析成一个抽象语法树，这是一个由节点组成的 JavaScript 对象结构，方便程序化操作。</li>
+<li><strong>插件处理 (Process with Plugins)</strong>：依次将 AST 传递给配置的 PostCSS 插件。每个插件都会遍历或修改 AST 的特定部分。</li>
+<li><strong>序列化 (Stringify)</strong>：将修改后的 AST 转换回原始的 CSS 字符串，输出最终的 CSS 代码。</li>
+</ol>
+<h2 id="二、为什么需要-PostCSS？"><a href="#二、为什么需要-PostCSS？" class="headerlink" title="二、为什么需要 PostCSS？"></a>二、为什么需要 PostCSS？</h2><p>在现代前端开发中，PostCSS 解决了以下痛点或提供了便利：</p>
+<ol>
+<li><strong>浏览器兼容性</strong>：手动添加 <code>-webkit-</code>, <code>-moz-</code> 等前缀繁琐且易错，PostCSS 可以自动处理。</li>
+<li><strong>未来 CSS 语法</strong>：CSS 规范发展迅速，PostCSS 插件（如 <code>postcss-preset-env</code>）可以让你提前使用尚未被所有浏览器支持的新特性。</li>
+<li><strong>CSS 模块化与组件化</strong>：配合构建工具，PostCSS 可以帮助实现 CSS Modules、Scoped CSS 等，解决命名冲突和样式隔离。</li>
+<li><strong>性能优化</strong>：压缩 CSS、移除无用 CSS (Tree Shaking) 等，减小文件体积。</li>
+<li><strong>提高开发效率</strong>：许多重复性工作可以自动化处理。</li>
+<li><strong>可定制化</strong>：其插件体系让它非常灵活，几乎可以实现你对 CSS 的任何处理需求，而不是被预处理器预设的功能所限制。</li>
+<li><strong>集成预处理器</strong>：它可以与 Sass、Less 等预处理器一起使用，作为后处理阶段。</li>
+</ol>
+<h2 id="三、PostCSS-的核心功能与常用插件"><a href="#三、PostCSS-的核心功能与常用插件" class="headerlink" title="三、PostCSS 的核心功能与常用插件"></a>三、PostCSS 的核心功能与常用插件</h2><p>PostCSS 自身的职责很纯粹：解析、遍历、生成 AST。真正实现各种功能的是其丰富的插件。以下是一些最常用和重要的 PostCSS 插件：</p>
+<h3 id="3-1-自动添加浏览器前缀-Autoprefixer"><a href="#3-1-自动添加浏览器前缀-Autoprefixer" class="headerlink" title="3.1 自动添加浏览器前缀 (Autoprefixer)"></a>3.1 自动添加浏览器前缀 (Autoprefixer)</h3><ul>
+<li><p><strong>插件名</strong>：<code>autoprefixer</code></p>
+</li>
+<li><p><strong>功能</strong>：根据 <code>caniuse.com</code> 的数据，自动为你的 CSS 规则添加或移除所需的浏览器前缀，让你只需编写标准 CSS。</p>
+</li>
+<li><p><strong>场景</strong>：几乎所有现代前端项目都会用到，避免兼容性问题。</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 原始 CSS */</span></span><br><span class="line"><span class="selector-class">.a</span> &#123;</span><br><span class="line">  <span class="attribute">display</span>: flex;</span><br><span class="line">  <span class="attribute">user-select</span>: none;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 经过 Autoprefixer 处理后 (例如，根据目标浏览器) */</span></span><br><span class="line"><span class="selector-class">.a</span> &#123;</span><br><span class="line">  <span class="attribute">display</span>: -webkit-box;</span><br><span class="line">  <span class="attribute">display</span>: -ms-flexbox;</span><br><span class="line">  <span class="attribute">display</span>: flex;</span><br><span class="line">  -webkit-<span class="attribute">user-select</span>: none;</span><br><span class="line">     -moz-<span class="attribute">user-select</span>: none;</span><br><span class="line">      -ms-<span class="attribute">user-select</span>: none;</span><br><span class="line">          <span class="attribute">user-select</span>: none;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="3-2-使用未来-CSS-语法-PostCSS-Preset-Env"><a href="#3-2-使用未来-CSS-语法-PostCSS-Preset-Env" class="headerlink" title="3.2 使用未来 CSS 语法 (PostCSS Preset Env)"></a>3.2 使用未来 CSS 语法 (PostCSS Preset Env)</h3><ul>
+<li><p><strong>插件名</strong>：<code>postcss-preset-env</code></p>
+</li>
+<li><p><strong>功能</strong>：Polyfill CSS 未来特性。它包括 <code>autoprefixer</code> 和其他多个插件，让你能够使用最新的 CSS 语法（如 CSS Variables, <code>nesting-css</code>, <code>custom-media</code> 等），并将其转换为兼容当前浏览器环境的 CSS。</p>
+</li>
+<li><p><strong>场景</strong>：希望提前使用最新的 CSS 特性，无需等待浏览器完全支持。</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 原始 CSS (带未来特性) */</span></span><br><span class="line"><span class="selector-pseudo">:root</span> &#123;</span><br><span class="line">  <span class="attr">--main-color</span>: <span class="number">#333</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="selector-class">.foo</span> &#123;</span><br><span class="line">  <span class="attribute">color</span>: <span class="built_in">var</span>(--main-color);</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">@custom-media</span> --viewport-medium (<span class="attribute">width</span> &lt;= <span class="number">50rem</span>);</span><br><span class="line"><span class="keyword">@media</span> (--viewport-medium) &#123;</span><br><span class="line">  <span class="selector-class">.bar</span> &#123;</span><br><span class="line">    <span class="attribute">font-size</span>: <span class="number">1.2rem</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 经过 postcss-preset-env 处理后 (可能生成) */</span></span><br><span class="line"><span class="selector-pseudo">:root</span> &#123;</span><br><span class="line">  <span class="attr">--main-color</span>: <span class="number">#333</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="selector-class">.foo</span> &#123;</span><br><span class="line">  <span class="attribute">color</span>: <span class="number">#333</span>; <span class="comment">/* 编译了变量，如果需要 */</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">@media</span> (<span class="attribute">max-width</span>: <span class="number">50rem</span>) &#123;</span><br><span class="line">  <span class="selector-class">.bar</span> &#123;</span><br><span class="line">    <span class="attribute">font-size</span>: <span class="number">1.2rem</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="3-3-移除未使用的-CSS-PurgeCSS-postcss-purgecss"><a href="#3-3-移除未使用的-CSS-PurgeCSS-postcss-purgecss" class="headerlink" title="3.3 移除未使用的 CSS (PurgeCSS &#x2F; postcss-purgecss)"></a>3.3 移除未使用的 CSS (PurgeCSS &#x2F; postcss-purgecss)</h3><ul>
+<li><p><strong>插件名</strong>：<code>@fullhuman/postcss-purgecss</code> (或 Tailwind CSS 内置的 JIT 模式)</p>
+</li>
+<li><p><strong>功能</strong>：扫描你的 HTML、JavaScript、Vue、React 等文件，并从 CSS 中移除所有在这些文件中未使用的样式，从而大幅减小 CSS 文件体积。</p>
+</li>
+<li><p><strong>场景</strong>：生产环境部署时，对 CSS 进行极致优化，特别是与 Tailwind CSS 配合使用。</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- index.html --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">button</span> <span class="attr">class</span>=<span class="string">&quot;btn btn-primary&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">button</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* input.css */</span></span><br><span class="line"><span class="selector-class">.btn</span> &#123; <span class="attribute">padding</span>: <span class="number">10px</span>; &#125;</span><br><span class="line"><span class="selector-class">.btn-primary</span> &#123; <span class="attribute">background</span>: blue; &#125;</span><br><span class="line"><span class="selector-class">.btn-secondary</span> &#123; <span class="attribute">background</span>: gray; &#125; <span class="comment">/* 未使用 */</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* output.css 经过 PurgeCSS */</span></span><br><span class="line"><span class="selector-class">.btn</span> &#123; <span class="attribute">padding</span>: <span class="number">10px</span>; &#125;</span><br><span class="line"><span class="selector-class">.btn-primary</span> &#123; <span class="attribute">background</span>: blue; &#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="3-4-CSS-压缩-CSS-Nano"><a href="#3-4-CSS-压缩-CSS-Nano" class="headerlink" title="3.4 CSS 压缩 (CSS Nano)"></a>3.4 CSS 压缩 (CSS Nano)</h3><ul>
+<li><strong>插件名</strong>：<code>cssnano</code></li>
+<li><strong>功能</strong>：一个模块化的 CSS 压缩器，它会执行各种优化，如删空白符、合并规则、优化计算值等，以确保 CSS 文件尽可能小。</li>
+<li><strong>场景</strong>：生产环境部署，减小 CSS 文件体积。</li>
+</ul>
+<h3 id="3-5-CSS-Modules-支持-postcss-modules"><a href="#3-5-CSS-Modules-支持-postcss-modules" class="headerlink" title="3.5 CSS Modules 支持 (postcss-modules)"></a>3.5 CSS Modules 支持 (postcss-modules)</h3><ul>
+<li><p><strong>插件名</strong>：<code>postcss-modules</code></p>
+</li>
+<li><p><strong>功能</strong>：允许你将 CSS 文件视为模块，并自动为类名、ID 生成局部作用域的哈希值，从而实现样式的隔离，避免全局污染。</p>
+</li>
+<li><p><strong>场景</strong>：希望在组件化开发中避免 CSS 命名冲突。</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* app.module.css */</span></span><br><span class="line"><span class="selector-class">.title</span> &#123;</span><br><span class="line">  <span class="attribute">color</span>: red;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 在 JS 中导入</span></span><br><span class="line"><span class="keyword">import</span> styles <span class="keyword">from</span> <span class="string">&#x27;./app.module.css&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// &lt;h1 className=&#123;styles.title&#125;&gt;Hello&lt;/h1&gt;</span></span><br><span class="line"><span class="comment">// 最终生成的 HTML: &lt;h1 class=&quot;app_title_abc123&quot;&gt;Hello&lt;/h1&gt;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="3-6-对比-Sass-Less-等预处理器"><a href="#3-6-对比-Sass-Less-等预处理器" class="headerlink" title="3.6 对比 Sass&#x2F;Less 等预处理器"></a>3.6 对比 Sass&#x2F;Less 等预处理器</h3><p>PostCSS 和预处理器不是替代关系，而是<strong>互补</strong>关系。</p>
+<ul>
+<li><strong>预处理器</strong> (Sass, Less)：增强 CSS 语法，提供变量、嵌套、混合 (mixin)、函数、条件语句、循环等功能，主要目标是<strong>编写更简洁、更可维护的 CSS</strong>。它们在 CSS <strong>编译前</strong>进行处理。</li>
+<li><strong>PostCSS 及其插件</strong>：作用于 CSS 语法解析后，通过 AST 智能处理 CSS 代码。它提供的是<strong>转换和优化 CSS 的能力</strong>。它可以在预处理器<strong>编译后</strong>、CSS 生效前进行处理。</li>
+</ul>
+<p><strong>常见组合</strong>：许多项目会先用 Sass&#x2F;Less 编写代码，然后将编译后的 CSS 传递给 PostCSS 进行进一步的处理（如 <code>autoprefixer</code> 和 <code>cssnano</code>）。</p>
+<h2 id="四、如何在前端项目中配置和使用-PostCSS？"><a href="#四、如何在前端项目中配置和使用-PostCSS？" class="headerlink" title="四、如何在前端项目中配置和使用 PostCSS？"></a>四、如何在前端项目中配置和使用 PostCSS？</h2><p>PostCSS 通常不是独立运行的，而是作为构建工具（如 Webpack、Vite）的一个插件集成使用。</p>
+<h3 id="4-1-独立使用-CLI"><a href="#4-1-独立使用-CLI" class="headerlink" title="4.1 独立使用 (CLI)"></a>4.1 独立使用 (CLI)</h3><p>用于快速测试或简单脚本。</p>
+<ol>
+<li><strong>安装</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">npm install -g postcss-cli</span><br><span class="line">npm install autoprefixer cssnano <span class="comment"># 安装常用插件</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>创建配置文件 <code>postcss.config.js</code></strong>：<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">module</span>.<span class="property">exports</span> = &#123;</span><br><span class="line">  <span class="attr">plugins</span>: [</span><br><span class="line">    <span class="built_in">require</span>(<span class="string">&#x27;autoprefixer&#x27;</span>),</span><br><span class="line">    <span class="built_in">require</span>(<span class="string">&#x27;cssnano&#x27;</span>)(&#123;</span><br><span class="line">      <span class="attr">preset</span>: <span class="string">&#x27;default&#x27;</span>,</span><br><span class="line">    &#125;),</span><br><span class="line">  ],</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></li>
+<li><strong>运行命令</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">postcss input.css -o output.css --config postcss.config.js</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="4-2-在-Webpack-中使用"><a href="#4-2-在-Webpack-中使用" class="headerlink" title="4.2 在 Webpack 中使用"></a>4.2 在 Webpack 中使用</h3><p>这是最常见的集成方式。Webpack 通过 <code>postcss-loader</code> 来调用 PostCSS。</p>
+<ol>
+<li><strong>安装</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -D postcss-loader postcss autoprefixer cssnano</span><br></pre></td></tr></table></figure></li>
+<li><strong>创建 <code>postcss.config.js</code></strong> (与 CLI 类似)：<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// postcss.config.js</span></span><br><span class="line"><span class="variable language_">module</span>.<span class="property">exports</span> = &#123;</span><br><span class="line">  <span class="attr">plugins</span>: [</span><br><span class="line">    <span class="built_in">require</span>(<span class="string">&#x27;autoprefixer&#x27;</span>),</span><br><span class="line">    process.<span class="property">env</span>.<span class="property">NODE_ENV</span> === <span class="string">&#x27;production&#x27;</span> ? <span class="built_in">require</span>(<span class="string">&#x27;cssnano&#x27;</span>) : <span class="literal">false</span>,</span><br><span class="line">  ].<span class="title function_">filter</span>(<span class="title class_">Boolean</span>) <span class="comment">// 过滤掉 false</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></li>
+<li><strong>配置 <code>webpack.config.js</code></strong>：<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// webpack.config.js</span></span><br><span class="line"><span class="variable language_">module</span>.<span class="property">exports</span> = &#123;</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">  <span class="attr">module</span>: &#123;</span><br><span class="line">    <span class="attr">rules</span>: [</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="attr">test</span>: <span class="regexp">/\.css$/</span>,</span><br><span class="line">        <span class="attr">use</span>: [</span><br><span class="line">          <span class="string">&#x27;style-loader&#x27;</span>, <span class="comment">// 在开发环境将 CSS 注入到 DOM</span></span><br><span class="line">          <span class="comment">// &#x27;MiniCssExtractPlugin.loader&#x27;, // 在生产环境提取 CSS 到单独文件</span></span><br><span class="line">          &#123;</span><br><span class="line">            <span class="attr">loader</span>: <span class="string">&#x27;css-loader&#x27;</span>, <span class="comment">// 解析 CSS 文件并处理 @import、url()</span></span><br><span class="line">            <span class="attr">options</span>: &#123;</span><br><span class="line">              <span class="attr">importLoaders</span>: <span class="number">1</span> <span class="comment">// 确保在 css-loader 之前会运行 postcss-loader</span></span><br><span class="line">              <span class="comment">// modules: true // 如果使用 CSS Modules</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="string">&#x27;postcss-loader&#x27;</span>, <span class="comment">// &lt;-- 这里就是 PostCSS</span></span><br><span class="line">        ],</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="comment">// 如果你同时使用 Sass/Less 等预处理器，postcss-loader 应该放在它们的后面</span></span><br><span class="line">      <span class="comment">// &#123;</span></span><br><span class="line">      <span class="comment">//   test: /\.scss$/,</span></span><br><span class="line">      <span class="comment">//   use: [</span></span><br><span class="line">      <span class="comment">//     &#x27;style-loader&#x27;,</span></span><br><span class="line">      <span class="comment">//     &#123;</span></span><br><span class="line">      <span class="comment">//       loader: &#x27;css-loader&#x27;,</span></span><br><span class="line">      <span class="comment">//       options: &#123; importLoaders: 2 &#125;</span></span><br><span class="line">      <span class="comment">//     &#125;,</span></span><br><span class="line">      <span class="comment">//     &#x27;postcss-loader&#x27;, // 先 Sass，再 PostCSS</span></span><br><span class="line">      <span class="comment">//     &#x27;sass-loader&#x27;,</span></span><br><span class="line">      <span class="comment">//   ],</span></span><br><span class="line">      <span class="comment">// &#125;,</span></span><br><span class="line">    ],</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="4-3-在-Vite-中使用"><a href="#4-3-在-Vite-中使用" class="headerlink" title="4.3 在 Vite 中使用"></a>4.3 在 Vite 中使用</h3><p>Vite 对 PostCSS 有原生支持，配置更简洁。</p>
+<ol>
+<li><strong>安装</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -D postcss autoprefixer cssnano</span><br></pre></td></tr></table></figure></li>
+<li><strong>创建 <code>postcss.config.js</code></strong> (与 Webpack 类似，<code>Vite</code> 会自动识别)：<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// postcss.config.js</span></span><br><span class="line"><span class="variable language_">module</span>.<span class="property">exports</span> = &#123;</span><br><span class="line">  <span class="attr">plugins</span>: [</span><br><span class="line">    <span class="built_in">require</span>(<span class="string">&#x27;autoprefixer&#x27;</span>),</span><br><span class="line">    <span class="comment">// 在生产环境才使用 cssnano 压缩 CSS</span></span><br><span class="line">    <span class="comment">// process.env.NODE_ENV === &#x27;production&#x27; &amp;&amp; require(&#x27;cssnano&#x27;)(&#123; preset: &#x27;default&#x27; &#125;),</span></span><br><span class="line">    <span class="comment">// Vite 默认在生产构建时会自带 CSS 压缩（由 esbuild 或 Terser），通常不需要手动引入 cssnano</span></span><br><span class="line">  ].<span class="title function_">filter</span>(<span class="title class_">Boolean</span>)</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></li>
+<li><strong>Vite 的 <code>vite.config.js</code> 无需额外配置 PostCSS 载入，它会自动加载 <code>./postcss.config.js</code>。</strong><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// vite.config.js</span></span><br><span class="line"><span class="keyword">import</span> &#123; defineConfig &#125; <span class="keyword">from</span> <span class="string">&#x27;vite&#x27;</span>;</span><br><span class="line"><span class="keyword">import</span> vue <span class="keyword">from</span> <span class="string">&#x27;@vitejs/plugin-vue&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> <span class="title function_">defineConfig</span>(&#123;</span><br><span class="line">  <span class="attr">plugins</span>: [<span class="title function_">vue</span>()],</span><br><span class="line">  <span class="attr">css</span>: &#123;</span><br><span class="line">    <span class="comment">// 如果你需要配置 CSS Modules 或预处理器</span></span><br><span class="line">    <span class="comment">// modules: &#123;</span></span><br><span class="line">    <span class="comment">//   scopeBehaviour: &#x27;local&#x27;,</span></span><br><span class="line">    <span class="comment">//   generateScopedName: &#x27;[name]__[local]--[hash:base64:5]&#x27;,</span></span><br><span class="line">    <span class="comment">// &#125;,</span></span><br><span class="line">    <span class="attr">preprocessorOptions</span>: &#123;</span><br><span class="line">      <span class="attr">scss</span>: &#123;</span><br><span class="line">        <span class="attr">additionalData</span>: <span class="string">`@import &quot;./src/styles/variables.scss&quot;;`</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">postcss</span>: &#123;</span><br><span class="line">      <span class="comment">// 如果你不想创建 postcss.config.js 文件，也可以在这里直接配置插件</span></span><br><span class="line">      <span class="comment">// plugins: [</span></span><br><span class="line">      <span class="comment">//   require(&#x27;autoprefixer&#x27;),</span></span><br><span class="line">      <span class="comment">//   // ...</span></span><br><span class="line">      <span class="comment">// ]</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="4-4-与-Tailwind-CSS-结合"><a href="#4-4-与-Tailwind-CSS-结合" class="headerlink" title="4.4 与 Tailwind CSS 结合"></a>4.4 与 Tailwind CSS 结合</h3><p>Tailwind CSS 是一个 PostCSS 插件，它本身需要 PostCSS 环境来工作。</p>
+<ol>
+<li><strong>安装</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">npm install -D tailwindcss postcss autoprefixer</span><br><span class="line">npx tailwindcss init -p <span class="comment"># 生成 tailwind.config.js 和 postcss.config.js</span></span><br></pre></td></tr></table></figure></li>
+<li><strong><code>postcss.config.js</code></strong>：<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">module</span>.<span class="property">exports</span> = &#123;</span><br><span class="line">  <span class="attr">plugins</span>: &#123;</span><br><span class="line">    <span class="attr">tailwindcss</span>: &#123;&#125;, <span class="comment">// Tailwind CSS 作为一个 PostCSS 插件</span></span><br><span class="line">    <span class="attr">autoprefixer</span>: &#123;&#125;, <span class="comment">// Autoprefixer 通常放在 Tailwind 之后</span></span><br><span class="line">  &#125;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><strong>在主 CSS 文件中导入 Tailwind directives</strong>：<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* src/main.css */</span></span><br><span class="line"><span class="keyword">@tailwind</span> base;</span><br><span class="line"><span class="keyword">@tailwind</span> components;</span><br><span class="line"><span class="keyword">@tailwind</span> utilities;</span><br></pre></td></tr></table></figure>
+然后构建工具（Webpack&#x2F;Vite）会通过 PostCSS 来处理这个 CSS 文件，Tailwind 插件会扫描你的代码生成相应的工具类，而 Autoprefixer 会为这些类添加前缀。</li>
+</ol>
+<h2 id="五、总结与进阶学习"><a href="#五、总结与进阶学习" class="headerlink" title="五、总结与进阶学习"></a>五、总结与进阶学习</h2><p>PostCSS 是一个非常灵活且强大的工具，它使得 JavaScript 社区能够为 CSS 开发创建丰富多样的工具和转换。它不是要取代 Sass 或 Less，而是作为其强有力的补充。</p>
+<p><strong>PostCSS 的核心价值</strong>：</p>
+<ol>
+<li><strong>插件化架构</strong>：灵活性强，按需加载功能。</li>
+<li><strong>JavaScript 生态</strong>：利用 Node.js 的强大能力和大量 NPM 包。</li>
+<li><strong>未来 CSS 支持</strong>：让你提前使用最新语法。</li>
+<li><strong>无缝集成</strong>：与主流构建工具（Webpack, Vite）完美配合。</li>
+</ol>
+<p><strong>进阶学习方向</strong>：</p>
+<ul>
+<li><strong>官方文档</strong>：<code>postcss.org</code> 是最好的学习资源。</li>
+<li><strong>探索更多插件</strong>：除了上述常用插件，还有很多有用的插件，比如 <code>postcss-nesting</code>、<code>postcss-custom-properties</code>、<code>postcss-px-to-viewport</code>、<code>postcss-aspect-ratio-mini</code> 等。</li>
+<li><strong>编写自定义 PostCSS 插件</strong>：如果特定的需求没有现成的插件，你可以通过学习 PostCSS API 来编写自己的插件，这会让你对处理 CSS 有更深的理解。</li>
+</ul>
+<p>通过合理配置和利用 PostCSS 及其插件，你可以大大提升前端项目的 CSS 处理能力，实现更高效、更优化、更具未来感的样式开发。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2d02d2ae2866/">https://blog.tbf1211.xx.kg/2d02d2ae2866/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/PostCSS/">PostCSS</a><a class="post-meta__tags" href="/tags/CSS/">CSS</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-01.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/865012842955/" title="js特殊运算符的使用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">js特殊运算符的使用</div></div><div class="info-2"><div class="info-item-1">JavaScript中存在一些特殊的运算符，如 ||=、&amp;&amp;=、??=、?.、??，它们在特定的场景下能够帮助开发者简化代码逻辑或增强代码的健壮性。   1. |&#x3D; 逻辑或赋值运算符 (Logical OR assignment)  定义：||&#x3D; 运算符用于指定变量在其值为假（Falsy）时才进行赋值操作。语法：a ||&#x3D; b，意为若 a 为假，则将 b 赋值给 a。使用场景：当需要为一个变量赋值，但仅在其当前值为假时执行赋值操作。  1234let x = 10;let y = 0;x ||= 5; // x 仍为 10，因为 10 被视为真值y ||= 5; // y 现在为 5，因为 0 被视为假值  2. &amp;&amp;&#x3D; 逻辑与赋值运算符 (Logical AND assignment)  定义： &amp;&amp;&#x3D; 运算符用于指定变量在其值为真（Truthy）时才进行赋值操作。语法： a &amp;&amp;&#x3D; b，意为若 a 为真，则将 b 赋值给 a。使用场景： 在需要确保变量已...</div></div></div></a><a class="pagination-related" href="/b679c8986f70/" title="ETH Arbitrum详解：以太坊Layer2扩容解决方案的佼佼者"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">ETH Arbitrum详解：以太坊Layer2扩容解决方案的佼佼者</div></div><div class="info-2"><div class="info-item-1"> Arbitrum 是以太坊上一个领先的 Layer 2 (L2) 扩容解决方案，也是第一个实际运行的 Optimistic Rollup。它旨在通过将大量交易的计算和存储移到二层网络上进行处理，然后将 L2 交易结果汇总并提交到以太坊主网 (Layer 1)，从而显著提高以太坊的交易吞吐量、降低交易费用，同时继承以太坊的安全性。  核心思想：在二层网络处理交易，批量提交摘要到一层网络，通过欺诈证明 (Fraud Proof) 在一段时间内允许质疑，保证最终一致性。   一、为什么需要 Arbitrum？以太坊的扩容困境以太坊是目前最去中心化且安全的智能合约平台之一，但其当前（特别是 PoW 或早期的 PoS 阶段）面临着严重的扩容问题：  低吞吐量 (Scalability)：每秒交易量（Tx&#x2F;s）有限（约 15-30 Tx&#x2F;s），无法满足大规模应用的需求。 高 Gas 费用 (High Fees)：网络拥堵直接导致交易成本飙升，使得普通用户难以负担。 交易确认慢 (Latency)：在网络繁忙时，交易可能需要等待较长时间才能被确认。  Layer 2 解决...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/0b9ab3c7d2b8/" title="Tailwind CSS 极速上手教程"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-08</div><div class="info-item-2">Tailwind CSS 极速上手教程</div></div><div class="info-2"><div class="info-item-1"> Tailwind CSS 是一个高度可定制的、低级的 CSS 框架，它提供了一系列功能类 (utility classes)，你可以直接在 HTML 中组合这些类来快速构建任何你想要的设计，而无需编写一行自定义 CSS。它与传统 CSS 框架（如 Bootstrap）理念不同，不提供预设的组件样式，而是提供原子化的样式工具集。  “Tailwind CSS 的核心理念是：直接在你的 HTML 中编写样式。”   一、为什么选择 Tailwind CSS？在开始学习之前，我们先来了解一下 Tailwind CSS 带来的不同之处和优势：  极速的开发效率：不用离开 HTML 文件就能完成所有样式工作，减少了上下文切换。 避免命名困扰：无需思考类名（如 btn-primary, card-header），只需使用已定义好的工具类。 高度可定制：尽管它提供了大量预设类，但你可以通过配置文件 tailwind.config.js 轻松地覆盖、扩展或自定义所有选项，包括颜色、字体、间距等。 最终产物更小：通过 PurgeCSS (现在是 JIT 模式内置的) 移除所有未使用的 CSS，确...</div></div></div></a><a class="pagination-related" href="/137d1f5d80b7/" title="CSS 单位详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-18</div><div class="info-item-2">CSS 单位详解</div></div><div class="info-2"><div class="info-item-1"> 在 CSS (Cascading Style Sheets) 中，单位是用来指定数值大小或尺寸的关键部分。无论是设置字体大小、元素宽度、边距还是动画时长，都需要使用合适的单位。CSS 提供了多种单位类型，它们可以分为两大类：绝对单位 和 相对单位。理解这些单位及其适用场景对于构建响应式、可维护的 Web 界面至关重要。  核心思想：CSS 单位是用来量化样式的尺寸或数值，分为绝对单位（如 px, pt）和相对单位（如 em, rem, %, vw, vh）。合理选择和使用这些单位，是实现响应式设计、确保界面在不同设备和上下文下表现一致的关键。   一、绝对单位 (Absolute Length Units)绝对单位表示一个固定的物理量，其大小不会受到视口、父元素字体大小或其他环境因素的影响。它们在不同设备上理论上保持相同大小（物理尺寸），但在屏幕上可能会因为屏幕 DPI (Dots Per Inch) 不同而视觉效果有所差异。 1.1 px (Pixels) 定义：一个像素点。这是 Web 开发中最常用的单位。 特性： 在 CSS 中，px 是一个逻辑像素，不一定对应屏幕上的一...</div></div></div></a><a class="pagination-related" href="/549d8932b3c5/" title="CSS 函数详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-20</div><div class="info-item-2">CSS 函数详解</div></div><div class="info-2"><div class="info-item-1"> 在 CSS 中，函数允许我们在样式表中执行计算、变换、引用值或生成特定效果，而不仅仅是使用静态的颜色或数值。它们为 CSS 带来了更强大的动态性和灵活性，使得响应式设计、复杂布局和动画效果的实现变得更加简洁和高效。理解和掌握 CSS 函数是成为高级前端开发者的关键一步。  核心思想：CSS 函数是内置的或用户定义的指令，用于在样式表中执行计算、转换、引用值或生成特定效果，从而增加 CSS 的动态性和灵活性。它们可以接受参数，并返回一个 CSS 值，是实现复杂样式和响应式设计的强大工具。   一、CSS 函数的分类CSS 函数可以大致分为以下几类：  数学函数 (Mathematical Functions)：用于执行算术运算，如 calc()。 转换函数 (Transform Functions)：用于对元素进行 2D 或 3D 转换，如 translate(), rotate(), scale()。 颜色函数 (Color Functions)：用于定义或操作颜色，如 rgb(), hsl(), rgba(), hsla(), color-mix()。 渐变函数 (Gradi...</div></div></div></a><a class="pagination-related" href="/3ba66d6aee4f/" title="Next.js 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-15</div><div class="info-item-2">Next.js 详解</div></div><div class="info-2"><div class="info-item-1"> Next.js 是一个基于 React 的 全栈 (Full-stack) Web 框架，由 Vercel 公司开发和维护。它提供了一个开箱即用的解决方案，用于构建高性能、SEO 友好且易于扩展的现代 React 应用程序。Next.js 最大的特点是支持 服务端渲染 (SSR)、静态网站生成 (SSG) 和 客户端渲染 (CSR) 等多种渲染方式，并集成了文件系统路由、API 路由、图片优化、代码分割等诸多功能，极大地提升了开发者体验和应用性能。  核心思想：Next.js 是一个强大的 React 框架，通过多种渲染策略（SSR、SSG、CSR），优化的开发体验和内置功能，帮助开发者高效构建高性能、可扩展的现代 Web 应用。   一、为什么选择 Next.js？React 本身是一个用于构建用户界面的库，它通常在客户端运行 (CSR)。然而，纯客户端渲染的应用存在一些缺点：  SEO 不友好：搜索引擎爬虫可能无法完全索引动态生成的页面内容。 首次加载性能：用户需要等待 JavaScript 下载、解析和执行后才能看到内容，导致白屏时间较长。 Bundle Size：需要将...</div></div></div></a><a class="pagination-related" href="/d95444379272/" title="Pinia详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-10</div><div class="info-item-2">Pinia详解</div></div><div class="info-2"><div class="info-item-1"> Pinia 是一个直观、类型安全、轻量级的 Vue.js 状态管理库，专为 Vue 3 设计，但也支持 Vue 2。它是 Vuex 5 的非官方继任者，旨在提供更简洁、更灵活、更易于理解和使用的状态管理体验，同时完美支持 TypeScript。Pinia 不仅提供了 Vuex 的所有功能，还通过优化其 API 设计和提供更好的类型推断，解决了 Vuex 在大规模应用中遇到的一些痛点。  核心思想：Pinia 将状态分割成独立的“Store”，每个 Store 都是一个模块化的、自包含的状态管理单元，拥有自己的 state、getters、actions。这种设计使得状态管理更加模块化、可维护，并能够按需加载。   一、为什么选择 Pinia？在 Vue 3 中，Pinia 已经成为官方推荐的状态管理库，替代了Vuex。它带来的主要优势包括： 1.1 更好的 TypeScript 支持 类型安全：Pinia 从设计之初就考虑了 TypeScript。所有的 Store 定义、state、getters、actions 都有良好的类型推断，无需手动编写复杂的类型声明。 代码补全：在...</div></div></div></a><a class="pagination-related" href="/884dd81c798b/" title="Pinia Colada详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-26</div><div class="info-item-2">Pinia Colada详解</div></div><div class="info-2"><div class="info-item-1"> Pinia Colada 是一个为 Vue 3 和 Pinia 设计的高级数据管理和持久化工具，旨在简化异步数据获取、缓存、以及状态在浏览器存储中的持久化。它将 Pinia 的核心优势与强大的数据管理策略相结合，帮助开发者构建更健壮、响应更快、用户体验更流畅的 Web 应用。  核心思想：Pinia Colada 致力于将数据获取 (Fetching)、数据缓存 (Caching)、数据持久化 (Persistence) 和 后端状态同步 (Synchronization) 等复杂逻辑封装在易于使用的 Pinia Store 抽象之上。它使得处理异步数据像管理本地状态一样简单，同时提供声明式的 API 来控制数据的生命周期。   一、为什么需要 Pinia Colada？在现代 Web 应用中，处理异步数据（如来自 API 的数据）和管理其生命周期是一个常见的挑战。仅仅依靠 Pinia 的 actions 来 fetch 数据，并不能很好地解决以下问题：  数据重复请求：多个组件可能请求相同的数据，导致不必要的网络开销。 请求加载状态管理：手动维护每个请求的 loading 和...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF-PostCSS%EF%BC%9F"><span class="toc-text">一、什么是 PostCSS？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-PostCSS%EF%BC%9F"><span class="toc-text">二、为什么需要 PostCSS？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81PostCSS-%E7%9A%84%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E4%B8%8E%E5%B8%B8%E7%94%A8%E6%8F%92%E4%BB%B6"><span class="toc-text">三、PostCSS 的核心功能与常用插件</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E8%87%AA%E5%8A%A8%E6%B7%BB%E5%8A%A0%E6%B5%8F%E8%A7%88%E5%99%A8%E5%89%8D%E7%BC%80-Autoprefixer"><span class="toc-text">3.1 自动添加浏览器前缀 (Autoprefixer)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%BD%BF%E7%94%A8%E6%9C%AA%E6%9D%A5-CSS-%E8%AF%AD%E6%B3%95-PostCSS-Preset-Env"><span class="toc-text">3.2 使用未来 CSS 语法 (PostCSS Preset Env)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E7%A7%BB%E9%99%A4%E6%9C%AA%E4%BD%BF%E7%94%A8%E7%9A%84-CSS-PurgeCSS-postcss-purgecss"><span class="toc-text">3.3 移除未使用的 CSS (PurgeCSS &#x2F; postcss-purgecss)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-CSS-%E5%8E%8B%E7%BC%A9-CSS-Nano"><span class="toc-text">3.4 CSS 压缩 (CSS Nano)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-CSS-Modules-%E6%94%AF%E6%8C%81-postcss-modules"><span class="toc-text">3.5 CSS Modules 支持 (postcss-modules)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-%E5%AF%B9%E6%AF%94-Sass-Less-%E7%AD%89%E9%A2%84%E5%A4%84%E7%90%86%E5%99%A8"><span class="toc-text">3.6 对比 Sass&#x2F;Less 等预处理器</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%A6%82%E4%BD%95%E5%9C%A8%E5%89%8D%E7%AB%AF%E9%A1%B9%E7%9B%AE%E4%B8%AD%E9%85%8D%E7%BD%AE%E5%92%8C%E4%BD%BF%E7%94%A8-PostCSS%EF%BC%9F"><span class="toc-text">四、如何在前端项目中配置和使用 PostCSS？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E7%8B%AC%E7%AB%8B%E4%BD%BF%E7%94%A8-CLI"><span class="toc-text">4.1 独立使用 (CLI)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%9C%A8-Webpack-%E4%B8%AD%E4%BD%BF%E7%94%A8"><span class="toc-text">4.2 在 Webpack 中使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%9C%A8-Vite-%E4%B8%AD%E4%BD%BF%E7%94%A8"><span class="toc-text">4.3 在 Vite 中使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E4%B8%8E-Tailwind-CSS-%E7%BB%93%E5%90%88"><span class="toc-text">4.4 与 Tailwind CSS 结合</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93%E4%B8%8E%E8%BF%9B%E9%98%B6%E5%AD%A6%E4%B9%A0"><span class="toc-text">五、总结与进阶学习</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-01.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Go语言指向指针的指针(Pointer to Pointer)详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在 Go 语言中，指针是一种重要的概念，它存储了一个变量的内存地址。我们通常通过 * 运算符来解引用指针，获取指针指向的值。但 Go 语言还支持更复杂的指针类型，例如指向指针的指针 (Pointer to Pointer)，也称为二级指针 (Double Pointer)。虽然在日常开发中不常用，但理解其工作原理对于深入理解内存管理、某些高级数据结构（如链表、树的修改操作）或在特定场景下修改指针">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go语言指向指针的指针(Pointer to Pointer)详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/b10b8bccf756/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在 Go 语言中，指针是一种重要的概念，它存储了一个变量的内存地址。我们通常通过 * 运算符来解引用指针，获取指针指向的值。但 Go 语言还支持更复杂的指针类型，例如指向指针的指针 (Pointer to Pointer)，也称为二级指针 (Double Pointer)。虽然在日常开发中不常用，但理解其工作原理对于深入理解内存管理、某些高级数据结构（如链表、树的修改操作）或在特定场景下修改指针">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg">
+<meta property="article:published_time" content="2025-09-30T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.548Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="程序设计">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="编程范式">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="指针">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Go语言指向指针的指针(Pointer to Pointer)详解",
+  "url": "https://blog.tbf1211.xx.kg/b10b8bccf756/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg",
+  "datePublished": "2025-09-30T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.548Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/b10b8bccf756/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Go语言指向指针的指针(Pointer to Pointer)详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-20.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Go语言指向指针的指针(Pointer to Pointer)详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Go语言指向指针的指针(Pointer to Pointer)详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-09-30T22:24:00.000Z" title="发表于 2025-10-01 06:24:00">2025-10-01</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>11分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/b10b8bccf756/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在 Go 语言中，指针是一种重要的概念，它存储了一个变量的内存地址。我们通常通过 <code>*</code> 运算符来解引用指针，获取指针指向的值。但 Go 语言还支持更复杂的指针类型，例如<strong>指向指针的指针 (Pointer to Pointer)</strong>，也称为<strong>二级指针 (Double Pointer)</strong>。虽然在日常开发中不常用，但理解其工作原理对于深入理解内存管理、某些高级数据结构（如链表、树的修改操作）或在特定场景下修改指针本身的值至关重要。</p>
+</blockquote>
+<div class="note info flat"><p>核心概念：一个指针变量存储一个普通变量的地址，而<strong>指向指针的指针</strong>存储一个<strong>指针变量的地址</strong>。</p>
+</div>
+<hr>
+<h2 id="一、基本指针回顾"><a href="#一、基本指针回顾" class="headerlink" title="一、基本指针回顾"></a>一、基本指针回顾</h2><p>在深入指向指针的指针之前，我们先快速回顾一下 Go 语言中的基本指针：</p>
+<ol>
+<li><strong>定义指针</strong>：使用 <code>*</code> 符号和类型名来声明一个指针变量，例如 <code>*int</code> 表示一个指向 <code>int</code> 类型的指针。</li>
+<li><strong>获取地址</strong>：使用 <code>&amp;</code> 运算符来获取一个变量的内存地址。</li>
+<li><strong>解引用</strong>：使用 <code>*</code> 运算符来访问指针指向的内存中的值。</li>
+</ol>
+<p><strong>示例：</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 1. 声明一个整型变量</span></span><br><span class="line">	<span class="keyword">var</span> x <span class="type">int</span> = <span class="number">10</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;x 的值为: %d, x 的地址为: %p\n&quot;</span>, x, &amp;x) <span class="comment">// x 的地址: 0xc0000140a8</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2. 声明一个指向 int 类型的指针 p</span></span><br><span class="line">	<span class="keyword">var</span> p *<span class="type">int</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3. 将变量 x 的地址赋给指针 p</span></span><br><span class="line">	p = &amp;x</span><br><span class="line">	fmt.Printf(<span class="string">&quot;p 的值为 (存储的地址): %p, p 指向的值为: %d\n&quot;</span>, p, *p) <span class="comment">// p 的值: 0xc0000140a8, p 指向的值: 10</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;p 变量本身的地址为: %p\n&quot;</span>, &amp;p) <span class="comment">// p 变量本身的地址: 0xc00000e028 (注意 p 也有自己的地址)</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 4. 通过指针修改变量 x 的值</span></span><br><span class="line">	*p = <span class="number">20</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;修改后 x 的值为: %d\n&quot;</span>, x) <span class="comment">// 修改后 x 的值为: 20</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面的例子可以看出：</p>
+<ul>
+<li><code>x</code> 是一个 <code>int</code> 类型变量，存储 <code>10</code>。</li>
+<li><code>&amp;x</code> 是 <code>x</code> 的内存地址。</li>
+<li><code>p</code> 是一个 <code>*int</code> 类型指针，存储 <code>x</code> 的地址 (<code>&amp;x</code>)。</li>
+<li><code>*p</code> 是 <code>p</code> 指向的值，也就是 <code>x</code> 的值。</li>
+</ul>
+<h2 id="二、指向指针的指针-Pointer-to-Pointer"><a href="#二、指向指针的指针-Pointer-to-Pointer" class="headerlink" title="二、指向指针的指针 (Pointer to Pointer)"></a>二、指向指针的指针 (Pointer to Pointer)</h2><p>指向指针的指针顾名思义，它存储的是<strong>另一个指针变量的内存地址</strong>。</p>
+<ol>
+<li><strong>定义指向指针的指针</strong>：使用两个 <code>*</code> 符号和类型名来声明，例如 <code>**int</code> 表示一个指向 <code>*int</code> 类型的指针。</li>
+<li><strong>获取指针的地址</strong>：同样使用 <code>&amp;</code> 运算符，获取的是一个指针变量的地址。</li>
+<li><strong>解引用</strong>：<ul>
+<li><code>*pp</code>：解引用一次，获取 <code>pp</code> 指向的 <code>*int</code> 类型指针的值（即 <code>p</code> 的值，也就是 <code>x</code> 的地址）。</li>
+<li><code>**pp</code>：解引用两次，获取 <code>pp</code> 指向的 <code>*int</code> 类型指针所指向的值（即 <code>p</code> 指向的值，也就是 <code>x</code> 的值）。</li>
+</ul>
+</li>
+</ol>
+<p><strong>示例：</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> x <span class="type">int</span> = <span class="number">10</span></span><br><span class="line">	<span class="keyword">var</span> p *<span class="type">int</span></span><br><span class="line">	<span class="keyword">var</span> pp **<span class="type">int</span> <span class="comment">// 声明一个指向 int 类型指针的指针</span></span><br><span class="line"></span><br><span class="line">	p = &amp;x    <span class="comment">// p 存储 x 的地址</span></span><br><span class="line">	pp = &amp;p   <span class="comment">// pp 存储 p 的地址</span></span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;x 的值为: %d, 地址为: %p\n&quot;</span>, x, &amp;x)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;p 的值为 (存储 x 的地址): %p, p 变量本身的地址为: %p\n&quot;</span>, p, &amp;p)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;pp 的值为 (存储 p 的地址): %p, pp 变量本身的地址为: %p\n&quot;</span>, pp, &amp;pp)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 通过 pp 访问 p 的值（即 x 的地址）</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;*pp 的值为 (p 的值): %p\n&quot;</span>, *pp)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 通过 pp 访问 x 的值</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;**pp 的值为 (x 的值): %d\n&quot;</span>, **pp)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// --------------- 通过 pp 修改 x 的值 ---------------</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;\n通过 pp 修改 x 的值:&quot;</span>)</span><br><span class="line">	**pp = <span class="number">30</span> <span class="comment">// 修改 x 的值</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;修改后 x 的值为: %d\n&quot;</span>, x)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;通过 *pp 访问的值为: %d\n&quot;</span>, *p) <span class="comment">// p 依然指向 x，所以值也是 30</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>输出可能类似 (内存地址每次运行可能不同)：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">x 的值为: 10, 地址为: 0xc00001a0b8</span><br><span class="line">p 的值为 (存储 x 的地址): 0xc00001a0b8, p 变量本身的地址为: 0xc00000e028</span><br><span class="line">pp 的值为 (存储 p 的地址): 0xc00000e028, pp 变量本身的地址为: 0xc00000e030</span><br><span class="line">*pp 的值为 (p 的值): 0xc00001a0b8</span><br><span class="line">**pp 的值为 (x 的值): 10</span><br><span class="line"></span><br><span class="line">通过 pp 修改 x 的值:</span><br><span class="line">修改后 x 的值为: 30</span><br><span class="line">通过 *pp 访问的值为: 30</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、为什么要使用指向指针的指针？"><a href="#三、为什么要使用指向指针的指针？" class="headerlink" title="三、为什么要使用指向指针的指针？"></a>三、为什么要使用指向指针的指针？</h2><p>指向指针的指针在 Go 语言中主要用于以下两种情况：</p>
+<h3 id="3-1-在函数内部修改一个指针变量本身的值"><a href="#3-1-在函数内部修改一个指针变量本身的值" class="headerlink" title="3.1 在函数内部修改一个指针变量本身的值"></a>3.1 在函数内部修改一个指针变量本身的值</h3><p>当我们将一个指针作为参数传递给函数时，实际上传递的是该指针变量的<strong>副本</strong>。如果在函数内部修改这个副本指针的值（让它指向另一个地址），外部的原始指针是不会受影响的。</p>
+<p>如果我们需要在函数内部<strong>改变外部指针变量本身所指向的地址</strong>（而不是仅仅修改它所指向的值），就需要传入指向该指针的指针。</p>
+<p><strong>示例：在函数中修改指针本身</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// changePointerValue 尝试直接修改传入的指针p所指向的值 (成功)</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">changePointerValue</span><span class="params">(p *<span class="type">int</span>, newValue <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> p != <span class="literal">nil</span> &#123;</span><br><span class="line">		*p = newValue <span class="comment">// 修改 p 指向的内存地址中的值</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// tryChangePointerAddress 尝试修改传入的指针 p 本身的值 (失败)</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">tryChangePointerAddress</span><span class="params">(p *<span class="type">int</span>, newInt *<span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	p = newInt <span class="comment">// 这里修改的是 p 的副本，原始指针不会改变</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;函数内部 (tryChangePointerAddress): p 的值为 %p\n&quot;</span>, p)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// changePointerAddressWithDoublePointer 通过 **int 修改传入的指针 p 本身的值 (成功)</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">changePointerAddressWithDoublePointer</span><span class="params">(pp **<span class="type">int</span>, newInt *<span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	*pp = newInt <span class="comment">// 通过解引用 pp，修改了 pp 所指向的 *int 变量 (即外部的 p) 的值</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;函数内部 (changePointerAddressWithDoublePointer): *pp 的值为 %p\n&quot;</span>, *pp)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> val1 <span class="type">int</span> = <span class="number">10</span></span><br><span class="line">	<span class="keyword">var</span> val2 <span class="type">int</span> = <span class="number">20</span></span><br><span class="line">	<span class="keyword">var</span> val3 <span class="type">int</span> = <span class="number">30</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> ptr1 *<span class="type">int</span> = &amp;val1 <span class="comment">// ptr1 指向 val1</span></span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;初始: ptr1 指向 %d (%p)\n&quot;</span>, *ptr1, ptr1) <span class="comment">// 10 (地址1)</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 情况1: 修改指针指向的值 (成功)</span></span><br><span class="line">	changePointerValue(ptr1, <span class="number">15</span>)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;调用 changePointerValue 后: ptr1 指向 %d (%p)\n&quot;</span>, *ptr1, ptr1) <span class="comment">// 15 (地址1)</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 情况2: 尝试修改指针本身所指向的地址 (失败)</span></span><br><span class="line">	ptr2 := &amp;val2</span><br><span class="line">	fmt.Printf(<span class="string">&quot;\n尝试修改指针地址: ptr1 初始指向 %d (%p)\n&quot;</span>, *ptr1, ptr1) <span class="comment">// 15 (地址1)</span></span><br><span class="line">	tryChangePointerAddress(ptr1, ptr2)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;调用 tryChangePointerAddress 后: ptr1 仍然指向 %d (%p)\n&quot;</span>, *ptr1, ptr1) <span class="comment">// 15 (地址1), 没有改变！</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 情况3: 通过指向指针的指针修改指针本身所指向的地址 (成功)</span></span><br><span class="line">	ptr3 := &amp;val3</span><br><span class="line">	fmt.Printf(<span class="string">&quot;\n通过二级指针修改指针地址: ptr1 初始指向 %d (%p)\n&quot;</span>, *ptr1, ptr1) <span class="comment">// 15 (地址1)</span></span><br><span class="line">	changePointerAddressWithDoublePointer(&amp;ptr1, ptr3) <span class="comment">// 传入 ptr1 变量的地址</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;调用 changePointerAddressWithDoublePointer 后: ptr1 现在指向 %d (%p)\n&quot;</span>, *ptr1, ptr1) <span class="comment">// 30 (地址3), 成功改变！</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>输出：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">初始: ptr1 指向 10 (0xc0000a6008)</span><br><span class="line">调用 changePointerValue 后: ptr1 指向 15 (0xc0000a6008)</span><br><span class="line"></span><br><span class="line">尝试修改指针地址: ptr1 初始指向 15 (0xc0000a6008)</span><br><span class="line">函数内部 (tryChangePointerAddress): p 的值为 0xc0000a6010</span><br><span class="line">调用 tryChangePointerAddress 后: ptr1 仍然指向 15 (0xc0000a6008)</span><br><span class="line"></span><br><span class="line">通过二级指针修改指针地址: ptr1 初始指向 15 (0xc0000a6008)</span><br><span class="line">函数内部 (changePointerAddressWithDoublePointer): *pp 的值为 0xc0000a6018</span><br><span class="line">调用 changePointerAddressWithDoublePointer 后: ptr1 现在指向 30 (0xc0000a6018)</span><br></pre></td></tr></table></figure>
+
+<p>这个例子清晰地展示了，当需要函数修改一个 <code>*T</code> 类型的变量（这个变量本身是一个指针）时，我们必须传入 <code>**T</code> 类型。</p>
+<h3 id="3-2-实现复杂的数据结构（例如解引用链表头节点）"><a href="#3-2-实现复杂的数据结构（例如解引用链表头节点）" class="headerlink" title="3.2 实现复杂的数据结构（例如解引用链表头节点）"></a>3.2 实现复杂的数据结构（例如解引用链表头节点）</h3><p>在一些需要修改头部或根节点指针的链表、树等数据结构实现中，指向指针的指针也很有用。</p>
+<p>例如，在 C&#x2F;C++ 中，链表的 <code>deleteNode</code> 函数如果需要删除头节点并更新 <code>head</code> 指针，通常会使用一个 <code>Node** head</code> 参数。在 Go 中，我们也可以用类似的方式。</p>
+<p>不过，在 Go 语言中，通常可以通过<strong>返回新的头节点</strong>或使用<strong>结构体包装指针</strong>来避免复杂的多级指针。</p>
+<p>**使用 <code>**Node</code> 修改链表头节点 (Go 示例)**：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Node 定义链表节点</span></span><br><span class="line"><span class="keyword">type</span> Node <span class="keyword">struct</span> &#123;</span><br><span class="line">	Value <span class="type">int</span></span><br><span class="line">	Next  *Node</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// printList 辅助函数，打印链表</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">printList</span><span class="params">(head *Node)</span></span> &#123;</span><br><span class="line">	current := head</span><br><span class="line">	<span class="keyword">for</span> current != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;%d -&gt; &quot;</span>, current.Value)</span><br><span class="line">		current = current.Next</span><br><span class="line">	&#125;</span><br><span class="line">	fmt.Println(<span class="string">&quot;nil&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// prependNodeWithDoublePointer (不常见，但演示 **Node 用法)</span></span><br><span class="line"><span class="comment">// 传入指向 head 指针的指针，以便在函数内部修改 head 指针本身</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">prependNodeWithDoublePointer</span><span class="params">(head **Node, val <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	newNode := &amp;Node&#123;Value: val, Next: <span class="literal">nil</span>&#125;</span><br><span class="line">	newNode.Next = *head <span class="comment">// 新节点的下一个是当前的头节点</span></span><br><span class="line">	*head = newNode      <span class="comment">// 更新外部的头指针，让它指向新节点</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// prependNode (更常见且推荐的 Go 风格)</span></span><br><span class="line"><span class="comment">// 返回新的头节点</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">prependNode</span><span class="params">(head *Node, val <span class="type">int</span>)</span></span> *Node &#123;</span><br><span class="line">	newNode := &amp;Node&#123;Value: val, Next: head&#125;</span><br><span class="line">	<span class="keyword">return</span> newNode</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> head *Node = <span class="literal">nil</span> <span class="comment">// 初始链表头为空</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 使用更常见的 Go 风格修改头节点 (返回新的头节点)</span></span><br><span class="line">	head = prependNode(head, <span class="number">3</span>) <span class="comment">// head 现在是 3 -&gt; nil</span></span><br><span class="line">	head = prependNode(head, <span class="number">2</span>) <span class="comment">// head 现在是 2 -&gt; 3 -&gt; nil</span></span><br><span class="line">	head = prependNode(head, <span class="number">1</span>) <span class="comment">// head 现在是 1 -&gt; 2 -&gt; 3 -&gt; nil</span></span><br><span class="line">	fmt.Print(<span class="string">&quot;使用 Go 风格函数: &quot;</span>)</span><br><span class="line">	printList(head) <span class="comment">// 输出: 1 -&gt; 2 -&gt; 3 -&gt; nil</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 使用指向指针的指针修改头节点</span></span><br><span class="line">	<span class="keyword">var</span> head2 *Node = <span class="literal">nil</span> <span class="comment">// 另一个链表头</span></span><br><span class="line">	prependNodeWithDoublePointer(&amp;head2, <span class="number">30</span>) <span class="comment">// head2 现在是 30 -&gt; nil</span></span><br><span class="line">	prependNodeWithDoublePointer(&amp;head2, <span class="number">20</span>) <span class="comment">// head2 现在是 20 -&gt; 30 -&gt; nil</span></span><br><span class="line">	prependNodeWithDoublePointer(&amp;head2, <span class="number">10</span>) <span class="comment">// head2 现在是 10 -&gt; 20 -&gt; 30 -&gt; nil</span></span><br><span class="line">	fmt.Print(<span class="string">&quot;使用 **Node 函数: &quot;</span>)</span><br><span class="line">	printList(head2) <span class="comment">// 输出: 10 -&gt; 20 -&gt; 30 -&gt; nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在 Go 语言中，对于链表等数据结构，通常更倾向于<strong>返回新的头节点</strong>或者将链表封装在一个<strong>结构体</strong>中，通过结构体的方法来修改内部的指针，而不是直接使用 <code>**Node</code>。</p>
+<p><strong>使用结构体包装指针 (更 idiomatic Go 方式)</strong>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LinkedList 包装头节点指针</span></span><br><span class="line"><span class="keyword">type</span> LinkedList <span class="keyword">struct</span> &#123;</span><br><span class="line">	Head *Node</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Prepend 方法修改 LinkedList 结构体内部的 Head 指针</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(l *LinkedList)</span></span> Prepend(val <span class="type">int</span>) &#123;</span><br><span class="line">	newNode := &amp;Node&#123;Value: val, Next: <span class="literal">nil</span>&#125;</span><br><span class="line">	newNode.Next = l.Head</span><br><span class="line">	l.Head = newNode <span class="comment">// 直接修改结构体 field 的值</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	list := LinkedList&#123;&#125; <span class="comment">// 创建一个链表实例</span></span><br><span class="line"></span><br><span class="line">	list.Prepend(<span class="number">300</span>) <span class="comment">// list.Head 现在是 300 -&gt; nil</span></span><br><span class="line">	list.Prepend(<span class="number">200</span>) <span class="comment">// list.Head 现在是 200 -&gt; 300 -&gt; nil</span></span><br><span class="line">	list.Prepend(<span class="number">100</span>) <span class="comment">// list.Head 现在是 100 -&gt; 200 -&gt; 300 -&gt; nil</span></span><br><span class="line"></span><br><span class="line">	fmt.Print(<span class="string">&quot;使用结构体方法: &quot;</span>)</span><br><span class="line">	printList(list.Head) <span class="comment">// 输出: 100 -&gt; 200 -&gt; 300 -&gt; nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种使用<code>LinkedList</code>结构体和其<code>Prepend</code>方法的做法，在 Go 语言中被认为是更地道和清晰的。它避免了多级指针的复杂性，同时达到了修改链表头部的目的。</p>
+<h2 id="四、总结"><a href="#四、总结" class="headerlink" title="四、总结"></a>四、总结</h2><p>Go 语言中的指向指针的指针 ( <code>**T</code> 类型) 允许你：</p>
+<ol>
+<li><strong>在函数内部修改一个指针变量本身所指向的地址</strong>，而不是仅仅修改它所指向的值。这是其最主要的用途。</li>
+<li>在某些特定场景下，如 C 语言风格的链表操作，可能被用于操作指针头部。</li>
+</ol>
+<p>然而，在 Go 中，通常有更符合 Go 惯例的替代方案，如：</p>
+<ul>
+<li><strong>返回被修改后的新指针</strong>：对于像链表头节点这样的情况。</li>
+<li><strong>将指针封装在结构体中，并通过结构体的接收器方法对其进行修改</strong>：这是 Go 中处理复杂数据结构及其操作的常见且推荐方式。</li>
+</ul>
+<p>虽然 <code>**T</code> 确实存在，也解决了一些特定问题，但在 Go 的日常开发中，应尽量避免过度使用它，因为它会增加代码的复杂性和可读性。在遇到需要它的场景时，先考虑更 Go-idiomatic 的解决方案。只有在确实没有更好的替代方案时，再考虑使用二级指针。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/b10b8bccf756/">https://blog.tbf1211.xx.kg/b10b8bccf756/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/%E7%BC%96%E7%A8%8B%E8%8C%83%E5%BC%8F/">编程范式</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/%E6%8C%87%E9%92%88/">指针</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-20.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/eb8d4a4bab0b/" title="TresJS详解：用Vue的方式构建Three.js场景"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">TresJS详解：用Vue的方式构建Three.js场景</div></div><div class="info-2"><div class="info-item-1"> TresJS 是一个基于 Vue.js 和 Three.js 的声明式 3D 渲染框架。它允许开发者像编写 Vue 组件一样，通过声明式的方式构建复杂的 Three.js 场景，从而大大降低 Three.js 的学习曲线和开发复杂度，特别适合 Vue 开发者快速进入 3D 领域。  核心思想：将 Three.js 对象抽象为 Vue 组件，用 Vue 的响应式和组件化思维管理 3D 场景。   一、什么是 TresJS？Three.js 是一个强大的 JavaScript 3D 库，用于在浏览器中创建和渲染 3D 图形。然而，直接使用 Three.js API 需要编写大量的命令式（或说是“指令式”）代码来创建几何体、材质、网格、灯光、摄像机、场景以及设置渲染循环等。这对于不熟悉 3D 图形编程的开发者来说，上手较难，且代码维护复杂。 TresJS 的出现就是为了解决这个问题。它提供了一套 Vue 组件，每个组件都对应 Three.js 中的一个核心概念（如 &lt;TresCanvas&gt;, &lt;TresMesh&gt;, &lt;TresPerspectiveCam...</div></div></div></a><a class="pagination-related" href="/f1d2005549f2/" title="HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">HTMX详解：用HTML属性直接驱动AJAX、CSS过渡和WebSocket</div></div><div class="info-2"><div class="info-item-1"> 在过去十年中，前端开发领域由 JavaScript 框架（如 React, Vue, Angular）占据主导地位，它们将整个用户界面放在客户端，通过 API 与后端交互。然而，这种“单页应用 (SPA)”模式并非总是最佳选择，它带来了复杂的构建流程、初始加载性能问题、SEO 挑战以及较高的开发和维护成本。 HTMX 的出现，挑战了这一主流范式。它主张将交互逻辑回归到服务器端，通过简单的 HTML 属性就能实现 AJAX 请求、CSS 过渡、WebSocket 和服务器发送事件 (SSE)，在不编写一行 JavaScript 代码的情况下，实现丰富的动态用户体验。  本文将深入探讨 HTMX 的核心理念、工作原理、主要特性、优缺点以及适用场景，帮助你理解这个“返璞归真”但又极具创新力的工具。   一、 HTMX 是什么？核心理念与哲学HTMX 是一个小型 (约 15KB gzipped) 的 JavaScript 库，它通过扩展 HTML 原生能力，允许你在 HTML 元素上直接指定 AJAX 请求、CSS 动画、WebSocket 和服务器发送事件 (SSE) 行为。 其核心...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/aa76a35a1a49/" title="Go语言范型 (Generics) 详解：从概念到实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-11</div><div class="info-item-2">Go语言范型 (Generics) 详解：从概念到实践</div></div><div class="info-2"><div class="info-item-1"> Go 语言在诞生之初，以其简洁、高效和内置并发特性迅速崛起，但长期以来缺少一个重要的现代语言特性：范型 (Generics)。这导致开发者在处理通用数据结构和算法时，不得不依赖空接口 (interface&#123;&#125;) 加上类型断言，或者为每种类型复制粘贴代码，带来了类型不安全和代码冗余的问题。  随着 Go 1.18 版本的发布，Go 正式引入了范型，为 Go 语言的表达能力带来了革命性的提升。本文将深入解析 Go 语言范型的核心概念、语法、使用场景以及注意事项，帮助你理解并掌握这一重要特性。   一、 什么是范型 (Generics)？范型，也称作“泛型”或“类型参数”，是一种允许代码处理 多种类型数据 的编程机制。它使得我们能够编写不依赖于特定数据类型的函数、方法或数据结构，从而实现代码的重用和抽象。 在没有范型之前，如果你想写一个能比较两个 int 类型值的最大函数，然后又想比较两个 float64 类型值的最大函数，你需要这样写： 12345678910111213func MaxInt(a, b int) int &#123;    if a &gt; ...</div></div></div></a><a class="pagination-related" href="/869bcb3ef8c7/" title="Go语言多重赋值(Multiple Assignment)详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-12</div><div class="info-item-2">Go语言多重赋值(Multiple Assignment)详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言的“多重赋值”（Multiple Assignment）是其语言特性中一个非常简洁且强大的功能。它允许你在一个语句中同时给多个变量赋值。这不仅仅是一种语法糖，更是 Go 语言在设计上强调简洁性和实用性的体现，尤其在错误处理、函数返回多个值等方面发挥着核心作用。  核心思想：Go 语言的多重赋值允许在单条语句中同时为多个变量赋值，其核心机制是先评估右侧所有表达式，然后按顺序赋给左侧变量，常用于函数多返回值（尤其是错误处理）、交换变量、接收通道值等场景。   一、多重赋值的基本语法多重赋值的通用格式如下： 1var1, var2, ..., varN = expr1, expr2, ..., exprN  或者使用短变量声明： 1var1, var2, ..., varN := expr1, expr2, ..., exprN  关键点：  左侧 (LHS)：一系列变量名，用逗号 , 分隔。 右侧 (RHS)：一系列表达式，用逗号 , 分隔。 数量匹配：左侧变量的数量必须与右侧表达式值的数量严格匹配。 类型匹配：每个变量的类型必须与对应表达式的值的类型兼容。 求值顺序：右...</div></div></div></a><a class="pagination-related" href="/ceaafd31dca2/" title="GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-04</div><div class="info-item-2">GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)</div></div><div class="info-2"><div class="info-item-1"> Go 语言 (Golang) 自 2009 年由 Google 推出以来，以其简洁的语法、内置的并发支持、高效的编译速度和强大的标准库迅速获得了开发者的青睐。自 2012 年发布 Go 1.0 以来，Go 语言每半年发布一个主要版本，持续引入新特性、性能优化、工具改进和安全增强。理解这些版本特性对于 Go 开发者来说至关重要，它能帮助我们编写更高效、更现代且更具可维护性的代码。  核心思想： Go 语言的版本迭代始终秉持“简单性、可靠性、高效性”的原则，聚焦于提升开发效率、运行时性能、内存管理、工具链功能以及语言表达力。   一、Go 1.0 - 1.5：奠基与自举 (Bootstrapping)Go 语言在早期版本主要关注语言的稳定、核心功能的完善以及工具链的成熟。Go 1.5 是一个里程碑，实现了 Go 语言的自举。 1.1 Go 1.0 (2012-03-28) Go 语言的第一个稳定版本：标志着 Go 语言正式可以用于生产环境。 语言规范稳定：承诺 Go 1 兼容性，确保未来版本不会破坏 Go 1.0 代码的兼容性。 核心并发模型：Goroutine 和 Channel...</div></div></div></a><a class="pagination-related" href="/49c9c17349e3/" title="Go语言常用设计模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-13</div><div class="info-item-2">Go语言常用设计模式详解</div></div><div class="info-2"><div class="info-item-1"> 设计模式是对在特定情境下，反复出现的问题提供一套成熟的、可复用的解决方案。Go 语言以其简洁、并发优先的特性，在实现设计模式时通常会有其独特的“Go 惯例”，有时会与传统面向对象设计模式的实现有所不同。本篇将探讨 Go 语言中常用的设计模式，并结合 Go 的特性给出实现示例。  核心思想：Go 语言的设计模式实现通常倾向于简洁、组合而非继承、接口优先以及利用 Goroutine 和 Channel 进行并发处理。   一、Go 语言与设计模式的哲学Go 语言在设计模式的实践上，有一些与传统 OOP 语言不同的哲学：  组合优于继承：Go 没有类继承的概念，而是通过结构体嵌入（Composition）和接口（Interfaces）来实现代码复用和多态。 接口优先：Go 的接口是隐式实现的（implicit interface satisfaction），任何类型只要实现了接口定义的所有方法，就自然地实现了该接口。这使得接口更加灵活，鼓励“小接口，大组合”的原则。 并发原语：Goroutine 和 Channel 是 Go 语言的核心并发原语，许多设计模式在 Go 中会自然融入并发...</div></div></div></a><a class="pagination-related" href="/325e0377afd7/" title="Golang 内存逃逸详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-24</div><div class="info-item-2">Golang 内存逃逸详解</div></div><div class="info-2"><div class="info-item-1"> 内存逃逸 (Memory Escape) 是 Go 语言编译器在编译时进行的一项静态分析。它的核心目的是确定程序中变量的内存分配位置：是分配在栈 (Stack) 上，还是分配在堆 (Heap) 上。通过精确地判断变量的生命周期和作用域，编译器能够做出最优化选择，从而有效降低垃圾回收 (GC) 的压力，提升程序性能。  核心思想：如果一个变量的生命周期超出了其声明函数的作用域，它就必须被分配在堆上；否则，如果其生命周期仅限于函数内部，优先分配在栈上。   一、内存分配基础：栈与堆在深入理解内存逃逸之前，我们首先需要了解程序中两种基本的内存分配区域：栈和堆。 1.1 栈 (Stack) 特性： LIFO (Last-In, First-Out) 结构。 由编译器自动管理，分配和回收速度极快。 内存是连续的。 分配与释放成本低：只需移动栈指针即可。 线程&#x2F;Goroutine 私有：每个 Goroutine 都有自己的栈。   用途： 存储局部变量。 存储函数参数。 存储函数返回值。 存储函数调用栈帧。   生命周期：与函数调用栈帧一致，函数执行完毕后，栈上的内存会被自动回收...</div></div></div></a><a class="pagination-related" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-11</div><div class="info-item-2">Golang 空结构体 (struct{}) 详解</div></div><div class="info-2"><div class="info-item-1"> 空结构体 struct&#123;&#125; 是 Go 语言中一种特殊的结构体类型，它不包含任何字段。它的独特之处在于，它的大小为 零字节 (zero size)。这一特性使得空结构体在 Go 语言中具有多种巧妙的应用，尤其是在涉及内存优化和并发编程的场景中。  核心思想：空结构体 struct{} 的零字节大小特性，使其成为表达“存在即意义”或“信号”的最佳选择，它不占用额外内存，避免了不必要的资源开销。   一、空结构体的定义与特性1.1 定义一个空结构体是指不包含任何字段的结构体类型： 1type Empty struct&#123;&#125;  或者直接作为匿名类型使用： 1var e struct&#123;&#125;  1.2 零字节大小这是空结构体的最核心特性。在 Go 语言中，struct&#123;&#125; 类型的值在内存中不占用任何空间。你可以通过 unsafe.Sizeof 函数来验证这一点： 1234567891011package mainimport (	&quot;fmt&quot;	&quot;unsafe&quot;)func mai...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%9F%BA%E6%9C%AC%E6%8C%87%E9%92%88%E5%9B%9E%E9%A1%BE"><span class="toc-text">一、基本指针回顾</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88-Pointer-to-Pointer"><span class="toc-text">二、指向指针的指针 (Pointer to Pointer)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E4%BD%BF%E7%94%A8%E6%8C%87%E5%90%91%E6%8C%87%E9%92%88%E7%9A%84%E6%8C%87%E9%92%88%EF%BC%9F"><span class="toc-text">三、为什么要使用指向指针的指针？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%9C%A8%E5%87%BD%E6%95%B0%E5%86%85%E9%83%A8%E4%BF%AE%E6%94%B9%E4%B8%80%E4%B8%AA%E6%8C%87%E9%92%88%E5%8F%98%E9%87%8F%E6%9C%AC%E8%BA%AB%E7%9A%84%E5%80%BC"><span class="toc-text">3.1 在函数内部修改一个指针变量本身的值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%AE%9E%E7%8E%B0%E5%A4%8D%E6%9D%82%E7%9A%84%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%EF%BC%88%E4%BE%8B%E5%A6%82%E8%A7%A3%E5%BC%95%E7%94%A8%E9%93%BE%E8%A1%A8%E5%A4%B4%E8%8A%82%E7%82%B9%EF%BC%89"><span class="toc-text">3.2 实现复杂的数据结构（例如解引用链表头节点）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">四、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-20.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

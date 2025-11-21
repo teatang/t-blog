@@ -1,0 +1,620 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Python 打包工具 uv 详解：下一代包管理器与构建器 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="uv (通常读作 “yoo-vee”) 是由 Astral (Rye, Ruff, Linter 等工具的创造者) 开源的一个超快的 Python 包管理器和包安装器，旨在成为 pip 和 venv 的直接替代品。它使用 Rust 编写，专注于速度、可靠性和稳定性，正在迅速改变 Python 包管理的格局。  传统的 Python 包管理工具如 pip 和 venv 虽然功能完善，但在大规模项目">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Python 打包工具 uv 详解：下一代包管理器与构建器">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/62acbead38d8/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="uv (通常读作 “yoo-vee”) 是由 Astral (Rye, Ruff, Linter 等工具的创造者) 开源的一个超快的 Python 包管理器和包安装器，旨在成为 pip 和 venv 的直接替代品。它使用 Rust 编写，专注于速度、可靠性和稳定性，正在迅速改变 Python 包管理的格局。  传统的 Python 包管理工具如 pip 和 venv 虽然功能完善，但在大规模项目">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg">
+<meta property="article:published_time" content="2025-05-11T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.544Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="项目构建">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="包管理">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Python 打包工具 uv 详解：下一代包管理器与构建器",
+  "url": "https://blog.tbf1211.xx.kg/62acbead38d8/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg",
+  "datePublished": "2025-05-11T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.544Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/62acbead38d8/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Python 打包工具 uv 详解：下一代包管理器与构建器',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-11.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Python 打包工具 uv 详解：下一代包管理器与构建器</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Python 打包工具 uv 详解：下一代包管理器与构建器</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-05-11T22:24:00.000Z" title="发表于 2025-05-12 06:24:00">2025-05-12</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/">Python</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.2k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>7分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/62acbead38d8/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><code>uv</code> (通常读作 “yoo-vee”) 是由 <strong>Astral</strong> (Rye, Ruff, Linter 等工具的创造者) 开源的一个超快的 Python 包管理器和包安装器，<strong>旨在成为 <code>pip</code> 和 <code>venv</code> 的直接替代品</strong>。它使用 Rust 编写，专注于速度、可靠性和稳定性，正在迅速改变 Python 包管理的格局。</p>
+</blockquote>
+<div class="note info flat"><p>传统的 Python 包管理工具如 <code>pip</code> 和 <code>venv</code> 虽然功能完善，但在大规模项目或频繁操作时，其性能瓶颈日益凸显。例如，复杂的依赖解析可能耗时很久，创建虚拟环境也并非瞬间完成。<code>uv</code> 的出现正是为了解决这些痛点，它将速度提升了几个数量级，并且提供了更加一致和可靠的语义。</p>
+</div>
+<hr>
+<h2 id="一、uv-简介与核心优势"><a href="#一、uv-简介与核心优势" class="headerlink" title="一、uv 简介与核心优势"></a>一、<code>uv</code> 简介与核心优势</h2><p><code>uv</code> 的诞生是为了提供一个现代、高效的 Python 包管理解决方案，它集成了 <strong>包安装器、解析器和虚拟环境管理器</strong> 的功能。</p>
+<p><strong><code>uv</code> 的核心优势：</strong></p>
+<ol>
+<li><strong>极速性能</strong>：这是 <code>uv</code> 最突出的特点。由于使用 Rust 编写，并采用了先进的图算法进行依赖解析，<code>uv</code> 在安装、更新、解析依赖等操作上比 <code>pip</code> 和 <code>venv</code> 快 <strong>10-100 倍</strong>。</li>
+<li><strong>单一工具链</strong>：<code>uv</code> 不仅是一个安装器，还集成了虚拟环境创建（替代 <code>python -m venv</code>）和 <code>requirements.txt</code> &#x2F; <code>pyproject.toml</code> 等文件的解析与管理。未来甚至有望整合版本管理功能。</li>
+<li><strong>兼容性强</strong>：<code>uv</code> 旨在与现有的 <code>pip</code> 生态系统完全兼容，支持 <code>requirements.txt</code>、<code>pyproject.toml</code> (PyPA Standards) 和 <code>setup.py</code> 等标准。</li>
+<li><strong>离线安装</strong>：第一次安装后，<code>uv</code> 会缓存包，后续操作可以在离线状态下进行。</li>
+<li><strong>可靠性高</strong>：<code>uv</code> 内部的依赖解析器能够更好地处理复杂的依赖图，减少因依赖冲突导致的安装失败。</li>
+<li><strong>更强的安全性</strong>：采用 <code>trusty</code> 的离线模式（未来功能），并且 Rust 的内存安全特性也能减少潜在的 bug。</li>
+</ol>
+<h2 id="二、安装-uv"><a href="#二、安装-uv" class="headerlink" title="二、安装 uv"></a>二、安装 <code>uv</code></h2><p><code>uv</code> 的安装非常简单。</p>
+<h3 id="1-使用-pip-推荐"><a href="#1-使用-pip-推荐" class="headerlink" title="1. 使用 pip (推荐)"></a>1. 使用 <code>pip</code> (推荐)</h3><p>最常见的方式是通过 <code>pipx</code> (如果已安装) 或 <code>pip</code> 将其安装为全局工具。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 推荐使用 pipx，将 uv 安装到独立环境，不污染主 Python 环境</span></span><br><span class="line">pipx install uv</span><br><span class="line"></span><br><span class="line"><span class="comment"># 如果没有 pipx，也可以直接用 pip</span></span><br><span class="line">pip install uv</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-通过-brew-macOS"><a href="#2-通过-brew-macOS" class="headerlink" title="2. 通过 brew (macOS)"></a>2. 通过 <code>brew</code> (macOS)</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">brew install uv</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-下载预编译二进制文件"><a href="#3-下载预编译二进制文件" class="headerlink" title="3. 下载预编译二进制文件"></a>3. 下载预编译二进制文件</h3><p>访问 <code>uv</code> 的 GitHub Release 页面 (<a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/astral-sh/uv/releases">https://github.com/astral-sh/uv/releases</a>) 下载对应操作系统的预编译二进制文件，并将其添加到系统 PATH。</p>
+<h3 id="4-验证安装"><a href="#4-验证安装" class="headerlink" title="4. 验证安装"></a>4. 验证安装</h3><p>安装完成后，运行以下命令验证：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv --version</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、uv-的基本用法与功能"><a href="#三、uv-的基本用法与功能" class="headerlink" title="三、uv 的基本用法与功能"></a>三、<code>uv</code> 的基本用法与功能</h2><p><code>uv</code> 的命令设计旨在模仿 <code>pip</code> 和 <code>venv</code> 的核心功能，并提供更简洁的接口。</p>
+<h3 id="3-1-虚拟环境管理-替代-python-m-venv"><a href="#3-1-虚拟环境管理-替代-python-m-venv" class="headerlink" title="3.1 虚拟环境管理 (替代 python -m venv)"></a>3.1 虚拟环境管理 (替代 <code>python -m venv</code>)</h3><p><code>uv</code> 可以直接创建和激活虚拟环境。</p>
+<h4 id="1-创建虚拟环境"><a href="#1-创建虚拟环境" class="headerlink" title="1. 创建虚拟环境"></a>1. 创建虚拟环境</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">uv venv <span class="comment"># 在当前目录创建 .venv</span></span><br><span class="line">uv venv my_env <span class="comment"># 在当前目录创建名为 my_env 的虚拟环境</span></span><br></pre></td></tr></table></figure>
+<p>这会创建一个新的 Python 虚拟环境，并默认安装 <code>pip</code> 和 <code>setuptools</code>。</p>
+<h4 id="2-激活虚拟环境"><a href="#2-激活虚拟环境" class="headerlink" title="2. 激活虚拟环境"></a>2. 激活虚拟环境</h4><p>创建成功后，会提示你如何激活。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># macOS/Linux</span></span><br><span class="line"><span class="built_in">source</span> .venv/bin/activate</span><br><span class="line"></span><br><span class="line"><span class="comment"># Windows (Command Prompt)</span></span><br><span class="line">.venv\Scripts\activate.bat</span><br><span class="line"></span><br><span class="line"><span class="comment"># Windows (PowerShell)</span></span><br><span class="line">.venv\Scripts\Activate.ps1</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-指定-Python-解释器版本"><a href="#3-指定-Python-解释器版本" class="headerlink" title="3. 指定 Python 解释器版本"></a>3. 指定 Python 解释器版本</h4><p>你可以指定用于创建虚拟环境的 Python 解释器。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">uv venv --python python3.10 <span class="comment"># 使用系统中的 python3.10</span></span><br><span class="line">uv venv --python /usr/bin/python3.11 <span class="comment"># 使用指定路径的解释器</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-包安装与管理-替代-pip-install"><a href="#3-2-包安装与管理-替代-pip-install" class="headerlink" title="3.2 包安装与管理 (替代 pip install)"></a>3.2 包安装与管理 (替代 <code>pip install</code>)</h3><p><code>uv</code> 的安装命令与 <code>pip</code> 非常相似，但速度快得多。</p>
+<h4 id="1-安装单个包"><a href="#1-安装单个包" class="headerlink" title="1. 安装单个包"></a>1. 安装单个包</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip install requests</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-安装多个包"><a href="#2-安装多个包" class="headerlink" title="2. 安装多个包"></a>2. 安装多个包</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip install numpy pandas matplotlib</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-安装指定版本包"><a href="#3-安装指定版本包" class="headerlink" title="3. 安装指定版本包"></a>3. 安装指定版本包</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip install <span class="string">&quot;requests==2.28.1&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-从-requirements-txt-文件安装"><a href="#4-从-requirements-txt-文件安装" class="headerlink" title="4. 从 requirements.txt 文件安装"></a>4. 从 <code>requirements.txt</code> 文件安装</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip install -r requirements.txt</span><br></pre></td></tr></table></figure>
+
+<h4 id="5-更新包"><a href="#5-更新包" class="headerlink" title="5. 更新包"></a>5. 更新包</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">uv pip install --upgrade requests <span class="comment"># 更新 requests</span></span><br><span class="line">uv pip install --upgrade -r requirements.txt <span class="comment"># 更新 requirements.txt 中的所有包</span></span><br><span class="line">uv pip install --upgrade-all <span class="comment"># 更新所有已安装的包</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="6-卸载包"><a href="#6-卸载包" class="headerlink" title="6. 卸载包"></a>6. 卸载包</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">uv pip uninstall requests</span><br><span class="line">uv pip uninstall -r requirements.txt</span><br></pre></td></tr></table></figure>
+
+<h4 id="7-查看已安装的包"><a href="#7-查看已安装的包" class="headerlink" title="7. 查看已安装的包"></a>7. 查看已安装的包</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip list</span><br></pre></td></tr></table></figure>
+
+<h4 id="8-移除所有包-清空虚拟环境"><a href="#8-移除所有包-清空虚拟环境" class="headerlink" title="8. 移除所有包 (清空虚拟环境)"></a>8. 移除所有包 (清空虚拟环境)</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip uninstall --all</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-发布依赖文件-替代-pip-freeze"><a href="#3-3-发布依赖文件-替代-pip-freeze" class="headerlink" title="3.3 发布依赖文件 (替代 pip freeze)"></a>3.3 发布依赖文件 (替代 <code>pip freeze</code>)</h3><p><code>uv</code> 可以生成 <code>requirements.txt</code> 文件，但它还提供了更强大的 <code>uv pip freeze</code> 和 <code>uv pip compile</code> 命令。</p>
+<h4 id="1-uv-pip-freeze-生成当前环境的包列表"><a href="#1-uv-pip-freeze-生成当前环境的包列表" class="headerlink" title="1. uv pip freeze (生成当前环境的包列表)"></a>1. <code>uv pip freeze</code> (生成当前环境的包列表)</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uv pip freeze &gt; requirements.txt</span><br></pre></td></tr></table></figure>
+<p>这与 <code>pip freeze</code> 类似，列出当前虚拟环境中所有已安装的包及其精确版本。</p>
+<h4 id="2-uv-pip-compile-生成锁文件，替代-pip-tools"><a href="#2-uv-pip-compile-生成锁文件，替代-pip-tools" class="headerlink" title="2. uv pip compile (生成锁文件，替代 pip-tools)"></a>2. <code>uv pip compile</code> (生成锁文件，替代 <code>pip-tools</code>)</h4><p><code>uv pip compile</code> 是 <code>uv</code> 中一个非常强大的功能，它类似于 <code>pip-compile</code> (来自 <code>pip-tools</code> 项目)。它可以根据你的高级依赖 (<a target="_blank" rel="noopener external nofollow noreferrer" href="https://www.python.org/dev/peps/pep-0621/"><code>pyproject.toml</code></a> 或 <code>requirements.in</code>) 生成一个包含所有确切依赖及版本的锁文件 (通常是 <code>requirements.txt</code> 或 <code>requirements.lock</code>)。</p>
+<p><strong>示例：<code>pyproject.toml</code></strong></p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># pyproject.toml</span></span><br><span class="line"><span class="section">[project]</span></span><br><span class="line"><span class="attr">name</span> = <span class="string">&quot;my-project&quot;</span></span><br><span class="line"><span class="attr">version</span> = <span class="string">&quot;0.1.0&quot;</span></span><br><span class="line"><span class="attr">dependencies</span> = [</span><br><span class="line">    <span class="string">&quot;requests&quot;</span>,</span><br><span class="line">    <span class="string">&quot;fastapi&quot;</span>,</span><br><span class="line">]</span><br><span class="line"></span><br><span class="line"><span class="section">[project.optional-dependencies]</span></span><br><span class="line"><span class="attr">dev</span> = [</span><br><span class="line">    <span class="string">&quot;pytest&quot;</span>,</span><br><span class="line">    <span class="string">&quot;uvicorn&quot;</span>,</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p><strong>编译生成锁文件：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">uv pip compile pyproject.toml -o requirements.txt</span><br><span class="line">uv pip compile pyproject.toml --extras dev -o requirements-dev.txt</span><br></pre></td></tr></table></figure>
+<p>这会解析所有依赖，包括传递性依赖，并生成一个包含精确版本号的 <code>requirements.txt</code> 文件。<br>然后，你可以使用 <code>uv pip install -r requirements.txt</code> 来安装这些锁定的依赖，确保所有环境的依赖版本一致。</p>
+<h3 id="3-4-缓存管理"><a href="#3-4-缓存管理" class="headerlink" title="3.4 缓存管理"></a>3.4 缓存管理</h3><p><code>uv</code> 有强大的本地缓存，使得离线安装和重复安装变得极快。</p>
+<h4 id="1-查看缓存信息"><a href="#1-查看缓存信息" class="headerlink" title="1. 查看缓存信息"></a>1. 查看缓存信息</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">uv cache <span class="built_in">dir</span> <span class="comment"># 查看缓存目录</span></span><br><span class="line">uv cache clean <span class="comment"># 清理缓存</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、与-pip-和-venv-的对比"><a href="#四、与-pip-和-venv-的对比" class="headerlink" title="四、与 pip 和 venv 的对比"></a>四、与 <code>pip</code> 和 <code>venv</code> 的对比</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left"><code>pip</code> &#x2F; <code>venv</code> 组合</th>
+<th align="left"><code>uv</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>速度</strong></td>
+<td align="left">慢，特别是复杂的依赖解析</td>
+<td align="left"><strong>极速</strong>，10-100倍提升</td>
+</tr>
+<tr>
+<td align="left"><strong>语言</strong></td>
+<td align="left">Python</td>
+<td align="left">Rust</td>
+</tr>
+<tr>
+<td align="left"><strong>依赖解析</strong></td>
+<td align="left">较慢，可能遇到循环依赖等问题</td>
+<td align="left">使用先进算法，快速可靠，降低冲突</td>
+</tr>
+<tr>
+<td align="left"><strong>虚拟环境</strong></td>
+<td align="left">需 <code>python -m venv</code> 命令，再用 <code>pip</code> 安装</td>
+<td align="left"><code>uv venv</code> 一步到位，更简洁</td>
+</tr>
+<tr>
+<td align="left"><strong>锁文件</strong></td>
+<td align="left">需 <code>pip-tools</code> 等额外工具</td>
+<td align="left"><code>uv pip compile</code> 内置提供，功能强大</td>
+</tr>
+<tr>
+<td align="left"><strong>缓存</strong></td>
+<td align="left">缓存一般，不强求离线工作</td>
+<td align="left">强大的离线缓存能力</td>
+</tr>
+<tr>
+<td align="left"><strong>生态兼容</strong></td>
+<td align="left">Python 包管理标准</td>
+<td align="left">旨在完全兼容 <code>pip</code> 生态，支持所有标准格式</td>
+</tr>
+<tr>
+<td align="left"><strong>安装方式</strong></td>
+<td align="left">Python 包</td>
+<td align="left">预编译二进制，或 <code>pip</code> &#x2F; <code>pipx</code></td>
+</tr>
+<tr>
+<td align="left"><strong>未来方向</strong></td>
+<td align="left">稳定，功能迭代缓慢</td>
+<td align="left">快速发展中，有望整合更多工具链功能</td>
+</tr>
+</tbody></table>
+<h2 id="五、为什么-uv-如此之快？"><a href="#五、为什么-uv-如此之快？" class="headerlink" title="五、为什么 uv 如此之快？"></a>五、为什么 <code>uv</code> 如此之快？</h2><ol>
+<li><strong>Rust 语言的性能</strong>：Rust 提供了接近 C&#x2F;C++ 的运行时性能，同时兼顾内存安全，这为 <code>uv</code> 的高速执行奠定了基础。</li>
+<li><strong>并发处理</strong>：<code>uv</code> 充分利用现代 CPU 的多核优势，进行并发的 HTTP 请求下载包，大大缩短了网络等待时间。</li>
+<li><strong>先进的依赖解析算法</strong>：<code>uv</code> 借鉴了 <code>Rye</code> 和 <code>Cargo</code> (Rust 的包管理器) 的经验，采用了更高效的依赖解析算法 (SAT Solver)，能够更快地处理复杂的依赖图。</li>
+<li><strong>高效的网络和文件 I&#x2F;O</strong>：Rust 的异步 I&#x2F;O 库能够更高效地处理文件读写和网络请求。</li>
+<li><strong>不需 C 编译</strong>：Python 包的安装有时需要 C 编译器来编译某些依赖项。<code>uv</code> 在解析和下载阶段并不会触发 C 编译，仅在包最终安装时才会用到，这使得下载和缓存阶段更快。</li>
+</ol>
+<h2 id="六、未来展望与生态影响"><a href="#六、未来展望与生态影响" class="headerlink" title="六、未来展望与生态影响"></a>六、未来展望与生态影响</h2><p><code>uv</code> 仍在快速发展中，它被视为下一代 Python 包管理器。它与 Astral 的其他工具（如 <code>Ruff</code>）共同构成了一个高效、现代的 Python 工具链愿景。</p>
+<p><strong>潜在影响：</strong></p>
+<ul>
+<li><strong>提升开发者效率</strong>：极大地缩短了依赖安装和环境设置的时间，从而让开发者更专注于代码本身。</li>
+<li><strong>降低 CI&#x2F;CD 成本</strong>：在持续集成&#x2F;持续部署 (CI&#x2F;CD) 环境中，<code>uv</code> 可以显著减少构建时间，从而节省时间和资源。</li>
+<li><strong>推动 Python 生态发展</strong>：通过提供更快的工具，鼓励开发者使用更规范的依赖管理方式 (如 <code>pyproject.toml</code> 和锁文件)。</li>
+<li><strong>挑战主流工具地位</strong>：<code>uv</code> 有潜力成为 <code>pip</code> 和 <code>venv</code> 的事实标准替代品，甚至可能影响 <code>Poetry</code> 和 <code>Rye</code> 等更高级包管理器的定位。</li>
+</ul>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p><code>uv</code> 是 Python 包管理领域的一个革命性工具，它以惊人的速度、强大的功能和对现有生态的兼容性，为 Python 开发者带来了前所未有的体验。</p>
+<p>如果你受够了 <code>pip</code> 漫长的等待，或者希望在 CI&#x2F;CD 流水线中显著提升效率，那么 <code>uv</code> 绝对值得你立即尝试。它简洁的命令、无缝的集成以及强大的性能，正在重新定义 Python 包管理的标准。</p>
+<p>拥抱 <code>uv</code>，体验飞一般的 Python 开发流程吧！</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/62acbead38d8/">https://blog.tbf1211.xx.kg/62acbead38d8/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/%E5%8C%85%E7%AE%A1%E7%90%86/">包管理</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-11.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/d1dbcd98dd73/" title="LazyGit使用解析：你的Git命令行效率神器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">LazyGit使用解析：你的Git命令行效率神器</div></div><div class="info-2"><div class="info-item-1"> 本文将带你深入了解 LazyGit，一个简单直观的终端 UI Git 客户端。如果你厌倦了反复输入 Git 命令，又觉得 GUI 客户端不够灵活，那么 LazyGit 可能会成为你的新宠。它将终端的强大与 GUI 的便捷完美结合，让你的 Git 工作流变得前所未有的高效和愉悦。  对于开发者而言，Git 无疑是日常工作中不可或缺的工具。然而，即使是最熟练的 Git 用户，也可能被一些重复、繁琐的命令行操作所困扰，例如 git add ., git status, git commit -m &quot;...&quot;, git log --oneline 等等。虽然有各种图形化 Git 客户端，但它们往往意味着脱离终端环境，或多或少牺牲了速度和灵活性。LazyGit 正是为了解决这一痛点而生的——它提供了一个文本用户界面 (TUI)，让你在终端中就能以图形化的方式快速、直观地执行 Git 操作，大幅提升工作效率。   一、为什么选择 LazyGit？LazyGit 并不是简单的 Git 命令别名集合，它提供了一个交互式的视图，将 git status, git branch...</div></div></div></a><a class="pagination-related" href="/84d87a2eca4d/" title="Caddy Web Server详解：现代Web服务器的优雅选择"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Caddy Web Server详解：现代Web服务器的优雅选择</div></div><div class="info-2"><div class="info-item-1"> Caddy 是一款用 Go 语言编写的开源 Web 服务器，以其自动 HTTPS 功能、简洁的配置以及强大的功能而闻名。它被设计成现代 Web 的瑞士军刀，能够胜任静态文件服务、反向代理、负载均衡、API 网关等多种任务，并且在安全性和易用性方面表现出色。  “Caddy 是未来 Web 服务器的样子：默认安全、易于管理、功能强大，并且能够自动处理 HTTPS 证书的申请和续期，让你的网站在几秒钟内上线并享受加密连接。”   一、Caddy 简介1.1 什么是 Caddy？Caddy 是一个高性能、可扩展的 Web 服务器，其核心特性包括：  自动 HTTPS：这是 Caddy 最吸引人的特性之一。对于绝大多数公共可访问的域名，Caddy 可以自动从 Let’s Encrypt 申请、配置和续期 SSL&#x2F;TLS 证书，无需手动干预。 配置简洁：Caddyfile 配置文件语法非常直观易懂，相比 Nginx 和 Apache 更加简洁。 HTTP&#x2F;2 和 HTTP&#x2F;3 支持：Caddy 默认启用 HTTP&#x2F;2，并且是首批支持 QUIC (H...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2565d3c3db01/" title="Go语言embed包详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-12</div><div class="info-item-2">Go语言embed包详解</div></div><div class="info-2"><div class="info-item-1"> Go 1.16 版本引入了一个内置的 embed包，它提供了一种将文件和文件系统内容直接嵌入到 Go 程序的可执行二进制文件中的简单、高效的方式。这使得开发者可以方便地将网页模板、静态资源（如 HTML、CSS、JavaScript、图片）、配置文件等打包进编译后的程序中，从而创建一个完全自包含 (self-contained) 的应用程序，无需在部署时额外管理静态文件。  核心思想：通过编译时指令将文件内容注入到 Go 程序的数据段，使其在运行时像普通变量一样被访问，实现单文件部署。   一、为什么需要 embed 包？在 embed 包出现之前，Go 程序处理静态资源通常有以下几种方式：  外部文件引用：将静态资源放在程序运行目录的相对路径下。 缺点：部署时需要额外管理这些文件，容易出现文件丢失或路径错误。   go:generate 工具 + bytes 包：利用 go:generate 生成 Go 代码文件，将静态资源转换为 []byte 或 string 变量。 缺点：需要引入额外的第三方工具（如 go-bindata），增加项目复杂度；生成的代码文件通常很大，不便于...</div></div></div></a><a class="pagination-related" href="/18a421861554/" title="Golang 项目的 Makefile 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-17</div><div class="info-item-2">Golang 项目的 Makefile 详解</div></div><div class="info-2"><div class="info-item-1"> Makefile 是一种自动化构建工具，它通过定义文件之间的依赖关系和生成这些文件的命令，帮助开发者管理和自动化项目中的各种任务。尽管 Golang 自身提供了强大的内置工具链 (go build, go test, go run 等)，Makefile 在 Go 项目中依然扮演着重要角色，尤其是在需要协调多个任务、管理复杂构建流程、实现跨平台编译、集成外部工具或自动化部署脚本的场景下。  核心思想：将一系列 go 命令、Shell 脚本以及其他工具的调用封装成可复用的、有依赖关系的任务，实现一键式项目管理和自动化。   一、为什么 Go 项目需要 Makefile？Go 语言的工具链设计得非常出色，go build 能够自动处理依赖，go test 能够运行测试，go run 可以直接运行源代码。那么，为什么我们还需要 Makefile 呢？  任务编排与自动化： 一个 Go 项目通常不仅仅是编译代码。它可能涉及代码格式化 (go fmt)、静态分析 (go vet, golangci-lint)、代码生成 (go generate)、测试、构建 Docker 镜像、部署、清...</div></div></div></a><a class="pagination-related" href="/13596be529bf/" title="Python神库Pydantic深度解析：数据验证与设置管理的利器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-10</div><div class="info-item-2">Python神库Pydantic深度解析：数据验证与设置管理的利器</div></div><div class="info-2"><div class="info-item-1"> Pydantic 是一个 Python 库，用于数据验证和设置管理，它利用 Python 的类型提示 (type hints) 来定义数据模式。Pydantic 在运行时强制执行类型提示，并为您的数据提供友好的错误信息，使得数据模型更加健壮、可维护和自文档化。它广泛应用于 Web API (如 FastAPI)、数据科学、配置管理等领域。  核心思想：将 Python 的类型提示转化为强大的运行时数据验证和序列化工具，从而提高代码的健壮性和开发效率。   一、为什么需要 Pydantic？在现代 Python 应用开发中，数据从外部来源（如 JSON API、数据库、配置文件、用户输入）进入系统是常态。这些外部数据往往不可信，结构复杂且容易出错。传统的 Python 处理方式存在一些问题：  缺乏数据验证：直接使用字典或弱类型对象，无法保证数据的结构和类型正确性，容易导致运行时错误。 手动验证繁琐：编写大量的 if/else 语句进行数据类型检查和值验证，导致代码冗长、难以维护。 序列化&#x2F;反序列化复杂：将 Python 对象转换为 JSON&#x2F;XML 或反之，...</div></div></div></a><a class="pagination-related" href="/cac9fddb0534/" title="Python 3 各版本新特性详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-19</div><div class="info-item-2">Python 3 各版本新特性详解</div></div><div class="info-2"><div class="info-item-1"> Python 3.x 系列 自 2008 年首次发布以来，一直在持续发展和完善。每个小版本（如 3.6, 3.7, 3.8 等）都会引入一系列新的语言特性、标准库改进、性能优化以及重要的 bug 修复。理解这些新特性对于 Python 开发者来说至关重要，它能帮助我们编写更高效、更简洁、更现代的代码。  核心思想： Python 3 的版本迭代聚焦于提升开发效率、代码可读性、执行性能以及引入现代编程范式，同时保持语言的易用性。   一、Python 3.0 - 3.3：从 2.x 到 3.x 的演变Python 3.0 是一个里程碑式的版本，它引入了许多不兼容的改变，旨在解决 Python 2.x 的设计缺陷并为未来发展铺平道路。 1.1 Python 3.0 (2008-12-03) 字符串和字节分离：str 类型现在是 Unicode 字符串，bytes 类型是原始字节序列。这是最重要的改变，解决了 Python 2.x 中 Unicode 处理的混乱。 print 成为函数：print 语句被 print() 函数取代。 Python 2.x: print &quot;H...</div></div></div></a><a class="pagination-related" href="/ca2038899eb8/" title="Scrapy (Python Web 爬虫框架) 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-27</div><div class="info-item-2">Scrapy (Python Web 爬虫框架) 深度解析</div></div><div class="info-2"><div class="info-item-1"> Scrapy 是一个用 Python 编写的开源且功能强大的 Web 爬虫框架，它被设计用于快速、高效地从网站上提取结构化数据。Scrapy 不仅提供了完整的爬虫生命周期管理，包括请求调度、并发控制、数据解析和持久化，还通过其高度模块化的架构，允许开发者轻松扩展和定制爬虫行为。  核心思想：将 Web 爬取视为一个事件驱动的流程，通过异步 I&#x2F;O (基于 Twisted) 实现高并发，并提供一套可插拔的组件，以便开发者专注于数据提取逻辑。   一、为什么需要 Scrapy？在数据驱动的时代，从 Web 获取大量结构化信息的需求日益增长。虽然我们可以使用 requests 库发送 HTTP 请求并结合 BeautifulSoup 或 lxml 等库解析 HTML，但当面临以下挑战时，手动编写爬虫会变得复杂且低效：  并发与效率：需要同时发送大量请求以提高爬取速度，手动管理并发、线程或协程将非常繁琐。 请求调度与去重：爬虫需要跟踪哪些 URL 已访问、哪些待访问，并避免重复请求，这需要复杂的调度逻辑。 中间件处理：处理 User-Agent 轮换、代理 IP、Cookie...</div></div></div></a><a class="pagination-related" href="/51be17189d42/" title="Selenium (浏览器自动化工具) 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-29</div><div class="info-item-2">Selenium (浏览器自动化工具) 深度解析</div></div><div class="info-2"><div class="info-item-1"> Selenium 是一个功能强大的开源工具集，最初设计用于 Web 应用程序的自动化测试，但其能力远不止于此。它允许开发者像真实用户一样，直接控制浏览器执行各种操作，如点击按钮、填写表单、导航页面等。通过模拟用户与网页的交互，Selenium 成为了处理动态加载内容 (JavaScript 渲染)、实现 Web UI 自动化测试和进行高级网络爬取的关键工具。  核心思想：Selenium 通过 WebDriver API 直接与浏览器进行通信，发送指令并接收浏览器执行结果，从而实现对浏览器的完全控制。 这使得它能够处理任何人类用户可以做到的网页交互。   一、为什么需要 Selenium？传统爬虫的局限性传统的网页爬取工具（如 Python 的 requests + BeautifulSoup 或 Scrapy 框架）非常高效，适用于抓取静态 HTML 页面或 API 返回的结构化数据。然而，面对现代 Web 应用的复杂性时，它们会遇到显著的局限性：  JavaScript 渲染内容：许多网站使用 JavaScript 动态加载内容（AJAX 请求、SPA - Single P...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81uv-%E7%AE%80%E4%BB%8B%E4%B8%8E%E6%A0%B8%E5%BF%83%E4%BC%98%E5%8A%BF"><span class="toc-text">一、uv 简介与核心优势</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%AE%89%E8%A3%85-uv"><span class="toc-text">二、安装 uv</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%BD%BF%E7%94%A8-pip-%E6%8E%A8%E8%8D%90"><span class="toc-text">1. 使用 pip (推荐)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E9%80%9A%E8%BF%87-brew-macOS"><span class="toc-text">2. 通过 brew (macOS)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E4%B8%8B%E8%BD%BD%E9%A2%84%E7%BC%96%E8%AF%91%E4%BA%8C%E8%BF%9B%E5%88%B6%E6%96%87%E4%BB%B6"><span class="toc-text">3. 下载预编译二进制文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E9%AA%8C%E8%AF%81%E5%AE%89%E8%A3%85"><span class="toc-text">4. 验证安装</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81uv-%E7%9A%84%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95%E4%B8%8E%E5%8A%9F%E8%83%BD"><span class="toc-text">三、uv 的基本用法与功能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E8%99%9A%E6%8B%9F%E7%8E%AF%E5%A2%83%E7%AE%A1%E7%90%86-%E6%9B%BF%E4%BB%A3-python-m-venv"><span class="toc-text">3.1 虚拟环境管理 (替代 python -m venv)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E5%88%9B%E5%BB%BA%E8%99%9A%E6%8B%9F%E7%8E%AF%E5%A2%83"><span class="toc-text">1. 创建虚拟环境</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-%E6%BF%80%E6%B4%BB%E8%99%9A%E6%8B%9F%E7%8E%AF%E5%A2%83"><span class="toc-text">2. 激活虚拟环境</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-%E6%8C%87%E5%AE%9A-Python-%E8%A7%A3%E9%87%8A%E5%99%A8%E7%89%88%E6%9C%AC"><span class="toc-text">3. 指定 Python 解释器版本</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%8C%85%E5%AE%89%E8%A3%85%E4%B8%8E%E7%AE%A1%E7%90%86-%E6%9B%BF%E4%BB%A3-pip-install"><span class="toc-text">3.2 包安装与管理 (替代 pip install)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E5%AE%89%E8%A3%85%E5%8D%95%E4%B8%AA%E5%8C%85"><span class="toc-text">1. 安装单个包</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-%E5%AE%89%E8%A3%85%E5%A4%9A%E4%B8%AA%E5%8C%85"><span class="toc-text">2. 安装多个包</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-%E5%AE%89%E8%A3%85%E6%8C%87%E5%AE%9A%E7%89%88%E6%9C%AC%E5%8C%85"><span class="toc-text">3. 安装指定版本包</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-%E4%BB%8E-requirements-txt-%E6%96%87%E4%BB%B6%E5%AE%89%E8%A3%85"><span class="toc-text">4. 从 requirements.txt 文件安装</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-%E6%9B%B4%E6%96%B0%E5%8C%85"><span class="toc-text">5. 更新包</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#6-%E5%8D%B8%E8%BD%BD%E5%8C%85"><span class="toc-text">6. 卸载包</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#7-%E6%9F%A5%E7%9C%8B%E5%B7%B2%E5%AE%89%E8%A3%85%E7%9A%84%E5%8C%85"><span class="toc-text">7. 查看已安装的包</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#8-%E7%A7%BB%E9%99%A4%E6%89%80%E6%9C%89%E5%8C%85-%E6%B8%85%E7%A9%BA%E8%99%9A%E6%8B%9F%E7%8E%AF%E5%A2%83"><span class="toc-text">8. 移除所有包 (清空虚拟环境)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%8F%91%E5%B8%83%E4%BE%9D%E8%B5%96%E6%96%87%E4%BB%B6-%E6%9B%BF%E4%BB%A3-pip-freeze"><span class="toc-text">3.3 发布依赖文件 (替代 pip freeze)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-uv-pip-freeze-%E7%94%9F%E6%88%90%E5%BD%93%E5%89%8D%E7%8E%AF%E5%A2%83%E7%9A%84%E5%8C%85%E5%88%97%E8%A1%A8"><span class="toc-text">1. uv pip freeze (生成当前环境的包列表)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-uv-pip-compile-%E7%94%9F%E6%88%90%E9%94%81%E6%96%87%E4%BB%B6%EF%BC%8C%E6%9B%BF%E4%BB%A3-pip-tools"><span class="toc-text">2. uv pip compile (生成锁文件，替代 pip-tools)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E7%BC%93%E5%AD%98%E7%AE%A1%E7%90%86"><span class="toc-text">3.4 缓存管理</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E6%9F%A5%E7%9C%8B%E7%BC%93%E5%AD%98%E4%BF%A1%E6%81%AF"><span class="toc-text">1. 查看缓存信息</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%8E-pip-%E5%92%8C-venv-%E7%9A%84%E5%AF%B9%E6%AF%94"><span class="toc-text">四、与 pip 和 venv 的对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88-uv-%E5%A6%82%E6%AD%A4%E4%B9%8B%E5%BF%AB%EF%BC%9F"><span class="toc-text">五、为什么 uv 如此之快？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%9C%AA%E6%9D%A5%E5%B1%95%E6%9C%9B%E4%B8%8E%E7%94%9F%E6%80%81%E5%BD%B1%E5%93%8D"><span class="toc-text">六、未来展望与生态影响</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-11.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

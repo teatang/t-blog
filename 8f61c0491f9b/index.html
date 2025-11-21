@@ -1,0 +1,672 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>ESP32 脉冲信号处理详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="ESP32 是一款功能强大的 Wi-Fi 和蓝牙双模芯片，其丰富的硬件外设使其在处理各种脉冲信号方面表现出色。无论是生成精确的脉冲，还是精确测量外部脉冲，ESP32 都提供了多种灵活高效的解决方案。本文将详细介绍 ESP32 处理脉冲信号的几种主要方式及其适用场景。  核心思想： ESP32 通过集成专用硬件模块（如 PWM、RMT、PCNT）来高效、精确地生成和测量脉冲信号，从而解放 CPU，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ESP32 脉冲信号处理详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/8f61c0491f9b/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="ESP32 是一款功能强大的 Wi-Fi 和蓝牙双模芯片，其丰富的硬件外设使其在处理各种脉冲信号方面表现出色。无论是生成精确的脉冲，还是精确测量外部脉冲，ESP32 都提供了多种灵活高效的解决方案。本文将详细介绍 ESP32 处理脉冲信号的几种主要方式及其适用场景。  核心思想： ESP32 通过集成专用硬件模块（如 PWM、RMT、PCNT）来高效、精确地生成和测量脉冲信号，从而解放 CPU，">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg">
+<meta property="article:published_time" content="2024-09-22T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.537Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="嵌入式系统">
+<meta property="article:tag" content="硬件编程">
+<meta property="article:tag" content="ESP32单片机">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ESP32 脉冲信号处理详解",
+  "url": "https://blog.tbf1211.xx.kg/8f61c0491f9b/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg",
+  "datePublished": "2024-09-22T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.537Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/8f61c0491f9b/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'ESP32 脉冲信号处理详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-11.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">ESP32 脉冲信号处理详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">ESP32 脉冲信号处理详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-09-22T22:24:00.000Z" title="发表于 2024-09-23 06:24:00">2024-09-23</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/ESP32%E5%8D%95%E7%89%87%E6%9C%BA/">ESP32单片机</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/8f61c0491f9b/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>ESP32</strong> 是一款功能强大的 Wi-Fi 和蓝牙双模芯片，其丰富的硬件外设使其在处理各种<strong>脉冲信号</strong>方面表现出色。无论是生成精确的脉冲，还是精确测量外部脉冲，ESP32 都提供了多种灵活高效的解决方案。本文将详细介绍 ESP32 处理脉冲信号的几种主要方式及其适用场景。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想：</strong> ESP32 通过集成专用硬件模块（如 PWM、RMT、PCNT）来高效、精确地生成和测量脉冲信号，从而解放 CPU，提高实时性和系统整体性能。</p>
+</div>
+<hr>
+<h2 id="一、脉冲信号基础"><a href="#一、脉冲信号基础" class="headerlink" title="一、脉冲信号基础"></a>一、脉冲信号基础</h2><p><strong>脉冲信号</strong>是指在电平或强度上发生短暂变化的信号。在数字电子中，脉冲通常表现为高电平 (High) 和低电平 (Low) 之间的快速切换。</p>
+<p><strong>脉冲的几个关键参数：</strong></p>
+<ul>
+<li><strong>周期 (Period)</strong>：一个完整脉冲波形所需的时间。</li>
+<li><strong>频率 (Frequency)</strong>：每秒钟脉冲重复的次数，频率 &#x3D; 1 &#x2F; 周期。</li>
+<li><strong>脉宽 (Pulse Width)</strong>：脉冲处于高电平或低电平的持续时间。</li>
+<li><strong>占空比 (Duty Cycle)</strong>：高电平脉宽与周期之比，通常以百分比表示。<br>$占空比 &#x3D; (高电平脉宽 &#x2F; 周期) \times 100%$</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    HighPulse(高电平) --&gt; |&quot;脉宽 (Pulse Width)&quot;| LowPulse(低电平)
+    LowPulse --&gt; |持续时间| HighPulse
+
+    subgraph 脉冲参数
+        DutyCycle(&quot;占空比 &#x3D; 脉宽 &#x2F; 周期&quot;)
+        Frequency(&quot;频率 &#x3D; 1 &#x2F; 周期&quot;)
+    end
+
+    HighPulse -- &quot;决定&quot; --&gt; DutyCycle
+    LowPulse -- &quot;决定&quot; --&gt; DutyCycle
+    HighPulse -- &quot;组成&quot; --&gt; Frequency
+    LowPulse -- &quot;组成&quot; --&gt; Frequency
+  </pre></div>
+
+<h2 id="二、ESP32-脉冲生成方式"><a href="#二、ESP32-脉冲生成方式" class="headerlink" title="二、ESP32 脉冲生成方式"></a>二、ESP32 脉冲生成方式</h2><h3 id="2-1-PWM-Pulse-Width-Modulation-脉冲宽度调制"><a href="#2-1-PWM-Pulse-Width-Modulation-脉冲宽度调制" class="headerlink" title="2.1 PWM (Pulse Width Modulation) - 脉冲宽度调制"></a>2.1 PWM (Pulse Width Modulation) - 脉冲宽度调制</h3><p>PWM 是一种通过调制方波的占空比来模拟模拟信号的技术。ESP32 提供了专门的 LEDC (LED Control) 外设来生成 PWM 信号。</p>
+<h4 id="2-1-1-LEDC-模块特性"><a href="#2-1-1-LEDC-模块特性" class="headerlink" title="2.1.1 LEDC 模块特性"></a>2.1.1 LEDC 模块特性</h4><ul>
+<li><strong>独立通道</strong>：ESP32 有 16 个独立的 PWM 通道。</li>
+<li><strong>高分辨率</strong>：支持最高 16 位的 PWM 占空比分辨率（意味着一个周期可以分成 $2^{16}$ 份）。</li>
+<li><strong>宽频率范围</strong>：从几 Hz 到几十 MHz。</li>
+<li><strong>硬件控制</strong>：一旦配置完成，PWM 信号完全由硬件生成，不占用 CPU 资源。</li>
+<li><strong>渐变功能</strong>：支持平滑的占空比渐变 (fade) 功能。</li>
+</ul>
+<h4 id="2-1-2-适用场景"><a href="#2-1-2-适用场景" class="headerlink" title="2.1.2 适用场景"></a>2.1.2 适用场景</h4><ul>
+<li><strong>LED 亮度控制</strong>：通过改变占空比控制 LED 亮度。</li>
+<li><strong>电机速度控制</strong>：驱动直流电机，通过改变占空比控制转速。</li>
+<li><strong>舵机控制</strong>：通过发送特定脉宽的脉冲来控制舵机角度。</li>
+<li><strong>DAC 模拟</strong>：通过低通滤波器将高频 PWM 信号转换为模拟电压。</li>
+<li><strong>音频输出</strong>：用于简单的音频播放（通常需要高频 PWM 和滤波）。</li>
+</ul>
+<h4 id="2-1-3-使用示例-Go-语言"><a href="#2-1-3-使用示例-Go-语言" class="headerlink" title="2.1.3 使用示例 (Go 语言)"></a>2.1.3 使用示例 (Go 语言)</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf&quot;</span></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf/hal/gpio&quot;</span></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf/hal/ledc&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	PWM_GPIO      = gpio.NUM_2 <span class="comment">// 示例：连接LED的GPIO引脚</span></span><br><span class="line">	PWM_CHANNEL   = ledc.CHANNEL_0</span><br><span class="line">	PWM_TIMER     = ledc.TIMER_0</span><br><span class="line">	PWM_FREQ_HZ   = <span class="number">5000</span> <span class="comment">// 5kHz</span></span><br><span class="line">	PWM_RESOLUTION = ledc.RESOLUTION_10_BIT <span class="comment">// 10位分辨率</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	idf.Init()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 1. 配置LED PWM Timer</span></span><br><span class="line">	timerConfig := ledc.TimerConfig&#123;</span><br><span class="line">		MODE:       ledc.MODE_LOW_SPEED, <span class="comment">// 或 ledc.MODE_HIGH_SPEED</span></span><br><span class="line">		FREQ_HZ:    PWM_FREQ_HZ,</span><br><span class="line">		DUTY_RESOLUTION: PWM_RESOLUTION,</span><br><span class="line">		TIMER_NUM:  PWM_TIMER,</span><br><span class="line">		CLK_CFG:    ledc.REF_TICK, <span class="comment">// 使用参考时钟 (1MHz)</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := ledc.TimerConfig(&amp;timerConfig); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to config LEDC timer: %v\n&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2. 配置LED PWM Channel</span></span><br><span class="line">	channelConfig := ledc.ChannelConfig&#123;</span><br><span class="line">		GPIO_NUM:   PWM_GPIO,</span><br><span class="line">		SPEED_MODE: ledc.MODE_LOW_SPEED,</span><br><span class="line">		CHANNEL:    PWM_CHANNEL,</span><br><span class="line">		TIMER_SEL:  PWM_TIMER,</span><br><span class="line">		INTR_TYPE:  ledc.INTR_DISABLE, <span class="comment">// 不启用中断</span></span><br><span class="line">		DUTY:       <span class="number">0</span>, <span class="comment">// 初始占空比为0</span></span><br><span class="line">		HPOINT:     <span class="number">0</span>,</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := ledc.ChannelConfig(&amp;channelConfig); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to config LEDC channel: %v\n&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;PWM on GPIO %d configured. Freq: %dHz, Resolution: %d-bit\n&quot;</span>, PWM_GPIO, PWM_FREQ_HZ, PWM_RESOLUTION)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3. 改变占空比来控制LED亮度</span></span><br><span class="line">	maxDuty := <span class="type">uint32</span>(<span class="number">1</span>&lt;&lt;PWM_RESOLUTION) - <span class="number">1</span> <span class="comment">// 10位分辨率下最大值1023</span></span><br><span class="line">	</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">for</span> duty := <span class="type">uint32</span>(<span class="number">0</span>); duty &lt;= maxDuty; duty += <span class="number">10</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> err := ledc.SetDuty(ledc.MODE_LOW_SPEED, PWM_CHANNEL, duty); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				fmt.Printf(<span class="string">&quot;Failed to set duty: %v\n&quot;</span>, err)</span><br><span class="line">			&#125;</span><br><span class="line">			ledc.UpdateDuty(ledc.MODE_LOW_SPEED, PWM_CHANNEL) <span class="comment">// 更新占空比</span></span><br><span class="line">			time.Sleep(<span class="number">5</span> * time.Millisecond)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> duty := maxDuty; duty &gt;= <span class="number">0</span>; duty -= <span class="number">10</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> err := ledc.SetDuty(ledc.MODE_LOW_SPEED, PWM_CHANNEL, duty); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				fmt.Printf(<span class="string">&quot;Failed to set duty: %v\n&quot;</span>, err)</span><br><span class="line">			&#125;</span><br><span class="line">			ledc.UpdateDuty(ledc.MODE_LOW_SPEED, PWM_CHANNEL)</span><br><span class="line">			time.Sleep(<span class="number">5</span> * time.Millisecond)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-RMT-Remote-Control-红外遥控模块"><a href="#2-2-RMT-Remote-Control-红外遥控模块" class="headerlink" title="2.2 RMT (Remote Control) - 红外遥控模块"></a>2.2 RMT (Remote Control) - 红外遥控模块</h3><p>RMT 模块是一个非常灵活的硬件外设，设计用于处理时间敏感的脉冲序列，如红外遥控信号。它不仅能接收，也能高精度地发送脉冲。</p>
+<h4 id="2-2-1-RMT-模块特性"><a href="#2-2-1-RMT-模块特性" class="headerlink" title="2.2.1 RMT 模块特性"></a>2.2.1 RMT 模块特性</h4><ul>
+<li><strong>高精度</strong>：能够生成和测量微秒甚至纳秒级别的脉冲（取决于时钟分频）。</li>
+<li><strong>DMA 支持</strong>：通过 DMA 将脉冲数据从内存发送或接收到内存，无需 CPU 实时干预。</li>
+<li><strong>多通道</strong>：通常有 8 个独立的 RMT 通道，每个通道可配置为发送或接收。</li>
+<li><strong>载波调制&#x2F;解调</strong>：特别适合红外通信，可自动处理载波。</li>
+<li><strong>数据项 (Item) 结构</strong>：通过一系列 <code>rmt_item32_t</code> 结构体描述脉冲，每个结构体可包含两个脉冲段。</li>
+</ul>
+<h4 id="2-2-2-适用场景"><a href="#2-2-2-适用场景" class="headerlink" title="2.2.2 适用场景"></a>2.2.2 适用场景</h4><ul>
+<li><strong>红外遥控</strong>：发送和接收 NEC、RC5、RC6 等各种红外协议。</li>
+<li><strong>自定义串行通信</strong>：实现位宽精确的自定义串行协议（如单线通信协议）。</li>
+<li><strong>精确脉冲序列生成</strong>：生成特定的、时间精度要求高的脉冲串。</li>
+<li><strong>步进电机控制</strong>：如果需要非常精确的脉冲序列来控制步进电机。</li>
+</ul>
+<h4 id="2-2-3-使用示例-Go-语言"><a href="#2-2-3-使用示例-Go-语言" class="headerlink" title="2.2.3 使用示例 (Go 语言)"></a>2.2.3 使用示例 (Go 语言)</h4><p>详见前文 “ESP32 RMT红外控制详解” 的发送部分。核心是构建 <code>[]rmt.Item32</code> 数组并使用 <code>rmt.WriteItems</code> 发送。</p>
+<h3 id="2-3-GPIO-输出-软件模拟"><a href="#2-3-GPIO-输出-软件模拟" class="headerlink" title="2.3 GPIO 输出 (软件模拟)"></a>2.3 GPIO 输出 (软件模拟)</h3><p>对于频率要求不高、精度要求不苛刻的脉冲，可以直接通过 GPIO 软件控制高低电平来生成。</p>
+<h4 id="2-3-1-特性"><a href="#2-3-1-特性" class="headerlink" title="2.3.1 特性"></a>2.3.1 特性</h4><ul>
+<li><strong>简单易用</strong>：直接调用 <code>gpio.SetLevel()</code> 和 <code>time.Sleep()</code>。</li>
+<li><strong>灵活性高</strong>：可以生成任意复杂的脉冲波形。</li>
+<li><strong>CPU 占用高</strong>：CPU 需要实时控制 GPIO，如果脉冲频率高或需要精确计时，会大量占用 CPU。</li>
+<li><strong>精度差</strong>：<code>time.Sleep()</code> 的精度受操作系统调度和中断影响，无法保证微秒级甚至纳秒级精度。</li>
+</ul>
+<h4 id="2-3-2-适用场景"><a href="#2-3-2-适用场景" class="headerlink" title="2.3.2 适用场景"></a>2.3.2 适用场景</h4><ul>
+<li><strong>低频信号</strong>：如控制继电器、蜂鸣器等。</li>
+<li><strong>简单协议</strong>：如软件模拟 I2C、SPI 等（但通常有硬件 I2C&#x2F;SPI 模块）。</li>
+<li><strong>调试和测试</strong>：快速生成一个简单的脉冲。</li>
+</ul>
+<h4 id="2-3-3-使用示例-Go-语言"><a href="#2-3-3-使用示例-Go-语言" class="headerlink" title="2.3.3 使用示例 (Go 语言)"></a>2.3.3 使用示例 (Go 语言)</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf&quot;</span></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf/hal/gpio&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	SOFTWARE_PWM_GPIO = gpio.NUM_4 <span class="comment">// 示例：GPIO4</span></span><br><span class="line">	SOFTWARE_PWM_FREQ = <span class="number">100</span> <span class="comment">// 100Hz</span></span><br><span class="line">	SOFTWARE_PWM_DUTY = <span class="number">50</span> <span class="comment">// 50% 占空比</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	idf.Init()</span><br><span class="line"></span><br><span class="line">	gpio.SetMode(SOFTWARE_PWM_GPIO, gpio.MODE_OUTPUT)</span><br><span class="line">	gpio.SetDriveStrength(SOFTWARE_PWM_GPIO, gpio.DRIVE_STRENGTH_STRONGER) <span class="comment">// 设置驱动能力</span></span><br><span class="line"></span><br><span class="line">	periodMs := time.Duration(<span class="number">1000</span>/SOFTWARE_PWM_FREQ) * time.Millisecond</span><br><span class="line">	highTime := time.Duration(<span class="type">float64</span>(periodMs) * <span class="type">float64</span>(SOFTWARE_PWM_DUTY) / <span class="number">100.0</span>)</span><br><span class="line">	lowTime := periodMs - highTime</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Software PWM on GPIO %d. Freq: %dHz, Duty: %d%%\n&quot;</span>, SOFTWARE_PWM_GPIO, SOFTWARE_PWM_FREQ, SOFTWARE_PWM_DUTY)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		gpio.SetLevel(SOFTWARE_PWM_GPIO, <span class="number">1</span>) <span class="comment">// 高电平</span></span><br><span class="line">		time.Sleep(highTime)</span><br><span class="line">		gpio.SetLevel(SOFTWARE_PWM_GPIO, <span class="number">0</span>) <span class="comment">// 低电平</span></span><br><span class="line">		time.Sleep(lowTime)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、ESP32-脉冲测量方式"><a href="#三、ESP32-脉冲测量方式" class="headerlink" title="三、ESP32 脉冲测量方式"></a>三、ESP32 脉冲测量方式</h2><h3 id="3-1-PCNT-Pulse-Counter-脉冲计数器"><a href="#3-1-PCNT-Pulse-Counter-脉冲计数器" class="headerlink" title="3.1 PCNT (Pulse Counter) - 脉冲计数器"></a>3.1 PCNT (Pulse Counter) - 脉冲计数器</h3><p>PCNT 模块是一个专用的硬件脉冲计数器，能够高速、精确地计数输入 GPIO 上的脉冲。</p>
+<h4 id="3-1-1-PCNT-模块特性"><a href="#3-1-1-PCNT-模块特性" class="headerlink" title="3.1.1 PCNT 模块特性"></a>3.1.1 PCNT 模块特性</h4><ul>
+<li><strong>8 个独立通道</strong>：ESP32 有 8 个脉冲计数器单元。</li>
+<li><strong>正向&#x2F;反向计数</strong>：可配置为只计数上升沿、只计数下降沿，或同时计数上升沿&#x2F;下降沿（用于编码器）。</li>
+<li><strong>可编程阈值</strong>：当计数达到预设阈值时触发中断。</li>
+<li><strong>软件清零</strong>：计数器可随时通过软件清零。</li>
+<li><strong>过滤器</strong>：可配置输入信号滤波器，过滤毛刺和噪声。</li>
+<li><strong>自由运行</strong>：计数过程独立于 CPU，不占用 CPU 资源。</li>
+</ul>
+<h4 id="3-1-2-适用场景"><a href="#3-1-2-适用场景" class="headerlink" title="3.1.2 适用场景"></a>3.1.2 适用场景</h4><ul>
+<li><strong>旋转编码器</strong>：测量旋转角度或速度。</li>
+<li><strong>流量计</strong>：测量流体通过的脉冲数量。</li>
+<li><strong>事件计数</strong>：计数外部触发事件的次数。</li>
+<li><strong>频率测量</strong>：在一定时间内计数脉冲，从而计算频率。</li>
+<li><strong>测量脉冲宽度</strong>：结合定时器，测量单个脉冲的持续时间（较复杂）。</li>
+</ul>
+<h4 id="3-1-3-使用示例-Go-语言"><a href="#3-1-3-使用示例-Go-语言" class="headerlink" title="3.1.3 使用示例 (Go 语言)"></a>3.1.3 使用示例 (Go 语言)</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">	<span class="string">&quot;runtime&quot;</span></span><br><span class="line">	<span class="string">&quot;unsafe&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf&quot;</span></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf/hal/gpio&quot;</span></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf/hal/pcnt&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	PCNT_GPIO_NUM = gpio.NUM_34 <span class="comment">// 示例：连接脉冲源的GPIO</span></span><br><span class="line">	PCNT_UNIT     = pcnt.UNIT_0</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	idf.Init()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 1. 配置 PCNT Unit</span></span><br><span class="line">	pcntConfig := pcnt.Config&#123;</span><br><span class="line">		UNIT:          PCNT_UNIT,</span><br><span class="line">		CHANNEL:       pcnt.CHANNEL_0,</span><br><span class="line">		GPIO_NUM:      PCNT_GPIO_NUM,</span><br><span class="line">		PIN_MODE:      pcnt.COUNT_DIS, <span class="comment">// 初始禁用计数</span></span><br><span class="line">		LCTRL_MODE:    pcnt.COUNT_DIS,</span><br><span class="line">		HCTRL_MODE:    pcnt.COUNT_INC, <span class="comment">// 高电平边沿计数</span></span><br><span class="line">		POS_MODE:      pcnt.COUNT_INC, <span class="comment">// 上升沿计数</span></span><br><span class="line">		NEG_MODE:      pcnt.COUNT_DIS, <span class="comment">// 下降沿不计数</span></span><br><span class="line">		COUNTER_L_LIM: <span class="number">-32768</span>, <span class="comment">// 计数器范围下限</span></span><br><span class="line">		COUNTER_H_LIM: <span class="number">32767</span>,  <span class="comment">// 计数器范围上限</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := pcnt.UnitConfig(&amp;pcntConfig); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to config PCNT unit: %v\n&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2. 配置 PCNT 过滤器 (可选)</span></span><br><span class="line">	<span class="comment">// 过滤短于 100 个 APB_CLK 周期 (80MHz APB_CLK, 1.25ns/tick) 的脉冲，用于去抖</span></span><br><span class="line">	<span class="keyword">if</span> err := pcnt.FilterEnable(PCNT_UNIT); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to enable PCNT filter: %v\n&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := pcnt.SetFilterValue(PCNT_UNIT, <span class="number">100</span>); err != <span class="literal">nil</span> &#123; <span class="comment">// 过滤值通常根据实际需求设定</span></span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to set PCNT filter value: %v\n&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3. 清零计数器并启动</span></span><br><span class="line">	<span class="keyword">if</span> err := pcnt.CounterClear(PCNT_UNIT); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to clear PCNT counter: %v\n&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := pcnt.CounterResume(PCNT_UNIT); err != <span class="literal">nil</span> &#123; <span class="comment">// 启用计数</span></span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to resume PCNT counter: %v\n&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;PCNT Unit %d configured on GPIO %d. Counting rising edges...\n&quot;</span>, PCNT_UNIT, PCNT_GPIO_NUM)</span><br><span class="line"></span><br><span class="line">	ticker := time.NewTicker(<span class="number">1</span> * time.Second) <span class="comment">// 每秒读取一次</span></span><br><span class="line">	<span class="keyword">defer</span> ticker.Stop()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> <span class="keyword">range</span> ticker.C &#123;</span><br><span class="line">		count, err := pcnt.GetCounterValue(PCNT_UNIT)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Failed to get PCNT counter value: %v\n&quot;</span>, err)</span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Pulse count: %d\n&quot;</span>, count)</span><br><span class="line">		<span class="comment">// 如果需要清零并重新计数，可以在这里调用 pcnt.CounterClear(PCNT_UNIT)</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-RMT-接收-RX"><a href="#3-2-RMT-接收-RX" class="headerlink" title="3.2 RMT 接收 (RX)"></a>3.2 RMT 接收 (RX)</h3><p>RMT 模块在接收模式下可以精确测量外部脉冲的持续时间。</p>
+<h4 id="3-2-1-RMT-RX-特性"><a href="#3-2-1-RMT-RX-特性" class="headerlink" title="3.2.1 RMT RX 特性"></a>3.2.1 RMT RX 特性</h4><ul>
+<li><strong>硬件解调</strong>：可自动解调带有载波的信号，还原原始脉冲。</li>
+<li><strong>DMA 接收</strong>：将测量到的脉冲高&#x2F;低电平持续时间数据存储到内存。</li>
+<li><strong>空闲阈值</strong>：用于判断一个脉冲序列（数据包）的结束。</li>
+<li><strong>高精度测量</strong>：与发送模式相同，提供微秒级甚至纳秒级精度。</li>
+</ul>
+<h4 id="3-2-2-适用场景"><a href="#3-2-2-适用场景" class="headerlink" title="3.2.2 适用场景"></a>3.2.2 适用场景</h4><ul>
+<li><strong>红外遥控数据解析</strong>：测量红外接收头输出的脉冲序列，并解析为数据。</li>
+<li><strong>脉冲编码器</strong>：测量特殊编码的脉冲信号。</li>
+<li><strong>测量自定义脉冲协议</strong>：解析其他设备发送的自定义脉冲协议。</li>
+</ul>
+<h4 id="3-2-3-使用示例-Go-语言"><a href="#3-2-3-使用示例-Go-语言" class="headerlink" title="3.2.3 使用示例 (Go 语言)"></a>3.2.3 使用示例 (Go 语言)</h4><p>详见前文 “ESP32 RMT红外控制详解” 的接收部分。核心是配置 RMT RX 通道，启动接收，然后从事件队列和 DMA 缓冲区中读取 <code>[]rmt.Item32</code> 数组并解析。</p>
+<h3 id="3-3-GPIO-输入-中断或轮询"><a href="#3-3-GPIO-输入-中断或轮询" class="headerlink" title="3.3 GPIO 输入 (中断或轮询)"></a>3.3 GPIO 输入 (中断或轮询)</h3><p>对于频率较低、无需精确时间测量的脉冲，可以通过 GPIO 中断或轮询来检测。</p>
+<h4 id="3-3-1-特性"><a href="#3-3-1-特性" class="headerlink" title="3.3.1 特性"></a>3.3.1 特性</h4><ul>
+<li><strong>中断</strong>：当 GPIO 电平变化时触发中断，CPU 在中断服务程序 (ISR) 中处理。<ul>
+<li><strong>优点</strong>：实时性较好，CPU 占用低（只在事件发生时处理）。</li>
+<li><strong>缺点</strong>：ISR 尽可能短，不能执行耗时操作。</li>
+</ul>
+</li>
+<li><strong>轮询</strong>：CPU 周期性读取 GPIO 状态。<ul>
+<li><strong>优点</strong>：简单。</li>
+<li><strong>缺点</strong>：实时性差，CPU 占用高。不适合高频脉冲。</li>
+</ul>
+</li>
+<li><strong>精度差</strong>：与软件生成脉冲类似，时间测量依赖软件 <code>time.Now()</code> 等，精度受限。</li>
+</ul>
+<h4 id="3-3-2-适用场景"><a href="#3-3-2-适用场景" class="headerlink" title="3.3.2 适用场景"></a>3.3.2 适用场景</h4><ul>
+<li><strong>按键检测</strong>：检测按键按下或释放。</li>
+<li><strong>传感器状态变化</strong>：如光电开关、门磁开关等。</li>
+<li><strong>低频事件计数</strong>：使用中断服务程序来计数。</li>
+</ul>
+<h4 id="3-3-3-使用示例-Go-语言-中断"><a href="#3-3-3-使用示例-Go-语言-中断" class="headerlink" title="3.3.3 使用示例 (Go 语言 - 中断)"></a>3.3.3 使用示例 (Go 语言 - 中断)</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;sync/atomic&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf&quot;</span></span><br><span class="line">	<span class="string">&quot;github.com/espressif/esp-idf-go/idf/hal/gpio&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	GPIO_INT_NUM = gpio.NUM_35 <span class="comment">// 示例：连接外部脉冲的GPIO</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	pulseCount <span class="type">uint32</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// ISR函数，在Go中通过Cgo包装</span></span><br><span class="line"><span class="comment">// 注意：ISR中不能做耗时操作，不能使用fmt.Println等</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">gpioISR</span><span class="params">(arg unsafe.Pointer)</span></span> &#123;</span><br><span class="line">	atomic.AddUint32(&amp;pulseCount, <span class="number">1</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	idf.Init()</span><br><span class="line"></span><br><span class="line">	gpio.SetMode(GPIO_INT_NUM, gpio.MODE_INPUT)</span><br><span class="line">	gpio.SetPullMode(GPIO_INT_NUM, gpio.PULL_UP) <span class="comment">// 上拉电阻</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 配置中断：上升沿触发</span></span><br><span class="line">	gpio.SetIntType(GPIO_INT_NUM, gpio.INTR_POS_EDGE)</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 安装中断服务程序 (ISR)</span></span><br><span class="line">	<span class="keyword">if</span> err := gpio.InstallISRService(<span class="number">0</span>); err != <span class="literal">nil</span> &#123; <span class="comment">// 0为默认ISR标志</span></span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to install GPIO ISR service: %v\n&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := gpio.ISRHandlerAdd(GPIO_INT_NUM, gpioISR, <span class="literal">nil</span>); err != <span class="literal">nil</span> &#123; <span class="comment">// 注册ISR</span></span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to add GPIO ISR handler: %v\n&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> err := gpio.IntEnable(GPIO_INT_NUM); err != <span class="literal">nil</span> &#123; <span class="comment">// 启用GPIO中断</span></span><br><span class="line">		fmt.Printf(<span class="string">&quot;Failed to enable GPIO interrupt: %v\n&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;GPIO %d configured for rising edge interrupt. Counting pulses...\n&quot;</span>, GPIO_INT_NUM)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		time.Sleep(<span class="number">1</span> * time.Second)</span><br><span class="line">		count := atomic.LoadUint32(&amp;pulseCount)</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Total pulses detected: %d\n&quot;</span>, count)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="四、总结与选择指南"><a href="#四、总结与选择指南" class="headerlink" title="四、总结与选择指南"></a>四、总结与选择指南</h2><p>ESP32 提供了多种处理脉冲信号的方法，选择哪种方式取决于具体的应用需求：</p>
+<table>
+<thead>
+<tr>
+<th align="left">特性 &#x2F; 模块</th>
+<th align="left">PWM (LEDC)</th>
+<th align="left">RMT (Remote Control)</th>
+<th align="left">PCNT (Pulse Counter)</th>
+<th align="left">GPIO (软件模拟)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>功能</strong></td>
+<td align="left">精确生成可变占空比脉冲</td>
+<td align="left">精确生成&#x2F;测量任意复杂脉冲序列</td>
+<td align="left">高速计数外部脉冲</td>
+<td align="left">软件控制高低电平</td>
+</tr>
+<tr>
+<td align="left"><strong>精度</strong></td>
+<td align="left">硬件级，高精度 (纳秒&#x2F;微秒)</td>
+<td align="left">硬件级，极高精度 (纳秒)</td>
+<td align="left">硬件级，高精度计数</td>
+<td align="left">软件级，精度差 (毫秒级，受OS调度影响)</td>
+</tr>
+<tr>
+<td align="left"><strong>CPU 占用</strong></td>
+<td align="left">极低 (硬件自动运行)</td>
+<td align="left">极低 (DMA传输，硬件自动运行)</td>
+<td align="left">极低 (硬件自动运行)</td>
+<td align="left">高 (实时CPU控制或中断处理)</td>
+</tr>
+<tr>
+<td align="left"><strong>频率范围</strong></td>
+<td align="left">几 Hz 到几十 MHz</td>
+<td align="left">数百 Hz 到几十 MHz (取决于CLK_DIV)</td>
+<td align="left">最高达几十 MHz</td>
+<td align="left">几 Hz 到几 kHz (取决于CPU负载和代码效率)</td>
+</tr>
+<tr>
+<td align="left"><strong>应用场景</strong></td>
+<td align="left">LED亮度、电机调速、舵机、模拟信号输出</td>
+<td align="left">红外遥控、自定义串行协议、精确时序脉冲</td>
+<td align="left">旋转编码器、流量计、事件计数、频率粗测</td>
+<td align="left">按键检测、低频信号、简单开关量控制</td>
+</tr>
+<tr>
+<td align="left"><strong>优势</strong></td>
+<td align="left">高分辨率，多通道，支持渐变</td>
+<td align="left">极高精度，DMA，载波调制&#x2F;解调</td>
+<td align="left">高速计数，正反向，可编程阈值，过滤器</td>
+<td align="left">简单易用，灵活性高</td>
+</tr>
+<tr>
+<td align="left"><strong>劣势</strong></td>
+<td align="left">只能生成方波，不能直接测量</td>
+<td align="left">数据结构复杂，解析协议需软件</td>
+<td align="left">主要用于计数，测量脉宽需结合其他模块</td>
+<td align="left">占用CPU，精度低，不适合高频和时间敏感应用</td>
+</tr>
+</tbody></table>
+<p>在设计 ESP32 应用程序时，应优先考虑使用专门的硬件外设（LEDC、RMT、PCNT），因为它们能提供更好的性能、更高的精度和更低的 CPU 负载，从而使系统更加稳定和高效。只有在硬件模块无法满足需求或功能过于简单时，才考虑使用 GPIO 软件模拟的方式。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/8f61c0491f9b/">https://blog.tbf1211.xx.kg/8f61c0491f9b/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F%E7%B3%BB%E7%BB%9F/">嵌入式系统</a><a class="post-meta__tags" href="/tags/%E7%A1%AC%E4%BB%B6%E7%BC%96%E7%A8%8B/">硬件编程</a><a class="post-meta__tags" href="/tags/ESP32%E5%8D%95%E7%89%87%E6%9C%BA/">ESP32单片机</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-11.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/17997196b139/" title="现代医学与传统医学详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">现代医学与传统医学详解</div></div><div class="info-2"><div class="info-item-1"> 当我们谈论医疗健康时，常常会提到“现代医学”和“传统医学”这两个概念。它们代表着两种截然不同的理论体系、诊疗方法和哲学观念。理解这两种医学的异同及其各自的优势与局限性，有助于我们更全面、理性地看待疾病与健康，并做出更适合自己的健康选择。  核心思想：现代医学以实证科学为基础，注重微观层面、精准诊断和靶向治疗；传统医学则立足于数千年的实践经验，强调宏观视角、整体观念和个体化调理。两者并非相互排斥，而是可以在不同层面、不同阶段互补共赢。   一、现代医学 (Western Medicine &#x2F; Allopathic Medicine)1.1 概念与发展现代医学，通常指以西方科学为基础发展起来的医学体系，也被称为西医、生物医学或对抗疗法。它在17世纪科学革命之后逐渐成形，并在20世纪取得了飞速发展，尤其是在分子生物学、病理学、药理学、影像学等领域取得突破后，形成了以循证医学为核心的科学实践体系。 1.2 核心特点 科学基础与实证： 以科学为基础：依赖物理、化学、生物学等自然科学理论，通过实验、数据分析和临床试验来验证其理论和疗效。 循证医学 (Evidence-Based ...</div></div></div></a><a class="pagination-related" href="/024db074490c/" title="ESP32 RMT红外控制详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">ESP32 RMT红外控制详解</div></div><div class="info-2"><div class="info-item-1"> RMT (Remote Control) 模块是 ESP32 特有的一个高度灵活的外设，主要用于红外 (Infrared) 遥控信号的生成和解析。它提供了一种高效且精确的方式来处理时间敏感的信号，尤其适用于各种自定义的红外协议，而无需占用大量 CPU 资源。  核心思想： RMT 模块通过硬件方式，精确控制脉冲的持续时间（高电平或低电平的宽度），从而实现对各种红外编码协议（如 NEC、RC5、RC6 等）的编解码，大大减轻了 CPU 软件模拟脉冲的负担和精度问题。   一、RMT 模块概述ESP32 的 RMT 模块提供以下主要特性：  高精度脉冲控制：能够生成和解析微秒级别的脉冲。 DMA (Direct Memory Access) 支持：RMT 可以直接从内存读取数据并发送，或将接收到的数据直接写入内存，无需 CPU 干预，提高了效率。 多通道：通常有8个独立的RMT通道，每个通道都可以配置为发送或接收模式。 编码&#x2F;解码灵活：可以通过编程配置，适应多种红外协议。 空闲状态检测：接收模式下可检测总线空闲，判断数据包结束。 载波调制&#x2F;解调：支持对发送信号进...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/f813650a0761/" title="ESP32 芯片详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-27</div><div class="info-item-2">ESP32 芯片详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 是由乐鑫科技 (Espressif Systems) 开发的一系列低成本、低功耗的系统级芯片 (SoC)，集成了 Wi-Fi 和双模蓝牙功能。它专为物联网 (IoT) 应用、移动设备、可穿戴电子产品以及其他新兴的物联网领域而设计。凭借其强大的性能、丰富的硬件资源和极具竞争力的价格，ESP32 已经成为全球创客、开发者和公司在物联网项目中的首选芯片之一。  核心思想：将强大的双核处理器、Wi-Fi、双模蓝牙、大量外设集成在一个小巧的芯片中，并通过成本效益极高的方式提供给开发者，极大地降低了物联网开发的门槛。   一、ESP32 简介与发展历程1.1 ESP 系列芯片概述乐鑫科技的 ESP 系列芯片在物联网领域取得了巨大成功，主要包括：  ESP8266：乐鑫的第一款里程碑式产品，集成了 Wi-Fi 功能。它凭借极低的成本和开源社区的强大支持，迅速占领了物联网市场，成为智能家居、远程控制等应用的首选。 ESP32：在 ESP8266 的基础上进行了全面升级，引入了双核处理器、双模蓝牙（经典蓝牙 + 低功耗蓝牙 BLE）以及更丰富的外设接口，性能和功能都有了质的飞跃。 E...</div></div></div></a><a class="pagination-related" href="/35f7afd8aca4/" title="ESP32 Arduino 语法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-28</div><div class="info-item-2">ESP32 Arduino 语法详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 Arduino 语法 是指在使用 Arduino IDE 或 PlatformIO 配合 Arduino 核心开发 ESP32 应用时所遵循的编程规范和 API。它将 ESP32 强大的硬件功能封装成简单易用的函数和类，使得开发者能够以 Arduino 熟悉的编程范式来操控 ESP32 的 Wi-Fi、蓝牙、GPIO、串口等功能，极大地降低了 ESP32 的学习曲线和开发难度。  核心思想：将复杂底层的 ESP-IDF 功能抽象成 Arduino 风格的函数调用，让开发者能够像使用 Arduino Uno&#x2F;Mega 一样，快速上手 ESP32 的 Wi-Fi、蓝牙和多核特性。   一、Arduino 核心与 ESP321.1 什么是 Arduino 核心 (Board Support Package - BSP)？Arduino 核心是一套针对特定微控制器（如 AVR 芯片、STM32 芯片、ESP32 芯片）的底层驱动、库和编译器配置，旨在将微控制器的复杂硬件操作抽象成 Arduino 统一的 API。当我们在 Arduino IDE 中选择“ESP32...</div></div></div></a><a class="pagination-related" href="/a98499913a49/" title="PlatformIO 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-01</div><div class="info-item-2">PlatformIO 详解</div></div><div class="info-2"><div class="info-item-1"> PlatformIO 是一个开源的生态系统，用于物联网 (IoT) 和嵌入式系统的开发。它提供了一个跨平台、多框架、集成开发环境 (IDE) 独立的开发工具集。PlatformIO 的目标是简化嵌入式开发的复杂性，让开发者能够专注于代码逻辑，而不用花费大量时间在工具链的配置和管理上。它支持数百种开发板、多种流行的开发框架（如 Arduino, ESP-IDF, STM32Cube, Zephyr 等），并集成了调试器、库管理器、单元测试等功能。  核心思想：统一嵌入式开发工作流，抽象底层工具链细节，提供高度可配置和自动化的开发环境。 开发者可以使用自己喜欢的编辑器（如 VS Code）配合 PlatformIO 的强大后端进行项目管理、编译和烧录。   一、为什么选择 PlatformIO？传统嵌入式开发的痛点传统的嵌入式开发常常伴随着一系列挑战：  工具链碎片化：不同的微控制器和开发板通常需要不同的编译器、烧录工具和调试器。例如，为 AVR 芯片开发需要 AVR-GCC，为 ESP32 开发需要 xtensa-esp32-elf-gcc。 IDE 绑定和限制：许多官方 IDE...</div></div></div></a><a class="pagination-related" href="/e1817242c050/" title="ESP32 引脚及编号详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-08</div><div class="info-item-2">ESP32 引脚及编号详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 是一款由乐鑫科技 (Espressif Systems) 开发的低成本、低功耗的 Wi-Fi 和蓝牙双模芯片。它集成了强大的 Tensilica Xtensa LX6 双核处理器、Wi-Fi、蓝牙、以及丰富的周边接口（如 GPIO, ADC, DAC, SPI, I2C, UART, I2S, RMT, TWAI 等），使其成为物联网 (IoT) 应用的理想选择。理解 ESP32 的引脚功能和编号对于任何 ESP32 项目都至关重要。  核心思想：ESP32 芯片提供了大量的通用输入&#x2F;输出 (GPIO) 引脚，这些引脚除了基本的数字输入&#x2F;输出功能外，还复用 (multiplexing) 了多种外设功能。正确识别和使用这些引脚是成功开发 ESP32 应用的基础。   一、ESP32 芯片与开发板在讨论引脚之前，需要明确 ESP32 芯片本身和基于 ESP32 芯片的开发板（如 ESP32-DevKitC, ESP32-WROOM-32D&#x2F;U 等模组）的区别：  ESP32 芯片：指的是裸芯片，例如 ESP32-D0WDQ6。它具有 39 ...</div></div></div></a><a class="pagination-related" href="/2495e30e1422/" title="ESP32 GPIO矩阵交换详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-09</div><div class="info-item-2">ESP32 GPIO矩阵交换详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 的 GPIO 矩阵 (GPIO Matrix) 是一种非常灵活的硬件特性，它允许用户在大部分 GPIO 引脚上自由地路由内部外设的输入和输出信号。这意味着，几乎任何一个数字 GPIO 引脚都可以用作特定外设的输入或输出，打破了传统微控制器中 GPIO 引脚与外设功能之间固定的对应关系。这种“可交换”的能力极大地提高了硬件设计的灵活性和开发效率。  核心思想： ESP32 的 GPIO 矩阵通过一个可配置的交叉开关，将内部外设的输入&#x2F;输出信号与任意可用的 GPIO 引脚进行连接，从而实现引脚功能的灵活重映射。   一、为什么需要 GPIO 矩阵？在传统的微控制器中，每个 GPIO 引脚通常都有一个或几个固定的复用功能（例如，GPIO1 连接到 UART_TX，GPIO2 连接到 SPI_MOSI）。这种固定映射带来了一些限制：  硬件设计约束：如果 PCB 布局需要将某个外设信号引出到特定的物理引脚，而该引脚没有被硬性分配给该外设，那么就可能需要调整 PCB 布局，甚至更换微控制器型号。 资源冲突：当多个外设需要使用相同的 GPIO 引脚时，就会出现冲突，导...</div></div></div></a><a class="pagination-related" href="/4b5b30fd759e/" title="U8g2lib 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-14</div><div class="info-item-2">U8g2lib 详解</div></div><div class="info-2"><div class="info-item-1"> U8g2lib 是一个用于单色图形显示器 (monochrome graphics displays) 的开源嵌入式图形库。它支持各种 OLED 和 LCD 显示器，例如经典的 128x64 SSD1306 OLED 显示器。U8g2lib 以其广泛的硬件支持、丰富的字体集、高效的内存使用以及强大的图形绘制功能而闻名。它是 U8glib 的继任者，相比 U8glib，U8g2lib 在内存效率和功能上进行了优化和扩展，支持帧缓冲模式 (full buffer) 和页缓冲模式 (page buffer)。  核心思想：提供一个统一的 API 接口，驱动各种单色图形显示器，并提供一套完整的图形绘制和字体渲染功能，同时兼顾嵌入式设备的资源限制。 开发者无需关心底层显示器的驱动细节，专注于界面设计。   一、为什么需要 U8g2lib？嵌入式显示器的痛点在嵌入式系统中集成单色图形显示器时，开发者常常面临以下挑战：  硬件驱动复杂：不同的显示器控制器 (如 SSD1306, SH1106, ST7920) 有不同的初始化序列、命令集和数据传输协议（SPI, I2C, 并行）。手动编写驱动...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%84%89%E5%86%B2%E4%BF%A1%E5%8F%B7%E5%9F%BA%E7%A1%80"><span class="toc-text">一、脉冲信号基础</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81ESP32-%E8%84%89%E5%86%B2%E7%94%9F%E6%88%90%E6%96%B9%E5%BC%8F"><span class="toc-text">二、ESP32 脉冲生成方式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-PWM-Pulse-Width-Modulation-%E8%84%89%E5%86%B2%E5%AE%BD%E5%BA%A6%E8%B0%83%E5%88%B6"><span class="toc-text">2.1 PWM (Pulse Width Modulation) - 脉冲宽度调制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-1-LEDC-%E6%A8%A1%E5%9D%97%E7%89%B9%E6%80%A7"><span class="toc-text">2.1.1 LEDC 模块特性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-2-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">2.1.2 适用场景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-3-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Go-%E8%AF%AD%E8%A8%80"><span class="toc-text">2.1.3 使用示例 (Go 语言)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-RMT-Remote-Control-%E7%BA%A2%E5%A4%96%E9%81%A5%E6%8E%A7%E6%A8%A1%E5%9D%97"><span class="toc-text">2.2 RMT (Remote Control) - 红外遥控模块</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-1-RMT-%E6%A8%A1%E5%9D%97%E7%89%B9%E6%80%A7"><span class="toc-text">2.2.1 RMT 模块特性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-2-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">2.2.2 适用场景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-3-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Go-%E8%AF%AD%E8%A8%80"><span class="toc-text">2.2.3 使用示例 (Go 语言)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-GPIO-%E8%BE%93%E5%87%BA-%E8%BD%AF%E4%BB%B6%E6%A8%A1%E6%8B%9F"><span class="toc-text">2.3 GPIO 输出 (软件模拟)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-3-1-%E7%89%B9%E6%80%A7"><span class="toc-text">2.3.1 特性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-3-2-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">2.3.2 适用场景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-3-3-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Go-%E8%AF%AD%E8%A8%80"><span class="toc-text">2.3.3 使用示例 (Go 语言)</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81ESP32-%E8%84%89%E5%86%B2%E6%B5%8B%E9%87%8F%E6%96%B9%E5%BC%8F"><span class="toc-text">三、ESP32 脉冲测量方式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-PCNT-Pulse-Counter-%E8%84%89%E5%86%B2%E8%AE%A1%E6%95%B0%E5%99%A8"><span class="toc-text">3.1 PCNT (Pulse Counter) - 脉冲计数器</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-PCNT-%E6%A8%A1%E5%9D%97%E7%89%B9%E6%80%A7"><span class="toc-text">3.1.1 PCNT 模块特性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-2-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">3.1.2 适用场景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-3-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Go-%E8%AF%AD%E8%A8%80"><span class="toc-text">3.1.3 使用示例 (Go 语言)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-RMT-%E6%8E%A5%E6%94%B6-RX"><span class="toc-text">3.2 RMT 接收 (RX)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-1-RMT-RX-%E7%89%B9%E6%80%A7"><span class="toc-text">3.2.1 RMT RX 特性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-2-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">3.2.2 适用场景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-3-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Go-%E8%AF%AD%E8%A8%80"><span class="toc-text">3.2.3 使用示例 (Go 语言)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-GPIO-%E8%BE%93%E5%85%A5-%E4%B8%AD%E6%96%AD%E6%88%96%E8%BD%AE%E8%AF%A2"><span class="toc-text">3.3 GPIO 输入 (中断或轮询)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-1-%E7%89%B9%E6%80%A7"><span class="toc-text">3.3.1 特性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-2-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">3.3.2 适用场景</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-3-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Go-%E8%AF%AD%E8%A8%80-%E4%B8%AD%E6%96%AD"><span class="toc-text">3.3.3 使用示例 (Go 语言 - 中断)</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%80%BB%E7%BB%93%E4%B8%8E%E9%80%89%E6%8B%A9%E6%8C%87%E5%8D%97"><span class="toc-text">四、总结与选择指南</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-11.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

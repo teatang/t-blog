@@ -1,0 +1,667 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>WebDAV详解：基于HTTP的分布式文件管理协议 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="WebDAV (Web Distributed Authoring and Versioning) 是一种基于 HTTP 协议的扩展协议，它允许客户端直接通过 Web 远程地执行文件和文件夹的操作，包括创建、移动、复制、删除、读取以及管理文件属性和锁机制。简而言之，WebDAV 将 Web 服务器从一个简单的内容消费者转变为一个可供用户直接进行创作和协同工作的平台，将 Web 页面视为可编辑的文">
+<meta property="og:type" content="article">
+<meta property="og:title" content="WebDAV详解：基于HTTP的分布式文件管理协议">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/aeeb1d5d94e7/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="WebDAV (Web Distributed Authoring and Versioning) 是一种基于 HTTP 协议的扩展协议，它允许客户端直接通过 Web 远程地执行文件和文件夹的操作，包括创建、移动、复制、删除、读取以及管理文件属性和锁机制。简而言之，WebDAV 将 Web 服务器从一个简单的内容消费者转变为一个可供用户直接进行创作和协同工作的平台，将 Web 页面视为可编辑的文">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg">
+<meta property="article:published_time" content="2024-12-01T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.539Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络协议">
+<meta property="article:tag" content="NAS">
+<meta property="article:tag" content="WebDAV">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "WebDAV详解：基于HTTP的分布式文件管理协议",
+  "url": "https://blog.tbf1211.xx.kg/aeeb1d5d94e7/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg",
+  "datePublished": "2024-12-01T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.539Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/aeeb1d5d94e7/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'WebDAV详解：基于HTTP的分布式文件管理协议',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-30.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">WebDAV详解：基于HTTP的分布式文件管理协议</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">WebDAV详解：基于HTTP的分布式文件管理协议</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-12-01T22:24:00.000Z" title="发表于 2024-12-02 06:24:00">2024-12-02</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.8k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/aeeb1d5d94e7/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>WebDAV (Web Distributed Authoring and Versioning)</strong> 是一种基于 <strong>HTTP 协议</strong>的扩展协议，它允许客户端直接通过 Web 远程地执行文件和文件夹的操作，包括<strong>创建、移动、复制、删除、读取以及管理文件属性和锁机制</strong>。简而言之，WebDAV 将 Web 服务器从一个简单的内容消费者转变为一个可供用户直接进行<strong>创作和协同工作</strong>的平台，将 Web 页面视为可编辑的文档集合。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想</strong>：WebDAV 在不改变 HTTP 核心语义的前提下，增加了 HTTP 缺乏的文件锁定、属性管理、命名空间管理等功能，使其能够支持分布式文件系统的基本操作。它将传统的“请求-响应”模式扩展为“文档创作-协作”模式。</p>
+</div>
+<hr>
+<h2 id="一、为什么需要-WebDAV？HTTP-的局限性"><a href="#一、为什么需要-WebDAV？HTTP-的局限性" class="headerlink" title="一、为什么需要 WebDAV？HTTP 的局限性"></a>一、为什么需要 WebDAV？HTTP 的局限性</h2><p>HTTP (Hypertext Transfer Protocol) 在设计之初，主要是为了实现信息的<strong>单向传输</strong>，即客户端请求资源，服务器提供资源。它的主要方法 (<code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>, <code>HEAD</code>, <code>OPTIONS</code>) 专注于获取、提交和替换&#x2F;删除<strong>单个资源</strong>。</p>
+<p>然而，对于 Web 内容的<strong>创作、版本管理和协作</strong>，HTTP 存在显著的局限性：</p>
+<ol>
+<li><strong>缺乏文件&#x2F;文件夹操作</strong>：HTTP 没有原生的方法来创建新文件夹、移动文件、列出文件夹内容或管理文件集合。</li>
+<li><strong>缺少属性管理</strong>：HTTP 资源的元数据通常是固定的（如 <code>Content-Type</code>, <code>Last-Modified</code>），无法自定义和查询任意用户定义的属性。</li>
+<li><strong>并发编辑问题</strong>：当多个用户试图同时修改同一个文件时，HTTP 无法提供有效的锁定机制来防止“写覆盖”或“丢失更新”问题。</li>
+<li><strong>版本控制缺失</strong>：HTTP 不支持文件的历史版本管理。</li>
+<li><strong>命名空间管理</strong>：HTTP 无法轻松地处理资源集合（文件夹）的创建、删除和重命名。</li>
+</ol>
+<p>为了弥补这些不足，<strong>IETF (Internet Engineering Task Force)</strong> 在 <strong>RFC 2518 (后被 RFC 4918 更新)</strong> 中定义了 WebDAV 协议，扩展了 HTTP 方法和头信息，使其能够满足分布式创作和版本管理的需求。</p>
+<h2 id="二、WebDAV-的核心方法与功能"><a href="#二、WebDAV-的核心方法与功能" class="headerlink" title="二、WebDAV 的核心方法与功能"></a>二、WebDAV 的核心方法与功能</h2><p>WebDAV 通过引入一系列新的 HTTP 方法和额外的 HTTP 头字段，实现了文件管理和协作功能。</p>
+<h3 id="2-1-1-主要-WebDAV-HTTP-方法"><a href="#2-1-1-主要-WebDAV-HTTP-方法" class="headerlink" title="2.1 1. 主要 WebDAV HTTP 方法"></a>2.1 1. 主要 WebDAV HTTP 方法</h3><table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">描述</th>
+<th align="left">对应操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>PROPFIND</code></td>
+<td align="left"><strong>获取资源属性</strong>：用于检索资源（文件或文件夹）的属性。可以指定要检索的属性列表，或者请求所有属性。它还可以用于列出目录内容及其属性。这是 WebDAV 中最常用的方法之一，类似于 <code>ls -l</code> 或 <code>dir</code>。</td>
+<td align="left">获取文件&#x2F;文件夹属性，列目录</td>
+</tr>
+<tr>
+<td align="left"><code>PROPPATCH</code></td>
+<td align="left"><strong>修改资源属性</strong>：用于一次性设置、删除或修改一个或多个资源的属性。</td>
+<td align="left">修改文件&#x2F;文件夹属性</td>
+</tr>
+<tr>
+<td align="left"><code>MKCOL</code></td>
+<td align="left"><strong>创建集合 (目录)</strong>：用于创建一个新的 WebDAV 集合资源（即一个目录&#x2F;文件夹）。</td>
+<td align="left">创建目录</td>
+</tr>
+<tr>
+<td align="left"><code>COPY</code></td>
+<td align="left"><strong>复制资源</strong>：将一个资源从一个 URI 复制到另一个 URI。可以指定是否深度复制（包含子目录内容）和是否覆盖目标。</td>
+<td align="left">复制文件&#x2F;目录</td>
+</tr>
+<tr>
+<td align="left"><code>MOVE</code></td>
+<td align="left"><strong>移动资源</strong>：将一个资源从一个 URI 移动到另一个 URI。可以将 Move 理解为 <code>COPY</code> 后再 <code>DELETE</code>，但它是原子操作。</td>
+<td align="left">移动&#x2F;重命名文件&#x2F;目录</td>
+</tr>
+<tr>
+<td align="left"><code>LOCK</code></td>
+<td align="left"><strong>锁定资源</strong>：用于锁定一个资源，以防止其他用户同时修改。支持共享锁 (Shared Lock) 和独占锁 (Exclusive Lock)。可以指定锁的超时时间和所有者信息。</td>
+<td align="left">文件锁定</td>
+</tr>
+<tr>
+<td align="left"><code>UNLOCK</code></td>
+<td align="left"><strong>解锁资源</strong>：用于移除之前在资源上建立的锁。</td>
+<td align="left">解锁文件</td>
+</tr>
+<tr>
+<td align="left"><code>REPORT</code></td>
+<td align="left"><strong>高级查询</strong>：用于检索关于资源或集合的特定信息，这些信息不适合通过 <code>PROPFIND</code> 获取，或者需要更复杂的查询条件。例如，可以用来查询特定版本的信息。 (在 WebDAV 版本控制扩展中更常用)。</td>
+<td align="left">高级查询</td>
+</tr>
+<tr>
+<td align="left"><strong>HTTP 标准方法</strong></td>
+<td align="left">WebDAV 协议也依赖于标准的 HTTP 方法：<br/><code>GET</code>：下载文件内容。<br/><code>PUT</code>：上传或更新文件内容。<br/><code>DELETE</code>：删除文件或空目录。<br/><code>OPTIONS</code>：查询服务器支持的方法。 (WebDAV 服务器会在 <code>Allow</code> 头中显示其支持的 WebDAV 方法)。</td>
+<td align="left">文件上传&#x2F;下载&#x2F;删除</td>
+</tr>
+</tbody></table>
+<h3 id="2-2-2-核心功能解析"><a href="#2-2-2-核心功能解析" class="headerlink" title="2.2 2. 核心功能解析"></a>2.2 2. 核心功能解析</h3><h4 id="2-2-1-a-属性管理-Properties"><a href="#2-2-1-a-属性管理-Properties" class="headerlink" title="2.2.1 a. 属性管理 (Properties)"></a>2.2.1 a. 属性管理 (Properties)</h4><p>WebDAV 允许资源拥有任意的 XML 格式属性，这些属性可以是预定义的（如创建时间、ETag）或自定义的（如作者、关键字、文档状态）。</p>
+<ul>
+<li><p><strong><code>PROPFIND</code></strong>: 客户端可以查询资源的属性。例如，一个客户端想要显示一个文件夹中的所有文件及其作者和修改日期，它会发送一个 <code>PROPFIND</code> 请求。</p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">PROPFIND</span> <span class="string">/documents/</span> <span class="meta">HTTP/1.1</span></span><br><span class="line"><span class="attribute">Host</span><span class="punctuation">: </span>example.com</span><br><span class="line"><span class="attribute">Depth</span><span class="punctuation">: </span>1  # 深度为1，表示查询目录下一级资源及其属性</span><br><span class="line"><span class="attribute">Content-Type</span><span class="punctuation">: </span>application/xml; charset=&quot;utf-8&quot;</span><br><span class="line"><span class="attribute">Content-Length</span><span class="punctuation">: </span>XXX</span><br><span class="line"></span><br><span class="line"><span class="language-xml"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;utf-8&quot;</span> ?&gt;</span></span></span><br><span class="line"><span class="language-xml"><span class="tag">&lt;<span class="name">D:propfind</span> <span class="attr">xmlns:D</span>=<span class="string">&quot;DAV:&quot;</span>&gt;</span></span></span><br><span class="line"><span class="language-xml">  <span class="tag">&lt;<span class="name">D:prop</span>&gt;</span></span></span><br><span class="line"><span class="language-xml">    <span class="tag">&lt;<span class="name">D:getlastmodified</span>/&gt;</span></span></span><br><span class="line"><span class="language-xml">    <span class="tag">&lt;<span class="name">D:getcontentlength</span>/&gt;</span></span></span><br><span class="line"><span class="language-xml">    <span class="tag">&lt;<span class="name">custom:author</span> <span class="attr">xmlns:custom</span>=<span class="string">&quot;http://example.com/custom/&quot;</span>/&gt;</span></span></span><br><span class="line"><span class="language-xml">  <span class="tag">&lt;/<span class="name">D:prop</span>&gt;</span></span></span><br><span class="line"><span class="language-xml"><span class="tag">&lt;/<span class="name">D:propfind</span>&gt;</span></span></span><br></pre></td></tr></table></figure>
+<p>服务器响应会是一个多状态 (Multi-Status, 207 OK) 响应，包含每个资源的属性。</p>
+</li>
+<li><p><strong><code>PROPPATCH</code></strong>: 客户端可以修改或删除这些属性。</p>
+</li>
+</ul>
+<h4 id="2-2-2-b-命名空间管理-Namespace-Management"><a href="#2-2-2-b-命名空间管理-Namespace-Management" class="headerlink" title="2.2.2 b. 命名空间管理 (Namespace Management)"></a>2.2.2 b. 命名空间管理 (Namespace Management)</h4><p>除了 <code>GET</code> 和 <code>PUT</code> 这样的单文件操作，WebDAV 引入了对文件集合（目录）的操作：</p>
+<ul>
+<li><strong><code>MKCOL</code></strong>: 创建目录。</li>
+<li><strong><code>COPY</code></strong>: 复制文件或整个目录树。</li>
+<li><strong><code>MOVE</code></strong>: 移动文件或整个目录树（可用于文件&#x2F;目录重命名）。</li>
+</ul>
+<h4 id="2-2-3-c-锁定机制-Locking"><a href="#2-2-3-c-锁定机制-Locking" class="headerlink" title="2.2.3 c. 锁定机制 (Locking)"></a>2.2.3 c. 锁定机制 (Locking)</h4><p>这是 WebDAV 最重要的功能之一，用于解决并发修改问题。</p>
+<ul>
+<li><strong>锁的类型</strong>：<ul>
+<li><strong>独占锁 (Exclusive Lock)</strong>：只有一个用户可以获得资源的写锁，其他用户即使能读也无法写。</li>
+<li><strong>共享锁 (Shared Lock)</strong>：多个用户可以获得资源的共享锁。通常用于确保当用户读文件时，文件内容不会在读的过程中被其他用户修改。</li>
+</ul>
+</li>
+<li><strong>锁的深度</strong>：<ul>
+<li><strong>深度 0 (Depth 0)</strong>：只锁定指定资源本身。</li>
+<li><strong>深度 infinity (Depth infinity)</strong>：锁定指定资源及其所有后代资源 (即整个目录树)。</li>
+</ul>
+</li>
+<li><strong>锁的持续时间 (Timeout)</strong>：锁是临时的，可以设置超时时间，防止死锁。</li>
+<li><strong><code>LOCK</code></strong>: 客户端发送 <code>LOCK</code> 请求以尝试获取锁。</li>
+<li><strong><code>UNLOCK</code></strong>: 客户端发送 <code>UNLOCK</code> 请求以释放锁。</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Client
+    participant WebDAVServer
+
+    Client-&gt;&gt;WebDAVServer: LOCK &#x2F;document&#x2F;report.doc (独占锁，无限深度)
+    WebDAVServer-&gt;&gt;Client: 200 OK (返回锁 Token)
+
+    Client-&gt;&gt;WebDAVServer: PUT &#x2F;document&#x2F;report.doc (更新文件，请求头带锁 Token)
+    WebDAVServer-&gt;&gt;Client: 204 No Content
+
+    OtherClient-&gt;&gt;WebDAVServer: PUT &#x2F;document&#x2F;report.doc (尝试更新文件，无锁 Token)
+    WebDAVServer-&gt;&gt;OtherClient: 423 Locked (拒绝访问)
+
+    Client-&gt;&gt;WebDAVServer: UNLOCK &#x2F;document&#x2F;report.doc (带锁 Token)
+    WebDAVServer-&gt;&gt;Client: 204 No Content
+  </pre></div>
+
+<h4 id="2-2-4-d-版本管理-Versioning-WebDAV-Delta-V"><a href="#2-2-4-d-版本管理-Versioning-WebDAV-Delta-V" class="headerlink" title="2.2.4 d. 版本管理 (Versioning - WebDAV Delta-V)"></a>2.2.4 d. 版本管理 (Versioning - WebDAV Delta-V)</h4><p>WebDAV 协议的扩展，称为 <strong>WebDAV Delta-V (RFC 3253)</strong>，增加了对版本控制的支持。它允许：</p>
+<ul>
+<li><strong>创建版本化资源</strong>：追踪资源的历史版本。</li>
+<li><strong>检出 (Check-out) &#x2F; 检入 (Check-in)</strong>：用于修改版本化资源。</li>
+<li><strong>合并版本</strong>：处理不同版本之间的冲突。</li>
+<li><strong>工作区 (Workspaces)</strong>：用于隔离开发或修改环境。</li>
+</ul>
+<p>Delta-V 协议相对复杂，并非所有 WebDAV 服务器都完全支持。许多服务器只支持基本的 WebDAV 功能，而不包括 Delta-V 扩展。</p>
+<h2 id="三、WebDAV-的应用场景"><a href="#三、WebDAV-的应用场景" class="headerlink" title="三、WebDAV 的应用场景"></a>三、WebDAV 的应用场景</h2><p>由于其文件管理和协作的特性，WebDAV 广泛应用于以下领域：</p>
+<ol>
+<li><strong>文件共享与同步</strong>：<ul>
+<li>许多在线存储服务（如 OwnCloud、Nextcloud）都提供 WebDAV 接口，允许客户端通过 WebDAV 协议访问和同步文件，就像访问本地文件系统一样。</li>
+<li><strong>Windows 资源管理器</strong>：可以直接将 WebDAV 共享映射为网络驱动器。</li>
+<li><strong>macOS Finder</strong>：支持直接连接 WebDAV 服务器。</li>
+<li><strong>Linux 文件管理器</strong>：如 Nautilus (GNOME)、Dolphin (KDE) 也支持 WebDAV。</li>
+</ul>
+</li>
+<li><strong>内容管理系统 (CMS)</strong>：允许用户通过 WebDAV 客户端直接编辑服务器上的文档、图片等 Website 内容，而不是通过 CMS 后台的 Web 界面。</li>
+<li><strong>开发环境</strong>：程序员可以通过 WebDAV 客户端直接编辑部署在服务器上的代码文件。</li>
+<li><strong>Office 文档协作</strong>：一些 Office 套件（如 Microsoft Office）可以直接通过 WebDAV 打开、编辑和保存服务器上的文档，并利用 WebDAV 的锁定功能避免冲突。</li>
+<li><strong>备份和恢复</strong>：一些备份软件支持将数据通过 WebDAV 协议存储到远程服务器。</li>
+</ol>
+<h2 id="四、如何使用-WebDAV-客户端"><a href="#四、如何使用-WebDAV-客户端" class="headerlink" title="四、如何使用 WebDAV 客户端"></a>四、如何使用 WebDAV 客户端</h2><p>使用 WebDAV 服务通常是通过客户端软件实现的。</p>
+<h3 id="4-1-1-Windows-系统"><a href="#4-1-1-Windows-系统" class="headerlink" title="4.1 1. Windows 系统"></a>4.1 1. Windows 系统</h3><ul>
+<li><strong>映射网络驱动器</strong>：<ol>
+<li>打开“此电脑”（或“我的电脑”）。</li>
+<li>右键点击“此电脑”，选择“映射网络驱动器”。</li>
+<li>输入 WebDAV 服务器的 URL (例如：<code>http://example.com/webdav/</code> 或 <code>\\example.com@SSL\DavWWWRoot\webdav\</code>)。</li>
+<li>输入用户名和密码即可。</li>
+</ol>
+</li>
+</ul>
+<h3 id="4-2-2-macOS-系统"><a href="#4-2-2-macOS-系统" class="headerlink" title="4.2 2. macOS 系统"></a>4.2 2. macOS 系统</h3><ul>
+<li><strong>连接服务器</strong>：<ol>
+<li>在 Finder 中，点击菜单栏的“前往”-&gt;“连接服务器”。</li>
+<li>输入 WebDAV 服务器的 URL (例如：<code>dav://example.com/webdav/</code> 或 <code>https://example.com/webdav/</code>)。</li>
+<li>输入用户名和密码即可。</li>
+</ol>
+</li>
+</ul>
+<h3 id="4-3-3-Linux-系统"><a href="#4-3-3-Linux-系统" class="headerlink" title="4.3 3. Linux 系统"></a>4.3 3. Linux 系统</h3><ul>
+<li><strong>文件管理器</strong>：GNOME 的 Nautilus、KDE 的 Dolphin 和 Xfce 的 Thunar 等都支持直接连接 WebDAV。<ul>
+<li>例如在 Nautilus 中，点击侧边栏的“其他位置”，然后在底部输入框中输入 <code>davs://example.com/webdav/</code> (HTTPS)。</li>
+</ul>
+</li>
+<li><strong>命令行</strong>：可以使用 <code>cadaver</code> 等命令行工具，或通过 <code>mount -t davfs</code> 挂载 WebDAV 目录。</li>
+</ul>
+<h3 id="4-4-4-第三方客户端"><a href="#4-4-4-第三方客户端" class="headerlink" title="4.4 4. 第三方客户端"></a>4.4 4. 第三方客户端</h3><ul>
+<li><strong>Cyberduck</strong> (Windows&#x2F;macOS)：流行的 FTP&#x2F;SFTP&#x2F;WebDAV 客户端。</li>
+<li><strong>WinSCP</strong> (Windows)：除 FTP&#x2F;SFTP 外，也支持 WebDAV。</li>
+<li><strong>RaiDrive</strong> (Windows)：可以将 WebDAV 作为本地驱动器挂载。</li>
+</ul>
+<h2 id="五、WebDAV-的安全性考量"><a href="#五、WebDAV-的安全性考量" class="headerlink" title="五、WebDAV 的安全性考量"></a>五、WebDAV 的安全性考量</h2><p>WebDAV 协议本身只是一个应用层协议，它不提供加密。因此，为了确保数据传输的安全性，<strong>强烈建议始终通过 HTTPS 来使用 WebDAV</strong>。</p>
+<ul>
+<li><strong><code>http://</code></strong>：数据传输是明文的，容易被嗅探和窃听。</li>
+<li><strong><code>https://</code></strong> (<code>davs://</code> 或 <code>webdavs://</code> 在一些客户端中表示 HTTPS WebDAV)：通过 TLS&#x2F;SSL 加密，保护数据传输的机密性和完整性。</li>
+</ul>
+<p>其他安全措施包括：</p>
+<ul>
+<li><strong>强认证</strong>：使用强密码，或结合双因素认证。</li>
+<li><strong>访问控制</strong>：在服务器端正确配置用户权限，限制对资源的访问。</li>
+<li><strong>定期审计</strong>：检查WebDAV服务器的访问日志。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>WebDAV 通过扩展 HTTP 协议，将 Web 从一个简单的信息发布平台转变为一个具有分布式创作和协作能力的工具。它使得用户能够远程地管理文件和文件夹，就像操作本地文件系统一样。从个人云存储到企业内容管理，WebDAV 在需要远程文件访问和协同编辑的场景中发挥着重要作用。虽然其某些高级版本控制功能 (Delta-V) 很少被完全实现，但基础的文件操作、属性管理和锁定机制已经足以满足绝大多数的应用需求。在实际部署中，始终通过 HTTPS 确保通信安全是使用 WebDAV 的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/aeeb1d5d94e7/">https://blog.tbf1211.xx.kg/aeeb1d5d94e7/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a><a class="post-meta__tags" href="/tags/NAS/">NAS</a><a class="post-meta__tags" href="/tags/WebDAV/">WebDAV</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-30.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/ceaafd31dca2/" title="GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)</div></div><div class="info-2"><div class="info-item-1"> Go 语言 (Golang) 自 2009 年由 Google 推出以来，以其简洁的语法、内置的并发支持、高效的编译速度和强大的标准库迅速获得了开发者的青睐。自 2012 年发布 Go 1.0 以来，Go 语言每半年发布一个主要版本，持续引入新特性、性能优化、工具改进和安全增强。理解这些版本特性对于 Go 开发者来说至关重要，它能帮助我们编写更高效、更现代且更具可维护性的代码。  核心思想： Go 语言的版本迭代始终秉持“简单性、可靠性、高效性”的原则，聚焦于提升开发效率、运行时性能、内存管理、工具链功能以及语言表达力。   一、Go 1.0 - 1.5：奠基与自举 (Bootstrapping)Go 语言在早期版本主要关注语言的稳定、核心功能的完善以及工具链的成熟。Go 1.5 是一个里程碑，实现了 Go 语言的自举。 1.1 Go 1.0 (2012-03-28) Go 语言的第一个稳定版本：标志着 Go 语言正式可以用于生产环境。 语言规范稳定：承诺 Go 1 兼容性，确保未来版本不会破坏 Go 1.0 代码的兼容性。 核心并发模型：Goroutine 和 Channel...</div></div></div></a><a class="pagination-related" href="/fa7e0b24596b/" title="Go语言排序算法解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go语言排序算法解析</div></div><div class="info-2"><div class="info-item-1"> 排序 (Sorting) 是计算机科学中最基础且最重要的算法之一，其目标是将一组数据按照特定的顺序排列。Go 语言作为一门现代编程语言，提供了强大而灵活的排序机制，既包括内置的标准库 sort 包，也允许用户通过实现特定接口来自定义排序逻辑。理解 Go 语言的排序方式，对于编写高效、可维护的代码至关重要。  核心思想：Go 语言的 sort 包提供了一种通用的排序接口和多种高效的排序算法实现。无论是对基本类型切片还是自定义结构体切片进行排序，都可以通过简单地实现 sort.Interface 接口来完成，而无需关心底层具体的排序算法。   一、Go 语言标准库 sort 包Go 语言的标准库 sort 包是进行排序操作的首选。它提供了一套通用的接口和高效的排序函数。 1.1 1. sort.Interface 接口sort 包的核心是 sort.Interface 接口。任何实现了这个接口的类型都可以使用 sort 包提供的排序函数。sort.Interface 接口定义了三个方法： 12345678type Interface interface &#123;    // L...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/322d9ce55371/" title="DHCP (动态主机配置协议) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-08</div><div class="info-item-2">DHCP (动态主机配置协议) 详解</div></div><div class="info-2"><div class="info-item-1"> DHCP (Dynamic Host Configuration Protocol)，即动态主机配置协议，是一个应用层协议，它允许服务器动态地为客户端（例如计算机、智能手机、物联网设备等）分配 IP 地址和其他网络配置参数。DHCP 是目前最常用的网络配置方式，极大地简化了网络管理，避免了手动配置 IP 地址可能出现的冲突和错误。  核心思想：自动化分配 IP 地址和其他网络参数，简化网络管理，提高效率。   一、为什么需要 DHCP？在没有 DHCP 的情况下，每台连接到 TCP&#x2F;IP 网络的设备都需要手动配置以下信息：  IP 地址：设备在网络上的唯一标识。 子网掩码：用于区分 IP 地址的网络部分和主机部分。 默认网关：设备访问外部网络的路由器的 IP 地址。 DNS 服务器地址：用于将域名解析为 IP 地址的服务器。  手动配置的弊端显而易见：  复杂且耗时：对于大型网络，手动配置数百甚至数千台设备的网络参数是一项繁琐且容易出错的工作。 易出错：人为输入错误可能导致网络连接问题或 IP 地址冲突。 IP 地址冲突：如果不小心将同一个 IP 地址分配给多台设备，...</div></div></div></a><a class="pagination-related" href="/0f6de86a0220/" title="STUN (Session Traversal Utilities for NAT) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-12</div><div class="info-item-2">STUN (Session Traversal Utilities for NAT) 详解</div></div><div class="info-2"><div class="info-item-1"> STUN (Session Traversal Utilities for NAT)，即 NAT 会话穿越工具，是一种网络协议，它允许位于NAT (Network Address Translation，网络地址转换) 设备之后的客户端发现其外部（公共）IP 地址和端口号，以及 NAT 设备的类型。STUN 的主要目的是协助建立对等连接 (P2P)，尤其是在 VoIP、视频会议和 WebRTC 等实时通信应用中。  核心思想：帮助内网主机探测 NAT 类型和获取公网 IP:Port，为 P2P 连接做准备。   一、为什么需要 STUN？现代互联网中，IPv4 地址资源日益枯竭，导致大多数终端设备都部署在 NAT 设备（如路由器）之后。NAT 设备通过将内部私有 IP 地址映射到外部公共 IP 地址和端口，允许多个内部设备共享一个公共 IP 地址访问互联网。 然而，NAT 给直接的点对点 (P2P) 通信带来了巨大的挑战：  内网 IP 地址不可路由：内部私有 IP 地址在公共互联网上是不可见的，外部设备无法直接通过私有 IP 地址联系到内部设备。 端口映射不确定：NAT 设备...</div></div></div></a><a class="pagination-related" href="/deb8135d7a70/" title="NAT 类型详解与穿越机制"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-13</div><div class="info-item-2">NAT 类型详解与穿越机制</div></div><div class="info-2"><div class="info-item-1"> NAT (Network Address Translation) 是一种在 IP 数据包通过路由器或防火墙时，修改 IP 地址信息 (通常是 IP 地址和端口号) 的技术。其主要目的是缓解 IPv4 地址枯竭问题，并为内部网络提供地址隐藏和一定的安全性。然而，NAT 也为点对点 (P2P) 通信带来了挑战，因为不同类型的 NAT 对数据包的转发行为差异巨大。  通过了解 NAT 的不同类型，我们可以选择合适的 NAT 穿越技术 (如 STUN, TURN, ICE) 来实现内网设备间的直接通信。   一、NAT 的基本概念与作用基本概念： NAT 是将一个 IP 地址空间映射到另一个 IP 地址空间的技术。最常见的是将私有 IP 地址（如 10.0.0.0&#x2F;8, 172.16.0.0&#x2F;12, 192.168.0.0&#x2F;16）映射到公有 IP 地址。 主要作用：  缓解 IPv4 地址枯竭：允许一个公网 IP 地址被多个内网设备共享，大大减少所需公网 IP 的数量。 隐藏内部网络拓扑：对外只暴露一个或少数几个公网 IP 地址，内部网络结构对外部透明，...</div></div></div></a><a class="pagination-related" href="/964ae22dfd06/" title="渗透测试原理详解：深入了解网络安全攻防"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-16</div><div class="info-item-2">渗透测试原理详解：深入了解网络安全攻防</div></div><div class="info-2"><div class="info-item-1"> 渗透测试（Penetration Testing） 是一种有目的、有计划的模拟攻击行为，旨在评估信息系统、网络、应用程序或组织的安全防护能力。它模拟恶意攻击者可能使用的技术和方法，主动发现系统中的安全漏洞、弱点和配置错误，并评估这些漏洞可能造成的潜在影响。渗透测试的最终目标是帮助组织识别并修复安全缺陷，提高整体的安全韧性，而非破坏或窃取数据。  核心思想：渗透测试像一次“模拟实战演习”，由专业的“红队”（渗透测试人员）扮演“黑客”，通过合法授权的攻击手段，挑战组织的“蓝队”（安全防护系统），从而发现真实世界中可能存在的安全盲点和薄弱环节。   一、为什么需要渗透测试？在当今高度互联的世界中，网络攻击日益频繁且复杂。传统的安全审计、漏洞扫描、代码审查等方法虽然重要，但它们往往局限于静态分析或已知漏洞的检测。渗透测试的价值在于：  主动发现未知漏洞：通过模拟真实攻击者的思维和手法，发现仅靠工具扫描难以识别的逻辑漏洞、业务漏洞和组合漏洞。 验证安全控制的有效性：测试已部署的安全设备（如防火墙、IDS&#x2F;IPS）、安全策略和人员响应机制是否能有效抵御攻击。 评估业务影响：清晰地...</div></div></div></a><a class="pagination-related" href="/45a8b220c3e8/" title="中国移动 CMI 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-18</div><div class="info-item-2">中国移动 CMI 网络详解</div></div><div class="info-2"><div class="info-item-1"> CMI (China Mobile International)，即中国移动国际网络，是中国移动的国际出口骨干网络。与中国电信的 CN2 和中国联通的 AS4837&#x2F;AS9929 类似，CMI 专注于提供中国移动用户的高质量国际互联服务。它随着中国移动国际业务的扩张而迅速发展，成为连接中国大陆与全球各地的重要网络基础设施之一。  核心思想：CMI 是中国移动为提升其用户国际访问体验而建立的国际骨干网络。它通过建设自有海缆和海外节点，提供相对稳定、大带宽的国际互联通道。   一、为什么需要 CMI？1.1 中国移动网络的挑战在早期的国际互联方面，中国移动（China Mobile）主要依靠租用其他运营商的国际出口带宽，或者将流量转接到中国电信或中国联通的网络进行国际互联。这种方式存在一些固有的问题：  网络质量不稳定：路由路径通常较长，经过的中间运营商和节点多，导致延迟高、丢包率大。 带宽不足：租用带宽的成本和可用性限制，使得在国际流量高峰期容易出现拥堵。 服务不可控：缺乏对国际链路的端到端控制，难以保证服务质量 (QoS)。 成本高昂：长期租用国际带宽的成本较高。  ...</div></div></div></a><a class="pagination-related" href="/da4a047de713/" title="中国电信 CN2 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-19</div><div class="info-item-2">中国电信 CN2 网络详解</div></div><div class="info-2"><div class="info-item-1"> CN2 (ChinaNet Next Generation Carrying Network)，即中国电信下一代承载网络，是中国电信于 2005 年推出的新一代骨干网络。它旨在提供高质量、高可靠、低延迟的网络服务，主要面向政府、企业和高端个人用户。CN2 与传统的 ChinaNet (AS4134，163骨干网) 在架构和技术上都有显著区别，以提供更优质的国际互联体验。  核心思想：将互联网流量分为“优质”和“普通”两类通道，CN2 提供优质通道，通过更少的跳数、更小的丢包率和更低的延迟，显著提升国际互联的稳定性和速度。   一、为什么需要 CN2？1.1 ChinaNet (163骨干网) 的局限性传统的中国电信互联网骨干网，通常被称为 163 网（因其 AS 号为 4134，而 163 是其常用接入号），是国内用户最广泛使用的网络。然而，163 网在国际互联方面存在一些固有的问题：  链路拥堵：作为最常用的骨干网，163 网承载了大量流量，尤其在国际出口处容易出现拥堵，导致延迟高、丢包率大。 路由跳数多：在国际互联时，163 网的路由路径通常较长，经过的中间节点和运营商较多...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-WebDAV%EF%BC%9FHTTP-%E7%9A%84%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">一、为什么需要 WebDAV？HTTP 的局限性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81WebDAV-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%96%B9%E6%B3%95%E4%B8%8E%E5%8A%9F%E8%83%BD"><span class="toc-text">二、WebDAV 的核心方法与功能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-1-%E4%B8%BB%E8%A6%81-WebDAV-HTTP-%E6%96%B9%E6%B3%95"><span class="toc-text">2.1 1. 主要 WebDAV HTTP 方法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-2-%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E8%A7%A3%E6%9E%90"><span class="toc-text">2.2 2. 核心功能解析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-1-a-%E5%B1%9E%E6%80%A7%E7%AE%A1%E7%90%86-Properties"><span class="toc-text">2.2.1 a. 属性管理 (Properties)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-2-b-%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4%E7%AE%A1%E7%90%86-Namespace-Management"><span class="toc-text">2.2.2 b. 命名空间管理 (Namespace Management)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-3-c-%E9%94%81%E5%AE%9A%E6%9C%BA%E5%88%B6-Locking"><span class="toc-text">2.2.3 c. 锁定机制 (Locking)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-4-d-%E7%89%88%E6%9C%AC%E7%AE%A1%E7%90%86-Versioning-WebDAV-Delta-V"><span class="toc-text">2.2.4 d. 版本管理 (Versioning - WebDAV Delta-V)</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81WebDAV-%E7%9A%84%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">三、WebDAV 的应用场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8-WebDAV-%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-text">四、如何使用 WebDAV 客户端</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-1-Windows-%E7%B3%BB%E7%BB%9F"><span class="toc-text">4.1 1. Windows 系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-2-macOS-%E7%B3%BB%E7%BB%9F"><span class="toc-text">4.2 2. macOS 系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-3-Linux-%E7%B3%BB%E7%BB%9F"><span class="toc-text">4.3 3. Linux 系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-4-%E7%AC%AC%E4%B8%89%E6%96%B9%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-text">4.4 4. 第三方客户端</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81WebDAV-%E7%9A%84%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E9%87%8F"><span class="toc-text">五、WebDAV 的安全性考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-30.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

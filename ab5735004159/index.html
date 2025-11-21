@@ -1,0 +1,637 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>无感刷新Token详解：提升用户体验与系统安全的认证策略 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在现代 Web 和移动应用中，基于 Token 的认证方式（如 JWT）已成为主流。它解决了传统 Session-Cookie 认证在分布式系统和跨域场景下的诸多痛点。然而，Token 的有效期问题又带来了新的挑战：如果 Access Token 长期有效，一旦泄露风险巨大；如果短期有效，用户又会频繁因 Token 过期而被迫重新登录，严重影响用户体验。无感刷新 Token (Silent To">
+<meta property="og:type" content="article">
+<meta property="og:title" content="无感刷新Token详解：提升用户体验与系统安全的认证策略">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/ab5735004159/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在现代 Web 和移动应用中，基于 Token 的认证方式（如 JWT）已成为主流。它解决了传统 Session-Cookie 认证在分布式系统和跨域场景下的诸多痛点。然而，Token 的有效期问题又带来了新的挑战：如果 Access Token 长期有效，一旦泄露风险巨大；如果短期有效，用户又会频繁因 Token 过期而被迫重新登录，严重影响用户体验。无感刷新 Token (Silent To">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg">
+<meta property="article:published_time" content="2024-01-17T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.530Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="认证">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络安全">
+<meta property="article:tag" content="JWT">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "无感刷新Token详解：提升用户体验与系统安全的认证策略",
+  "url": "https://blog.tbf1211.xx.kg/ab5735004159/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg",
+  "datePublished": "2024-01-17T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.530Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/ab5735004159/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '无感刷新Token详解：提升用户体验与系统安全的认证策略',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-02.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">无感刷新Token详解：提升用户体验与系统安全的认证策略</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">无感刷新Token详解：提升用户体验与系统安全的认证策略</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-01-17T22:24:00.000Z" title="发表于 2024-01-18 06:24:00">2024-01-18</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.8k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/ab5735004159/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在现代 Web 和移动应用中，基于 Token 的认证方式（如 JWT）已成为主流。它解决了传统 Session-Cookie 认证在分布式系统和跨域场景下的诸多痛点。然而，Token 的有效期问题又带来了新的挑战：如果 Access Token 长期有效，一旦泄露风险巨大；如果短期有效，用户又会频繁因 Token 过期而被迫重新登录，严重影响用户体验。<strong>无感刷新 Token (Silent Token Refresh)</strong> 正是为了解决这一矛盾而生，它旨在提升安全性、兼顾用户体验，让用户在不感知的情况下，始终保持登录状态。</p>
+</blockquote>
+<div class="note info flat"><p>“无感刷新 Token 的核心思想是：使用一个<strong>短期有效</strong>的 Access Token 负责日常业务访问，同时使用一个<strong>长期有效但受严密保护</strong>的 Refresh Token 来在 Access Token 过期时重新获取新的 Access Token，从而实现长期登录且不牺牲安全性的目标。”</p>
+</div>
+<hr>
+<h2 id="一、为什么需要无感刷新-Token？"><a href="#一、为什么需要无感刷新-Token？" class="headerlink" title="一、为什么需要无感刷新 Token？"></a>一、为什么需要无感刷新 Token？</h2><p>在基于 Token 的认证系统中，通常会涉及到两种 Token：</p>
+<ol>
+<li><p><strong>Access Token (访问令牌)</strong>：</p>
+<ul>
+<li><strong>用途</strong>：用于访问受保护的资源（如 API），每次请求都需要携带。</li>
+<li><strong>特点</strong>：有效期<strong>短</strong>（通常几分钟到几小时）。</li>
+<li><strong>原因</strong>：一旦泄露，攻击者在短时间内可以利用，但因有效期短，危害相对有限。短期 Token 可以更快地撤销。</li>
+</ul>
+</li>
+<li><p><strong>Refresh Token (刷新令牌)</strong>：</p>
+<ul>
+<li><strong>用途</strong>：当 Access Token 过期时，用于向认证服务器<strong>重新获取新的 Access Token</strong>。</li>
+<li><strong>特点</strong>：有效期<strong>长</strong>（通常几天、几周甚至数月）。</li>
+<li><strong>原因</strong>：允许用户长时间保持登录状态，无需频繁重新输入凭据。但因有效期长，一旦泄露，危害极大，需要更严格的存储和传输保护。</li>
+</ul>
+</li>
+</ol>
+<p><strong>无感刷新 Token 的目的</strong>：</p>
+<ul>
+<li><strong>提升用户体验</strong>：用户无需频繁操作（如重新登录），即可保持长期在线。</li>
+<li><strong>兼顾安全性</strong>：Access Token 短期有效，降低了单次泄露的风险；Refresh Token 虽长期有效，但其使用和存储受到更高级别的安全策略保护。</li>
+<li><strong>避免中断</strong>：在 Access Token 过期时，系统可以自动且透明地获取新 Token，避免业务中断。</li>
+</ul>
+<h2 id="二、无感刷新-Token-的基本流程"><a href="#二、无感刷新-Token-的基本流程" class="headerlink" title="二、无感刷新 Token 的基本流程"></a>二、无感刷新 Token 的基本流程</h2><p>下面是无感刷新 Token 的典型流程图及其步骤详解：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[用户登录&#x2F;注册] --&gt; B{认证服务器}
+    B -- 返回 Access Token (短效) &amp; Refresh Token (长效) --&gt; C[客户端]
+    C -- 存储 Token --&gt; D[客户端发起受保护资源请求]
+    D -- 携带 Access Token --&gt; E{资源服务器}
+    E -- 验证 Access Token --&gt; F{有效?}
+    F -- Y --&gt; H[返回资源数据]
+    F -- N (Access Token 过期) --&gt; G{客户端:检测到 Token 过期}
+    G -- 携带 Refresh Token --&gt; B
+    B -- 验证 Refresh Token &amp; 返回新 Access Token (+ 新 Refresh Token? ) --&gt; C
+    C -- 更新 Token --&gt; D
+  </pre></div>
+
+<p><strong>详细步骤</strong>：</p>
+<ol>
+<li><strong>用户登录&#x2F;注册</strong>：用户通过用户名&#x2F;密码等凭据向认证服务器发起请求。</li>
+<li><strong>首次认证成功</strong>：认证服务器验证凭据后，<ul>
+<li>生成并返回一个<strong>短期有效的 Access Token</strong>。</li>
+<li>生成并返回一个<strong>长期有效的 Refresh Token</strong>。</li>
+<li>通常会指明 Access Token 的过期时间 (<code>expires_in</code>)。</li>
+</ul>
+</li>
+<li><strong>客户端存储 Token</strong>：客户端（浏览器、移动 App）接收到 Access Token 和 Refresh Token 后，将其安全存储。<ul>
+<li><strong>Access Token</strong>：通常存储在<strong>内存</strong>中或 <code>localStorage</code>&#x2F;<code>sessionStorage</code> (Web)。</li>
+<li><strong>Refresh Token</strong>：在 Web 应用中，推荐使用 <code>HttpOnly</code> 且 <code>Secure</code> 的 Cookie。在移动 App 中，推荐存储在<strong>安全存储区域</strong>（如 iOS Keychain, Android Keystore）。</li>
+</ul>
+</li>
+<li><strong>客户端发起资源请求</strong>：客户端在后续对资源服务器的请求中，都会在 HTTP Header（如 <code>Authorization: Bearer &lt;Access Token&gt;</code>）中携带 Access Token。</li>
+<li><strong>资源服务器验证 Access Token</strong>：资源服务器收到请求后，验证 Access Token 的有效性（签名、有效期等）。</li>
+<li><strong>Access Token 有效</strong>：资源服务器处理请求并返回数据。</li>
+<li><strong>Access Token 过期</strong>：如果 Access Token 过期，资源服务器会返回特定的<strong>状态码</strong>（如 <code>401 Unauthorized</code> 或 <code>403 Forbidden</code> 并附带过期信息）。</li>
+<li><strong>客户端检测到 Token 过期</strong>：客户端捕获到 Access Token 过期错误。</li>
+<li><strong>发起刷新 Token 请求</strong>：客户端携带<strong>Refresh Token</strong>，向认证服务器的<strong>特定刷新端点</strong>发起请求。</li>
+<li><strong>认证服务器验证 Refresh Token</strong>：<ul>
+<li>验证 Refresh Token 的有效性（签名、有效期）。</li>
+<li>检查 Refresh Token 是否被<strong>撤销</strong>或<strong>盗用</strong>（这是关键的安全机制）。</li>
+</ul>
+</li>
+<li><strong>刷新成功</strong>：如果 Refresh Token 有效，认证服务器：<ul>
+<li>生成并返回<strong>新的 Access Token</strong>。</li>
+<li><strong>可选</strong>：同时生成并返回<strong>新的 Refresh Token</strong>（这种策略称为“一次性 Refresh Token (One-time Use Refresh Token)”或“滑动窗口 Refresh Token (Sliding Window Refresh Token)”，可以提高安全性）。</li>
+</ul>
+</li>
+<li><strong>客户端更新 Token</strong>：客户端收到新的 Token 后，用新 Access Token 替换旧 Access Token，并可选地更新 Refresh Token。</li>
+<li><strong>重试原请求</strong>：客户端使用新的 Access Token 重新发起之前失败的资源请求。</li>
+</ol>
+<h2 id="三、Refresh-Token-的安全存储与管理"><a href="#三、Refresh-Token-的安全存储与管理" class="headerlink" title="三、Refresh Token 的安全存储与管理"></a>三、Refresh Token 的安全存储与管理</h2><p>由于 Refresh Token 的长期有效性，其安全性至关重要。</p>
+<h3 id="3-1-客户端存储策略"><a href="#3-1-客户端存储策略" class="headerlink" title="3.1 客户端存储策略"></a>3.1 客户端存储策略</h3><ul>
+<li><strong>Web 浏览器</strong>：<ul>
+<li><strong>最佳实践</strong>：存储在**<code>HttpOnly</code> 和 <code>Secure</code> 的 Cookie** 中。<ul>
+<li><code>HttpOnly</code>：防止 JavaScript 访问 Cookie，降低 XSS 攻击风险。</li>
+<li><code>Secure</code>：确保 Cookie 只在 HTTPS 连接下发送。</li>
+<li><code>SameSite=Strict</code> 或 <code>Lax</code>：防止 CSRF 攻击。</li>
+</ul>
+</li>
+<li><strong>避免</strong>：不要存储在 <code>localStorage</code> 或 <code>sessionStorage</code> 中，因为它们容易受到 XSS 攻击。</li>
+</ul>
+</li>
+<li><strong>移动应用 (iOS&#x2F;Android)</strong>：<ul>
+<li>存储在设备提供的<strong>安全存储区域</strong>：<ul>
+<li>iOS：<code>KeyChain</code></li>
+<li>Android：<code>KeyStore</code></li>
+</ul>
+</li>
+<li>这些区域通常受到操作系统级别的保护，比普通文件存储更安全。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-2-服务器端管理与撤销机制"><a href="#3-2-服务器端管理与撤销机制" class="headerlink" title="3.2 服务器端管理与撤销机制"></a>3.2 服务器端管理与撤销机制</h3><ul>
+<li><strong>数据库存储</strong>：认证服务器需要将 Refresh Token 及其相关信息（如用户 ID、过期时间、创建时间、是否已失效等）存储在数据库中。</li>
+<li><strong>撤销机制</strong>：<ul>
+<li><strong>用户登出</strong>：当用户主动登出时，服务器端应该使对应的 Refresh Token 立即失效。</li>
+<li><strong>强制下线</strong>：管理员可以强制某个用户下线，使其所有 Refresh Token 失效。</li>
+<li><strong>设备丢失</strong>：用户可以在其他设备上注销丢失设备的登录状态，撤销其 Refresh Token。</li>
+<li><strong>监控和检测异常</strong>：如果检测到 Refresh Token 出现异常使用（如从从未出现过的 IP 地址刷新），可以自动撤销该 Token。</li>
+</ul>
+</li>
+<li><strong>一次性 Refresh Token (Rotation Strategy)</strong>：<ul>
+<li>每次使用 Refresh Token 成功获取新 Access Token 后，<strong>同时返回一个新的 Refresh Token</strong>，并<strong>使旧的 Refresh Token 立即失效</strong>。</li>
+<li>优势：如果一个 Refresh Token 在传输途中被截获，攻击者只能使用一次。一旦它被使用，即使被再次截获也已失效。</li>
+<li>挑战：需要更复杂的管理，如果旧 Update Token 在网络延迟中先于新 Update Token 到达服务器，可能导致问题（需要处理并发等）。</li>
+<li>实现：可以在服务器端维护一个 <code>jti</code> (JWT ID) 列表或黑名单，记录已使用的 Refresh Token。</li>
+</ul>
+</li>
+</ul>
+<h2 id="四、刷新-Token-时的安全考量"><a href="#四、刷新-Token-时的安全考量" class="headerlink" title="四、刷新 Token 时的安全考量"></a>四、刷新 Token 时的安全考量</h2><ol>
+<li><strong>HTTPS (SSL&#x2F;TLS)</strong>：所有 Token 的传输，包括登录、访问资源和刷新 Token，都必须通过 HTTPS 加密，防止窃听。</li>
+<li><strong>Refresh Token 过期策略</strong>：<ul>
+<li><strong>绝对过期时间</strong>：Refresh Token 有一个固定的有效期，例如 30 天。</li>
+<li><strong>不活动过期时间</strong>：如果用户在一段时间内没有活动，即使 Refresh Token 还没到绝对过期时间，也可以让它失效。</li>
+</ul>
+</li>
+<li><strong>IP 地址检查</strong>：可以在刷新 Token 时检查 Refresh Token 发送请求的 IP 地址是否与之前登录或上次刷新时的 IP 地址一致或处于合理范围内。不一致可触发风险警告或要求重新登录。</li>
+<li><strong>设备指纹</strong>：结合设备指纹 (User-Agent, 设备 ID 等) 增加 Refresh Token 的绑定性，但同时要注意用户隐私。</li>
+<li><strong>限流</strong>：对刷新 Token 的请求进行限流，防止暴力破解。</li>
+<li><strong>异常事件告警</strong>：当 Refresh Token 被撤销、频繁刷新或从异常地点刷新时，应向用户发送告警通知。</li>
+<li><strong>客户端重试机制</strong>：客户端在收到 <code>401 Unauthorized</code> 响应后，应先尝试刷新 Token，成功后再重试原请求。需要处理刷新 Token 失败的情况（如 Refresh Token 也过期或被撤销），此时应引导用户重新登录。</li>
+</ol>
+<h2 id="五、实现细节-前端与后端"><a href="#五、实现细节-前端与后端" class="headerlink" title="五、实现细节 (前端与后端)"></a>五、实现细节 (前端与后端)</h2><h3 id="5-1-前端实现-以-JavaScript-为例"><a href="#5-1-前端实现-以-JavaScript-为例" class="headerlink" title="5.1 前端实现 (以 JavaScript 为例)"></a>5.1 前端实现 (以 JavaScript 为例)</h3><ul>
+<li><strong>API 请求拦截器 (Interceptor)</strong>：在 HTTP 请求发送前检查 Access Token 是否过期。</li>
+<li><strong>响应拦截器</strong>：捕获服务器返回的 401 错误。</li>
+<li><strong>Token 存储</strong>：<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 存储 Access Token (注意安全，通常只在内存)</span></span><br><span class="line"><span class="keyword">let</span> accessToken = <span class="literal">null</span>;</span><br><span class="line"><span class="keyword">let</span> refreshToken = <span class="literal">null</span>; <span class="comment">// 假设通过 HttpOnly Cookie 自动发送</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取 Access Token</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">getAccessToken</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> accessToken;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 设置 Access Token</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">setAccessToken</span>(<span class="params">token</span>) &#123;</span><br><span class="line">    accessToken = token;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 假设刷新 Token 的 API</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">refreshAccessToken</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// refreshToken 会通过 HttpOnly Cookie 自动发送，或从安全存储中获取</span></span><br><span class="line">        <span class="keyword">const</span> response = <span class="keyword">await</span> <span class="title function_">fetch</span>(<span class="string">&#x27;/api/token/refresh&#x27;</span>, &#123;</span><br><span class="line">            <span class="attr">method</span>: <span class="string">&#x27;POST&#x27;</span>,</span><br><span class="line">            <span class="comment">// body: JSON.stringify(&#123; refresh_token: getRefreshToken() &#125;) // 如果 Refresh Token 不是 HttpOnly Cookie</span></span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">if</span> (response.<span class="property">ok</span>) &#123;</span><br><span class="line">            <span class="keyword">const</span> &#123; access_token &#125; = <span class="keyword">await</span> response.<span class="title function_">json</span>();</span><br><span class="line">            <span class="title function_">setAccessToken</span>(access_token);</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// Refresh Token 也失效或有误，需重新登录</span></span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;Refresh Token failed, redirect to login.&#x27;</span>);</span><br><span class="line">            <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">href</span> = <span class="string">&#x27;/login&#x27;</span>;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;Refresh Token request failed:&#x27;</span>, error);</span><br><span class="line">        <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">href</span> = <span class="string">&#x27;/login&#x27;</span>;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Axios 拦截器示例 (伪代码)</span></span><br><span class="line">axios.<span class="property">interceptors</span>.<span class="property">request</span>.<span class="title function_">use</span>(<span class="function"><span class="params">config</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> token = <span class="title function_">getAccessToken</span>();</span><br><span class="line">    <span class="keyword">if</span> (token) &#123;</span><br><span class="line">        config.<span class="property">headers</span>.<span class="property">Authorization</span> = <span class="string">`Bearer <span class="subst">$&#123;token&#125;</span>`</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> config;</span><br><span class="line">&#125;, <span class="function"><span class="params">error</span> =&gt;</span> <span class="title class_">Promise</span>.<span class="title function_">reject</span>(error));</span><br><span class="line"></span><br><span class="line">axios.<span class="property">interceptors</span>.<span class="property">response</span>.<span class="title function_">use</span>(<span class="function"><span class="params">response</span> =&gt;</span> response, <span class="keyword">async</span> error =&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> originalRequest = error.<span class="property">config</span>;</span><br><span class="line">    <span class="comment">// 如果是 401 错误，且不是刷新 Token 的请求，且还没有重试过</span></span><br><span class="line">    <span class="keyword">if</span> (error.<span class="property">response</span>.<span class="property">status</span> === <span class="number">401</span> &amp;&amp; !originalRequest.<span class="property">_retry</span>) &#123;</span><br><span class="line">        originalRequest.<span class="property">_retry</span> = <span class="literal">true</span>; <span class="comment">// 标记已重试</span></span><br><span class="line">        <span class="keyword">const</span> isRefreshed = <span class="keyword">await</span> <span class="title function_">refreshAccessToken</span>();</span><br><span class="line">        <span class="keyword">if</span> (isRefreshed) &#123;</span><br><span class="line">            <span class="comment">// 刷新成功，重新发起原请求</span></span><br><span class="line">            <span class="keyword">return</span> <span class="title function_">axios</span>(originalRequest);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="title class_">Promise</span>.<span class="title function_">reject</span>(error);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="5-2-后端实现"><a href="#5-2-后端实现" class="headerlink" title="5.2 后端实现"></a>5.2 后端实现</h3><ul>
+<li><strong>认证服务器 (Auth Server)</strong>：<ul>
+<li><strong>登录接口</strong>：验证用户凭据，生成 Access Token 和 Refresh Token，并返回。</li>
+<li><strong>刷新 Token 接口</strong>：<ul>
+<li>接收 Refresh Token。</li>
+<li>验证 Refresh Token 的有效性（签名、过期、是否被撤销）。</li>
+<li>(可选) 检查 Refresh Token 是否已被使用（对于一次性 Refresh Token）。</li>
+<li>生成新的 Access Token。</li>
+<li>(可选) 生成新的 Refresh Token，并使旧 Refresh Token 失效。</li>
+<li>返回新的 Token。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>资源服务器 (Resource Server)</strong>：<ul>
+<li><strong>验证 Access Token</strong>：对每个受保护资源的请求，验证 Access Token 的签名和有效期。</li>
+<li>如果 Access Token 无效或过期，返回 <code>401 Unauthorized</code> 响应。</li>
+</ul>
+</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>无感刷新 Token 是一种强大而必要的认证策略，它完美地平衡了用户体验与系统安全性。通过将 Access Token 的生命周期控制在较短的范围内，配合安全存储和严密管理的 Refresh Token，我们可以让用户在享受到持续登录便利性的同时，最大限度地降低 Token 泄露带来的风险。理解并正确实施无感刷新机制，是构建健壮且用户友好的现代 Web 和移动应用程序的关键一环。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/ab5735004159/">https://blog.tbf1211.xx.kg/ab5735004159/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A4%E8%AF%81/">认证</a><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><a class="post-meta__tags" href="/tags/JWT/">JWT</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-02.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/c85a04386656/" title="Vite配置详解：从入门到精通"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Vite配置详解：从入门到精通</div></div><div class="info-2"><div class="info-item-1"> Vite 是一款由 Vue.js 创始人尤雨溪开发的现代前端构建工具。它旨在通过原生 ES 模块提供极速的开发体验，并在生产环境中利用 Rollup 进行高效打包。Vite 的配置非常灵活，可以通过 vite.config.js（或 .ts）文件进行全面定制。  “Vite 的配置就是对 vite.config.js 文件中导出的配置对象进行操作。这个配置文件提供了对开发服务器、构建过程、插件、别名等一切的控制。”   一、Vite 配置文件的位置与类型 文件名：通常是 vite.config.js、vite.config.ts、vite.config.mjs 或 vite.config.cjs。建议使用 .ts 文件以获得更好的类型提示。 位置：通常位于项目根目录。  1.1 基本结构Vite 配置文件默认导出一个配置对象。这个对象可以使用 defineConfig 辅助函数包裹，以获得更好的类型提示。 123456789101112131415// vite.config.tsimport &#123; defineConfig &#125; from &#x27;vite...</div></div></div></a><a class="pagination-related" href="/3ba66d6aee4f/" title="Next.js 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Next.js 详解</div></div><div class="info-2"><div class="info-item-1"> Next.js 是一个基于 React 的 全栈 (Full-stack) Web 框架，由 Vercel 公司开发和维护。它提供了一个开箱即用的解决方案，用于构建高性能、SEO 友好且易于扩展的现代 React 应用程序。Next.js 最大的特点是支持 服务端渲染 (SSR)、静态网站生成 (SSG) 和 客户端渲染 (CSR) 等多种渲染方式，并集成了文件系统路由、API 路由、图片优化、代码分割等诸多功能，极大地提升了开发者体验和应用性能。  核心思想：Next.js 是一个强大的 React 框架，通过多种渲染策略（SSR、SSG、CSR），优化的开发体验和内置功能，帮助开发者高效构建高性能、可扩展的现代 Web 应用。   一、为什么选择 Next.js？React 本身是一个用于构建用户界面的库，它通常在客户端运行 (CSR)。然而，纯客户端渲染的应用存在一些缺点：  SEO 不友好：搜索引擎爬虫可能无法完全索引动态生成的页面内容。 首次加载性能：用户需要等待 JavaScript 下载、解析和执行后才能看到内容，导致白屏时间较长。 Bundle Size：需要将...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/b9b684a2ebc6/" title="JWT (JSON Web Tokens) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-12-21</div><div class="info-item-2">JWT (JSON Web Tokens) 详解</div></div><div class="info-2"><div class="info-item-1"> JWT (JSON Web Token) 是一个开放标准 (RFC 7519)，它定义了一种简洁、自包含且安全的方式，用于在各方之间安全地传输信息。这些信息通过数字签名进行验证，可以被信任。JWT 通常用作无状态 (Stateless) 认证机制，替代传统的 Session-Cookie 模式。  核心思想：将用户认证信息和少量授权信息编码进 Token 本身，并通过签名确保其不可篡改。 服务端无需存储 Session 状态，只需验证 Token 即可。   一、为什么需要 JWT？传统的基于 Session-Cookie 的认证方式有其局限性：  有状态 (Stateful)：服务端需要存储每个用户的 Session 信息。随着用户量增加，存储和管理 Session 成为负担，特别是分布式部署和微服务架构下，Session 共享和同步变得复杂。 跨域问题：Cookie 默认是同源策略，跨域请求携带 Cookie 会比较复杂，需要复杂的 CORS (Cross-Origin Resource Sharing) 配置。 移动端不友好：移动应用通常不依赖 Cookie，需要更灵活的...</div></div></div></a><a class="pagination-related" href="/964ae22dfd06/" title="渗透测试原理详解：深入了解网络安全攻防"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-16</div><div class="info-item-2">渗透测试原理详解：深入了解网络安全攻防</div></div><div class="info-2"><div class="info-item-1"> 渗透测试（Penetration Testing） 是一种有目的、有计划的模拟攻击行为，旨在评估信息系统、网络、应用程序或组织的安全防护能力。它模拟恶意攻击者可能使用的技术和方法，主动发现系统中的安全漏洞、弱点和配置错误，并评估这些漏洞可能造成的潜在影响。渗透测试的最终目标是帮助组织识别并修复安全缺陷，提高整体的安全韧性，而非破坏或窃取数据。  核心思想：渗透测试像一次“模拟实战演习”，由专业的“红队”（渗透测试人员）扮演“黑客”，通过合法授权的攻击手段，挑战组织的“蓝队”（安全防护系统），从而发现真实世界中可能存在的安全盲点和薄弱环节。   一、为什么需要渗透测试？在当今高度互联的世界中，网络攻击日益频繁且复杂。传统的安全审计、漏洞扫描、代码审查等方法虽然重要，但它们往往局限于静态分析或已知漏洞的检测。渗透测试的价值在于：  主动发现未知漏洞：通过模拟真实攻击者的思维和手法，发现仅靠工具扫描难以识别的逻辑漏洞、业务漏洞和组合漏洞。 验证安全控制的有效性：测试已部署的安全设备（如防火墙、IDS&#x2F;IPS）、安全策略和人员响应机制是否能有效抵御攻击。 评估业务影响：清晰地...</div></div></div></a><a class="pagination-related" href="/9186b4c4e58d/" title="重放攻击 (Replay Attack) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-21</div><div class="info-item-2">重放攻击 (Replay Attack) 详解</div></div><div class="info-2"><div class="info-item-1"> 重放攻击 (Replay Attack)，又称回放攻击或重播攻击，是计算机网络安全领域中的一种常见攻击方式。其基本原理是攻击者通过窃听（截获）合法的网络通信数据包，然后将这些截获到的数据包原封不动地重新发送给一个或多个目标系统，以此来欺骗系统或获得未授权的效应。即使攻击者不知道数据包内容的具体含义，也可以通过重放这些合法的数据包来达到攻击目的。  核心思想：攻击者窃取一次成功的会话或请求，并在之后的时间里重复发送这段数据，以冒充合法用户获得同样的权限或发起相同的操作。   一、重放攻击的工作原理重放攻击的步骤通常如下：  窃听 (Eavesdropping)：攻击者使用网络嗅探工具（如 Wireshark）在网络上监听和截获合法用户与服务器之间的通信。这可能包括登录凭证（尽管通常是哈希或加密的）、交易请求、授权令牌等。 截获 (Interception)：攻击者捕获到完整的、有效的通信数据包或消息序列。 重放 (Replay)：在一段时间之后，攻击者将这些截获到的数据包原封不动地重新发送给目标服务器。 欺骗 (Deception)：如果目标服务器没有有效的机制来验证请求的新鲜性...</div></div></div></a><a class="pagination-related" href="/1e63b415b706/" title="AEAD (Authenticated Encryption with Associated Data) 加密方式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-25</div><div class="info-item-2">AEAD (Authenticated Encryption with Associated Data) 加密方式详解</div></div><div class="info-2"><div class="info-item-1"> AEAD (Authenticated Encryption with Associated Data)，即带关联数据的认证加密，是现代密码学中的一个重要概念和加密模式。它不仅仅提供传统加密算法的机密性 (Confidentiality)，还能同时保障数据的完整性 (Integrity) 和真实性 (Authenticity)。此外，AEAD 模式允许对“关联数据”进行认证，这些数据不需要加密，但其完整性也需要被验证。  核心思想：将加密（提供机密性）和消息认证码 (MAC, 提供完整性和真实性) 组合到一个单一的密码操作中，同时允许对非加密数据进行认证。   一、为什么需要 AEAD？在 AEAD 出现之前，密码学中存在两种主要的安全目标：  机密性 (Confidentiality)：通过加密手段（如 AES、ChaCha20）使未经授权的方无法读取数据。 完整性 (Integrity) 和真实性 (Authenticity)：通过消息认证码 (MAC) 或数字签名来确保数据在传输过程中未被篡改，并确认数据确实来自声称的发送方。  传统的加密方式（如 ECB、CBC 模式的...</div></div></div></a><a class="pagination-related" href="/29965d782f2a/" title="Metasploit 框架详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-18</div><div class="info-item-2">Metasploit 框架详解</div></div><div class="info-2"><div class="info-item-1"> Metasploit 框架 是一个广为人知且功能强大的开源渗透测试工具。它提供了一个全面的平台，用于开发、测试和执行漏洞利用（exploit）。无论是安全研究人员、渗透测试工程师还是红队成员，Metasploit 都是他们工具箱中不可或缺的一部分。  核心思想：将漏洞利用、载荷生成、后渗透模块等功能模块化，提供统一的接口和工具链，简化复杂的渗透测试流程。   一、Metasploit 简介1.1 什么是 Metasploit？Metasploit 是由 Rapid7 公司维护的一个著名的开源项目。它是一个漏洞利用框架，旨在协助渗透测试人员识别、利用和验证漏洞。它不仅仅是一个简单的漏洞扫描器，更是一个提供多种工具和方法的集成环境，几乎覆盖了渗透测试的整个生命周期。 1.2 Metasploit 的发展历史 2003年：由 H.D. Moore 发起，最初是一个 Perl 语言的项目。 2004年：发布 2.0 版本，首次引入了模块化架构。 2007年：框架被重写，使用 Ruby 语言，提高了灵活性和可维护性。 209年：Rapid7 收购 Metasploit 项目，并继续其开发...</div></div></div></a><a class="pagination-related" href="/1c9fa79b93e5/" title="Msfvenom 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-26</div><div class="info-item-2">Msfvenom 详解</div></div><div class="info-2"><div class="info-item-1"> Msfvenom 是 Metasploit 框架中的一个强大而独立的命令行工具，它结合了 msfpayload（载荷生成器）和 msfencode（编码器）的功能，旨在生成各种格式的恶意载荷（Payload）并对其进行编码，以规避安全检测。它是渗透测试人员和红队成员创建自定义后门和绕过防御机制的利器。  核心思想：将攻击载荷（Shellcode）和输出格式（如 EXE、ELF、ASPX 等）分离，允许用户自由组合并按需编码，生成高度定制化的恶意文件。   一、Msfvenom 简介1.1 什么是 Msfvenom？msfvenom 是一个命令行工具，属于 Metasploit Framework 的一部分。它的主要功能是：  载荷生成 (Payload Generation)：创建各种操作系统（Windows, Linux, macOS, Android 等）和架构（x86, x64 等）的恶意载荷。 编码 (Encoding)：对生成的载荷进行编码，以尝试绕过杀毒软件的签名检测或处理特殊字符（如 NUL \x00）。 格式化 (Formatting)：将生成的载荷输出为多种文...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E6%97%A0%E6%84%9F%E5%88%B7%E6%96%B0-Token%EF%BC%9F"><span class="toc-text">一、为什么需要无感刷新 Token？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%97%A0%E6%84%9F%E5%88%B7%E6%96%B0-Token-%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%B5%81%E7%A8%8B"><span class="toc-text">二、无感刷新 Token 的基本流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Refresh-Token-%E7%9A%84%E5%AE%89%E5%85%A8%E5%AD%98%E5%82%A8%E4%B8%8E%E7%AE%A1%E7%90%86"><span class="toc-text">三、Refresh Token 的安全存储与管理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%AD%98%E5%82%A8%E7%AD%96%E7%95%A5"><span class="toc-text">3.1 客户端存储策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%AB%AF%E7%AE%A1%E7%90%86%E4%B8%8E%E6%92%A4%E9%94%80%E6%9C%BA%E5%88%B6"><span class="toc-text">3.2 服务器端管理与撤销机制</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%88%B7%E6%96%B0-Token-%E6%97%B6%E7%9A%84%E5%AE%89%E5%85%A8%E8%80%83%E9%87%8F"><span class="toc-text">四、刷新 Token 时的安全考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%AE%9E%E7%8E%B0%E7%BB%86%E8%8A%82-%E5%89%8D%E7%AB%AF%E4%B8%8E%E5%90%8E%E7%AB%AF"><span class="toc-text">五、实现细节 (前端与后端)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E5%89%8D%E7%AB%AF%E5%AE%9E%E7%8E%B0-%E4%BB%A5-JavaScript-%E4%B8%BA%E4%BE%8B"><span class="toc-text">5.1 前端实现 (以 JavaScript 为例)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%90%8E%E7%AB%AF%E5%AE%9E%E7%8E%B0"><span class="toc-text">5.2 后端实现</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-02.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

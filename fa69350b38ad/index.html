@@ -1,0 +1,662 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Git Submodules 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Git Submodule (子模块) 是 Git 版本控制系统提供的一种机制，允许一个 Git 仓库 (称为主仓库或 superproject) 将另一个完整的 Git 仓库 (称为子模块) 作为其子目录嵌入。主仓库会记录子模块的特定提交 (specific commit)，而不是其最新的 HEAD 状态。这意味着，当你克隆主仓库时，你并不会自动获得子模块的所有历史，而是获得其在主仓库中被记录">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Git Submodules 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/fa69350b38ad/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Git Submodule (子模块) 是 Git 版本控制系统提供的一种机制，允许一个 Git 仓库 (称为主仓库或 superproject) 将另一个完整的 Git 仓库 (称为子模块) 作为其子目录嵌入。主仓库会记录子模块的特定提交 (specific commit)，而不是其最新的 HEAD 状态。这意味着，当你克隆主仓库时，你并不会自动获得子模块的所有历史，而是获得其在主仓库中被记录">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-06.jpg">
+<meta property="article:published_time" content="2025-07-15T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.546Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="开发工具">
+<meta property="article:tag" content="Git">
+<meta property="article:tag" content="2025">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-06.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Git Submodules 详解",
+  "url": "https://blog.tbf1211.xx.kg/fa69350b38ad/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-06.jpg",
+  "datePublished": "2025-07-15T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.546Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/fa69350b38ad/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Git Submodules 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-06.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Git Submodules 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Git Submodules 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-07-15T22:24:00.000Z" title="发表于 2025-07-16 06:24:00">2025-07-16</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/Git/">Git</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/fa69350b38ad/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Git Submodule (子模块)</strong> 是 Git 版本控制系统提供的一种机制，允许一个 Git 仓库 (称为<strong>主仓库</strong>或 <strong>superproject</strong>) 将另一个完整的 Git 仓库 (称为<strong>子模块</strong>) 作为其子目录嵌入。主仓库会记录子模块的<strong>特定提交 (specific commit)</strong>，而不是其最新的 HEAD 状态。这意味着，当你克隆主仓库时，你并不会自动获得子模块的所有历史，而是获得其在主仓库中被记录的那个确切版本。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>将一个独立的 Git 仓库作为另一个 Git 仓库的子目录进行管理，并追踪子模块的特定提交，以实现外部依赖管理、模块化或代码复用，同时保持各仓库的独立性。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-Git-Submodules？"><a href="#一、为什么需要-Git-Submodules？" class="headerlink" title="一、为什么需要 Git Submodules？"></a>一、为什么需要 Git Submodules？</h2><p>在软件开发中，经常会遇到以下场景：</p>
+<ol>
+<li><strong>管理外部依赖</strong>：你的项目依赖于一个由第三方维护的库或框架，你希望将其代码包含在自己的仓库中，但又不想复制粘贴或手动更新。</li>
+<li><strong>模块化大型项目</strong>：一个大型项目由多个相对独立的组件构成，这些组件各自有独立的开发生命周期和版本控制，但需要在一个主项目中统一协调。</li>
+<li><strong>代码复用</strong>：多个项目共享同一段代码或一个公共库，你希望这段共享代码能够独立维护和演进，并在需要时轻松更新到各个使用它的项目中。</li>
+</ol>
+<p>传统的解决方案可能包括：</p>
+<ul>
+<li><strong>直接复制粘贴代码</strong>：难以维护和更新，版本管理混乱。</li>
+<li><strong>包管理器</strong>：对于特定语言 (如 Go Modules, npm, Maven) 是很好的选择，但对于非特定语言的通用组件或跨语言项目，或需要直接修改依赖源码的场景，可能不适用。</li>
+<li><strong>Vendoring (供应商化)</strong>：将依赖项的源码直接包含在主仓库中。优点是代码自包含，但更新依赖或对依赖进行上游贡献时流程会比较复杂。</li>
+</ul>
+<p>Git Submodules 提供了一种 Git 原生且相对优雅的解决方案，它允许：</p>
+<ul>
+<li><strong>隔离依赖版本</strong>：主仓库只关心子模块的某个特定提交，保证了主仓库与子模块之间的版本稳定性。</li>
+<li><strong>子模块独立演进</strong>：子模块本身是一个独立的 Git 仓库，可以有自己的开发分支、历史记录和贡献者。</li>
+<li><strong>统一克隆</strong>：用户可以一键克隆整个项目及其所有子模块。</li>
+</ul>
+<h2 id="二、Git-Submodules-核心概念"><a href="#二、Git-Submodules-核心概念" class="headerlink" title="二、Git Submodules 核心概念"></a>二、Git Submodules 核心概念</h2><ol>
+<li><p><strong>主仓库 (Superproject)</strong>：包含子模块的 Git 仓库。它不存储子模块的实际内容，而是存储指向子模块仓库的链接 (URL) 和其在主仓库中应该跟踪的<strong>特定提交哈希</strong>。</p>
+</li>
+<li><p><strong>子模块 (Submodule)</strong>：被嵌入到主仓库中的独立 Git 仓库。它作为一个独立的 Git 仓库存在，有自己的 <code>.git</code> 目录和版本历史。</p>
+</li>
+<li><p><strong><code>.gitmodules</code> 文件</strong>：位于主仓库的根目录，一个文本文件，记录了子模块的名称、路径和 URL。它是一个版本控制文件。</p>
+<p><strong>示例 <code>.gitmodules</code> 内容：</strong></p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[submodule &quot;lib/my_library&quot;]</span></span><br><span class="line">    <span class="attr">path</span> = lib/my_library</span><br><span class="line">    <span class="attr">url</span> = https://github.com/someuser/my_library.git</span><br><span class="line">    <span class="attr">branch</span> = main <span class="comment"># 可选：指定默认分支</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>Gitlink (特殊目录模式 <code>160000</code>)</strong>：在主仓库的 Git 索引中，子模块目录并非以普通文件或目录的形式存在，而是一个特殊模式 <code>160000</code> 的条目。这个条目指向子模块仓库的根目录，并记录了子模块仓库的<strong>确切提交 ID</strong>。这意味着，主仓库只记录了子模块的一个快照。</p>
+</li>
+</ol>
+<h2 id="三、Git-Submodules-的基本操作"><a href="#三、Git-Submodules-的基本操作" class="headerlink" title="三、Git Submodules 的基本操作"></a>三、Git Submodules 的基本操作</h2><h3 id="3-1-添加子模块"><a href="#3-1-添加子模块" class="headerlink" title="3.1 添加子模块"></a>3.1 添加子模块</h3><p>将一个外部仓库添加到当前主仓库作为子模块。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在主仓库根目录执行</span></span><br><span class="line">git submodule add &lt;repository-url&gt; [path]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 示例：将 https://github.com/example/lib.git 添加到 lib/ 目录</span></span><br><span class="line">git submodule add https://github.com/example/lib.git lib/</span><br></pre></td></tr></table></figure>
+
+<p><strong>执行此命令后会发生什么？</strong></p>
+<ol>
+<li>Git 会克隆子模块仓库到指定的 <code>path</code> (<code>lib/</code>)。</li>
+<li>主仓库的 <code>.gitmodules</code> 文件会被创建或更新，记录子模块的路径和 URL。</li>
+<li>主仓库会将子模块目录作为特殊的 <code>160000</code> 类型条目添加到 Git 索引中，并指向子模块当前 HEAD 的提交。</li>
+<li>你需要将这些变更提交到主仓库：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git add .gitmodules lib/</span><br><span class="line">git commit -m <span class="string">&quot;Add submodule lib&quot;</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="3-2-克隆带有子模块的主仓库"><a href="#3-2-克隆带有子模块的主仓库" class="headerlink" title="3.2 克隆带有子模块的主仓库"></a>3.2 克隆带有子模块的主仓库</h3><p>当你克隆一个包含子模块的主仓库时，默认情况下只会克隆主仓库本身，子模块目录会是空的。</p>
+<p><strong>标准克隆流程：</strong></p>
+<ol>
+<li><p><strong>克隆主仓库</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> &lt;superproject-url&gt;</span><br><span class="line"><span class="built_in">cd</span> &lt;superproject-name&gt;</span><br></pre></td></tr></table></figure>
+<p>此时，子模块目录 (<code>lib/</code> 等) 是存在的，但其中没有文件，或者里面只有一个空的 <code>.git</code> 目录。</p>
+</li>
+<li><p><strong>初始化子模块</strong>：<br>该命令会读取 <code>.gitmodules</code> 文件，并将子模块的 URL 添加到主仓库的 <code>.git/config</code> 文件中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git submodule init</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>更新子模块</strong>：<br>该命令会克隆子模块仓库到相应的路径，并检出主仓库记录的那个特定提交。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git submodule update</span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：<code>git submodule update</code> 会将子模块 HEAD 切换到主仓库记录的<strong>分离头指针 (detached HEAD)</strong> 状态。如果后续要在子模块内部进行开发，需要手动切换到分支。</p>
+</li>
+</ol>
+<p><strong>一步到位克隆 (推荐用于首次克隆)：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> --recurse-submodules &lt;superproject-url&gt;</span><br></pre></td></tr></table></figure>
+<p>此命令等同于 <code>git clone</code> + <code>git submodule init</code> + <code>git submodule update</code>。</p>
+<h3 id="3-3-更新子模块"><a href="#3-3-更新子模块" class="headerlink" title="3.3 更新子模块"></a>3.3 更新子模块</h3><p>子模块的更新有两种主要情况：</p>
+<ol>
+<li><p><strong>主仓库想追踪子模块的新版本</strong>：</p>
+<ul>
+<li>进入子模块目录，拉取最新的更改：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> lib/</span><br><span class="line">git pull origin main <span class="comment"># 或者切换到其他分支</span></span><br><span class="line"><span class="comment"># 或者：git checkout &lt;new-commit-hash&gt;</span></span><br><span class="line"><span class="built_in">cd</span> ..</span><br></pre></td></tr></table></figure></li>
+<li>主仓库现在会发现子模块的 Gitlink 指向了一个新的提交，你需要提交这个更改：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git add lib/</span><br><span class="line">git commit -m <span class="string">&quot;Update lib submodule to latest&quot;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p><strong>你克隆了主仓库，子模块已经落后于主仓库记录的版本 (即其他开发者更新了子模块并提交了主仓库)</strong>：</p>
+<ul>
+<li>在主仓库根目录执行：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git submodule update</span><br></pre></td></tr></table></figure>
+这会将所有子模块更新到主仓库当前所记录的提交。</li>
+</ul>
+</li>
+<li><p><strong>将所有子模块更新到其远程跟踪分支的最新 HEAD (慎用，可能导致主仓库版本不一致)</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git submodule update --remote</span><br></pre></td></tr></table></figure>
+<p>这个命令会进入每个子模块，拉取其远程跟踪分支的最新 HEAD，然后主仓库会记录这些新的提交。之后你需要将主仓库的这些变更提交。</p>
+</li>
+</ol>
+<h3 id="3-4-在子模块中工作"><a href="#3-4-在子模块中工作" class="headerlink" title="3.4 在子模块中工作"></a>3.4 在子模块中工作</h3><p>子模块本质上是一个独立的 Git 仓库，你可以在其中进行正常的 Git 操作。</p>
+<ol>
+<li><p><strong>进入子模块目录</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> lib/</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>切换到分支 (推荐)</strong>：<br><code>git submodule update</code> 默认会将子模块置于分离头指针状态。为了在该子模块中进行开发和提交，通常需要切换到一个分支：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git checkout main <span class="comment"># 或者其他开发分支</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>进行更改、提交、推送</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在 lib/ 目录中</span></span><br><span class="line"><span class="comment"># 修改文件</span></span><br><span class="line">git add .</span><br><span class="line">git commit -m <span class="string">&quot;Feat: new feature in library&quot;</span></span><br><span class="line">git push origin main</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>通知主仓库更新</strong>：<br>子模块的更改并不会自动反映到主仓库。回到主仓库根目录，你需要手动更新主仓库以记录子模块的新提交：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> .. <span class="comment"># 回到主仓库根目录</span></span><br><span class="line">git add lib/</span><br><span class="line">git commit -m <span class="string">&quot;Update lib submodule after new feature development&quot;</span></span><br><span class="line">git push origin main</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="3-5-移除子模块"><a href="#3-5-移除子模块" class="headerlink" title="3.5 移除子模块"></a>3.5 移除子模块</h3><p>移除子模块比添加要复杂一些，需要多步操作。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 假设要移除的子模块路径是 lib/</span></span><br><span class="line"><span class="comment"># 步骤 1: 取消初始化子模块 (从 .git/config 和 .git/modules 中移除配置)</span></span><br><span class="line">git submodule deinit -f lib/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 步骤 2: 从主仓库的 Git 索引和 .gitmodules 文件中移除子模块记录</span></span><br><span class="line">git <span class="built_in">rm</span> lib/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 步骤 3: 从 .git/modules/ 目录中手动清理残留的子模块仓库数据 (可选，但推荐清理)</span></span><br><span class="line"><span class="comment"># 注意：路径可能因 Git 版本和配置而异，通常是 .git/modules/&lt;子模块路径&gt;</span></span><br><span class="line"><span class="built_in">rm</span> -rf .git/modules/lib/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 步骤 4: 移除实际的子模块工作目录</span></span><br><span class="line"><span class="built_in">rm</span> -rf lib/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 步骤 5: 提交主仓库的变更</span></span><br><span class="line">git commit -m <span class="string">&quot;Remove submodule lib&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、子模块工作流示例-Mermaid"><a href="#四、子模块工作流示例-Mermaid" class="headerlink" title="四、子模块工作流示例 (Mermaid)"></a>四、子模块工作流示例 (Mermaid)</h2><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[开发者 A: 创建主仓库] --&gt; B{git init&lt;br&gt;git add .&lt;br&gt;git commit}
+    B --&gt; C[&quot;主仓库 (Superproject)&quot;]
+
+    D[开发者 B: 独立开发子模块] --&gt; E{git init&lt;br&gt;git add .&lt;br&gt;git commit&lt;br&gt;git push}
+    E --&gt; F[&quot;子模块仓库 (Submodule)&quot;]
+
+    C --&gt; G[开发者 A: 添加子模块]
+    G --&gt; H{git submodule add F path&#x2F;to&#x2F;F&lt;br&gt;git add .gitmodules path&#x2F;to&#x2F;F&lt;br&gt;git commit&lt;br&gt;git push}
+    H --&gt; C
+
+    I[其他开发者: 克隆整个项目] --&gt; J{git clone --recurse-submodules C}
+    J --&gt; K[本地主仓库 + 本地子模块]
+
+    L[开发者 B: 更新子模块] --&gt; M{cd path&#x2F;to&#x2F;F&lt;br&gt;修改代码&lt;br&gt;git commit&lt;br&gt;git push}
+    M --&gt; F
+
+    N[开发者 A: 接收子模块更新] --&gt; O{cd path&#x2F;to&#x2F;F&lt;br&gt;git pull&lt;br&gt;cd ..&lt;br&gt;git add path&#x2F;to&#x2F;F&lt;br&gt;git commit&lt;br&gt;git push}
+    O --&gt; C
+
+    P[其他开发者: 拉取更新] --&gt; Q{git pull&lt;br&gt;git submodule update}
+    Q --&gt; K
+  </pre></div>
+
+<h2 id="五、Git-Submodules-的优缺点与适用场景"><a href="#五、Git-Submodules-的优缺点与适用场景" class="headerlink" title="五、Git Submodules 的优缺点与适用场景"></a>五、Git Submodules 的优缺点与适用场景</h2><h3 id="5-1-优点："><a href="#5-1-优点：" class="headerlink" title="5.1 优点："></a>5.1 优点：</h3><ol>
+<li><strong>版本隔离</strong>：主仓库精确地追踪子模块的某个特定提交，保证了主仓库与子模块版本之间的稳定性，避免了“最新代码即最新 Bug”的问题。</li>
+<li><strong>模块化</strong>：允许将大型项目分解为独立的、可重用的组件，每个组件有自己的版本历史和开发流程。</li>
+<li><strong>代码复用</strong>：方便在多个项目中共享同一个库或组件。</li>
+<li><strong>独立开发</strong>：子模块可以独立于主仓库进行开发、测试和发布。</li>
+<li><strong>Git 原生</strong>：无需第三方工具或复杂配置，使用 Git 命令即可管理。</li>
+</ol>
+<h3 id="5-2-缺点："><a href="#5-2-缺点：" class="headerlink" title="5.2 缺点："></a>5.2 缺点：</h3><ol>
+<li><strong>学习曲线</strong>：对初学者而言，子模块的概念和操作流程相对复杂，容易出错。</li>
+<li><strong>分离头指针 (Detached HEAD)</strong>：<code>git submodule update</code> 默认会将子模块置于分离头指针状态，这对于不熟悉 Git 的开发者来说可能造成困惑，需要手动切换到分支才能进行开发。</li>
+<li><strong>多层嵌套复杂</strong>：子模块内部如果还有子模块 (嵌套子模块)，管理会更加复杂。</li>
+<li><strong>主仓库与子模块的协调</strong>：如果子模块有更新，主仓库必须手动 <code>git add</code> 和 <code>git commit</code> 来记录新的子模块提交，否则主仓库将继续指向旧版本。忘记更新可能导致主仓库看起来是最新，但子模块却是旧版本的“幽灵问题”。</li>
+<li><strong>分支管理挑战</strong>：在主仓库和子模块之间协同开发新功能时，需要非常小心地管理各自的分支和提交，确保一致性。例如，在一个新功能分支上，主仓库和子模块都可能引入新的提交。</li>
+<li><strong>强制推送 (<code>--force</code>) 风险</strong>：如果子模块的历史被重写（例如通过 <code>git push --force</code>），主仓库记录的提交可能变得无效，导致子模块无法克隆或更新。</li>
+</ol>
+<h3 id="5-3-适用场景："><a href="#5-3-适用场景：" class="headerlink" title="5.3 适用场景："></a>5.3 适用场景：</h3><ul>
+<li><strong>稳定且不频繁修改的外部库</strong>：当你的项目依赖一个相对稳定，且你不需要频繁修改其代码的库时。</li>
+<li><strong>多项目共享的公共组件</strong>：当多个项目需要共享同一个公共库，且该库独立维护时。</li>
+<li><strong>大型项目的模块化拆分</strong>：当项目规模庞大，需要将某些子系统作为独立仓库进行管理，同时又希望在主仓库中统一构建和部署时。</li>
+<li><strong>供应商代码管理 (Vendoring)</strong>：当需要将外部依赖的代码直接包含在仓库中，并由主仓库决定何时更新其版本时。</li>
+</ul>
+<h2 id="六、Git-Submodules-的替代方案"><a href="#六、Git-Submodules-的替代方案" class="headerlink" title="六、Git Submodules 的替代方案"></a>六、Git Submodules 的替代方案</h2><ol>
+<li><p><strong>Git Subtrees</strong>：</p>
+<ul>
+<li>将外部仓库的内容直接合并到主仓库的子目录中，形成主仓库的一部分历史。</li>
+<li>优点：不需要额外的 <code>.gitmodules</code> 文件，克隆时没有“空子目录”问题，更像普通的 Git 目录。</li>
+<li>缺点：合并上游更新和向上游贡献代码比子模块更复杂，需要使用特定的 <code>git subtree</code> 命令。</li>
+</ul>
+</li>
+<li><p><strong>包管理器 (Package Managers)</strong>：</p>
+<ul>
+<li>例如 Go Modules, npm, Maven, Pip 等。这是管理语言特定依赖的首选方案。</li>
+<li>优点：依赖管理自动化，版本冲突解决，通常有中心仓库。</li>
+<li>缺点：语言和生态系统绑定，通常只引入编译后的包或源码包，不方便直接修改源码。</li>
+</ul>
+</li>
+<li><p><strong>Monorepo (单体仓库)</strong>：</p>
+<ul>
+<li>将所有相关的项目、库和组件都放在一个大型 Git 仓库中。</li>
+<li>优点：原子性提交，跨项目重构容易，简化依赖管理。</li>
+<li>缺点：仓库规模可能非常大，工具链和 CI&#x2F;CD 挑战，需要强大的 Monorepo 工具 (如 Bazel, Nx)。</li>
+</ul>
+</li>
+</ol>
+<h2 id="七、最佳实践"><a href="#七、最佳实践" class="headerlink" title="七、最佳实践"></a>七、最佳实践</h2><ol>
+<li><strong>理解分离头指针</strong>：教育团队成员子模块在 <code>git submodule update</code> 后处于分离头指针状态，如果要在子模块内部开发，需要 <code>git checkout &lt;branch-name&gt;</code>。</li>
+<li><strong>始终将子模块的变更提交到主仓库</strong>：在子模块内部 <code>push</code> 新提交后，务必回到主仓库 <code>git add &lt;submodule-path&gt;</code> 并 <code>git commit</code>，将主仓库指向新的子模块提交。</li>
+<li><strong>使用 <code>git clone --recurse-submodules</code></strong>：在克隆主仓库时使用此选项，避免手动 <code>init</code> 和 <code>update</code>。</li>
+<li><strong>避免在子模块内部创建新分支</strong>：在子模块中进行开发时，最好在主仓库的特定分支上，并确保子模块也切换到相应分支。避免在子模块内部创建独立的新分支，因为主仓库很难追踪。</li>
+<li><strong>减少不必要的 <code>git submodule update --remote</code></strong>：此命令会拉取子模块最新代码，可能导致主仓库与其版本不兼容。通常应该由主仓库决定何时更新子模块版本。</li>
+<li><strong>为子模块指定默认分支</strong>：在 <code>.gitmodules</code> 中指定 <code>branch = main</code> (或 <code>master</code>)，这样 <code>git submodule update --remote</code> 会拉取指定分支的最新代码。</li>
+<li><strong>CI&#x2F;CD 集成</strong>：在 CI&#x2F;CD 流水线中，确保在构建前执行 <code>git submodule update --init --recursive</code>。</li>
+<li><strong>考虑替代方案</strong>：在决定使用子模块之前，仔细评估 Git Subtrees、包管理器或 Monorepo 是否更适合你的具体场景。</li>
+</ol>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>Git Submodules 提供了一种强大的方式来管理复杂的项目依赖和模块化结构，尤其适用于需要精确锁定外部依赖版本、且各组件独立演进的场景。然而，它也引入了一定的管理复杂性和学习成本，特别是对于不熟悉 Git 高级概念的团队成员。</p>
+<p>理解其核心工作原理 (主仓库追踪子模块的<strong>特定提交</strong>，而非分支HEAD) 并遵循推荐的最佳实践，可以帮助团队有效利用子模块的优势，避免常见的“坑”。在实际项目中，权衡子模块的优缺点，并根据项目需求和团队熟练度选择最合适的依赖管理策略至关重要。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/fa69350b38ad/">https://blog.tbf1211.xx.kg/fa69350b38ad/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><a class="post-meta__tags" href="/tags/Git/">Git</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-06.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/dfdf0d4eba7c/" title="Monorepo 架构详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Monorepo 架构详解</div></div><div class="info-2"><div class="info-item-1"> Monorepo (单一代码仓库) 是一种软件开发策略，它将一个组织或团队的所有（或大部分）代码都存储在同一个大型版本控制仓库中，即使这些代码属于不同的项目、库或服务。与传统的 Multirepo (多仓库) 策略形成对比，Monorepo 强调统一性和集中化，旨在解决多仓库架构下可能出现的代码共享、依赖管理、版本协调等诸多挑战。  核心思想：将所有相关代码集中在一个 Git 仓库中管理，通过统一的构建系统和工具链，实现代码共享、原子性变更、简化依赖和集中化 CI&#x2F;CD，从而提高开发效率和项目一致性。   一、Monorepo vs. Multirepo在深入 Monorepo 之前，理解它与传统 Multirepo 的区别至关重要：    特性 Monorepo (单一仓库) Multirepo (多仓库)    仓库数量 单一大型仓库 每个项目&#x2F;服务一个独立仓库   代码组织 多个项目&#x2F;库&#x2F;服务位于不同子目录 每个项目&#x2F;服务在自己的根目录   依赖管理 内部依赖直接引用，无需发布到包管理器 内部依赖需发布到包管理器，然后由其...</div></div></div></a><a class="pagination-related" href="/914c30a1659f/" title="Three.js 进阶教程：从核心概念到高级应用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Three.js 进阶教程：从核心概念到高级应用</div></div><div class="info-2"><div class="info-item-1"> Three.js 不仅仅是一个库，它是一个通往 3D 世界的大门。通过它，我们可以在 Web 浏览器中构建出令人惊叹的交互式体验。本教程将带你超越入门，深入了解 Three.js 的核心组件、工作原理以及一些高级技巧，助你构建更复杂、更酷炫的 3D 应用。  “深入 Three.js，你将发现 Web 前端的无限可能性。”   一、Three.js 核心工作流回顾与进阶在入门教程中，我们介绍了 Three.js 的“四大件”：场景 (Scene)、相机 (Camera)、渲染器 (Renderer) 和物体 (Object &#x3D; Geometry + Material)。它们是构建任何 Three.js 应用的基础。 1.1 渲染管线概览     graph TD     A[JavaScript Code （Three.js）] --&gt; B(初始化: Scene, Camera, Renderer);     B --&gt; C(创建 Mesh: Geometry + Material);     C --&gt; D(添加 Lights);     C --...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/d1dbcd98dd73/" title="LazyGit使用解析：你的Git命令行效率神器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-01</div><div class="info-item-2">LazyGit使用解析：你的Git命令行效率神器</div></div><div class="info-2"><div class="info-item-1"> 本文将带你深入了解 LazyGit，一个简单直观的终端 UI Git 客户端。如果你厌倦了反复输入 Git 命令，又觉得 GUI 客户端不够灵活，那么 LazyGit 可能会成为你的新宠。它将终端的强大与 GUI 的便捷完美结合，让你的 Git 工作流变得前所未有的高效和愉悦。  对于开发者而言，Git 无疑是日常工作中不可或缺的工具。然而，即使是最熟练的 Git 用户，也可能被一些重复、繁琐的命令行操作所困扰，例如 git add ., git status, git commit -m &quot;...&quot;, git log --oneline 等等。虽然有各种图形化 Git 客户端，但它们往往意味着脱离终端环境，或多或少牺牲了速度和灵活性。LazyGit 正是为了解决这一痛点而生的——它提供了一个文本用户界面 (TUI)，让你在终端中就能以图形化的方式快速、直观地执行 Git 操作，大幅提升工作效率。   一、为什么选择 LazyGit？LazyGit 并不是简单的 Git 命令别名集合，它提供了一个交互式的视图，将 git status, git branch...</div></div></div></a><a class="pagination-related" href="/25324aef0ab0/" title="Git Merge vs. Rebase 对比详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-15</div><div class="info-item-2">Git Merge vs. Rebase 对比详解</div></div><div class="info-2"><div class="info-item-1"> 在使用 Git 进行团队协作或分支管理时，git merge 和 git rebase 是两种最常用的将一个分支的修改整合到另一个分支的方法。它们都能达到相同的最终目标——将不同分支历史上的修改合并——但在实现方式、提交历史的呈现以及适用场景上有着显著的区别。理解这两者的不同是熟练掌握 Git 的关键。  核心对比：  Merge (合并)：保留所有分支的原始提交历史，通过产生一个新的合并提交来连接不同的历史。 Rebase (变基)：将一个分支上的所有提交“移动”到另一个分支的末端，从而形成一个线性的、没有合并提交的提交历史。    一、Git Merge (合并)1.1 工作原理git merge 将两个或多个分支的开发历史整合到一个新的提交中。它会找到两个分支最新的共同祖先，然后将这两个分支从共同祖先到各自最新的提交的所有修改整合到一个新的合并提交 (merge commit) 中。 1.2 提交历史 非线性历史：git merge 会保留所有分支的原始提交历史，包括每个分支上的每一次提交。当从一个特性分支合并回主分支时，会在主分支上创建一个新的合并提交，这个提交会有两个...</div></div></div></a><a class="pagination-related" href="/1beef2825d33/" title="CMake 与 Make：构建系统之辨"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-15</div><div class="info-item-2">CMake 与 Make：构建系统之辨</div></div><div class="info-2"><div class="info-item-1"> 在 C&#x2F;C++ 等编译型语言的开发中，构建系统 (Build System) 是将源代码转换成可执行程序、库或其他目标文件的核心环节。CMake 和 Make 是其中两个最常用但职责不同的工具。简单来说，CMake 是一个高级的构建系统生成器 (Build System Generator)，而 Make 是一个低级的构建工具 (Build Tool)，用于执行构建任务。  核心思想：CMake 负责“生成”跨平台的构建配置 (如 Makefile)，而 Make 负责“执行”这些配置来实际编译代码。   一、Make：低级构建工具1.1 什么是 Make？Make 是一个自动化构建工具 (Build Automation Tool)，它的核心职责是读取一个名为 Makefile 的文件，根据文件中定义的规则和依赖关系，执行相应的命令来构建项目。Make 在 Unix&#x2F;Linux 系统上历史悠久且广泛应用，是构建 C&#x2F;C++ 项目的基础工具之一。 1.2 MakefileMakefile 是 Make 工具的配置文件，它定义了：  目标 (Targ...</div></div></div></a><a class="pagination-related" href="/8cd637098d6a/" title="Makefile 详解与使用技巧"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-16</div><div class="info-item-2">Makefile 详解与使用技巧</div></div><div class="info-2"><div class="info-item-1"> Makefile 是一个强大的工具，用于自动化管理和编译 C&#x2F;C++ 项目。它通过定义文件之间的依赖关系和生成这些文件的命令，帮助开发者高效地构建应用程序、库等。对于 C&#x2F;C++ 项目而言，Makefile 不仅能简化复杂的编译链接过程，还能实现增量编译，大大提高开发效率。  核心思想：跟踪文件的时间戳，仅重新编译自上次构建以来发生更改的源文件及其依赖项。   一、C&#x2F;C++ 项目构建概述在深入 Makefile 之前，理解 C&#x2F;C++ 代码的构建流程至关重要。一个典型的 C&#x2F;C++ 编译链接过程包括以下四个主要阶段：  预处理 (Preprocessing)：处理器根据预处理指令（如 #include, #define）对源代码进行文本替换，宏展开，并移除注释。生成的文件通常是 .i (C) 或 .ii (C++)。 编译 (Compilation)：编译器将预处理后的代码翻译成汇编代码。此阶段会进行语法分析、类型检查等。生成的文件是 .s。 汇编 (Assembly)：汇编器将汇编代码转换成机器码，生成目标文件 (Objec...</div></div></div></a><a class="pagination-related" href="/bd9bce873bad/" title="Node.js 本地静态服务详解：http-server 与 live-server"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-24</div><div class="info-item-2">Node.js 本地静态服务详解：http-server 与 live-server</div></div><div class="info-2"><div class="info-item-1"> 在前端开发过程中，我们经常需要一个本地服务器来预览 HTML、CSS、JavaScript 等静态文件。虽然许多现代前端框架（如 React, Vue, Angular）都自带了开发服务器，但对于一些简单的项目、纯静态网站或快速原型开发，使用 Node.js 提供轻量级的本地静态服务器会更加方便快捷。本文将详细介绍两个广受欢迎的 Node.js 静态服务器工具：http-server 和 live-server。  “好的本地开发服务器，让你的前端工作流如丝般顺滑。”   一、为什么需要本地静态服务？在浏览器中直接打开本地的 HTML 文件（file:/// 协议）通常会有一些限制和问题：  AJAX&#x2F;Fetch 请求受限：浏览器出于安全考虑（同源策略），不允许 file:/// 协议下的页面进行跨域 AJAX 请求，甚至无法加载本地其他文件的 AJAX 请求。 动态加载问题：某些 JavaScript 模块加载器（如 ES Module import 语句）在 file:/// 协议下可能无法正常工作。 开发工具功能不全：一些浏览器扩展或开发工具可能依赖于 HTTP...</div></div></div></a><a class="pagination-related" href="/84d87a2eca4d/" title="Caddy Web Server详解：现代Web服务器的优雅选择"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-06</div><div class="info-item-2">Caddy Web Server详解：现代Web服务器的优雅选择</div></div><div class="info-2"><div class="info-item-1"> Caddy 是一款用 Go 语言编写的开源 Web 服务器，以其自动 HTTPS 功能、简洁的配置以及强大的功能而闻名。它被设计成现代 Web 的瑞士军刀，能够胜任静态文件服务、反向代理、负载均衡、API 网关等多种任务，并且在安全性和易用性方面表现出色。  “Caddy 是未来 Web 服务器的样子：默认安全、易于管理、功能强大，并且能够自动处理 HTTPS 证书的申请和续期，让你的网站在几秒钟内上线并享受加密连接。”   一、Caddy 简介1.1 什么是 Caddy？Caddy 是一个高性能、可扩展的 Web 服务器，其核心特性包括：  自动 HTTPS：这是 Caddy 最吸引人的特性之一。对于绝大多数公共可访问的域名，Caddy 可以自动从 Let’s Encrypt 申请、配置和续期 SSL&#x2F;TLS 证书，无需手动干预。 配置简洁：Caddyfile 配置文件语法非常直观易懂，相比 Nginx 和 Apache 更加简洁。 HTTP&#x2F;2 和 HTTP&#x2F;3 支持：Caddy 默认启用 HTTP&#x2F;2，并且是首批支持 QUIC (H...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Git-Submodules%EF%BC%9F"><span class="toc-text">一、为什么需要 Git Submodules？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Git-Submodules-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Git Submodules 核心概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Git-Submodules-%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%93%8D%E4%BD%9C"><span class="toc-text">三、Git Submodules 的基本操作</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%B7%BB%E5%8A%A0%E5%AD%90%E6%A8%A1%E5%9D%97"><span class="toc-text">3.1 添加子模块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%85%8B%E9%9A%86%E5%B8%A6%E6%9C%89%E5%AD%90%E6%A8%A1%E5%9D%97%E7%9A%84%E4%B8%BB%E4%BB%93%E5%BA%93"><span class="toc-text">3.2 克隆带有子模块的主仓库</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%9B%B4%E6%96%B0%E5%AD%90%E6%A8%A1%E5%9D%97"><span class="toc-text">3.3 更新子模块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E5%9C%A8%E5%AD%90%E6%A8%A1%E5%9D%97%E4%B8%AD%E5%B7%A5%E4%BD%9C"><span class="toc-text">3.4 在子模块中工作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E7%A7%BB%E9%99%A4%E5%AD%90%E6%A8%A1%E5%9D%97"><span class="toc-text">3.5 移除子模块</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%AD%90%E6%A8%A1%E5%9D%97%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A4%BA%E4%BE%8B-Mermaid"><span class="toc-text">四、子模块工作流示例 (Mermaid)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Git-Submodules-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9%E4%B8%8E%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">五、Git Submodules 的优缺点与适用场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%BC%98%E7%82%B9%EF%BC%9A"><span class="toc-text">5.1 优点：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%BC%BA%E7%82%B9%EF%BC%9A"><span class="toc-text">5.2 缺点：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF%EF%BC%9A"><span class="toc-text">5.3 适用场景：</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Git-Submodules-%E7%9A%84%E6%9B%BF%E4%BB%A3%E6%96%B9%E6%A1%88"><span class="toc-text">六、Git Submodules 的替代方案</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">七、最佳实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-06.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

@@ -1,0 +1,663 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Golang context 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="context 包 是 Go 语言标准库中的一个关键组件，自 Go 1.7 版本引入，它提供了一种在 Goroutine 之间传递请求范围的数据 (request-scoped data)、取消信号 (cancellation signals) 和截止时间 (deadlines) 的标准机制。在构建复杂的并发系统、微服务架构以及处理网络请求链时，context 包是管理 Goroutine 生命">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Golang context 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/7642665c9bbb/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="context 包 是 Go 语言标准库中的一个关键组件，自 Go 1.7 版本引入，它提供了一种在 Goroutine 之间传递请求范围的数据 (request-scoped data)、取消信号 (cancellation signals) 和截止时间 (deadlines) 的标准机制。在构建复杂的并发系统、微服务架构以及处理网络请求链时，context 包是管理 Goroutine 生命">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg">
+<meta property="article:published_time" content="2024-08-02T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.536Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="goroutine">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Golang context 详解",
+  "url": "https://blog.tbf1211.xx.kg/7642665c9bbb/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg",
+  "datePublished": "2024-08-02T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.536Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/7642665c9bbb/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Golang context 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-12.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Golang context 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Golang context 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-08-02T22:24:00.000Z" title="发表于 2024-08-03 06:24:00">2024-08-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/goroutine/">goroutine</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/7642665c9bbb/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong><code>context</code> 包</strong> 是 Go 语言标准库中的一个关键组件，自 Go 1.7 版本引入，它提供了一种在 Goroutine 之间传递<strong>请求范围的数据 (request-scoped data)</strong>、<strong>取消信号 (cancellation signals)</strong> 和<strong>截止时间 (deadlines)</strong> 的标准机制。在构建复杂的并发系统、微服务架构以及处理网络请求链时，<code>context</code> 包是管理 Goroutine 生命周期和避免资源泄露的基石。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong><code>context.Context</code> 接口允许在 Goroutine 树中安全地传递控制流信息。其核心价值在于实现对计算任务的统一取消、超时控制和值传递，从而提升程序的健壮性和资源利用效率。</strong></p>
+</div>
+<hr>
+<h2 id="一、context-包的必要性"><a href="#一、context-包的必要性" class="headerlink" title="一、context 包的必要性"></a>一、<code>context</code> 包的必要性</h2><p>在 Go 语言中，Goroutine 是轻量级并发的基础。然而，当应用程序的并发逻辑变得复杂时，以下问题会变得突出：</p>
+<ol>
+<li><strong>并发操作的取消</strong>：当一个上游操作（如用户取消请求）不再需要其下游的所有并发子任务时，如何有效地通知并停止这些子任务，避免不必要的计算和资源消耗？</li>
+<li><strong>操作超时控制</strong>：如何在复杂的请求链中，为整个链条或其中某个环节设置统一的超时时间，并确保超时后所有相关的 Goroutine 都能被及时终止？</li>
+<li><strong>请求范围值的传递</strong>：在处理一个用户请求时，可能需要在不同的 Goroutine 之间传递一些与该请求相关但又不是核心业务逻辑的元数据（例如：认证令牌、追踪 ID、数据库事务）。传统方法可能导致函数签名臃肿或全局变量滥用。</li>
+<li><strong>资源泄露风险</strong>：如果 Goroutine 在不需要继续执行时未能及时退出，可能会持续持有文件句柄、网络连接、内存等资源，导致系统性能下降甚至崩溃。</li>
+</ol>
+<p><code>context</code> 包正是为了解决这些问题而设计，它提供了一个统一、可组合的抽象层来管理并发操作的生命周期和数据流。</p>
+<h2 id="二、context-Context-接口详解"><a href="#二、context-Context-接口详解" class="headerlink" title="二、context.Context 接口详解"></a>二、<code>context.Context</code> 接口详解</h2><p><code>context.Context</code> 是一个接口，定义了四个核心方法，这些方法提供了传递截止时间、取消信号和请求范围值的机制：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> &#123;</span><br><span class="line">    <span class="comment">// Done returns a channel that is closed when this Context is canceled</span></span><br><span class="line">    <span class="comment">// or times out.</span></span><br><span class="line">    Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Err returns a non-nil error if Done is closed, indicating why the</span></span><br><span class="line">    <span class="comment">// context was canceled.</span></span><br><span class="line">    Err() <span class="type">error</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Deadline returns the time when this Context will be canceled, if any.</span></span><br><span class="line">    <span class="comment">// A Context that has no deadline will return ok==false.</span></span><br><span class="line">    Deadline() (deadline time.Time, ok <span class="type">bool</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Value returns the value associated with key, or nil if no value is</span></span><br><span class="line">    <span class="comment">// associated with key in this context.</span></span><br><span class="line">    Value(key any) any</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><p><strong><code>Done() &lt;-chan struct&#123;&#125;</code></strong>：</p>
+<ul>
+<li>返回一个只读的 <code>&lt;-chan struct&#123;&#125;</code> 类型 Channel。</li>
+<li>当此 <code>Context</code> 被取消或超时时，该 Channel 会被关闭。</li>
+<li>Goroutine 应该监听这个 <code>Done</code> Channel。一旦 Channel 被关闭，意味着父 <code>Context</code> 发出了停止信号，子 Goroutine 应立即停止其工作并返回，从而实现优雅退出。</li>
+<li>关闭 Channel 是 Go 中发送广播信号的惯用模式。</li>
+</ul>
+</li>
+<li><p><strong><code>Err() error</code></strong>：</p>
+<ul>
+<li>如果 <code>Done()</code> Channel 已经关闭，<code>Err()</code> 返回一个非 <code>nil</code> 的错误，指示 <code>Context</code> 被取消的原因。</li>
+<li>常见的错误值包括：<ul>
+<li><code>context.Canceled</code>：<code>Context</code> 被 <code>CancelFunc</code> 手动取消。</li>
+<li><code>context.DeadlineExceeded</code>：<code>Context</code> 由于超时或到达截止时间而被取消。</li>
+</ul>
+</li>
+<li>如果 <code>Done()</code> Channel 尚未关闭，<code>Err()</code> 返回 <code>nil</code>。</li>
+</ul>
+</li>
+<li><p><strong><code>Deadline() (deadline time.Time, ok bool)</code></strong>：</p>
+<ul>
+<li>返回此 <code>Context</code> 的截止时间点。如果 <code>Context</code> 有截止时间，<code>ok</code> 为 <code>true</code>；否则 <code>ok</code> 为 <code>false</code>。</li>
+<li>Goroutine 可以通过此方法提前判断是否还有足够的时间完成任务，从而决定是否启动新的耗时操作。</li>
+</ul>
+</li>
+<li><p><strong><code>Value(key any) any</code></strong>：</p>
+<ul>
+<li>允许存储和检索与 <code>Context</code> 相关的请求范围值。</li>
+<li><code>key</code> 必须是可比较的类型，通常建议使用自定义的、不导出 (unexported) 的结构体类型作为键，以避免键冲突。</li>
+<li>此方法用于传递那些在整个请求生命周期中可能需要，但又不适合作为函数参数层层传递的元数据（如追踪 ID、认证信息等）。</li>
+</ul>
+</li>
+</ol>
+<h2 id="三、context-的创建与衍生"><a href="#三、context-的创建与衍生" class="headerlink" title="三、context 的创建与衍生"></a>三、<code>context</code> 的创建与衍生</h2><p><code>context</code> 包提供了四种主要函数来创建和衍生 <code>Context</code>。所有 <code>Context</code> 形成一个树状结构，子 <code>Context</code> 会继承父 <code>Context</code> 的属性，并且当父 <code>Context</code> 被取消时，其所有子 <code>Context</code> 也会被取消。</p>
+<h3 id="3-1-根-Context：context-Background-和-context-TODO"><a href="#3-1-根-Context：context-Background-和-context-TODO" class="headerlink" title="3.1 根 Context：context.Background() 和 context.TODO()"></a>3.1 根 Context：<code>context.Background()</code> 和 <code>context.TODO()</code></h3><p>所有 <code>Context</code> 树的起点。它们本身不携带任何值，不会被取消，也没有截止时间。</p>
+<ul>
+<li><strong><code>context.Background()</code></strong>：<ul>
+<li>通常作为<strong>主函数、初始化或顶级 Goroutine 的根 Context</strong>。</li>
+<li>语义上表示“无限制的上下文”。</li>
+</ul>
+</li>
+<li><strong><code>context.TODO()</code></strong>：<ul>
+<li>语义上表示“待办 (To Do)”。</li>
+<li>当不确定要使用哪个 <code>Context</code>，或者函数将来应该接受 <code>Context</code> 但目前尚未实现时使用。它是一个占位符，提示开发者将来需要替换为更具体的 <code>Context</code>。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 作为根 Context</span></span><br><span class="line">	bgCtx := context.Background()</span><br><span class="line">	fmt.Printf(<span class="string">&quot;Background Context: Deadline=%v, Done=%v, Err=%v\n&quot;</span>, bgCtx.Deadline())</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 作为占位符</span></span><br><span class="line">	todoCtx := context.TODO()</span><br><span class="line">	fmt.Printf(<span class="string">&quot;TODO Context: Deadline=%v, Done=%v, Err=%v\n&quot;</span>, todoCtx.Deadline())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-context-WithCancel-parent-Context-：取消型-Context"><a href="#3-2-context-WithCancel-parent-Context-：取消型-Context" class="headerlink" title="3.2 context.WithCancel(parent Context)：取消型 Context"></a>3.2 <code>context.WithCancel(parent Context)</code>：取消型 Context</h3><ul>
+<li>基于一个父 <code>Context</code> 创建一个新的子 <code>Context</code>，并返回一个 <code>CancelFunc</code>。</li>
+<li>调用返回的 <code>CancelFunc</code> 会立即取消此新 <code>Context</code> 及其所有子 <code>Context</code>。</li>
+<li>当父 <code>Context</code> 被取消时，此子 <code>Context</code> 也会被取消。</li>
+</ul>
+<p><strong>示例：手动取消 Goroutine 链</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">fetchUserData</span><span class="params">(ctx context.Context, userID <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-ctx.Done(): <span class="comment">// 监听父 Context 的取消信号</span></span><br><span class="line">			fmt.Printf(<span class="string">&quot;Fetcher for User %d: 收到取消信号，优雅退出。原因: %v\n&quot;</span>, userID, ctx.Err())</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		<span class="keyword">case</span> &lt;-time.After(<span class="number">500</span> * time.Millisecond): <span class="comment">// 模拟耗时操作</span></span><br><span class="line">			fmt.Printf(<span class="string">&quot;Fetcher for User %d: 正在获取用户数据...\n&quot;</span>, userID)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 创建一个可取消的根 Context</span></span><br><span class="line">	ctx, cancel := context.WithCancel(context.Background())</span><br><span class="line">	<span class="keyword">defer</span> cancel() <span class="comment">// 务必在不再需要 Context 时调用 cancel()，释放资源</span></span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: 启动数据获取 Goroutine...&quot;</span>)</span><br><span class="line">	<span class="keyword">go</span> fetchUserData(ctx, <span class="number">123</span>)</span><br><span class="line">	<span class="keyword">go</span> fetchUserData(ctx, <span class="number">456</span>)</span><br><span class="line"></span><br><span class="line">	time.Sleep(<span class="number">2</span> * time.Second) <span class="comment">// 主 Goroutine 运行一段时间</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;\nMain: 发送取消信号，停止所有数据获取...&quot;</span>)</span><br><span class="line">	cancel() <span class="comment">// 调用 cancel 函数，取消所有子 Goroutine 的 Context</span></span><br><span class="line"></span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second) <span class="comment">// 等待 Goroutine 退出</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: 程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>关键点</strong>：</p>
+<ul>
+<li><strong><code>defer cancel()</code></strong>：<strong>这是使用 <code>WithCancel</code>、<code>WithTimeout</code> 和 <code>WithDeadline</code> 模式的黄金法则。</strong> 即使子 Goroutine 提前退出，也必须调用 <code>CancelFunc</code> 来清理与 <code>Context</code> 关联的资源，避免内存泄露。</li>
+</ul>
+<h3 id="3-3-context-WithTimeout-parent-Context-timeout-time-Duration-：超时型-Context"><a href="#3-3-context-WithTimeout-parent-Context-timeout-time-Duration-：超时型-Context" class="headerlink" title="3.3 context.WithTimeout(parent Context, timeout time.Duration)：超时型 Context"></a>3.3 <code>context.WithTimeout(parent Context, timeout time.Duration)</code>：超时型 Context</h3><ul>
+<li>基于父 <code>Context</code> 创建一个新的子 <code>Context</code>，并在指定的 <code>timeout</code> 持续时间后自动取消。</li>
+<li>同样返回一个新 <code>Context</code> 和一个 <code>CancelFunc</code>。</li>
+<li><code>timeout</code> 达到时，<code>Context</code> 会自动取消（<code>Err()</code> 返回 <code>context.DeadlineExceeded</code>）。</li>
+<li>也可以手动调用 <code>CancelFunc</code> 提前取消。</li>
+</ul>
+<p><strong>示例：控制网络请求超时</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">makeHTTPRequest</span><span class="params">(ctx context.Context)</span></span> <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-time.After(<span class="number">3</span> * time.Second): <span class="comment">// 模拟一个需要 3 秒才能完成的网络请求</span></span><br><span class="line">		fmt.Println(<span class="string">&quot;HTTP Request: 请求成功完成。&quot;</span>)</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	<span class="keyword">case</span> &lt;-ctx.Done(): <span class="comment">// 监听 Context 的取消或超时信号</span></span><br><span class="line">		fmt.Printf(<span class="string">&quot;HTTP Request: 请求被取消或超时。原因: %v\n&quot;</span>, ctx.Err())</span><br><span class="line">		<span class="keyword">return</span> ctx.Err()</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 创建一个带 2 秒超时的 Context</span></span><br><span class="line">	ctx, cancel := context.WithTimeout(context.Background(), <span class="number">2</span>*time.Second)</span><br><span class="line">	<span class="keyword">defer</span> cancel() <span class="comment">// 确保 Context 资源被释放</span></span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: 启动模拟 HTTP 请求...&quot;</span>)</span><br><span class="line">	err := makeHTTPRequest(ctx)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Main: 请求结束，遇到错误: %v\n&quot;</span>, err) <span class="comment">// 预期会是 context.DeadlineExceeded</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		fmt.Println(<span class="string">&quot;Main: 请求成功完成。&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second) <span class="comment">// 确保 Goroutine 有时间打印消息</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: 程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-context-WithDeadline-parent-Context-deadline-time-Time-：截止时间型-Context"><a href="#3-4-context-WithDeadline-parent-Context-deadline-time-Time-：截止时间型-Context" class="headerlink" title="3.4 context.WithDeadline(parent Context, deadline time.Time)：截止时间型 Context"></a>3.4 <code>context.WithDeadline(parent Context, deadline time.Time)</code>：截止时间型 Context</h3><ul>
+<li>与 <code>WithTimeout</code> 类似，但不是指定一个持续时间，而是指定一个具体的截止时间点 <code>deadline</code>。</li>
+<li>当当前时间到达或超过 <code>deadline</code> 时，<code>Context</code> 自动取消。</li>
+<li>同样返回一个新 <code>Context</code> 和一个 <code>CancelFunc</code>。</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 设置一个在未来 2 秒的截止时间</span></span><br><span class="line">	deadline := time.Now().Add(<span class="number">2</span> * time.Second)</span><br><span class="line">	ctx, cancel := context.WithDeadline(context.Background(), deadline)</span><br><span class="line">	<span class="keyword">defer</span> cancel()</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Main: 任务将在 %s 截止。\n&quot;</span>, deadline.Format(time.RFC3339))</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-time.After(<span class="number">3</span> * time.Second): <span class="comment">// 模拟等待 3 秒</span></span><br><span class="line">		fmt.Println(<span class="string">&quot;Main: 任务完成 (不应该发生，因为已过截止时间)。&quot;</span>)</span><br><span class="line">	<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Main: Context 已超时或被取消，原因: %v\n&quot;</span>, ctx.Err()) <span class="comment">// 预期会是 context.DeadlineExceeded</span></span><br><span class="line">	&#125;</span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: 程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-5-context-WithValue-parent-Context-key-val-any-：值型-Context"><a href="#3-5-context-WithValue-parent-Context-key-val-any-：值型-Context" class="headerlink" title="3.5 context.WithValue(parent Context, key, val any)：值型 Context"></a>3.5 <code>context.WithValue(parent Context, key, val any)</code>：值型 Context</h3><ul>
+<li>基于父 <code>Context</code> 创建一个新 <code>Context</code>，并在其中存储一个键值对。</li>
+<li>这个 <code>Context</code> 会成为一个不可变的链表节点，每个节点持有自己的键值对，并指向其父 <code>Context</code>。</li>
+<li>主要用于在请求处理链中传递与请求相关的元数据。</li>
+</ul>
+<p><strong>示例：传递请求 ID 和认证信息</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义不导出的键类型，以避免与其他包中的键冲突</span></span><br><span class="line"><span class="keyword">type</span> contextKey <span class="type">string</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	RequestIDKey   contextKey = <span class="string">&quot;requestID&quot;</span></span><br><span class="line">	AuthTokenKey   contextKey = <span class="string">&quot;authToken&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">performDBQuery</span><span class="params">(ctx context.Context)</span></span> &#123;</span><br><span class="line">	requestID := ctx.Value(RequestIDKey)</span><br><span class="line">	authToken := ctx.Value(AuthTokenKey)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> requestID != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%v] &quot;</span>, requestID)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> authToken != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[Auth: %v] &quot;</span>, authToken)</span><br><span class="line">	&#125;</span><br><span class="line">	fmt.Println(<span class="string">&quot;正在执行数据库查询...&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-time.After(<span class="number">1</span> * time.Second):</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%v] 数据库查询完成。\n&quot;</span>, requestID)</span><br><span class="line">	<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%v] 数据库查询被取消，原因: %v\n&quot;</span>, requestID, ctx.Err())</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 1. 创建根 Context</span></span><br><span class="line">	ctx := context.Background()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2. 传递请求 ID</span></span><br><span class="line">	requestCtx := context.WithValue(ctx, RequestIDKey, <span class="string">&quot;REQ-XYZ-789&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3. 传递认证令牌 (基于 requestCtx 衍生)</span></span><br><span class="line">	authCtx := context.WithValue(requestCtx, AuthTokenKey, <span class="string">&quot;Bearer ABCDEF12345&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 4. 启动 Goroutine 进行数据库查询，并传递带值的 Context</span></span><br><span class="line">	<span class="keyword">go</span> performDBQuery(authCtx)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 5. 主 Goroutine 模拟其他操作</span></span><br><span class="line">	time.Sleep(<span class="number">1500</span> * time.Millisecond) </span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: 程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>关键点</strong>：</p>
+<ul>
+<li><strong>键的类型</strong>：强烈建议使用自定义的、不导出的结构体类型作为 <code>WithValue</code> 的键，而不是简单的字符串或基本类型（如 <code>int</code>）。这样可以有效避免不同包之间键名冲突导致的值覆盖或意外访问。例如：<code>type myKey int; const RequestIDKey myKey = 0</code>。</li>
+<li><strong>不可变性</strong>：<code>Context</code> 是不可变的。<code>WithValue</code> 会创建一个新的 <code>Context</code> 实例，其中包含新的键值对，并链接到父 <code>Context</code>。</li>
+<li><strong>谨慎使用</strong>：<code>WithValue</code> 提供了一种全局访问请求数据的便利，但也容易导致隐式依赖。对于重要的业务数据，仍然建议通过函数参数显式传递。仅将 <code>WithValue</code> 用于真正属于“请求上下文”的元数据。</li>
+</ul>
+<h2 id="四、Context-的传递规则与最佳实践"><a href="#四、Context-的传递规则与最佳实践" class="headerlink" title="四、Context 的传递规则与最佳实践"></a>四、Context 的传递规则与最佳实践</h2><p>正确的 <code>Context</code> 使用模式是 Go 语言编程中的一项重要技能。</p>
+<ol>
+<li><p><strong>作为函数的第一个参数</strong>：</p>
+<ul>
+<li>Go 语言社区约定，<code>context.Context</code> 应该作为函数的第一个参数传递，通常命名为 <code>ctx</code>。</li>
+</ul>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">MyFunc</span><span class="params">(ctx context.Context, arg1 <span class="type">string</span>, arg2 <span class="type">int</span>)</span></span> (result <span class="type">string</span>, err <span class="type">error</span>) &#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>不要传递 <code>nil</code> Context</strong>：</p>
+<ul>
+<li>除非你有非常特殊的理由，否则不应该传递 <code>nil</code> 给 <code>Context</code> 参数。</li>
+<li>当需要一个不进行任何操作的根 <code>Context</code> 时，使用 <code>context.Background()</code>。</li>
+<li>当不确定使用哪个 <code>Context</code> 时，使用 <code>context.TODO()</code>。</li>
+<li>传递 <code>nil</code> Context 调用其方法会导致 <code>panic</code>。</li>
+</ul>
+</li>
+<li><p><strong>Context 链条式衍生</strong>：</p>
+<ul>
+<li>始终从一个已有的 <code>Context</code> 衍生出新的 <code>Context</code>。例如，从 <code>context.Background()</code> 衍生出 <code>WithCancel</code>，再从 <code>WithCancel</code> 衍生出 <code>WithTimeout</code>，等等。</li>
+<li>这形成了 <code>Context</code> 树，保证了取消信号和截止时间能够正确地沿树向下传播。</li>
+<li>不要在 Goroutine 内部创建新的根 <code>Context</code>，除非该 Goroutine 启动了一个完全独立的、与父级生命周期无关的新操作树。</li>
+</ul>
+</li>
+<li><p><strong><code>defer cancel()</code> 的重要性</strong>：</p>
+<ul>
+<li><code>context.WithCancel</code>, <code>context.WithTimeout</code>, <code>context.WithDeadline</code> 函数会返回一个 <code>CancelFunc</code>。</li>
+<li><strong>务必在不再需要该 <code>Context</code> 时（例如函数返回前）调用 <code>CancelFunc</code></strong>，即使 Goroutine 已经提前退出。这可以释放 <code>Context</code> 内部持有的资源，避免潜在的内存泄露。最常见且推荐的做法是使用 <code>defer cancel()</code>。</li>
+</ul>
+</li>
+<li><p><strong>Goroutine 监听 <code>ctx.Done()</code></strong>：</p>
+<ul>
+<li>所有长时间运行的 Goroutine 都应该接收 <code>Context</code> 作为参数，并在其内部通过 <code>select &#123; case &lt;-ctx.Done(): return &#125;</code> 或类似机制来监听取消信号。一旦 <code>ctx.Done()</code> Channel 被关闭，Goroutine 应该立即停止工作并返回，实现优雅退出。</li>
+<li>对于调用外部库或标准库函数的场景，许多现代 Go 库的函数都接受 <code>Context</code> 参数（如 <code>net/http</code>、<code>database/sql</code>），它们会自动处理 <code>Context</code> 的取消和超时。</li>
+</ul>
+</li>
+<li><p><strong>避免在 <code>struct</code> 中存储 <code>Context</code></strong>：</p>
+<ul>
+<li><code>Context</code> 是一个请求范围 (request-scoped) 的值，其生命周期通常与一个请求或一个操作相关。</li>
+<li>将 <code>Context</code> 存储在 <code>struct</code> 字段中会模糊其生命周期，可能导致 <code>Context</code> 被意外地重用或持有过长时间，从而引发并发问题或资源泄露。</li>
+<li>正确的做法是将其作为函数的参数显式传递。</li>
+</ul>
+</li>
+</ol>
+<h2 id="五、Context-树的取消传播示意"><a href="#五、Context-树的取消传播示意" class="headerlink" title="五、Context 树的取消传播示意"></a>五、Context 树的取消传播示意</h2><p><code>Context</code> 的核心优势在于其层次化的取消传播机制。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[&quot;Root Context (e.g., Background)&quot;] --&gt; B{&quot;HTTP Request Handler (WithCancel)&quot;}
+    B --&gt; C{&quot;Database Query (WithTimeout)&quot;}
+    B --&gt; D{&quot;External Service Call (WithCancel)&quot;}
+    C --&gt; E[DB Connection Goroutine]
+    D --&gt; F[RPC Client Goroutine]
+    D --&gt; G[Log Goroutine]
+
+    subgraph &quot;Cancellation Scenarios&quot;
+        B_Cancel[调用 B 的 CancelFunc] --&gt; B_Cancelled(B Cancelled)
+        B_Cancelled --&gt; C_Cancelled(C Cancelled)
+        B_Cancelled --&gt; D_Cancelled(D Cancelled)
+        C_Timeout[C 超时] --&gt; C_Cancelled(C Cancelled)
+
+        C_Cancelled --&gt; E_Stopped[E 收到取消信号并停止]
+        D_Cancelled --&gt; F_Stopped[F 收到取消信号并停止]
+        D_Cancelled --&gt; G_Stopped[G 收到取消信号并停止]
+    end
+  </pre></div>
+
+<ul>
+<li>如果 <code>HTTP Request Handler</code> (Context B) 的 <code>CancelFunc</code> 被调用，或者其父 <code>Context</code> 被取消，那么 <code>B</code> 及其所有子 <code>Context</code> (<code>C</code>, <code>D</code>) 都会被取消。</li>
+<li>如果 <code>Database Query</code> (Context C) 的 <code>CancelFunc</code> 被调用或 <code>C</code> 超时，那么只有 <code>C</code> 及其后代 (<code>E</code>) 会被取消，<code>D</code> 和其后代 (<code>F</code>, <code>G</code>) 不受影响。</li>
+<li>这种机制使得可以精确地控制并发操作的生命周期，实现细粒度的取消和超时管理。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p><code>context</code> 包是 Go 语言并发编程中一个设计精巧且功能强大的工具。它通过一套统一的接口和创建函数，解决了 Goroutine 之间传递控制信号、管理超时和传递请求元数据等核心难题。正确且熟练地运用 <code>context.Context</code>，不仅能够显著提升 Go 程序的并发控制能力和资源管理效率，还能使代码结构更加清晰，易于理解和维护。在现代 Go 应用程序，尤其是微服务和高并发系统中，<code>context.Context</code> 的使用几乎无处不在，是构建健壮系统的必备技能。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/7642665c9bbb/">https://blog.tbf1211.xx.kg/7642665c9bbb/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/goroutine/">goroutine</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-12.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/294ecfb9f29c/" title="Vue3响应式原理深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Vue3响应式原理深度解析</div></div><div class="info-2"><div class="info-item-1"> Vue 3 响应式系统是其 MVVM 框架的核心基石，它让前端开发者能够以声明式的方式构建用户界面，而无需手动操作 DOM。与 Vue 2 基于 Object.defineProperty 的实现不同，Vue 3 借助 ES6 的 Proxy 对象，彻底重构了响应式系统，带来了更高性能、更强大的功能和更灵活的 API。  “Vue 3 的响应式系统是一个优雅而强大的解决方案，它通过 Proxy 和一套高效的依赖追踪机制，实现了数据与视图的紧密双向绑定，极大地提升了开发体验。”   一、响应式系统的核心概念在深入 Vue 3 响应式原理之前，我们需要理解几个核心概念：  数据劫持 (Data Interception)：当访问或修改数据时，能够执行自定义逻辑。 依赖收集 (Dependency Collection)：追踪哪些组件或函数正在使用哪些响应式数据。 派发更新 (Trigger Update)：当响应式数据发生变化时，通知所有依赖于该数据的组件或函数进行更新。  二、Vue 2 与 Vue 3 响应式原理对比理解 Vue 3 的优势，最好从对比 Vue 2 开始。 2....</div></div></div></a><a class="pagination-related" href="/544a32bf949e/" title="TypeScript泛型约束详解：精细化类型参数能力"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TypeScript泛型约束详解：精细化类型参数能力</div></div><div class="info-2"><div class="info-item-1"> TypeScript 泛型约束 (Generic Constraints) 是泛型机制中一个至关重要的概念。它允许我们限制泛型类型参数可以表示的类型范围。通过泛型约束，我们可以在泛型代码内部安全地访问泛型类型参数的特定属性或方法，从而编写出既通用又具备类型安全性的代码。  核心思想：泛型约束的本质是使用 extends 关键字来声明一个类型参数必须是某个特定类型或实现某个接口的子类型。这为编译器提供了足够的类型信息，使其能够在泛型函数、类或接口内部进行更精确的类型检查。   一、为什么需要泛型约束？在上一篇泛型详解中，我们了解到泛型允许我们编写处理任何类型的代码。但有时，我们希望泛型处理的类型具有某种共同的特性。 考虑一个场景：我们想编写一个函数，它接受一个列表，并返回列表中元素的长度之和。 问题示例： 12345678910111213function sumLengths&lt;T&gt;(items: T[]): number &#123;  let totalLength = 0;  for (let item of items) &#123;    // 报错: Pr...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/f93f336b1901/" title="Golang 底层的多路复用和调度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-21</div><div class="info-item-2">Golang 底层的多路复用和调度详解</div></div><div class="info-2"><div class="info-item-1"> 多路复用 (Multiplexing) 在计算机网络编程中，通常指的是 I&#x2F;O 多路复用 (I&#x2F;O Multiplexing)，它是一种允许单个进程或线程监视多个 I&#x2F;O 事件（如网络连接、文件描述符）并在任何一个 I&#x2F;O 事件准备就绪时通知应用程序的机制。相较于传统的“一个连接一个线程&#x2F;进程”模型，I&#x2F;O 多路复用能够以更低的资源消耗处理大量并发连接，是构建高性能网络服务的基础。  核心思想：Go 语言通过其独特的运行时 (Runtime) 调度器和轻量级协程 (Goroutine) 机制，巧妙地将底层操作系统的 I&#x2F;O 多路复用能力抽象化，为开发者提供了编写简洁、高效且易于并发的网络服务的能力，让 I&#x2F;O 操作看起来像阻塞的，实则在底层是非阻塞的。   一、为什么需要多路复用？在理解 Go 语言如何实现多路复用之前，我们首先需要理解为什么它如此重要，以及它解决了哪些传统网络编程模型的痛点。 1.1 传统模型的问题1.1.1 阻塞 I&#x2F;O (Blocking I&#x2F;O)传统的阻塞...</div></div></div></a><a class="pagination-related" href="/5798c9959389/" title="Golang select 多路复用详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-22</div><div class="info-item-2">Golang select 多路复用详解</div></div><div class="info-2"><div class="info-item-1"> select 语句 是 Go 语言中专为并发通信设计的一种控制结构，它允许 Goroutine 在多个通信操作上等待，并在其中任意一个准备就绪时执行相应的代码块。它提供了一种强大的机制，可以监听多个 Channel 的发送和接收操作，实现通信多路复用。这使得 Go 语言能够优雅地处理并发模式，例如超时、取消、扇入 (fan-in) 和任务调度等。  核心思想：select 语句是 Go 语言实现 CSP (Communicating Sequential Processes) 并发模型的核心工具之一，它能够协调和同步多个 Goroutine 之间的通信，使其能够响应最先准备就绪的 Channel 操作，避免了传统多线程编程中复杂的锁和条件变量。   一、为什么需要 select？在 Go 语言中，Goroutine 和 Channel 是构建并发程序的基础。当一个 Goroutine 需要从多个 Channel 中接收数据，或向多个 Channel 发送数据，并且希望响应其中任意一个 Channel 上的第一个就绪事件时，就引入了等待多路通信的需求。 考虑以下场景：  超时处理...</div></div></div></a><a class="pagination-related" href="/8f9f1342d7a2/" title="Golang 如何等待多个 Goroutine"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-10</div><div class="info-item-2">Golang 如何等待多个 Goroutine</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言轻量级并发的核心，它使得在程序中同时运行多个任务变得简单高效。然而，当启动多个 Goroutine 后，主程序或管理 Goroutine 常常需要知道这些并发任务何时完成，或者需要等待它们全部完成后再继续执行。这种“等待 Goroutine 完成”的机制是并发编程中至关重要的一环，确保了程序的正确性、资源的有序释放以及结果的汇总。  核心思想：管理 Goroutine 的生命周期是并发编程的关键。Go 提供了 sync.WaitGroup、Channels 以及 context.Context 结合 errgroup.Group 等多种机制，以适应不同复杂度和需求的 Goroutine 等待场景。   一、为什么需要等待 Goroutine？在 Go 语言中，main 函数的 Goroutine 启动后，即使它退出了，其他未完成的 Goroutine 也会继续运行。但通常情况下，我们希望：  确保任务完成：等待所有子 Goroutine 完成计算、I&#x2F;O 操作或数据处理，以避免数据丢失或不完整。 结果汇总：在所有 Goroutine ...</div></div></div></a><a class="pagination-related" href="/87ed4967ce21/" title="Golang Goroutine 同步方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-12</div><div class="info-item-2">Golang Goroutine 同步方法详解</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言并发编程的核心，它是一种轻量级的执行单元，由 Go 运行时调度。然而，当多个 Goroutine 并发执行并访问共享资源时，如果不加以适当的控制，就可能导致数据竞争 (Data Race)、死锁 (Deadlock) 或其他难以调试的并发问题。因此，Goroutine 同步是编写健壮、高效 Go 并发程序的关键。  核心思想：Go 语言推崇通过通信来共享内存，而不是通过共享内存来通信 (Don’t communicate by sharing memory; share memory by communicating)。这体现在其核心的同步机制——Channel 上。然而，Go 也提供了传统的共享内存同步原语，如 Mutex，以应对不同的并发场景。   一、为什么需要 Goroutine 同步？当多个 Goroutine 同时访问和修改同一块内存区域（共享资源）时，操作的顺序变得不确定。这可能导致：  数据竞争 (Data Race)：当至少两个 Goroutine 并发访问同一个内存位置，并且至少有一个是写操作，且没有同步机制来协调这些访问时...</div></div></div></a><a class="pagination-related" href="/98c39f8e2307/" title="Go 语言协程设计与调度原理"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-05</div><div class="info-item-2">Go 语言协程设计与调度原理</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言并发编程的核心原语。它不是操作系统线程，而是 Go 运行时 (Runtime) 管理的轻量级协程 (coroutine)。Go 语言设计了一套独特的调度模型，能够高效地将数百万个 Goroutine 调度到有限的操作系统线程上运行，从而实现高并发和高性能。  核心思想：Go 运行时（Runtime）扮演着操作系统内核的角色，它负责 Go 应用程序内部的 Goroutine 调度，以最低的成本实现高度并发。   一、为什么 Go 要设计 Goroutine 而非直接使用线程？传统的操作系统线程，虽然也能实现并发，但在高性能和大规模并发场景下存在一些挑战：  资源开销大： 内存：操作系统线程栈空间通常较大（MB 级别），即便其中大部分未被使用，也会占用大量内存。创建数万个线程会导致巨大的内存消耗。 CPU：线程创建、销毁和上下文切换的开销相对较大，因为这涉及到内核态的参与，需要保存和恢复更多的寄存器、内存页表等信息。   调度开销大：操作系统线程的调度由内核完成，其调度算法通常是通用的，难以针对特定应用场景进行优化，且用户态程序无法感知和影响线程调...</div></div></div></a><a class="pagination-related" href="/7601ab41dda6/" title="Go语言并发与并行详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-23</div><div class="info-item-2">Go语言并发与并行详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言（Golang） 被设计为一门天然支持并发的语言，其并发模型是基于 CSP (Communicating Sequential Processes) 理论的实现。Go 语言通过轻量级的 Goroutine (协程) 和原生的 Channel (管道) 机制，极大地简化了并发编程的复杂性，使得开发者能够更容易地编写出高并发、高性能的应用程序。  核心思想：不要通过共享内存来通信；相反，通过通信来共享内存。 这是 Go 并发哲学中的核心原则。   一、并发 (Concurrency) 与并行 (Parallelism)在深入 Go 语言的并发机制之前，理解并发与并行的区别至关重要。 1.1 并发 (Concurrency) 定义：并发是指系统能够同时处理多个任务的能力。这些任务不一定在同一时刻运行，它们可能在单个 CPU 核心上通过时间片轮转的方式快速切换执行，给人一种“同时进行”的错觉。 特性： 处理多个任务：关注如何设计程序来处理事件流，即使只有一个处理器。 任务切换：通过快速切换执行上下文来模拟同时执行。 目的：提高程序的吞吐量和响应速度。   类比：一个厨师可以在...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81context-%E5%8C%85%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7"><span class="toc-text">一、context 包的必要性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81context-Context-%E6%8E%A5%E5%8F%A3%E8%AF%A6%E8%A7%A3"><span class="toc-text">二、context.Context 接口详解</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81context-%E7%9A%84%E5%88%9B%E5%BB%BA%E4%B8%8E%E8%A1%8D%E7%94%9F"><span class="toc-text">三、context 的创建与衍生</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%A0%B9-Context%EF%BC%9Acontext-Background-%E5%92%8C-context-TODO"><span class="toc-text">3.1 根 Context：context.Background() 和 context.TODO()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-context-WithCancel-parent-Context-%EF%BC%9A%E5%8F%96%E6%B6%88%E5%9E%8B-Context"><span class="toc-text">3.2 context.WithCancel(parent Context)：取消型 Context</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-context-WithTimeout-parent-Context-timeout-time-Duration-%EF%BC%9A%E8%B6%85%E6%97%B6%E5%9E%8B-Context"><span class="toc-text">3.3 context.WithTimeout(parent Context, timeout time.Duration)：超时型 Context</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-context-WithDeadline-parent-Context-deadline-time-Time-%EF%BC%9A%E6%88%AA%E6%AD%A2%E6%97%B6%E9%97%B4%E5%9E%8B-Context"><span class="toc-text">3.4 context.WithDeadline(parent Context, deadline time.Time)：截止时间型 Context</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-context-WithValue-parent-Context-key-val-any-%EF%BC%9A%E5%80%BC%E5%9E%8B-Context"><span class="toc-text">3.5 context.WithValue(parent Context, key, val any)：值型 Context</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Context-%E7%9A%84%E4%BC%A0%E9%80%92%E8%A7%84%E5%88%99%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">四、Context 的传递规则与最佳实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Context-%E6%A0%91%E7%9A%84%E5%8F%96%E6%B6%88%E4%BC%A0%E6%92%AD%E7%A4%BA%E6%84%8F"><span class="toc-text">五、Context 树的取消传播示意</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-12.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

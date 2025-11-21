@@ -1,0 +1,663 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>PHP Fibers (协程) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Fibers (协程) 是 PHP 8.1 引入的一个重要新特性，它为 PHP 带来了原生的用户空间并发能力。与传统的线程或进程不同，Fibers 允许代码在执行过程中暂停和恢复，而无需使用生成器 (Generators) 或复杂的事件循环回调。这使得开发者能够编写更具可读性和可维护性的异步非阻塞代码，从而更好地应对 I&#x2F;O 密集型任务，如网络请求、数据库查询等。  核心思想：Fibe">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PHP Fibers (协程) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/38c508ec9ee0/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Fibers (协程) 是 PHP 8.1 引入的一个重要新特性，它为 PHP 带来了原生的用户空间并发能力。与传统的线程或进程不同，Fibers 允许代码在执行过程中暂停和恢复，而无需使用生成器 (Generators) 或复杂的事件循环回调。这使得开发者能够编写更具可读性和可维护性的异步非阻塞代码，从而更好地应对 I&#x2F;O 密集型任务，如网络请求、数据库查询等。  核心思想：Fibe">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg">
+<meta property="article:published_time" content="2023-03-05T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.523Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="PHP">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="协程">
+<meta property="article:tag" content="异步编程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PHP Fibers (协程) 详解",
+  "url": "https://blog.tbf1211.xx.kg/38c508ec9ee0/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg",
+  "datePublished": "2023-03-05T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.523Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/38c508ec9ee0/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'PHP Fibers (协程) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-08.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PHP Fibers (协程) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PHP Fibers (协程) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-03-05T22:24:00.000Z" title="发表于 2023-03-06 06:24:00">2023-03-06</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/PHP/">PHP</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>16分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/38c508ec9ee0/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Fibers (协程)</strong> 是 PHP 8.1 引入的一个重要新特性，它为 PHP 带来了原生的用户空间并发能力。与传统的线程或进程不同，Fibers 允许代码在执行过程中暂停和恢复，而无需使用生成器 (Generators) 或复杂的事件循环回调。这使得开发者能够编写更具可读性和可维护性的异步非阻塞代码，从而更好地应对 I&#x2F;O 密集型任务，如网络请求、数据库查询等。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>Fibers 是一种轻量级的并发原语，允许 PHP 代码在用户空间中实现非阻塞操作，通过显式地暂停和恢复执行，简化了异步代码的编写。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-Fibers？"><a href="#一、为什么需要-Fibers？" class="headerlink" title="一、为什么需要 Fibers？"></a>一、为什么需要 Fibers？</h2><p>在 PHP 8.1 之前，实现异步非阻塞代码通常依赖于以下两种方式：</p>
+<ol>
+<li><strong>Callbacks (回调函数)</strong>：<ul>
+<li><strong>优点</strong>：简单直接，适用于简单的异步操作。</li>
+<li><strong>缺点</strong>：容易陷入“回调地狱 (Callback Hell)”，代码可读性和维护性差，错误处理复杂。</li>
+</ul>
+</li>
+<li><strong>Generators (生成器)</strong>：<ul>
+<li><strong>优点</strong>：通过 <code>yield</code> 实现了伪协程，可以在一定程度上改善回调地狱，允许代码暂停和恢复。</li>
+<li><strong>缺点</strong>：生成器本质上是迭代器，其语义更偏向于数据生成。将生成器用于协程上下文切换，需要在外部有一个调度器 (Scheduler) 明确地 <code>send()</code> 和 <code>next()</code>，实现起来较为复杂和不直观。</li>
+</ul>
+</li>
+</ol>
+<p>这两种方式都使得编写复杂的异步逻辑变得困难和笨拙。Fibers 的引入正是为了解决这些问题，提供一种更直观、更原生的方式来管理并发执行流。</p>
+<p><strong>Fibers 的核心优势在于：</strong></p>
+<ul>
+<li><strong>代码可读性</strong>：允许以同步的方式编写异步代码，避免了深层嵌套的回调。</li>
+<li><strong>简化复杂异步逻辑</strong>：不再需要依赖生成器或复杂的外部调度逻辑进行上下文切换。</li>
+<li><strong>用户空间轻量级</strong>：比操作系统线程&#x2F;进程更轻量，上下文切换开销更小。</li>
+<li><strong>不涉及并行</strong>：Fibers 本身不是并行执行，它们是协作式的多任务。在任何给定时间点，只有一个 Fiber 在运行，其他 Fiber 暂停等待恢复。</li>
+</ul>
+<h2 id="二、Fibers-的基本概念"><a href="#二、Fibers-的基本概念" class="headerlink" title="二、Fibers 的基本概念"></a>二、Fibers 的基本概念</h2><h3 id="2-1-什么是-Fiber？"><a href="#2-1-什么是-Fiber？" class="headerlink" title="2.1 什么是 Fiber？"></a>2.1 什么是 Fiber？</h3><p>Fiber 可以被视为一个轻量级的，用户空间级别的执行上下文。它拥有自己的栈和程序计数器，可以在任何时候被暂停，并在后续的任何时间点恢复。当一个 Fiber 被暂停时，其父 Fiber（或主执行流）将恢复执行。当一个 Fiber 被恢复时，它会从上次暂停的地方继续执行。</p>
+<h3 id="2-2-Fiber-的状态"><a href="#2-2-Fiber-的状态" class="headerlink" title="2.2 Fiber 的状态"></a>2.2 Fiber 的状态</h3><p>一个 Fiber 可以处于以下几种状态：</p>
+<ul>
+<li><strong><code>Fiber::STATUS_INIT</code></strong>: 初始状态，尚未启动。</li>
+<li><strong><code>Fiber::STATUS_RUNNING</code></strong>: 正在执行。</li>
+<li><strong><code>Fiber::STATUS_SUSPENDED</code></strong>: 已暂停，等待恢复。</li>
+<li><strong><code>Fiber::STATUS_TERMINATED</code></strong>: 已终止（完成执行或抛出异常）。</li>
+</ul>
+<h3 id="2-3-Fiber-类的方法"><a href="#2-3-Fiber-类的方法" class="headerlink" title="2.3 Fiber 类的方法"></a>2.3 <code>Fiber</code> 类的方法</h3><p>PHP 提供了一个内置的 <code>Fiber</code> 类来创建和管理协程。</p>
+<ul>
+<li><strong><code>__construct(callable $callback)</code></strong>：<ul>
+<li>创建一个新的 Fiber 实例。<code>$callback</code> 是一个可调用对象，代表 Fiber 要执行的代码。</li>
+<li>Fiber 创建后处于 <code>Fiber::STATUS_INIT</code> 状态，不会立即执行。</li>
+</ul>
+</li>
+<li><strong><code>start(mixed ...$args): mixed</code></strong>：<ul>
+<li>启动 Fiber 的执行。Fiber 会从 <code>$callback</code> 的开头开始执行。</li>
+<li><code>$args</code> 会作为参数传递给 <code>$callback</code>。</li>
+<li>如果 Fiber 在执行过程中通过 <code>Fiber::suspend()</code> 暂停，<code>start()</code> 方法会返回 <code>Fiber::suspend()</code> 传递的值。</li>
+<li>如果 Fiber 完成执行，<code>start()</code> 方法会返回 <code>$callback</code> 的返回值。</li>
+<li>如果 Fiber 抛出异常，<code>start()</code> 方法会抛出该异常。</li>
+</ul>
+</li>
+<li><strong><code>suspend(mixed $value = null): mixed</code></strong>：<ul>
+<li>暂停当前正在执行的 Fiber，并将 <code>$value</code> 返回给恢复它的 Fiber（即调用 <code>start()</code> 或 <code>resume()</code> 的 Fiber）。</li>
+<li>当该 Fiber 再次被恢复时，<code>suspend()</code> 方法会返回 <code>resume()</code> 传递的值。</li>
+</ul>
+</li>
+<li><strong><code>resume(mixed $value = null): mixed</code></strong>：<ul>
+<li>恢复一个已暂停的 Fiber。</li>
+<li><code>$value</code> 会作为 <code>Fiber::suspend()</code> 的返回值传递给被恢复的 Fiber。</li>
+<li><code>resume()</code> 方法会返回被恢复 Fiber 中下一个 <code>Fiber::suspend()</code> 传递的值，或者如果 Fiber 完成执行，则返回其最终返回值。</li>
+</ul>
+</li>
+<li><strong><code>throw(Throwable $exception): mixed</code></strong>：<ul>
+<li>在暂停的 Fiber 中抛出一个异常，并恢复其执行。</li>
+<li>该异常会被被恢复的 Fiber 内部捕获（如果存在 <code>try...catch</code>），或者导致 Fiber 终止。</li>
+</ul>
+</li>
+<li><strong><code>isStarted(): bool</code></strong>：<ul>
+<li>检查 Fiber 是否已启动。</li>
+</ul>
+</li>
+<li><strong><code>isSuspended(): bool</code></strong>：<ul>
+<li>检查 Fiber 是否已暂停。</li>
+</ul>
+</li>
+<li><strong><code>isTerminated(): bool</code></strong>：<ul>
+<li>检查 Fiber 是否已终止。</li>
+</ul>
+</li>
+<li><strong><code>getCurrent(): ?Fiber</code></strong>：<ul>
+<li>获取当前正在执行的 Fiber 实例。如果当前不在 Fiber 中，则返回 <code>null</code>。</li>
+</ul>
+</li>
+<li><strong><code>getReturn(): mixed</code></strong>：<ul>
+<li>获取已终止 Fiber 的返回值。</li>
+</ul>
+</li>
+</ul>
+<h2 id="三、Fibers-示例"><a href="#三、Fibers-示例" class="headerlink" title="三、Fibers 示例"></a>三、Fibers 示例</h2><h3 id="3-1-简单示例：暂停与恢复"><a href="#3-1-简单示例：暂停与恢复" class="headerlink" title="3.1 简单示例：暂停与恢复"></a>3.1 简单示例：暂停与恢复</h3><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="variable">$fiber</span> = <span class="keyword">new</span> <span class="built_in">Fiber</span>(<span class="function"><span class="keyword">function</span> (<span class="params"></span>): <span class="title">void</span> </span>&#123;</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber started.\n&quot;</span>;</span><br><span class="line">    <span class="variable">$value</span> = <span class="title class_">Fiber</span>::<span class="title function_ invoke__">suspend</span>(<span class="string">&#x27;Hello from Fiber!&#x27;</span>); <span class="comment">// 暂停并返回 &#x27;Hello from Fiber!&#x27;</span></span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber resumed with: &quot;</span> . <span class="variable">$value</span> . <span class="string">&quot;\n&quot;</span>; <span class="comment">// 从这里继续执行</span></span><br><span class="line">    <span class="title class_">Fiber</span>::<span class="title function_ invoke__">suspend</span>(<span class="string">&#x27;Another suspend!&#x27;</span>);</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber ending.\n&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&#x27;Fiber finished!&#x27;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 启动 Fiber</span></span><br><span class="line"><span class="variable">$res1</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">start</span>(); </span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Main context received: &quot;</span> . <span class="variable">$res1</span> . <span class="string">&quot;\n&quot;</span>; <span class="comment">// 输出: Main context received: Hello from Fiber!</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 恢复 Fiber</span></span><br><span class="line"><span class="variable">$res2</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">resume</span>(<span class="string">&#x27;Resumed by Main!&#x27;</span>);</span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Main context received again: &quot;</span> . <span class="variable">$res2</span> . <span class="string">&quot;\n&quot;</span>; <span class="comment">// 输出: Main context received again: Another suspend!</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 再次恢复 Fiber，并传递最终结果</span></span><br><span class="line"><span class="variable">$finalResult</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">resume</span>(<span class="string">&#x27;Final resume!&#x27;</span>);</span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Main context received final: &quot;</span> . <span class="variable">$finalResult</span> . <span class="string">&quot;\n&quot;</span>; <span class="comment">// 输出: Main context received final: Fiber finished!</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Fiber status: &quot;</span> . (<span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">isTerminated</span>() ? <span class="string">&quot;Terminated&quot;</span> : <span class="string">&quot;Running&quot;</span>) . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>输出：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Fiber started.</span><br><span class="line">Main context received: Hello from Fiber!</span><br><span class="line">Fiber resumed with: Resumed by Main!</span><br><span class="line">Main context received again: Another suspend!</span><br><span class="line">Fiber ending.</span><br><span class="line">Main context received final: Fiber finished!</span><br><span class="line">Fiber status: Terminated</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-模拟非阻塞-I-O"><a href="#3-2-模拟非阻塞-I-O" class="headerlink" title="3.2 模拟非阻塞 I&#x2F;O"></a>3.2 模拟非阻塞 I&#x2F;O</h3><p>Fibers 的真正威力在于与事件循环 (Event Loop) 结合，模拟非阻塞 I&#x2F;O。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant Main as 主程序</span><br><span class="line">    participant FiberA as Fiber A</span><br><span class="line">    participant FiberB as Fiber B</span><br><span class="line">    participant Network as 网络IO</span><br><span class="line">  </span><br><span class="line">    Main-&gt;&gt;FiberA: $fiberA-&gt;start()</span><br><span class="line">    FiberA-&gt;&gt;Network: 发起网络请求 (比如 HTTP GET)</span><br><span class="line">    FiberA-&gt;&gt;Main: Fiber::suspend() (等待网络响应)</span><br><span class="line">    Main-&gt;&gt;FiberB: $fiberB-&gt;start()</span><br><span class="line">    FiberB-&gt;&gt;Network: 发起另一个网络请求</span><br><span class="line">    FiberB-&gt;&gt;Main: Fiber::suspend() (等待网络响应)</span><br><span class="line">    Main-&gt;&gt;Main: 循环检查就绪的IO (Event Loop)</span><br><span class="line">    Network--&gt;&gt;Main: Fiber A 的网络响应到达</span><br><span class="line">    Main-&gt;&gt;FiberA: $fiberA-&gt;resume(responseA)</span><br><span class="line">    FiberA-&gt;&gt;FiberA: 处理响应A</span><br><span class="line">    FiberA-&gt;&gt;Main: Fiber::suspend() 或 返回结果 (如果完成)</span><br><span class="line">    Network--&gt;&gt;Main: Fiber B 的网络响应到达</span><br><span class="line">    Main-&gt;&gt;FiberB: $fiberB-&gt;resume(responseB)</span><br><span class="line">    FiberB-&gt;&gt;FiberB: 处理响应B</span><br><span class="line">    FiberB-&gt;&gt;Main: Fiber::suspend() 或 返回结果 (如果完成)</span><br><span class="line">    Main-&gt;&gt;Main: 继续调度其他Fiber 或 处理其他任务</span><br></pre></td></tr></table></figure>
+
+<p>这是一个简化的例子，展示了如何使用 Fibers 模拟两个并发的“耗时操作”（实际上我们使用 <code>sleep()</code> 来模拟 I&#x2F;O 延迟）。一个真正的异步框架会有一个事件循环来调度这些 Fibers。</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 模拟一个异步 I/O 操作 (例如网络请求、文件读写)</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">asyncOperation</span>(<span class="params"><span class="keyword">string</span> <span class="variable">$name</span>, <span class="keyword">int</span> <span class="variable">$delaySeconds</span></span>): <span class="title">string</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;[Fiber <span class="subst">$name</span>] Starting operation, will take <span class="subst">&#123;$delaySeconds&#125;</span> seconds...\n&quot;</span>;</span><br><span class="line">    <span class="comment">// 暂停当前 Fiber，将控制权交还给调度器/主程序</span></span><br><span class="line">    <span class="comment">// 实际异步框架中，这里会注册一个回调，当I/O完成后唤醒当前Fiber</span></span><br><span class="line">    <span class="title class_">Fiber</span>::<span class="title function_ invoke__">suspend</span>(); </span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;[Fiber <span class="subst">$name</span>] Operation resumed after <span class="subst">&#123;$delaySeconds&#125;</span> seconds.\n&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;[Fiber <span class="subst">$name</span>] Result after <span class="subst">&#123;$delaySeconds&#125;</span> seconds.&quot;</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义一个简单的调度器 (Event Loop 的简化版)</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Scheduler</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="built_in">SplQueue</span> <span class="variable">$queue</span>; <span class="comment">// 存储待运行的 Fiber</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">array</span> <span class="variable">$waitingFibers</span> = []; <span class="comment">// 存储因I/O暂停的 Fiber</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;queue = <span class="keyword">new</span> <span class="built_in">SplQueue</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">addFiber</span>(<span class="params"><span class="built_in">Fiber</span> <span class="variable">$fiber</span></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;queue-&gt;<span class="title function_ invoke__">enqueue</span>(<span class="variable">$fiber</span>);</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)] = [</span><br><span class="line">            <span class="string">&#x27;fiber&#x27;</span> =&gt; <span class="variable">$fiber</span>,</span><br><span class="line">            <span class="string">&#x27;start_time&#x27;</span> =&gt; <span class="title function_ invoke__">microtime</span>(<span class="literal">true</span>),</span><br><span class="line">            <span class="string">&#x27;delay&#x27;</span> =&gt; <span class="number">0</span>, <span class="comment">// 初始未知延迟，实际中会从任务获取</span></span><br><span class="line">        ];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">run</span>(<span class="params"></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">while</span> (!<span class="variable language_">$this</span>-&gt;queue-&gt;<span class="title function_ invoke__">isEmpty</span>() || !<span class="keyword">empty</span>(<span class="variable language_">$this</span>-&gt;waitingFibers)) &#123;</span><br><span class="line">            <span class="comment">// 先处理队列中的 Fiber (模拟CPU密集型任务或已就绪的I/O)</span></span><br><span class="line">            <span class="keyword">while</span> (!<span class="variable language_">$this</span>-&gt;queue-&gt;<span class="title function_ invoke__">isEmpty</span>()) &#123;</span><br><span class="line">                <span class="variable">$fiber</span> = <span class="variable language_">$this</span>-&gt;queue-&gt;<span class="title function_ invoke__">dequeue</span>();</span><br><span class="line">                <span class="keyword">if</span> (<span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">isTerminated</span>()) &#123;</span><br><span class="line">                    <span class="keyword">unset</span>(<span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)]);</span><br><span class="line">                    <span class="keyword">continue</span>;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    <span class="keyword">if</span> (!<span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">isStarted</span>()) &#123;</span><br><span class="line">                        <span class="variable">$value</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">start</span>();</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        <span class="variable">$value</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">resume</span>();</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    <span class="keyword">if</span> (<span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">isSuspended</span>()) &#123;</span><br><span class="line">                        <span class="comment">// Fiber 暂停了，等待 I/O，重新放回等待池</span></span><br><span class="line">                        <span class="comment">// 这里简化处理，实际需要注册到真正的 I/O 多路复用器</span></span><br><span class="line">                        <span class="comment">// 我们模拟一个延迟后唤醒</span></span><br><span class="line">                        <span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)][<span class="string">&#x27;start_time&#x27;</span>] = <span class="title function_ invoke__">microtime</span>(<span class="literal">true</span>); <span class="comment">// 重置等待时间</span></span><br><span class="line">                        <span class="comment">// 假设 asyncOperation 函数会告诉调度器它需要等待多久</span></span><br><span class="line">                        <span class="comment">// 这里我们手动设置一个延迟，方便演示</span></span><br><span class="line">                        <span class="keyword">if</span> (<span class="title function_ invoke__">str_contains</span>(<span class="variable">$value</span>, <span class="string">&#x27;delay&#x27;</span>)) &#123;</span><br><span class="line">                            <span class="title function_ invoke__">preg_match</span>(<span class="string">&#x27;/delay:(\d+)/&#x27;</span>, <span class="variable">$value</span>, <span class="variable">$matches</span>);</span><br><span class="line">                            <span class="keyword">if</span> (<span class="keyword">isset</span>(<span class="variable">$matches</span>[<span class="number">1</span>])) &#123;</span><br><span class="line">                                <span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)][<span class="string">&#x27;delay&#x27;</span>] = (<span class="keyword">int</span>)<span class="variable">$matches</span>[<span class="number">1</span>];</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                             <span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)][<span class="string">&#x27;delay&#x27;</span>] = <span class="number">2</span>; <span class="comment">// 默认2秒</span></span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                    &#125; <span class="keyword">elseif</span> (<span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">isTerminated</span>()) &#123;</span><br><span class="line">                        <span class="keyword">echo</span> <span class="string">&quot;Fiber finished with return: &quot;</span> . <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">getReturn</span>() . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">                        <span class="keyword">unset</span>(<span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)]);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; <span class="keyword">catch</span> (<span class="built_in">Throwable</span> <span class="variable">$e</span>) &#123;</span><br><span class="line">                    <span class="keyword">echo</span> <span class="string">&quot;Fiber threw an exception: &quot;</span> . <span class="variable">$e</span>-&gt;<span class="title function_ invoke__">getMessage</span>() . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">                    <span class="keyword">unset</span>(<span class="variable language_">$this</span>-&gt;waitingFibers[<span class="title function_ invoke__">spl_object_id</span>(<span class="variable">$fiber</span>)]);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 检查是否有等待中的 Fiber 已满足条件 (模拟 I/O 完成)</span></span><br><span class="line">            <span class="keyword">foreach</span> (<span class="variable language_">$this</span>-&gt;waitingFibers <span class="keyword">as</span> <span class="variable">$id</span> =&gt; &amp;<span class="variable">$waitingFiber</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="variable">$waitingFiber</span>[<span class="string">&#x27;fiber&#x27;</span>]-&gt;<span class="title function_ invoke__">isSuspended</span>() &amp;&amp; (<span class="title function_ invoke__">microtime</span>(<span class="literal">true</span>) - <span class="variable">$waitingFiber</span>[<span class="string">&#x27;start_time&#x27;</span>]) &gt;= <span class="variable">$waitingFiber</span>[<span class="string">&#x27;delay&#x27;</span>]) &#123;</span><br><span class="line">                    <span class="keyword">echo</span> <span class="string">&quot;[Scheduler] Resuming Fiber <span class="subst">&#123;$id&#125;</span> after simulated I/O delay...\n&quot;</span>;</span><br><span class="line">                    <span class="variable language_">$this</span>-&gt;queue-&gt;<span class="title function_ invoke__">enqueue</span>(<span class="variable">$waitingFiber</span>[<span class="string">&#x27;fiber&#x27;</span>]); <span class="comment">// 重新加入队列</span></span><br><span class="line">                    <span class="comment">// 模拟 I/O 结果</span></span><br><span class="line">                    <span class="variable">$waitingFiber</span>[<span class="string">&#x27;fiber&#x27;</span>]-&gt;<span class="title function_ invoke__">resume</span>(<span class="string">&quot;Simulated I/O result for Fiber <span class="subst">&#123;$id&#125;</span>&quot;</span>); </span><br><span class="line">                    <span class="keyword">unset</span>(<span class="variable language_">$this</span>-&gt;waitingFibers[<span class="variable">$id</span>]); <span class="comment">// 从等待池移除</span></span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 如果没有Fiber可运行且有等待中的Fiber，则等待一小段时间</span></span><br><span class="line">            <span class="keyword">if</span> (<span class="variable language_">$this</span>-&gt;queue-&gt;<span class="title function_ invoke__">isEmpty</span>() &amp;&amp; !<span class="keyword">empty</span>(<span class="variable language_">$this</span>-&gt;waitingFibers)) &#123;</span><br><span class="line">                <span class="title function_ invoke__">usleep</span>(<span class="number">100000</span>); <span class="comment">// 等待100ms，模拟等待I/O事件</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">echo</span> <span class="string">&quot;Scheduler finished.\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="variable">$scheduler</span> = <span class="keyword">new</span> <span class="title class_">Scheduler</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建第一个 Fiber</span></span><br><span class="line"><span class="variable">$fiber1</span> = <span class="keyword">new</span> <span class="built_in">Fiber</span>(<span class="function"><span class="keyword">function</span> (<span class="params"><span class="keyword">string</span> <span class="variable">$name</span>, <span class="keyword">int</span> <span class="variable">$delay</span></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber <span class="subst">&#123;$name&#125;</span> started.\n&quot;</span>;</span><br><span class="line">    <span class="comment">// 实际中，这里会是 `async_read_file($path)-&gt;await()` 或 `http_client-&gt;get($url)-&gt;await()`</span></span><br><span class="line">    <span class="variable">$result</span> = <span class="title function_ invoke__">asyncOperation</span>(<span class="variable">$name</span>, <span class="variable">$delay</span>); <span class="comment">// 模拟耗时操作，Fiber::suspend()</span></span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;[Fiber <span class="subst">&#123;$name&#125;</span>] Received result: <span class="subst">&#123;$result&#125;</span>\n&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;<span class="subst">&#123;$name&#125;</span> completed.&quot;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"><span class="variable">$scheduler</span>-&gt;<span class="title function_ invoke__">addFiber</span>(<span class="variable">$fiber1</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建第二个 Fiber</span></span><br><span class="line"><span class="variable">$fiber2</span> = <span class="keyword">new</span> <span class="built_in">Fiber</span>(<span class="function"><span class="keyword">function</span> (<span class="params"><span class="keyword">string</span> <span class="variable">$name</span>, <span class="keyword">int</span> <span class="variable">$delay</span></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber <span class="subst">&#123;$name&#125;</span> started.\n&quot;</span>;</span><br><span class="line">    <span class="variable">$result</span> = <span class="title function_ invoke__">asyncOperation</span>(<span class="variable">$name</span>, <span class="variable">$delay</span>);</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;[Fiber <span class="subst">&#123;$name&#125;</span>] Received result: <span class="subst">&#123;$result&#125;</span>\n&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;<span class="subst">&#123;$name&#125;</span> completed.&quot;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"><span class="variable">$scheduler</span>-&gt;<span class="title function_ invoke__">addFiber</span>(<span class="variable">$fiber2</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 启动调度器</span></span><br><span class="line"><span class="variable">$scheduler</span>-&gt;<span class="title function_ invoke__">run</span>();</span><br><span class="line"></span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>输出（大致顺序，实际可能因调度逻辑微调）：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Fiber fiber1 started.</span><br><span class="line">[Fiber fiber1] Starting operation, will take 3 seconds...</span><br><span class="line">Fiber fiber2 started.</span><br><span class="line">[Fiber fiber2] Starting operation, will take 2 seconds...</span><br><span class="line">[Scheduler] Resuming Fiber 991807469 after simulated I/O delay... // Fiber 2 (2秒后)</span><br><span class="line">[Fiber fiber2] Operation resumed after 2 seconds.</span><br><span class="line">[Fiber fiber2] Received result: [Fiber fiber2] Result after 2 seconds.</span><br><span class="line">Fiber finished with return: fiber2 completed.</span><br><span class="line">[Scheduler] Resuming Fiber 991807469 after simulated I/O delay... // Fiber 1 (3秒后)</span><br><span class="line">[Fiber fiber1] Operation resumed after 3 seconds.</span><br><span class="line">[Fiber fiber1] Received result: [Fiber fiber1] Result after 3 seconds.</span><br><span class="line">Fiber finished with return: fiber1 completed.</span><br><span class="line">Scheduler finished.</span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：上面的调度器是一个非常简化的示例，旨在演示 Fibers 的暂停和恢复。一个真正的异步框架（如 Amphp, ReactPHP）会使用底层的 I&#x2F;O 多路复用机制（epoll, kqueue 等）来高效地等待和调度就绪的 Fiber。</p>
+<h3 id="3-3-异常处理"><a href="#3-3-异常处理" class="headerlink" title="3.3 异常处理"></a>3.3 异常处理</h3><p>Fibers 支持正常的异常处理机制。</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"></span><br><span class="line"><span class="variable">$fiber</span> = <span class="keyword">new</span> <span class="built_in">Fiber</span>(<span class="function"><span class="keyword">function</span> (<span class="params"></span>): <span class="title">void</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">echo</span> <span class="string">&quot;Fiber started.\n&quot;</span>;</span><br><span class="line">        <span class="title class_">Fiber</span>::<span class="title function_ invoke__">suspend</span>(<span class="string">&#x27;paused&#x27;</span>);</span><br><span class="line">        <span class="keyword">echo</span> <span class="string">&quot;Fiber resumed.\n&quot;</span>;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Exception</span>(<span class="string">&quot;Error inside Fiber!&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (<span class="built_in">Exception</span> <span class="variable">$e</span>) &#123;</span><br><span class="line">        <span class="keyword">echo</span> <span class="string">&quot;Fiber caught exception: &quot;</span> . <span class="variable">$e</span>-&gt;<span class="title function_ invoke__">getMessage</span>() . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">echo</span> <span class="string">&quot;Fiber finally block.\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&#x27;Fiber finished successfully.&#x27;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable">$result</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">start</span>();</span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Main received: &quot;</span> . <span class="variable">$result</span> . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 通过 resume() 恢复 Fiber，它会继续执行到抛出异常的地方</span></span><br><span class="line"><span class="comment">// 异常在 Fiber 内部被捕获</span></span><br><span class="line"><span class="variable">$result2</span> = <span class="variable">$fiber</span>-&gt;<span class="title function_ invoke__">resume</span>();</span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Main received after internal catch: &quot;</span> . <span class="variable">$result2</span> . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line"></span><br><span class="line"><span class="variable">$fiber2</span> = <span class="keyword">new</span> <span class="built_in">Fiber</span>(<span class="function"><span class="keyword">function</span> (<span class="params"></span>): <span class="title">void</span> </span>&#123;</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber2 started.\n&quot;</span>;</span><br><span class="line">    <span class="title class_">Fiber</span>::<span class="title function_ invoke__">suspend</span>();</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Fiber2 will never resume here.\n&quot;</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable">$fiber2</span>-&gt;<span class="title function_ invoke__">start</span>();</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">// 在 Fiber 外部向 Fiber 内部抛出异常</span></span><br><span class="line">    <span class="variable">$fiber2</span>-&gt;<span class="keyword">throw</span>(<span class="keyword">new</span> <span class="built_in">Exception</span>(<span class="string">&quot;External error for Fiber2!&quot;</span>));</span><br><span class="line">&#125; <span class="keyword">catch</span> (<span class="built_in">Exception</span> <span class="variable">$e</span>) &#123;</span><br><span class="line">    <span class="keyword">echo</span> <span class="string">&quot;Main caught exception when throwing to Fiber2: &quot;</span> . <span class="variable">$e</span>-&gt;<span class="title function_ invoke__">getMessage</span>() . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">echo</span> <span class="string">&quot;Fiber2 status: &quot;</span> . (<span class="variable">$fiber2</span>-&gt;<span class="title function_ invoke__">isTerminated</span>() ? <span class="string">&quot;Terminated&quot;</span> : <span class="string">&quot;Running&quot;</span>) . <span class="string">&quot;\n&quot;</span>;</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>输出：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Fiber started.</span><br><span class="line">Main received: paused</span><br><span class="line">Fiber resumed.</span><br><span class="line">Fiber caught exception: Error inside Fiber!</span><br><span class="line">Fiber finally block.</span><br><span class="line">Main received after internal catch: Fiber finished successfully.</span><br><span class="line">Fiber2 started.</span><br><span class="line">Main caught exception when throwing to Fiber2: External error for Fiber2!</span><br><span class="line">Fiber2 status: Terminated</span><br></pre></td></tr></table></figure>
+
+<h2 id="四、Fibers-与-Generators-的区别"><a href="#四、Fibers-与-Generators-的区别" class="headerlink" title="四、Fibers 与 Generators 的区别"></a>四、Fibers 与 Generators 的区别</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">Generators (PHP 5.5+)</th>
+<th align="left">Fibers (PHP 8.1+)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>主要目的</strong></td>
+<td align="left">迭代器，按需生成值，实现惰性求值。</td>
+<td align="left">轻量级并发原语，实现用户空间多任务，简化异步代码。</td>
+</tr>
+<tr>
+<td align="left"><strong>上下文切换</strong></td>
+<td align="left">通过 <code>yield</code> 暂停，通过 <code>send()</code> 或 <code>next()</code> 恢复。</td>
+<td align="left">通过 <code>Fiber::suspend()</code> 暂停，通过 <code>Fiber::resume()</code> 恢复。</td>
+</tr>
+<tr>
+<td align="left"><strong>控制流</strong></td>
+<td align="left">控制权从生成器返回到调用者，由调用者推动生成器。</td>
+<td align="left">控制权在 Fiber 和其父 Fiber 之间切换，更加灵活和对称。</td>
+</tr>
+<tr>
+<td align="left"><strong>返回值</strong></td>
+<td align="left">只能在迭代完成后通过 <code>getReturn()</code> 获取一个最终值。</td>
+<td align="left"><code>start()</code> 和 <code>resume()</code> 直接返回 <code>suspend()</code> 的值，或者 Fiber 的最终返回值。</td>
+</tr>
+<tr>
+<td align="left"><strong>传递值</strong></td>
+<td align="left"><code>send()</code> 传入值作为 <code>yield</code> 表达式结果。</td>
+<td align="left"><code>suspend()</code> 传出值，<code>resume()</code> 传入值作为 <code>suspend()</code> 结果。</td>
+</tr>
+<tr>
+<td align="left"><strong>语义</strong></td>
+<td align="left">更偏向于数据流和迭代。</td>
+<td align="left">更偏向于控制流和任务调度。</td>
+</tr>
+<tr>
+<td align="left"><strong>复杂性</strong></td>
+<td align="left">作为协程使用时，需要外部调度器管理其状态和切换逻辑。</td>
+<td align="left">更直接地提供协程机制，简化了异步库的底层实现。</td>
+</tr>
+</tbody></table>
+<h2 id="五、Fibers-的适用场景"><a href="#五、Fibers-的适用场景" class="headerlink" title="五、Fibers 的适用场景"></a>五、Fibers 的适用场景</h2><p>Fibers 本身只是一个低级原语。它们的真正价值在于作为构建高级异步框架（如 Amphp, ReactPHP）的基础。</p>
+<ul>
+<li><strong>异步 I&#x2F;O 操作</strong>：<ul>
+<li>网络请求（HTTP 客户端、数据库客户端）</li>
+<li>文件 I&#x2F;O</li>
+<li>消息队列处理</li>
+</ul>
+</li>
+<li><strong>长运行任务</strong>：<ul>
+<li>在不阻塞主线程的情况下执行耗时计算（尽管 PHP 仍然是单线程的，但可以避免阻塞 I&#x2F;O）。</li>
+</ul>
+</li>
+<li><strong>并发任务调度</strong>：<ul>
+<li>创建自定义的协程调度器，管理多个并发执行的任务。</li>
+</ul>
+</li>
+<li><strong>Web 服务器</strong>：<ul>
+<li>在 PHP-FPM 模型下，每个请求依然是独立的。Fibers 主要用于优化单个请求内部的并发 I&#x2F;O 效率。</li>
+<li>对于基于 Swoole 或 RoadRunner 的应用，Fibers 可以与这些服务器的事件循环更好地集成，实现真正的请求级并发。</li>
+</ul>
+</li>
+</ul>
+<h2 id="六、使用-Fibers-的注意事项"><a href="#六、使用-Fibers-的注意事项" class="headerlink" title="六、使用 Fibers 的注意事项"></a>六、使用 Fibers 的注意事项</h2><ol>
+<li><strong>不是并行编程</strong>：Fibers 实现的是协作式多任务，而不是并行（Parallelism）。在任何时刻，只有一个 Fiber 在 CPU 上运行。它们通过快速上下文切换来模拟并发，尤其适用于 I&#x2F;O 密集型任务。</li>
+<li><strong>需要调度器</strong>：Fibers 本身并不会自动调度。开发者需要一个事件循环 (Event Loop) 或调度器来协调多个 Fibers 的执行，并在 I&#x2F;O 就绪时恢复它们。例如，Amphp 和 ReactPHP 等异步框架已经集成了基于 Fibers 的调度器。</li>
+<li><strong>栈管理</strong>：每个 Fiber 都有自己的调用栈。虽然 Fibers 比线程轻量，但创建过多或深度嵌套的 Fibers 仍然会消耗内存。</li>
+<li><strong>透明性</strong>：Fibers 的设计目标之一是让异步代码看起来像同步代码。这意味着开发者在 Fiber 内部调用一个“阻塞”的 I&#x2F;O 函数时，实际上它可能已经被底层框架包装成了 <code>Fiber::suspend()</code> + 事件循环等待 + <code>Fiber::resume()</code> 的模式，从而实现了非阻塞。</li>
+<li><strong>调试</strong>：由于执行流的非线性特性，调试 Fibers 可能会比调试传统同步代码更具挑战性。Xdebug 等调试工具可能需要更新以支持 Fibers 的上下文切换。</li>
+</ol>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>PHP Fibers 是 PHP 语言发展史上的一个重要里程碑，它为 PHP 带来了原生的协程支持，极大地简化了异步非阻塞编程。通过 Fibers，开发者能够编写更清晰、更易维护的异步代码，特别是在处理 I&#x2F;O 密集型应用时，能够显著提升性能和响应速度。虽然 Fibers 是低级原语，但它们是构建未来高性能 PHP 异步框架的基石，预示着 PHP 在并发和异步编程领域迈出了坚实的一步。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/38c508ec9ee0/">https://blog.tbf1211.xx.kg/38c508ec9ee0/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/PHP/">PHP</a><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E5%8D%8F%E7%A8%8B/">协程</a><a class="post-meta__tags" href="/tags/%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B/">异步编程</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-08.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/058452c6e7a6/" title="TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石</div></div><div class="info-2"><div class="info-item-1"> 传输控制协议 (TCP - Transmission Control Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中最重要的协议之一，位于传输层。它提供了一种可靠 (Reliable)、面向连接 (Connection-Oriented)、基于字节流 (Byte Stream-Oriented) 的传输服务，确保数据能够准确、完整且按序地从一个应用程序传输到另一个应用程序。几乎所有对数据完整性有严格要求的应用，如网页浏览、文件传输、电子邮件等，都构建在 TCP 之上。  核心思想：TCP 致力于在不可靠的 IP 网络之上，构建起一个端到端的高度可靠的虚拟链路，通过复杂的机制来保障数据不丢、不重、不乱序，并有效地管理网络资源。   一、TCP 的核心特性与设计哲学TCP 的设计目标是克服底层 IP 网络的不可靠性，为应用程序提供一个稳定、可靠的数据传输通道。其核心特性包括：  面向连接 (Connection-Oriented)：  在数据传输之前，通信双方必须通过三次握手建立一个逻辑上的连接。 连接建立后，双方才能开始交换数据。 数据传输完成后，通过四次挥...</div></div></div></a><a class="pagination-related" href="/9dc6d686e0f8/" title="发音记忆法：如何通过发音高效记忆英语单词的详细教程"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">发音记忆法：如何通过发音高效记忆英语单词的详细教程</div></div><div class="info-2"><div class="info-item-1"> 许多人在学习英语单词时，习惯性地只看字母组合，导致背了就忘，而且容易拼写错误。这篇教程旨在改变这种低效的学习方式，教你如何以发音为核心，结合音标、自然拼读和听力，构建一套高效、持久的单词记忆策略。  英语作为一门拼音文字，其单词的拼写和发音之间存在着内在的规律。掌握这些规律，将单词的“形”、“音”、“义”紧密结合，可以大大提升记忆效率和准确性。通过发音来记忆单词，不仅能帮助你更好地拼写，还能提高听力理解和口语表达能力。   一、为什么只看字母记单词效率低下？传统的“死记硬背”方式通常关注字母顺序，例如：beautiful → B-E-A-U-T-I-F-U-L 美丽的 这种方法存在以下问题：  脱离语境：字母组合是抽象的，没有实际的语境或声音联系，大脑难以建立有效记忆。 效率低下：每个单词都需要单独记忆字母序列，记忆量大，复习周期长。 容易混淆：相似字母组合的单词（如 through, thorough, though）极易混淆。 发音障碍：不了解发音规律，见到生词不敢读，听力理解也受到影响。 拼写错误：由于不熟悉形音对应，拼写时容易出错。  而通过发音记忆，我们关注的是：be...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/6a5fbe75d3cc/" title="PHP 内存溢出解决方案详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-07</div><div class="info-item-2">PHP 内存溢出解决方案详解</div></div><div class="info-2"><div class="info-item-1"> PHP 内存溢出 (Memory Exhausted) 是 PHP 应用程序开发中一个常见的问题，通常表现为 Fatal error: Allowed memory size of X bytes exhausted。这意味着 PHP 脚本在执行过程中尝试分配的内存超出了配置允许的最大值。理解其原因并掌握有效的解决方案对于构建稳定、高性能的 PHP 应用至关重要。  核心思想：PHP 内存溢出通常源于：1. 配置限制；2. 代码中大量数据处理或未释放的资源；3. 内存泄漏。解决的关键在于合理配置、优化代码和有效管理内存。   一、理解 PHP 内存溢出的原因PHP 内存溢出主要有以下几方面的原因：  PHP 配置限制： memory_limit 配置项：这是 PHP 限制单个脚本可以使用的最大内存量。如果脚本尝试使用的内存超过这个值，就会触发内存溢出错误。 服务器资源限制：即使 memory_limit 很高，宿主机本身的内存资源也有限。   代码层面问题： 处理大量数据：一次性从数据库中查询大量记录、处理大型文件、或对大型数组&#x2F;字符串进行操作，都可能导致内存瞬时暴增...</div></div></div></a><a class="pagination-related" href="/278168a5d5b8/" title="PHP 惰性求值与生成器 (Generators) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-24</div><div class="info-item-2">PHP 惰性求值与生成器 (Generators) 详解</div></div><div class="info-2"><div class="info-item-1"> 惰性求值 (Lazy Evaluation) 是一种编程策略，它将表达式的计算延迟到真正需要其结果时才进行。在 PHP 中，实现惰性求值最主要的机制就是生成器 (Generators)。生成器允许开发者编写像迭代器一样遍历数据集合的函数，而无需将整个集合一次性加载到内存中。这对于处理大型数据集、无限序列或需要节省内存的场景至关重要。  核心思想：生成器通过 yield 关键字实现了惰性求值，它允许函数暂停执行并返回一个值，并在下次需要时从暂停的地方继续执行，从而按需生成数据，大幅减少内存占用。   一、理解惰性求值 (Lazy Evaluation)1.1 什么是惰性求值？传统的“饥饿求值 (Eager Evaluation)”或“及早求值”模式下，当一个函数或表达式被调用时，其所有参数都会在函数体执行前被完全计算。例如： 1234function sum(int $a, int $b): int &#123;    return $a + $b;&#125;$result = sum(expensiveCalculationA(), expensiveCalculationB...</div></div></div></a><a class="pagination-related" href="/10b74b4460f9/" title="Python 异步编程详解：从并发到协程"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-22</div><div class="info-item-2">Python 异步编程详解：从并发到协程</div></div><div class="info-2"><div class="info-item-1"> Python 异步编程 是一种处理并发任务的编程范式，它允许程序在等待某些操作（如 I&#x2F;O 操作、网络请求、数据库查询）完成时，切换到执行其他任务，从而提高程序的吞吐量和响应速度。与传统的多线程&#x2F;多进程并发模型不同，异步编程通常使用协程 (Coroutines) 和事件循环 (Event Loop) 来实现，避免了线程&#x2F;进程切换的开销，也绕开了 Python 的全局解释器锁 (GIL) 对 CPU 密集型任务的限制（尽管异步编程主要适用于 I&#x2F;O 密集型任务）。  核心思想：异步编程通过在等待 I&#x2F;O 完成时“暂停”当前任务，并“切换”到其他可执行任务，从而在单线程内实现并发和最大化 I&#x2F;O 利用率。   一、为什么需要异步编程？传统的 Python 程序（同步阻塞式）在执行 I&#x2F;O 操作时会阻塞整个程序，直到 I&#x2F;O 完成。例如，一个 Web 服务器在处理一个耗时的网络请求时，就无法处理其他用户的请求，导致性能低下。 1.1 同步阻塞 (Synchronous Blocking)123456789...</div></div></div></a><a class="pagination-related" href="/f35a31a1b5c1/" title="PHP 各个版本新特性详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-08</div><div class="info-item-2">PHP 各个版本新特性详解</div></div><div class="info-2"><div class="info-item-1"> PHP 作为最流行的后端脚本语言之一，自诞生以来便不断演进。从早期的松散特性到现代的强类型、高性能，每一次版本迭代都带来了显著的改进。本文将详细回顾 PHP 7.0 以后，各个主要版本（7.x 和 8.x 系列）引入的新特性、性能提升和废弃功能，帮助开发者理解 PHP 的发展轨迹并更好地进行技术选型和代码迁移。  核心思想：PHP 的演进主线是：提高性能、增强类型系统、简化语法、引入现代编程范式和清理历史遗留问题。   一、PHP 7.0 (2015年) - 性能飞跃的起点PHP 7.0 是一个里程碑式的版本，其最大的亮点是引入了全新的 Zend Engine (Zend Engine 3.0，代号 PHPNG)，带来了惊人的性能提升。 1.1 核心特性与性能提升 Zend Engine 3.0 (PHPNG)：这是 7.0 最大的亮点。与 PHP 5.6 相比，PHP 7.0 在实际应用中实现了 2 倍甚至更高的性能提升，大幅降低了内存消耗。这是通过重写 Zend Engine 的核心，优化了数据结构、Opcodes 处理和垃圾回收机制实现的。 抽象语法树 (Abstract...</div></div></div></a><a class="pagination-related" href="/abb68b6fbe95/" title="从单机到哨兵，一张图理清redis架构演进！"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-26</div><div class="info-item-2">从单机到哨兵，一张图理清redis架构演进！</div></div><div class="info-2"><div class="info-item-1">Redis 的架构是逐步演进而来的，正所谓“罗马不是一天建成的”。    2010 年：单机版 Redis  当 Redis1.0在 2010 年首次发布时，整体架构非常简单，通常作为业务系统的缓存使用。不过，Redis 的数据是存储在内存中的，一旦重启，数据就会全部丢失，导致请求会直接打到数据库上，带来较大的压力。  2013 年：持久化机制上线  2013 年，Redis2.8版本发布，解决了之前“重启就丢数据”的问题。Redis 引入了 RDB（内存快照）机制，用于定时将内存中的数据持久化到磁盘。同时还支持 AOF（只追加文件）方式，将每一次写操作都记录到日志文件中，实现更高级别的持久化保障。  2013 年：主从复制机制  同样在 Redis2.8中，官方引入了主从复制功能，提升了系统的高可用性。主节点负责处理实时的读写请求，从节点则负责同步主节点的数据，起到备份和读扩展的作用。  2013 年：Sentinel 哨兵机制上线  在 Redis2.8版本中，引入了 Sentinel（哨兵）机制，用于实时监控 Redis 实例的运行状态。它主要负责以下几个方面的工作：   ...</div></div></div></a><a class="pagination-related" href="/895bad372d95/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-27</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> 索引是数据库中用于提高查询速度的一种数据结构。在 MySQL 中，合理有效地使用索引能够显著提升数据库的查询性能，减少 I&#x2F;O 操作。然而，不恰当的索引也可能带来额外的开销。理解 MySQL 索引的原理和优化策略，是数据库性能调优的关键。  “好的索引，事半功倍；坏的索引，越帮越忙。” - 数据库优化格言   一、什么是索引？索引（Index）是一种特殊的查找表，数据库搜索引擎可以利用它来快速定位数据。可以将其类比为一本书的目录，通过目录我们可以快速找到感兴趣的章节，而不需要通读整本书。 在数据库中，没有索引的查询需要全表扫描，即逐行检查每条记录，直到找到符合条件的记录。当数据量非常大时，这种操作的效率会非常低下。索引通过创建指向数据物理位置的指针，使得数据库在查询时能够直接跳转到相关记录，从而大大加快查询速度。 二、索引的优缺点优点 显著提高数据检索速度：这是索引最核心、最主要的优点。 加快表与表之间的连接速度：对于 JOIN 操作，索引可以加速连接条件的匹配。 加快分组和排序操作：GROUP BY 和 ORDER BY 操作通常通过消除临时表和对文件进行排序来提高...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Fibers%EF%BC%9F"><span class="toc-text">一、为什么需要 Fibers？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Fibers-%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Fibers 的基本概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E4%BB%80%E4%B9%88%E6%98%AF-Fiber%EF%BC%9F"><span class="toc-text">2.1 什么是 Fiber？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Fiber-%E7%9A%84%E7%8A%B6%E6%80%81"><span class="toc-text">2.2 Fiber 的状态</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Fiber-%E7%B1%BB%E7%9A%84%E6%96%B9%E6%B3%95"><span class="toc-text">2.3 Fiber 类的方法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Fibers-%E7%A4%BA%E4%BE%8B"><span class="toc-text">三、Fibers 示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E7%AE%80%E5%8D%95%E7%A4%BA%E4%BE%8B%EF%BC%9A%E6%9A%82%E5%81%9C%E4%B8%8E%E6%81%A2%E5%A4%8D"><span class="toc-text">3.1 简单示例：暂停与恢复</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%A8%A1%E6%8B%9F%E9%9D%9E%E9%98%BB%E5%A1%9E-I-O"><span class="toc-text">3.2 模拟非阻塞 I&#x2F;O</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86"><span class="toc-text">3.3 异常处理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Fibers-%E4%B8%8E-Generators-%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-text">四、Fibers 与 Generators 的区别</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Fibers-%E7%9A%84%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">五、Fibers 的适用场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E4%BD%BF%E7%94%A8-Fibers-%E7%9A%84%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">六、使用 Fibers 的注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-08.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

@@ -1,0 +1,640 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>HTML5 单页面应用 (SPA) 路由实现详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="单页面应用 (Single Page Application, SPA) 是一种 Web 应用程序模型，它通过动态重写当前页面而非从服务器加载整个新页面来实现与用户的交互。这种模式极大地提升了用户体验，使其更接近桌面应用。SPA 的核心技术之一是客户端路由 (Client-Side Routing)，它允许应用程序在不进行整页刷新的情况下，根据 URL 路径的变化渲染不同的视图。  核心思想：H">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HTML5 单页面应用 (SPA) 路由实现详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/234c44d5851b/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="单页面应用 (Single Page Application, SPA) 是一种 Web 应用程序模型，它通过动态重写当前页面而非从服务器加载整个新页面来实现与用户的交互。这种模式极大地提升了用户体验，使其更接近桌面应用。SPA 的核心技术之一是客户端路由 (Client-Side Routing)，它允许应用程序在不进行整页刷新的情况下，根据 URL 路径的变化渲染不同的视图。  核心思想：H">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2023-02-25T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.522Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="HTML">
+<meta property="article:tag" content="2023">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "HTML5 单页面应用 (SPA) 路由实现详解",
+  "url": "https://blog.tbf1211.xx.kg/234c44d5851b/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2023-02-25T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.522Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/234c44d5851b/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'HTML5 单页面应用 (SPA) 路由实现详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">HTML5 单页面应用 (SPA) 路由实现详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">HTML5 单页面应用 (SPA) 路由实现详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-02-25T22:24:00.000Z" title="发表于 2023-02-26 06:24:00">2023-02-26</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/HTML/">HTML</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.1k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>15分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/234c44d5851b/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>单页面应用 (Single Page Application, SPA)</strong> 是一种 Web 应用程序模型，它通过动态重写当前页面而非从服务器加载整个新页面来实现与用户的交互。这种模式极大地提升了用户体验，使其更接近桌面应用。SPA 的核心技术之一是<strong>客户端路由 (Client-Side Routing)</strong>，它允许应用程序在不进行整页刷新的情况下，根据 URL 路径的变化渲染不同的视图。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>HTML5 History API 允许 Web 应用程序在客户端直接操纵浏览器会话历史记录，从而实现 URL 的无刷新更新和状态管理，这是现代 SPA 路由的基础。</strong></p>
+</div>
+<hr>
+<h2 id="一、传统页面跳转与-SPA-路由的区别"><a href="#一、传统页面跳转与-SPA-路由的区别" class="headerlink" title="一、传统页面跳转与 SPA 路由的区别"></a>一、传统页面跳转与 SPA 路由的区别</h2><p>在深入探讨 SPA 路由之前，我们首先理解传统多页面应用 (Multi-Page Application, MPA) 的页面跳转机制及其与 SPA 的根本不同：</p>
+<ul>
+<li><p><strong>传统 MPA 页面跳转</strong>：</p>
+<ol>
+<li>用户点击链接或提交表单。</li>
+<li>浏览器向服务器发送 HTTP 请求，请求新的 HTML 页面。</li>
+<li>服务器响应并发送完整的 HTML 文档。</li>
+<li>浏览器销毁当前页面，加载并渲染新的 HTML 文档。</li>
+</ol>
+<ul>
+<li><strong>特点</strong>：每次跳转都会导致整个页面的重新加载，用户体验上会有闪烁感，且数据请求效率较低。</li>
+</ul>
+</li>
+<li><p><strong>SPA 客户端路由</strong>：</p>
+<ol>
+<li>用户点击应用内部链接。</li>
+<li>JavaScript 拦截默认的链接跳转行为。</li>
+<li>JavaScript 使用 HTML5 History API 修改 URL，但不发送新的 HTTP 请求。</li>
+<li>JavaScript 根据新的 URL 路径，动态地更新页面内容（例如，通过显示&#x2F;隐藏 DOM 元素、加载新组件）。</li>
+</ol>
+<ul>
+<li><strong>特点</strong>：无页面刷新，提供流畅的用户体验；只需请求所需数据，减少服务器负载和网络流量；但首次加载可能较慢，且对 SEO 相对不友好（需额外处理）。</li>
+</ul>
+</li>
+</ul>
+<h2 id="二、HTML5-History-API-核心"><a href="#二、HTML5-History-API-核心" class="headerlink" title="二、HTML5 History API 核心"></a>二、HTML5 History API 核心</h2><p>HTML5 引入的 History API 允许 JavaScript 操作浏览器的会话历史记录，而无需进行整页刷新。其核心方法和事件如下：</p>
+<h3 id="2-1-history-pushState-state-title-url"><a href="#2-1-history-pushState-state-title-url" class="headerlink" title="2.1 history.pushState(state, title, url)"></a>2.1 <code>history.pushState(state, title, url)</code></h3><ul>
+<li><strong>定义</strong>：将一个状态 (state) 对象添加到浏览器的会话历史堆栈中，并修改当前 URL。它不会触发页面刷新，但会更新浏览器的地址栏。</li>
+<li><strong>参数</strong>：<ul>
+<li><code>state</code> (Object)：一个 JavaScript 对象，与新创建的历史记录条目相关联。当用户导航到此历史记录条目时，<code>popstate</code> 事件会被触发，并且该 <code>state</code> 对象会作为事件的 <code>state</code> 属性传递。</li>
+<li><code>title</code> (String)：新历史记录条目的标题。现代浏览器通常会忽略此参数，因为它尚未被广泛实现。</li>
+<li><code>url</code> (String)：新的 URL。浏览器会加载这个 URL，但不会触发页面刷新。如果省略，则使用当前 URL。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 假设当前 URL 为 http://example.com/home</span></span><br><span class="line"><span class="keyword">const</span> stateObj = &#123; <span class="attr">page</span>: <span class="string">&#x27;about&#x27;</span> &#125;;</span><br><span class="line">history.<span class="title function_">pushState</span>(stateObj, <span class="string">&#x27;关于我们&#x27;</span>, <span class="string">&#x27;/about&#x27;</span>);</span><br><span class="line"><span class="comment">// 地址栏变为 http://example.com/about，页面未刷新，&#x27;about&#x27; 状态被推入历史堆栈</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-history-replaceState-state-title-url"><a href="#2-2-history-replaceState-state-title-url" class="headerlink" title="2.2 history.replaceState(state, title, url)"></a>2.2 <code>history.replaceState(state, title, url)</code></h3><ul>
+<li><strong>定义</strong>：类似于 <code>pushState</code>，但它不是在历史堆栈中添加新的条目，而是<strong>替换当前的历史记录条目</strong>。</li>
+<li><strong>参数</strong>：与 <code>pushState</code> 相同。</li>
+<li><strong>区别</strong>：<ul>
+<li><code>pushState</code> 会增加历史堆栈的长度，点击浏览器“后退”按钮会返回到前一个 URL。</li>
+<li><code>replaceState</code> 不会增加历史堆栈的长度，它直接替换了当前条目。如果希望用户无法通过“后退”按钮返回到特定状态（例如，表单提交后避免重复提交），这会很有用。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 假设当前 URL 为 http://example.com/home</span></span><br><span class="line"><span class="keyword">const</span> stateObj = &#123; <span class="attr">page</span>: <span class="string">&#x27;dashboard&#x27;</span> &#125;;</span><br><span class="line">history.<span class="title function_">replaceState</span>(stateObj, <span class="string">&#x27;仪表盘&#x27;</span>, <span class="string">&#x27;/dashboard&#x27;</span>);</span><br><span class="line"><span class="comment">// 地址栏变为 http://example.com/dashboard，页面未刷新，当前历史条目被替换</span></span><br><span class="line"><span class="comment">// 此时点击“后退”按钮，不会回到 /home，而是回到 /home 之前的那个历史条目</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-3-window-onpopstate-事件"><a href="#2-3-window-onpopstate-事件" class="headerlink" title="2.3 window.onpopstate 事件"></a>2.3 <code>window.onpopstate</code> 事件</h3><ul>
+<li><strong>定义</strong>：当用户点击浏览器“后退”、“前进”按钮或调用 <code>history.back()</code>、<code>history.forward()</code> 等方法时，会触发 <code>popstate</code> 事件。<strong>请注意，<code>pushState</code> 和 <code>replaceState</code> 不会触发 <code>popstate</code> 事件。</strong></li>
+<li><strong>事件对象</strong>：<code>popstate</code> 事件对象包含一个 <code>state</code> 属性，即调用 <code>pushState</code> 或 <code>replaceState</code> 时传递的 <code>state</code> 对象。</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="property">onpopstate</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;popstate event triggered!&#x27;</span>);</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">state</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;State object:&#x27;</span>, event.<span class="property">state</span>);</span><br><span class="line">        <span class="comment">// 根据 event.state 或 location.pathname 渲染对应的页面内容</span></span><br><span class="line">        <span class="title function_">renderPage</span>(location.<span class="property">pathname</span>); </span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 通常是初始加载页面或直接访问 URL 时</span></span><br><span class="line">        <span class="title function_">renderPage</span>(location.<span class="property">pathname</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、基于-Hash-的路由-Hash-based-Routing"><a href="#三、基于-Hash-的路由-Hash-based-Routing" class="headerlink" title="三、基于 Hash 的路由 (Hash-based Routing)"></a>三、基于 Hash 的路由 (Hash-based Routing)</h2><p>在 HTML5 History API 广泛应用之前，基于 URL 片段标识符（哈希，<code>#</code>）的路由是实现 SPA 的主要方式。</p>
+<h3 id="3-1-工作原理"><a href="#3-1-工作原理" class="headerlink" title="3.1 工作原理"></a>3.1 工作原理</h3><ul>
+<li><strong><code>#</code> 符号</strong>：URL 中的 <code>#</code> 符号（例如 <code>http://example.com/#!/about</code>）后面的部分被称为片段标识符或哈希值。</li>
+<li><strong>浏览器行为</strong>：当 URL 的哈希值改变时，浏览器不会向服务器发送请求，也不会触发页面刷新。这正是 SPA 路由所需要的。</li>
+<li><strong><code>window.onhashchange</code> 事件</strong>：当 URL 的哈希值发生变化时，会触发 <code>onhashchange</code> 事件。JavaScript 可以监听这个事件，并根据新的哈希值来渲染不同的页面内容。</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="property">onhashchange</span> = <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Hash changed to:&#x27;</span>, location.<span class="property">hash</span>);</span><br><span class="line">    <span class="comment">// 根据 location.hash 渲染对应的页面内容</span></span><br><span class="line">    <span class="title function_">renderPageByHash</span>(location.<span class="property">hash</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 改变哈希值</span></span><br><span class="line">location.<span class="property">hash</span> = <span class="string">&#x27;/products&#x27;</span>; <span class="comment">// 地址栏变为 http://example.com/#!/products</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-优缺点"><a href="#3-2-优缺点" class="headerlink" title="3.2 优缺点"></a>3.2 优缺点</h3><ul>
+<li><strong>优点</strong>：<ul>
+<li><strong>浏览器兼容性好</strong>：在所有旧版浏览器中都受支持。</li>
+<li><strong>无需服务器端特殊配置</strong>：所有哈希路由都可以映射到同一个 <code>index.html</code>，服务器无需特殊处理。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>URL 不美观</strong>：URL 中带有 <code>#!</code> 或 <code>#</code>，不如 History API 的路径清晰。</li>
+<li><strong>每次请求都带哈希</strong>：哈希值会随请求发送到服务器（尽管服务器通常忽略），可能对日志分析造成干扰。</li>
+<li><strong>无法充分利用浏览器历史栈</strong>：操作复杂，不如 History API 直观。</li>
+</ul>
+</li>
+</ul>
+<h2 id="四、实现一个简单的-HTML5-SPA-路由器-JavaScript"><a href="#四、实现一个简单的-HTML5-SPA-路由器-JavaScript" class="headerlink" title="四、实现一个简单的 HTML5 SPA 路由器 (JavaScript)"></a>四、实现一个简单的 HTML5 SPA 路由器 (JavaScript)</h2><p>下面我们通过一个简洁的 JavaScript 示例，演示如何使用 HTML5 History API 构建一个基本的 SPA 路由器。</p>
+<h3 id="4-1-基本结构"><a href="#4-1-基本结构" class="headerlink" title="4.1 基本结构"></a>4.1 基本结构</h3><p><strong><code>index.html</code></strong>：</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span> <span class="attr">lang</span>=<span class="string">&quot;zh-CN&quot;</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">charset</span>=<span class="string">&quot;UTF-8&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">&quot;viewport&quot;</span> <span class="attr">content</span>=<span class="string">&quot;width=device-width, initial-scale=1.0&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">title</span>&gt;</span>SPA Router Demo<span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">style</span>&gt;</span><span class="language-css"></span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">body</span> &#123; <span class="attribute">font-family</span>: sans-serif; <span class="attribute">margin</span>: <span class="number">20px</span>; &#125;</span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">nav</span> <span class="selector-tag">a</span> &#123; <span class="attribute">margin-right</span>: <span class="number">15px</span>; <span class="attribute">text-decoration</span>: none; <span class="attribute">color</span>: blue; &#125;</span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">nav</span> <span class="selector-tag">a</span><span class="selector-pseudo">:hover</span> &#123; <span class="attribute">text-decoration</span>: underline; &#125;</span></span><br><span class="line"><span class="language-css">        <span class="selector-class">.page-content</span> &#123; <span class="attribute">border</span>: <span class="number">1px</span> solid <span class="number">#ccc</span>; <span class="attribute">padding</span>: <span class="number">20px</span>; <span class="attribute">margin-top</span>: <span class="number">20px</span>; <span class="attribute">min-height</span>: <span class="number">100px</span>; &#125;</span></span><br><span class="line"><span class="language-css">    </span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!-- 引入 base 标签，非常重要！它定义了页面中所有相对 URL 的基准。</span></span><br><span class="line"><span class="comment">         对于 SPA，通常设置为根路径，确保所有内部路由都是相对于这个基准。 --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">base</span> <span class="attr">href</span>=<span class="string">&quot;/&quot;</span>&gt;</span> </span><br><span class="line"><span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">nav</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">a</span> <span class="attr">href</span>=<span class="string">&quot;/&quot;</span>&gt;</span>首页<span class="tag">&lt;/<span class="name">a</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">a</span> <span class="attr">href</span>=<span class="string">&quot;/about&quot;</span>&gt;</span>关于我们<span class="tag">&lt;/<span class="name">a</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">a</span> <span class="attr">href</span>=<span class="string">&quot;/products&quot;</span>&gt;</span>产品列表<span class="tag">&lt;/<span class="name">a</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">a</span> <span class="attr">href</span>=<span class="string">&quot;/contact&quot;</span>&gt;</span>联系我们<span class="tag">&lt;/<span class="name">a</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">nav</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;app&quot;</span> <span class="attr">class</span>=<span class="string">&quot;page-content&quot;</span>&gt;</span></span><br><span class="line">        <span class="comment">&lt;!-- 页面内容将在此处渲染 --&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">p</span>&gt;</span>加载中...<span class="tag">&lt;/<span class="name">p</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">script</span> <span class="attr">src</span>=<span class="string">&quot;app.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong><code>app.js</code></strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 定义路由配置</span></span><br><span class="line"><span class="keyword">const</span> routes = &#123;</span><br><span class="line">    <span class="string">&#x27;/&#x27;</span>: <span class="string">&#x27;&lt;h1&gt;欢迎来到首页！&lt;/h1&gt;&lt;p&gt;这是一个单页面应用路由示例。&lt;/p&gt;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;/about&#x27;</span>: <span class="string">&#x27;&lt;h1&gt;关于我们&lt;/h1&gt;&lt;p&gt;我们致力于提供优质服务。&lt;/p&gt;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;/products&#x27;</span>: <span class="string">&#x27;&lt;h1&gt;产品列表&lt;/h1&gt;&lt;ul&gt;&lt;li&gt;产品 A&lt;/li&gt;&lt;li&gt;产品 B&lt;/li&gt;&lt;li&gt;产品 C&lt;/li&gt;&lt;/ul&gt;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;/contact&#x27;</span>: <span class="string">&#x27;&lt;h1&gt;联系我们&lt;/h1&gt;&lt;p&gt;电话：123-4567-890&lt;/p&gt;&lt;p&gt;邮箱：info@example.com&lt;/p&gt;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;/404&#x27;</span>: <span class="string">&#x27;&lt;h1&gt;404 - 页面未找到&lt;/h1&gt;&lt;p&gt;您访问的页面不存在。&lt;/p&gt;&#x27;</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取应用容器</span></span><br><span class="line"><span class="keyword">const</span> appContainer = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;app&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 渲染页面内容的函数</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">renderPage</span>(<span class="params">path</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> content = routes[path] || routes[<span class="string">&#x27;/404&#x27;</span>];</span><br><span class="line">    appContainer.<span class="property">innerHTML</span> = content;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`渲染页面: <span class="subst">$&#123;path&#125;</span>`</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 处理 URL 变化并渲染页面的核心函数</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">handleLocation</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> path = <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">pathname</span>;</span><br><span class="line">    <span class="title function_">renderPage</span>(path);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 拦截导航链接点击事件</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="function"><span class="params">e</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// 检查点击的元素是否是具有 href 属性的 &lt;a&gt; 标签，且其 href 不是外部链接</span></span><br><span class="line">    <span class="keyword">if</span> (e.<span class="property">target</span>.<span class="title function_">matches</span>(<span class="string">&#x27;a&#x27;</span>) &amp;&amp; e.<span class="property">target</span>.<span class="property">href</span>.<span class="title function_">startsWith</span>(<span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">origin</span>)) &#123;</span><br><span class="line">        e.<span class="title function_">preventDefault</span>(); <span class="comment">// 阻止默认的链接跳转行为（整页刷新）</span></span><br><span class="line">        <span class="keyword">const</span> newPath = e.<span class="property">target</span>.<span class="title function_">getAttribute</span>(<span class="string">&#x27;href&#x27;</span>);</span><br><span class="line">        <span class="keyword">if</span> (newPath !== <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">pathname</span>) &#123; <span class="comment">// 避免重复 pushState</span></span><br><span class="line">            history.<span class="title function_">pushState</span>(&#123;&#125;, <span class="string">&#x27;&#x27;</span>, newPath); <span class="comment">// 将新路径推入历史记录，更新 URL</span></span><br><span class="line">            <span class="title function_">handleLocation</span>(); <span class="comment">// 根据新 URL 渲染页面</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听浏览器历史状态变化事件（用户点击前进/后退按钮时触发）</span></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;popstate&#x27;</span>, handleLocation);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 首次加载页面时渲染内容</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;DOMContentLoaded&#x27;</span>, handleLocation);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 注意：如果页面不是在根路径下部署（例如在子目录 /my-app/），</span></span><br><span class="line"><span class="comment">// &lt;base href=&quot;/my-app/&quot;&gt; 应该相应调整，并且路由配置也可能需要包含前缀。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-路由逻辑解析"><a href="#4-2-路由逻辑解析" class="headerlink" title="4.2 路由逻辑解析"></a>4.2 路由逻辑解析</h3><ol>
+<li><strong><code>routes</code> 配置</strong>：一个简单的对象，将 URL 路径映射到对应的 HTML 内容。实际应用中，这里会是组件或动态加载的模块。</li>
+<li><strong><code>renderPage(path)</code></strong>：根据传入的 <code>path</code> 从 <code>routes</code> 中查找并更新 <code>appContainer</code> 的 <code>innerHTML</code>。如果路径不存在，则渲染 404 页面。</li>
+<li><strong><code>handleLocation()</code></strong>：获取当前 <code>window.location.pathname</code>，然后调用 <code>renderPage</code> 渲染。这是驱动页面更新的核心。</li>
+<li><strong>点击事件拦截</strong>：<ul>
+<li><code>document.addEventListener(&#39;click&#39;, ...)</code> 监听整个文档的点击事件。</li>
+<li><code>e.target.matches(&#39;a&#39;)</code> 检查点击的是否是 <code>&lt;a&gt;</code> 标签。</li>
+<li><code>e.target.href.startsWith(window.location.origin)</code> 确保是内部链接。</li>
+<li><code>e.preventDefault()</code> 阻止浏览器默认的整页刷新行为。</li>
+<li><code>history.pushState(&#123;&#125;, &#39;&#39;, newPath)</code> 将新的 URL 推入浏览器历史栈，更新地址栏。</li>
+<li><code>handleLocation()</code> 立即渲染新页面。</li>
+</ul>
+</li>
+<li><strong><code>popstate</code> 事件监听</strong>：<ul>
+<li><code>window.addEventListener(&#39;popstate&#39;, handleLocation)</code> 监听浏览器前进&#x2F;后退按钮的点击。当用户操作这些按钮时，URL 会变化，<code>popstate</code> 触发，然后 <code>handleLocation</code> 会根据新的 URL 重新渲染页面。</li>
+</ul>
+</li>
+<li><strong><code>DOMContentLoaded</code></strong>：确保首次加载页面时，也能根据当前的 URL 路径渲染正确的内容。</li>
+</ol>
+<h2 id="五、服务器端配置-Go-Gin-示例"><a href="#五、服务器端配置-Go-Gin-示例" class="headerlink" title="五、服务器端配置 (Go Gin 示例)"></a>五、服务器端配置 (Go Gin 示例)</h2><p>使用 HTML5 History API 的 SPA 需要服务器端进行特殊配置，以确保当用户直接访问某个非根路由（例如 <code>http://example.com/about</code>）或刷新页面时，服务器能正确地返回 <code>index.html</code> 文件，而不是返回 404 错误。这是因为这些路径在服务器端通常没有对应的实际文件。</p>
+<p><strong>必要性</strong>：<br>服务器需要一个“万能路由”或“重定向规则”，将所有不匹配 API 路径的请求都重定向到 <code>index.html</code>。然后，客户端的 JavaScript 路由器会接管并根据 <code>location.pathname</code> 渲染对应的视图。</p>
+<p><strong>Go Gin 示例代码</strong>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;log&quot;</span></span><br><span class="line">	<span class="string">&quot;net/http&quot;</span> <span class="comment">// 导入 net/http 包</span></span><br><span class="line">	<span class="string">&quot;github.com/gin-gonic/gin&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	router := gin.Default()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 1. 设置静态文件服务</span></span><br><span class="line">	<span class="comment">// 这将使得 Gin 从 ./public 目录下提供静态文件</span></span><br><span class="line">	<span class="comment">// 例如，如果有一个 public/css/style.css，可以通过 /css/style.css 访问</span></span><br><span class="line">	router.Static(<span class="string">&quot;/static&quot;</span>, <span class="string">&quot;./public/static&quot;</span>) <span class="comment">// 假设您的 JS/CSS/图片在 public/static 目录下</span></span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 为了演示，我们将 app.js 和 index.html 放在 public 目录下</span></span><br><span class="line">	<span class="comment">// 注意：实际项目中通常会将 app.js 放在 static 目录下，index.html 单独处理。</span></span><br><span class="line">	<span class="comment">// 这里将整个 public 目录作为静态文件提供，但需要确保根路径请求能返回 index.html。</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2. 提供 index.html 文件 (适用于 SPA 根路径)</span></span><br><span class="line">	<span class="comment">// 当用户访问根路径 &#x27;/&#x27; 时，返回 public/index.html</span></span><br><span class="line">	router.GET(<span class="string">&quot;/&quot;</span>, <span class="function"><span class="keyword">func</span><span class="params">(c *gin.Context)</span></span> &#123;</span><br><span class="line">		c.File(<span class="string">&quot;./public/index.html&quot;</span>)</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3. SPA 路由回退机制 (Fallback Route)</span></span><br><span class="line">	<span class="comment">// 这是最关键的部分。它捕获所有不匹配前面定义的路由和静态文件路径的请求。</span></span><br><span class="line">	<span class="comment">// 例如，用户直接访问 /about 或 /products，服务器会将这些请求映射到 index.html。</span></span><br><span class="line">	<span class="comment">// 客户端 JavaScript 路由器会接管并根据实际的 URL 路径渲染页面。</span></span><br><span class="line">	router.NoRoute(<span class="function"><span class="keyword">func</span><span class="params">(c *gin.Context)</span></span> &#123;</span><br><span class="line">		<span class="comment">// 检查请求是否是 API 请求，如果是，则可能返回 404 JSON</span></span><br><span class="line">		<span class="comment">// 这里简单处理为所有非静态、非根路径的请求都返回 index.html</span></span><br><span class="line">		c.File(<span class="string">&quot;./public/index.html&quot;</span>) </span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 启动 HTTP 服务器</span></span><br><span class="line">	log.Println(<span class="string">&quot;Gin server started on :8080&quot;</span>)</span><br><span class="line">	err := router.Run(<span class="string">&quot;:8080&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Fatalf(<span class="string">&quot;Server failed to start: %v&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 为了运行此 Gin 示例，请在项目根目录创建一个名为 `public` 的文件夹，</span></span><br><span class="line"><span class="comment">// 并将上面的 `index.html` 和 `app.js` 文件放入 `public` 文件夹。</span></span><br><span class="line"><span class="comment">// 此外，您可能需要在 `public` 文件夹内创建 `static` 文件夹来存放其他静态资源。</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="六、SPA-路由的优缺点与注意事项"><a href="#六、SPA-路由的优缺点与注意事项" class="headerlink" title="六、SPA 路由的优缺点与注意事项"></a>六、SPA 路由的优缺点与注意事项</h2><h3 id="6-1-优点"><a href="#6-1-优点" class="headerlink" title="6.1 优点"></a>6.1 优点</h3><ul>
+<li><strong>流畅的用户体验</strong>：页面无刷新，切换速度快，接近桌面应用。</li>
+<li><strong>减轻服务器负载</strong>：只在首次加载时请求 HTML，后续只请求数据。</li>
+<li><strong>前后端分离</strong>：前端专注于视图渲染和交互，后端专注于提供数据 API，职责清晰。</li>
+<li><strong>开发效率高</strong>：利用组件化开发，代码复用性强。</li>
+</ul>
+<h3 id="6-2-缺点"><a href="#6-2-缺点" class="headerlink" title="6.2 缺点"></a>6.2 缺点</h3><ul>
+<li><strong>首次加载时间长</strong>：需要加载所有前端框架、JS 库和应用代码，首次白屏时间可能较长。</li>
+<li><strong>SEO 挑战</strong>：搜索引擎爬虫对 JavaScript 渲染的内容不友好（尽管现代爬虫已有所改进），需要服务器端渲染 (SSR) 或预渲染 (Prerendering) 方案来优化。</li>
+<li><strong>内存泄露风险</strong>：客户端长时间运行，如果不注意管理，可能导致内存泄露。</li>
+<li><strong>浏览器兼容性</strong>：HTML5 History API 在 IE9 及以下版本不支持（但现在通常不再考虑这些旧版本）。</li>
+</ul>
+<h3 id="6-3-注意事项"><a href="#6-3-注意事项" class="headerlink" title="6.3 注意事项"></a>6.3 注意事项</h3><ol>
+<li><p><strong><code>&lt;base&gt;</code> 标签</strong>：</p>
+<ul>
+<li>在 <code>index.html</code> 的 <code>&lt;head&gt;</code> 中添加 <code>&lt;base href=&quot;/&quot;&gt;</code> 或 <code>&lt;base href=&quot;/your-app-base-path/&quot;&gt;</code> 非常重要。它定义了所有相对 URL（包括 <code>&lt;a&gt;</code> 标签的 <code>href</code>、图片 <code>src</code>、脚本 <code>src</code> 等）的基准。</li>
+<li>如果没有 <code>base</code> 标签，当 URL 变为 <code>/about</code> 时，相对路径 <code>/static/app.css</code> 会被解析为 <code>/about/static/app.css</code>，导致资源加载失败。有了 <code>base</code> 标签，无论当前 URL 是什么，<code>/static/app.css</code> 都会始终解析为 <code>/static/app.css</code>。</li>
+</ul>
+</li>
+<li><p><strong>服务器端 404 处理</strong>：</p>
+<ul>
+<li>确保服务器配置了所有非 API 路径都回退到 <code>index.html</code>。否则，用户在刷新或直接访问深层路由时会遇到 404 错误。</li>
+<li>对于真正的 404 页面，客户端路由器需要在 JS 中处理，并在服务器端保留一些真正的 404 响应用于 API 错误等。</li>
+</ul>
+</li>
+<li><p><strong>浏览器兼容性</strong>：</p>
+<ul>
+<li>HTML5 History API (IE10+，现代浏览器均支持)。</li>
+<li>对于必须支持老旧浏览器的场景，可能需要降级使用 Hash-based 路由或 polyfill。</li>
+</ul>
+</li>
+<li><p><strong>SEO 优化</strong>：</p>
+<ul>
+<li>如果应用需要被搜索引擎良好索引，需要考虑 SSR (Server-Side Rendering，如 Next.js&#x2F;Nuxt.js) 或预渲染 (Prerendering，如 Prerender.io)。</li>
+</ul>
+</li>
+<li><p><strong>状态管理</strong>：</p>
+<ul>
+<li>在复杂的 SPA 中，仅仅依靠 URL 路径来管理视图状态是不够的。通常需要结合状态管理库（如 Redux, Vuex, Zustand, React Context API 等）来管理应用级别的数据流。</li>
+</ul>
+</li>
+</ol>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>HTML5 History API 是实现现代单页面应用路由的基石。通过 <code>pushState</code>、<code>replaceState</code> 和 <code>popstate</code> 事件，开发者可以构建出无需整页刷新、提供流畅用户体验的 Web 应用程序。然而，要成功部署 SPA，不仅需要前端 JavaScript 的精心设计，也需要服务器端的正确配置来支持路由回退机制。理解其工作原理、优缺点和注意事项，是构建高性能、可维护的 SPA 的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/234c44d5851b/">https://blog.tbf1211.xx.kg/234c44d5851b/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/HTML/">HTML</a><a class="post-meta__tags" href="/tags/2023/">2023</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/1b5035114ad1/" title="Python Requests库详解：HTTP请求的艺术"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Python Requests库详解：HTTP请求的艺术</div></div><div class="info-2"><div class="info-item-1"> requests 库 是 Python 生态系统中最流行、最强大、也是最优雅的 HTTP 客户端库之一。它简化了复杂的 HTTP 请求操作，让开发者能够以极少量的代码发送各种类型的 HTTP 请求，并轻松处理响应。与 Python 内置的 urllib 模块相比，requests 提供了更友好、更直观的 API，被誉为“面向人类的 HTTP 服务”。  核心思想：requests 封装了底层 HTTP 协议的复杂性，提供简洁的 API，让开发者专注于业务逻辑而非网络通信的细节。   一、为什么选择 Requests？在 Python 中进行 HTTP 请求有多种方式，例如内置的 urllib 模块。但 requests 库之所以广受欢迎，主要得益于以下优势：  友好的 API：设计直观，易学易用，代码可读性高。 功能强大：支持几乎所有 HTTP 功能，包括 GET, POST, PUT, DELETE 等方法，以及请求头、数据、文件上传、Cookie、身份认证、代理、SSL 验证等。 自动处理：自动处理 URL 编码、重定向、会话管理等常见任务。 JSON 支持：内置 JSON...</div></div></div></a><a class="pagination-related" href="/278168a5d5b8/" title="PHP 惰性求值与生成器 (Generators) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">PHP 惰性求值与生成器 (Generators) 详解</div></div><div class="info-2"><div class="info-item-1"> 惰性求值 (Lazy Evaluation) 是一种编程策略，它将表达式的计算延迟到真正需要其结果时才进行。在 PHP 中，实现惰性求值最主要的机制就是生成器 (Generators)。生成器允许开发者编写像迭代器一样遍历数据集合的函数，而无需将整个集合一次性加载到内存中。这对于处理大型数据集、无限序列或需要节省内存的场景至关重要。  核心思想：生成器通过 yield 关键字实现了惰性求值，它允许函数暂停执行并返回一个值，并在下次需要时从暂停的地方继续执行，从而按需生成数据，大幅减少内存占用。   一、理解惰性求值 (Lazy Evaluation)1.1 什么是惰性求值？传统的“饥饿求值 (Eager Evaluation)”或“及早求值”模式下，当一个函数或表达式被调用时，其所有参数都会在函数体执行前被完全计算。例如： 1234function sum(int $a, int $b): int &#123;    return $a + $b;&#125;$result = sum(expensiveCalculationA(), expensiveCalculationB...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/40c57ff5cb61/" title="Pug(前Jade)模板引擎详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-17</div><div class="info-item-2">Pug(前Jade)模板引擎详解</div></div><div class="info-2"><div class="info-item-1"> Pug（发音 &#x2F;pʌɡ&#x2F;），前身为 Jade，是一个高性能的 Node.js 模板引擎。它以其简洁、富有表现力的语法而闻名，旨在让 HTML 编写变得更加高效和愉快。Pug 摒弃了传统 HTML 的尖括号和闭合标签，转而使用缩进和基于文本的语法，这使得模板文件更小、更易读、也更不易出错。  核心思想：Pug 通过简洁的缩进语法替代冗长的 HTML 标签，提供强大的动态数据渲染、代码重用和条件逻辑功能。   一、Pug 简介1.1 什么是模板引擎？模板引擎是一种将数据填充到预定义模板中以生成最终输出（通常是 HTML 字符串）的工具。它将页面的结构（模板）与数据分离，使得前端开发更加模块化和可维护。 1.2 Pug 的特点 独特语法：使用缩进表示嵌套关系，无需关闭标签。 简洁明了：代码量显著少于对应的 HTML。 强大功能：支持变量、循环、条件判断、Mixin（类似于函数或组件）、包含（文件复用）、布局继承等高级特性。 编译到 HTML：Pug 模板最终会被编译成标准的 HTML。 Node.js 支持：作为 Node.js 的模板引擎，Pug 完美集成于 E...</div></div></div></a><a class="pagination-related" href="/0c202b3d53be/" title="前端文件下载的各种方式的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-19</div><div class="info-item-2">前端文件下载的各种方式的详解</div></div><div class="info-2"><div class="info-item-1"> 在 Web 开发中，文件下载是一个常见且重要的功能。无论是下载用户生成的数据、报告、图片，还是静态资源，前端开发者都需要掌握多种实现文件下载的方法。本文将详细探讨前端实现文件下载的各种技术，包括 HTML 原生方式、JavaScript 编程方式以及涉及服务器端配合的场景。  核心思想：前端文件下载的核心在于如何将文件数据（无论是服务器传输的还是客户端生成的）转化为可供浏览器识别并触发下载操作的格式（如 Blob 对象或直接的 URL），并通过特定的机制（如 &lt;a&gt; 标签的 download 属性或服务器响应头）来提示浏览器进行下载而非直接显示。   一、文件下载的基础概念在深入具体方法之前，我们先理解文件下载的一些基本概念：  下载 vs. 显示：浏览器在处理文件时，会根据 Content-Type 和 Content-Disposition 等 HTTP 响应头来决定是下载文件（保存到本地）还是在浏览器中直接显示（如图片、PDF）。 文件来源： 服务器端文件：文件存储在服务器上，前端通过 URL 请求获取。 客户端生成文件：文件内容由前端 JavaScript ...</div></div></div></a><a class="pagination-related" href="/f02d15c85cac/" title="Server-Sent Events (SSE) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-15</div><div class="info-item-2">Server-Sent Events (SSE) 详解</div></div><div class="info-2"><div class="info-item-1"> Server-Sent Events (SSE) 是一种 HTML5 规范，允许服务器通过持久的 HTTP 连接，以文本流 (text-stream) 的形式向客户端推送事件。它提供了一种高效、简单的方式来实现服务器到客户端的单向实时通信，特别适用于需要从服务器端持续获取数据更新的场景，如实时数据流、通知推送等。  核心思想：SSE 利用标准的 HTTP&#x2F;1.1 协议，通过一个持久的 GET 请求建立连接，服务器端持续向客户端发送带有特定格式的数据流，客户端通过 EventSource API 监听并处理这些事件。   一、为什么需要 SSE？(实时通信的演进)在 Web 应用中，实现服务器向客户端的实时数据推送一直是开发者面临的挑战。随着技术的发展，出现了多种解决方案，SSE 是其中一种重要的选择。 1.1 传统轮询 (Polling) 定义：客户端定期（如每隔几秒）向服务器发送 HTTP 请求，询问是否有新的数据。 优点：实现简单，兼容性好。 缺点： 效率低下：大多数请求可能是无效的（无新数据），造成大量不必要的 HTTP 请求和服务器资源浪费。 延迟高：数据的实...</div></div></div></a><a class="pagination-related" href="/469d3e424114/" title="IndexedDB 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-25</div><div class="info-item-2">IndexedDB 深度解析</div></div><div class="info-2"><div class="info-item-1"> IndexedDB 是一种基于浏览器的高性能、非关系型 (NoSQL) 数据库，允许在客户端存储大量结构化数据。它提供了一个强大的 API，用于在用户的浏览器中创建和管理数据库，支持事务、索引和异步操作，是构建离线应用 (Offline First) 和 PWA (Progressive Web Apps) 的核心技术之一。  核心思想：IndexedDB 提供了一个强大的、异步的、事务性的客户端数据存储方案，专为存储大量结构化数据而设计。它通过键值对的形式存储 JavaScript 对象，并支持索引来高效查询数据。   一、为什么需要 IndexedDB？(与其它客户端存储的对比)在 Web 开发中，有多种客户端存储技术，但它们各有优缺点，IndexedDB 旨在解决其中一些局限性。  localStorage 和 sessionStorage： 优点：API 简单，同步操作。 缺点： 存储容量小：通常只有 5MB 左右。 仅支持字符串：只能存储字符串，复杂数据需要手动序列化&#x2F;反序列化 (JSON.stringify&#x2F;parse)。 无索引：无法进行高效查...</div></div></div></a><a class="pagination-related" href="/b519dd676c66/" title="PWA (Progressive Web Apps) 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-05</div><div class="info-item-2">PWA (Progressive Web Apps) 深度解析</div></div><div class="info-2"><div class="info-item-1"> PWA (Progressive Web Apps - 渐进式 Web 应用) 是一种利用现代 Web 技术，将 Web 应用提升至接近原生应用体验的新方法。它旨在结合 Web 的广阔可达性与原生应用的丰富功能，为用户提供可靠 (Reliable)、快速 (Fast)、沉浸式 (Engaging) 的体验。PWA 不仅仅是一种技术，更是一套开发理念和最佳实践。  核心思想：PWA 的目标是让 Web 应用具备类似原生应用的体验和功能，同时保留 Web 的优点（无需安装、易于发现、跨平台）。这主要通过 Service Worker 实现离线能力和性能优化，通过 Web App Manifest 实现安装和应用体验，以及通过 HTTPS 确保安全性来达成。   一、为什么需要 PWA？(Web 与原生应用的融合)传统 Web 应用和原生移动应用各有优缺点：  传统 Web 应用 (网站)： 优点：无需安装、易于发现、跨平台、更新灵活、共享方便。 缺点：依赖网络、加载慢、无离线功能、无法添加到主屏幕、无法发送推送通知、用户体验与原生应用有差距。   原生移动应用： 优点：性能好、可离...</div></div></div></a><a class="pagination-related" href="/f6760e6cdcc0/" title="Chrome 扩展程序 (Extension) 开发详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-15</div><div class="info-item-2">Chrome 扩展程序 (Extension) 开发详解</div></div><div class="info-2"><div class="info-item-1"> Chrome 扩展程序 (Chrome Extension) 是一种通过 Web 技术 (HTML, CSS, JavaScript) 构建的小型程序，旨在扩展 Google Chrome 浏览器的功能。它们运行在独立的、受沙盒保护的环境中，可以与浏览器功能深度集成，允许用户根据个人需求和工作流定制和增强其浏览体验。  核心思想：Chrome 扩展程序通过 manifest.json 文件定义其元数据、权限和组件，并通过各种 JavaScript 文件 (如后台脚本、内容脚本、弹出页面脚本) 与浏览器 API 交互，实现对网页内容、浏览器行为和用户界面的定制化增强。Chrome 扩展开发已全面转向 Manifest V3。   一、为什么开发 Chrome 扩展程序？Chrome 扩展程序为用户和开发者提供了独特的价值：  功能增强：为浏览器添加新的功能，如广告拦截、密码管理、翻译、截图工具等。 效率提升：自动化重复任务，整合第三方服务，优化工作流程。 定制化体验：修改网页 UI，注入自定义样式或脚本，提供个性化的浏览体验。 开发便捷：基于标准 Web 技术，学习曲线相对平缓，...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BC%A0%E7%BB%9F%E9%A1%B5%E9%9D%A2%E8%B7%B3%E8%BD%AC%E4%B8%8E-SPA-%E8%B7%AF%E7%94%B1%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-text">一、传统页面跳转与 SPA 路由的区别</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81HTML5-History-API-%E6%A0%B8%E5%BF%83"><span class="toc-text">二、HTML5 History API 核心</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-history-pushState-state-title-url"><span class="toc-text">2.1 history.pushState(state, title, url)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-history-replaceState-state-title-url"><span class="toc-text">2.2 history.replaceState(state, title, url)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-window-onpopstate-%E4%BA%8B%E4%BB%B6"><span class="toc-text">2.3 window.onpopstate 事件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%9F%BA%E4%BA%8E-Hash-%E7%9A%84%E8%B7%AF%E7%94%B1-Hash-based-Routing"><span class="toc-text">三、基于 Hash 的路由 (Hash-based Routing)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">3.1 工作原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">3.2 优缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%AE%9E%E7%8E%B0%E4%B8%80%E4%B8%AA%E7%AE%80%E5%8D%95%E7%9A%84-HTML5-SPA-%E8%B7%AF%E7%94%B1%E5%99%A8-JavaScript"><span class="toc-text">四、实现一个简单的 HTML5 SPA 路由器 (JavaScript)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84"><span class="toc-text">4.1 基本结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E8%B7%AF%E7%94%B1%E9%80%BB%E8%BE%91%E8%A7%A3%E6%9E%90"><span class="toc-text">4.2 路由逻辑解析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%AB%AF%E9%85%8D%E7%BD%AE-Go-Gin-%E7%A4%BA%E4%BE%8B"><span class="toc-text">五、服务器端配置 (Go Gin 示例)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81SPA-%E8%B7%AF%E7%94%B1%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9%E4%B8%8E%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">六、SPA 路由的优缺点与注意事项</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9"><span class="toc-text">6.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">6.2 缺点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">6.3 注意事项</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

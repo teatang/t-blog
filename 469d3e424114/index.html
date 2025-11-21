@@ -1,0 +1,622 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>IndexedDB 深度解析 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="IndexedDB 是一种基于浏览器的高性能、非关系型 (NoSQL) 数据库，允许在客户端存储大量结构化数据。它提供了一个强大的 API，用于在用户的浏览器中创建和管理数据库，支持事务、索引和异步操作，是构建离线应用 (Offline First) 和 PWA (Progressive Web Apps) 的核心技术之一。  核心思想：IndexedDB 提供了一个强大的、异步的、事务性的客户">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IndexedDB 深度解析">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/469d3e424114/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="IndexedDB 是一种基于浏览器的高性能、非关系型 (NoSQL) 数据库，允许在客户端存储大量结构化数据。它提供了一个强大的 API，用于在用户的浏览器中创建和管理数据库，支持事务、索引和异步操作，是构建离线应用 (Offline First) 和 PWA (Progressive Web Apps) 的核心技术之一。  核心思想：IndexedDB 提供了一个强大的、异步的、事务性的客户">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg">
+<meta property="article:published_time" content="2023-04-24T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-21T14:52:45.524Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="HTML">
+<meta property="article:tag" content="2023">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "IndexedDB 深度解析",
+  "url": "https://blog.tbf1211.xx.kg/469d3e424114/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg",
+  "datePublished": "2023-04-24T22:24:00.000Z",
+  "dateModified": "2025-11-21T14:52:45.524Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/469d3e424114/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'IndexedDB 深度解析',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-09.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">IndexedDB 深度解析</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">IndexedDB 深度解析</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-04-24T22:24:00.000Z" title="发表于 2023-04-25 06:24:00">2023-04-25</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/HTML/">HTML</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/469d3e424114/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>IndexedDB</strong> 是一种基于浏览器的高性能、非关系型 (NoSQL) 数据库，允许在客户端存储大量结构化数据。它提供了一个强大的 API，用于在用户的浏览器中创建和管理数据库，支持事务、索引和异步操作，是构建离线应用 (Offline First) 和 PWA (Progressive Web Apps) 的核心技术之一。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>IndexedDB 提供了一个强大的、异步的、事务性的客户端数据存储方案，专为存储大量结构化数据而设计。它通过键值对的形式存储 JavaScript 对象，并支持索引来高效查询数据。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-IndexedDB？-与其它客户端存储的对比"><a href="#一、为什么需要-IndexedDB？-与其它客户端存储的对比" class="headerlink" title="一、为什么需要 IndexedDB？(与其它客户端存储的对比)"></a>一、为什么需要 IndexedDB？(与其它客户端存储的对比)</h2><p>在 Web 开发中，有多种客户端存储技术，但它们各有优缺点，IndexedDB 旨在解决其中一些局限性。</p>
+<ol>
+<li><strong><code>localStorage</code> 和 <code>sessionStorage</code></strong>：<ul>
+<li><strong>优点</strong>：API 简单，同步操作。</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>存储容量小</strong>：通常只有 5MB 左右。</li>
+<li><strong>仅支持字符串</strong>：只能存储字符串，复杂数据需要手动序列化&#x2F;反序列化 (JSON.stringify&#x2F;parse)。</li>
+<li><strong>无索引</strong>：无法进行高效查询。</li>
+<li><strong>同步操作</strong>：大量数据操作可能阻塞主线程，影响页面性能。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><code>Cookie</code></strong>：<ul>
+<li><strong>优点</strong>：由服务器设置，可用于会话管理。</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>存储容量极小</strong>：通常只有几 KB。</li>
+<li><strong>每次 HTTP 请求都会发送</strong>：增加网络流量。</li>
+<li><strong>无索引</strong>，仅支持字符串。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Web SQL Database (已废弃)</strong>：<ul>
+<li><strong>优点</strong>：关系型数据库模型，可以使用 SQL 查询。</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>未成为 W3C 标准</strong>：缺乏跨浏览器一致性，已废弃。</li>
+<li><strong>同步 API</strong>：存在阻塞风险。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>IndexedDB 的优势</strong>：</p>
+<ul>
+<li><strong>存储容量大</strong>：通常可达数百 MB 甚至 GB 级别（具体取决于浏览器和用户设备）。</li>
+<li><strong>支持结构化数据</strong>：可以直接存储和检索 JavaScript 对象。</li>
+<li><strong>事务性操作</strong>：保证数据操作的原子性、一致性、隔离性和持久性 (ACID)。</li>
+<li><strong>异步 API</strong>：所有操作都是非阻塞的，不会影响页面 UI 响应。</li>
+<li><strong>支持索引</strong>：可以创建索引以进行高效的数据检索。</li>
+<li><strong>同源策略限制</strong>：数据隔离在不同源之间，保证安全性。</li>
+</ul>
+<h2 id="二、IndexedDB-核心概念"><a href="#二、IndexedDB-核心概念" class="headerlink" title="二、IndexedDB 核心概念"></a>二、IndexedDB 核心概念</h2><p>理解 IndexedDB 的核心概念对于正确使用其 API 至关重要。</p>
+<h3 id="2-1-数据库-Database"><a href="#2-1-数据库-Database" class="headerlink" title="2.1 数据库 (Database)"></a>2.1 数据库 (Database)</h3><ul>
+<li>IndexedDB 的最顶层容器。每个源 (origin) 可以创建多个数据库。</li>
+<li>数据库由一个唯一的名称标识，并且有一个版本号。</li>
+</ul>
+<h3 id="2-2-版本-Version"><a href="#2-2-版本-Version" class="headerlink" title="2.2 版本 (Version)"></a>2.2 版本 (Version)</h3><ul>
+<li>数据库的版本号是一个正整数，用于管理数据库的结构升级。</li>
+<li>当调用 <code>indexedDB.open()</code> 时，如果指定的新版本号大于当前版本号，就会触发 <code>upgradeneeded</code> 事件，允许在其中修改数据库结构（创建、删除 Object Store 或 Index）。</li>
+</ul>
+<h3 id="2-3-对象仓库-Object-Store"><a href="#2-3-对象仓库-Object-Store" class="headerlink" title="2.3 对象仓库 (Object Store)"></a>2.3 对象仓库 (Object Store)</h3><ul>
+<li>类似于关系型数据库中的“表”，但它存储的是 JavaScript 对象。</li>
+<li>每个 Object Store 都有一个唯一的名称。</li>
+<li>存储在 Object Store 中的每个数据记录都必须有一个唯一的<strong>键 (Key)</strong>。这个键可以由以下方式生成：<ul>
+<li><strong>键路径 (Key Path)</strong>：指定对象的一个属性作为键（例如 <code>id</code>）。</li>
+<li><strong>键生成器 (Key Generator)</strong>：数据库自动生成递增的数字作为键。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-4-索引-Index"><a href="#2-4-索引-Index" class="headerlink" title="2.4 索引 (Index)"></a>2.4 索引 (Index)</h3><ul>
+<li>允许通过 Object Store 中除了主键以外的其它属性来高效查询数据。</li>
+<li>每个 Index 都有一个名称，一个键路径（用于指定哪个属性作为索引键），以及可选的 <code>unique</code> (是否唯一) 和 <code>multiEntry</code> (是否为数组的每个元素创建索引) 属性。</li>
+</ul>
+<h3 id="2-5-事务-Transaction"><a href="#2-5-事务-Transaction" class="headerlink" title="2.5 事务 (Transaction)"></a>2.5 事务 (Transaction)</h3><ul>
+<li>所有对数据库的读写操作都必须在事务中进行。</li>
+<li>事务确保了操作的原子性和隔离性。</li>
+<li>事务有三种模式：<ul>
+<li><strong><code>readonly</code></strong>：只允许读取数据。</li>
+<li><strong><code>readwrite</code></strong>：允许读取和写入数据。</li>
+<li><strong><code>versionchange</code></strong>：仅在 <code>upgradeneeded</code> 事件中用于修改数据库结构。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-6-请求-Request"><a href="#2-6-请求-Request" class="headerlink" title="2.6 请求 (Request)"></a>2.6 请求 (Request)</h3><ul>
+<li>IndexedDB 的所有异步操作（如 <code>open</code>、<code>add</code>、<code>get</code> 等）都会返回一个 <code>IDBRequest</code> 对象。</li>
+<li>通过监听 <code>IDBRequest</code> 对象的 <code>onsuccess</code> 和 <code>onerror</code> 事件来处理操作结果。</li>
+</ul>
+<h3 id="2-7-游标-Cursor"><a href="#2-7-游标-Cursor" class="headerlink" title="2.7 游标 (Cursor)"></a>2.7 游标 (Cursor)</h3><ul>
+<li>用于高效地遍历 Object Store 或 Index 中的大量数据，尤其是在处理分页或过滤数据时非常有用。</li>
+</ul>
+<h2 id="三、IndexedDB-API-核心流程"><a href="#三、IndexedDB-API-核心流程" class="headerlink" title="三、IndexedDB API 核心流程"></a>三、IndexedDB API 核心流程</h2><p>使用 IndexedDB 通常遵循以下步骤：</p>
+<h3 id="3-1-打开数据库"><a href="#3-1-打开数据库" class="headerlink" title="3.1 打开数据库"></a>3.1 打开数据库</h3><p>使用 <code>indexedDB.open()</code> 方法打开或创建一个数据库。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 数据库名称和版本号</span></span><br><span class="line"><span class="keyword">const</span> <span class="variable constant_">DB_NAME</span> = <span class="string">&#x27;myDatabase&#x27;</span>;</span><br><span class="line"><span class="keyword">const</span> <span class="variable constant_">DB_VERSION</span> = <span class="number">1</span>; </span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> db; <span class="comment">// 将数据库实例存储在此变量中</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> request = indexedDB.<span class="title function_">open</span>(<span class="variable constant_">DB_NAME</span>, <span class="variable constant_">DB_VERSION</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听错误事件</span></span><br><span class="line">request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&quot;IndexedDB 数据库打开失败:&quot;</span>, event.<span class="property">target</span>.<span class="property">errorCode</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听成功事件</span></span><br><span class="line">request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    db = event.<span class="property">target</span>.<span class="property">result</span>; <span class="comment">// 获取数据库实例</span></span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;IndexedDB 数据库成功打开/连接。&quot;</span>);</span><br><span class="line">    <span class="comment">// 在这里可以执行后续的数据库操作</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听数据库升级事件 (仅当指定版本号大于当前数据库版本时触发)</span></span><br><span class="line">request.<span class="property">onupgradeneeded</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    db = event.<span class="property">target</span>.<span class="property">result</span>; <span class="comment">// 获取数据库实例</span></span><br><span class="line"></span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;IndexedDB 数据库升级或首次创建...&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 1. 创建 Object Store (如果不存在)</span></span><br><span class="line">    <span class="comment">// 参数1: Object Store 名称</span></span><br><span class="line">    <span class="comment">// 参数2: 配置对象，包含 keyPath 或 autoIncrement</span></span><br><span class="line">    <span class="keyword">if</span> (!db.<span class="property">objectStoreNames</span>.<span class="title function_">contains</span>(<span class="string">&#x27;users&#x27;</span>)) &#123;</span><br><span class="line">        <span class="keyword">const</span> userStore = db.<span class="title function_">createObjectStore</span>(<span class="string">&#x27;users&#x27;</span>, &#123; </span><br><span class="line">            <span class="attr">keyPath</span>: <span class="string">&#x27;id&#x27;</span>, <span class="comment">// 将 &#x27;id&#x27; 属性作为主键</span></span><br><span class="line">            <span class="comment">// autoIncrement: true // 或者让数据库自动生成主键</span></span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 2. 为 Object Store 创建索引 (可选)</span></span><br><span class="line">        <span class="comment">// 参数1: 索引名称</span></span><br><span class="line">        <span class="comment">// 参数2: 索引的键路径 (对象中的属性名)</span></span><br><span class="line">        <span class="comment">// 参数3: 配置对象，如 unique (是否唯一), multiEntry (是否多值索引)</span></span><br><span class="line">        userStore.<span class="title function_">createIndex</span>(<span class="string">&#x27;nameIndex&#x27;</span>, <span class="string">&#x27;name&#x27;</span>, &#123; <span class="attr">unique</span>: <span class="literal">false</span> &#125;);</span><br><span class="line">        userStore.<span class="title function_">createIndex</span>(<span class="string">&#x27;emailIndex&#x27;</span>, <span class="string">&#x27;email&#x27;</span>, &#123; <span class="attr">unique</span>: <span class="literal">true</span> &#125;);</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;Object Store &#x27;users&#x27; 和相关索引已创建/更新。&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!db.<span class="property">objectStoreNames</span>.<span class="title function_">contains</span>(<span class="string">&#x27;products&#x27;</span>)) &#123;</span><br><span class="line">        <span class="keyword">const</span> productStore = db.<span class="title function_">createObjectStore</span>(<span class="string">&#x27;products&#x27;</span>, &#123; <span class="attr">autoIncrement</span>: <span class="literal">true</span> &#125;);</span><br><span class="line">        productStore.<span class="title function_">createIndex</span>(<span class="string">&#x27;productNameIndex&#x27;</span>, <span class="string">&#x27;productName&#x27;</span>, &#123; <span class="attr">unique</span>: <span class="literal">false</span> &#125;);</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;Object Store &#x27;products&#x27; 已创建。&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：<code>upgradeneeded</code> 事件只会在数据库版本号发生变化时触发。这意味着如果你更改了 <code>upgradeneeded</code> 中的逻辑，但没有增加 <code>DB_VERSION</code>，这些更改将不会生效。</p>
+<h3 id="3-2-启动事务"><a href="#3-2-启动事务" class="headerlink" title="3.2 启动事务"></a>3.2 启动事务</h3><p>所有数据操作都必须通过事务进行。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 获取事务</span></span><br><span class="line"><span class="comment">// 参数1: 包含要访问的 Object Store 名称的数组</span></span><br><span class="line"><span class="comment">// 参数2: 事务模式 (&#x27;readonly&#x27; 或 &#x27;readwrite&#x27;)</span></span><br><span class="line"><span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readwrite&#x27;</span>); </span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听事务的完成、错误和中止事件</span></span><br><span class="line">transaction.<span class="property">oncomplete</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;事务完成。&quot;</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">transaction.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&quot;事务失败:&quot;</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">transaction.<span class="property">onabort</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">warn</span>(<span class="string">&quot;事务已中止:&quot;</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取 Object Store 实例</span></span><br><span class="line"><span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-CRUD-操作-增删改查"><a href="#3-3-CRUD-操作-增删改查" class="headerlink" title="3.3 CRUD 操作 (增删改查)"></a>3.3 CRUD 操作 (增删改查)</h3><p>在事务中，通过 Object Store 实例执行 CRUD 操作。</p>
+<h4 id="3-3-1-添加数据-add"><a href="#3-3-1-添加数据-add" class="headerlink" title="3.3.1 添加数据 (add)"></a>3.3.1 添加数据 (<code>add</code>)</h4><p><code>add()</code> 方法用于添加新记录。如果尝试添加一个与现有主键相同的记录，会触发错误。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">addUser</span>(<span class="params">user</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readwrite&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> request = userObjectStore.<span class="title function_">add</span>(user); <span class="comment">// user 是一个 JavaScript 对象</span></span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;用户添加成功，键值为:&quot;</span>, event.<span class="property">target</span>.<span class="property">result</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&quot;用户添加失败:&quot;</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 示例数据</span></span><br><span class="line"><span class="comment">// addUser(&#123; id: 1, name: &#x27;Alice&#x27;, age: 30, email: &#x27;alice@example.com&#x27; &#125;);</span></span><br><span class="line"><span class="comment">// addUser(&#123; id: 2, name: &#x27;Bob&#x27;, age: 25, email: &#x27;bob@example.com&#x27; &#125;);</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-2-获取数据-get-getAll-通过索引查询"><a href="#3-3-2-获取数据-get-getAll-通过索引查询" class="headerlink" title="3.3.2 获取数据 (get &#x2F; getAll &#x2F; 通过索引查询)"></a>3.3.2 获取数据 (<code>get</code> &#x2F; <code>getAll</code> &#x2F; 通过索引查询)</h4><ul>
+<li><code>get(key)</code>：通过主键获取一条记录。</li>
+<li><code>getAll()</code>：获取 Object Store 中的所有记录。</li>
+<li>通过索引获取：先获取索引，再使用 <code>get(indexKey)</code> 或 <code>getAll(indexKey)</code>。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">getUserById</span>(<span class="params">id</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readonly&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> request = userObjectStore.<span class="title function_">get</span>(id); <span class="comment">// 通过主键 &#x27;id&#x27; 获取</span></span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`获取用户 (ID: <span class="subst">$&#123;id&#125;</span>):`</span>, event.<span class="property">target</span>.<span class="property">result</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`获取用户 (ID: <span class="subst">$&#123;id&#125;</span>) 失败:`</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">getUserByEmail</span>(<span class="params">email</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readonly&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> emailIndex = userObjectStore.<span class="title function_">index</span>(<span class="string">&#x27;emailIndex&#x27;</span>); <span class="comment">// 获取 emailIndex</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> request = emailIndex.<span class="title function_">get</span>(email); <span class="comment">// 通过 emailIndex 获取</span></span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`获取用户 (Email: <span class="subst">$&#123;email&#125;</span>):`</span>, event.<span class="property">target</span>.<span class="property">result</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`获取用户 (Email: <span class="subst">$&#123;email&#125;</span>) 失败:`</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">getAllUsers</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readonly&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> request = userObjectStore.<span class="title function_">getAll</span>(); <span class="comment">// 获取所有用户</span></span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;所有用户:&quot;</span>, event.<span class="property">target</span>.<span class="property">result</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&quot;获取所有用户失败:&quot;</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// getUserById(1);</span></span><br><span class="line"><span class="comment">// getUserByEmail(&#x27;bob@example.com&#x27;);</span></span><br><span class="line"><span class="comment">// getAllUsers();</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-3-更新数据-put"><a href="#3-3-3-更新数据-put" class="headerlink" title="3.3.3 更新数据 (put)"></a>3.3.3 更新数据 (<code>put</code>)</h4><p><code>put()</code> 方法用于更新现有记录，或在记录不存在时添加新记录。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">updateUserName</span>(<span class="params">id, newName</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readwrite&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 先获取要更新的记录</span></span><br><span class="line">    <span class="keyword">const</span> getRequest = userObjectStore.<span class="title function_">get</span>(id);</span><br><span class="line"></span><br><span class="line">    getRequest.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="keyword">const</span> user = event.<span class="property">target</span>.<span class="property">result</span>;</span><br><span class="line">        <span class="keyword">if</span> (user) &#123;</span><br><span class="line">            user.<span class="property">name</span> = newName; <span class="comment">// 更新属性</span></span><br><span class="line">            <span class="keyword">const</span> putRequest = userObjectStore.<span class="title function_">put</span>(user); <span class="comment">// 使用 put 存储更新后的对象</span></span><br><span class="line"></span><br><span class="line">            putRequest.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`用户 (ID: <span class="subst">$&#123;id&#125;</span>) 名称更新成功为: <span class="subst">$&#123;newName&#125;</span>`</span>);</span><br><span class="line">            &#125;;</span><br><span class="line">            putRequest.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">                <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`用户 (ID: <span class="subst">$&#123;id&#125;</span>) 更新失败:`</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">warn</span>(<span class="string">`未找到 ID 为 <span class="subst">$&#123;id&#125;</span> 的用户，无法更新。`</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    getRequest.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`获取用户 (ID: <span class="subst">$&#123;id&#125;</span>) 失败，无法更新:`</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// updateUserName(1, &#x27;Alicia Smith&#x27;);</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="3-3-4-删除数据-delete-clear"><a href="#3-3-4-删除数据-delete-clear" class="headerlink" title="3.3.4 删除数据 (delete &#x2F; clear)"></a>3.3.4 删除数据 (<code>delete</code> &#x2F; <code>clear</code>)</h4><ul>
+<li><code>delete(key)</code>：通过主键删除一条记录。</li>
+<li><code>clear()</code>：删除 Object Store 中的所有记录。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">deleteUserById</span>(<span class="params">id</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readwrite&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> request = userObjectStore.<span class="title function_">delete</span>(id);</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`用户 (ID: <span class="subst">$&#123;id&#125;</span>) 删除成功。`</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`用户 (ID: <span class="subst">$&#123;id&#125;</span>) 删除失败:`</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">clearAllUsers</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readwrite&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> request = userObjectStore.<span class="title function_">clear</span>();</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;所有用户已清空。&quot;</span>);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&quot;清空用户失败:&quot;</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// deleteUserById(2);</span></span><br><span class="line"><span class="comment">// clearAllUsers();</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-游标遍历-openCursor"><a href="#3-4-游标遍历-openCursor" class="headerlink" title="3.4 游标遍历 (openCursor)"></a>3.4 游标遍历 (<code>openCursor</code>)</h3><p>游标可以高效地遍历数据，支持范围查询和排序。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">iterateUsersByAgeRange</span>(<span class="params">minAge, maxAge</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> transaction = db.<span class="title function_">transaction</span>([<span class="string">&#x27;users&#x27;</span>], <span class="string">&#x27;readonly&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> userObjectStore = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;users&#x27;</span>);</span><br><span class="line">    <span class="keyword">const</span> nameIndex = userObjectStore.<span class="title function_">index</span>(<span class="string">&#x27;nameIndex&#x27;</span>); <span class="comment">// 使用 nameIndex 进行遍历 (虽然是按名字，但演示游标)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建一个键范围 (keyRange)</span></span><br><span class="line">    <span class="keyword">const</span> range = <span class="title class_">IDBKeyRange</span>.<span class="title function_">bound</span>(<span class="string">&#x27;A&#x27;</span>, <span class="string">&#x27;Z&#x27;</span>, <span class="literal">false</span>, <span class="literal">false</span>); <span class="comment">// 名字以 A-Z 开头的</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// openCursor() 可以用在 objectStore 或 index 上</span></span><br><span class="line">    <span class="comment">// 参数1: keyRange (可选)</span></span><br><span class="line">    <span class="comment">// 参数2: 方向 (&#x27;next&#x27;, &#x27;prev&#x27;, &#x27;nextunique&#x27;, &#x27;prevunique&#x27;)</span></span><br><span class="line">    <span class="keyword">const</span> request = nameIndex.<span class="title function_">openCursor</span>(range, <span class="string">&#x27;next&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onsuccess</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="keyword">const</span> cursor = event.<span class="property">target</span>.<span class="property">result</span>;</span><br><span class="line">        <span class="keyword">if</span> (cursor) &#123;</span><br><span class="line">            <span class="comment">// cursor.key 是当前记录的索引键 (&#x27;name&#x27; in this case)</span></span><br><span class="line">            <span class="comment">// cursor.value 是当前记录的对象</span></span><br><span class="line">            <span class="keyword">if</span> (cursor.<span class="property">value</span>.<span class="property">age</span> &gt;= minAge &amp;&amp; cursor.<span class="property">value</span>.<span class="property">age</span> &lt;= maxAge) &#123;</span><br><span class="line">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;游标找到用户:&quot;</span>, cursor.<span class="property">value</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            cursor.<span class="title function_">continue</span>(); <span class="comment">// 移动到下一条记录</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;游标遍历完成。&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    request.<span class="property">onerror</span> = <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&quot;游标遍历失败:&quot;</span>, event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 确保先添加一些用户，再调用此函数</span></span><br><span class="line"><span class="comment">// 例如:</span></span><br><span class="line"><span class="comment">// addUser(&#123; id: 3, name: &#x27;Charlie&#x27;, age: 35, email: &#x27;charlie@example.com&#x27; &#125;);</span></span><br><span class="line"><span class="comment">// iterateUsersByAgeRange(20, 30);</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、高级概念与最佳实践"><a href="#四、高级概念与最佳实践" class="headerlink" title="四、高级概念与最佳实践"></a>四、高级概念与最佳实践</h2><h3 id="4-1-Promise-封装"><a href="#4-1-Promise-封装" class="headerlink" title="4.1 Promise 封装"></a>4.1 Promise 封装</h3><p>由于 IndexedDB API 是基于回调和事件的，容易造成“回调地狱”。在实际项目中，通常会使用 Promise 或 async&#x2F;await 封装 IndexedDB 操作，或者使用第三方库（如 <code>Dexie.js</code>、<code>localForage</code>）来简化开发。</p>
+<p><strong>Promise 封装示例 (概念性)</strong>：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">openDbPromise</span>(<span class="params">dbName, version</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> request = indexedDB.<span class="title function_">open</span>(dbName, version);</span><br><span class="line">        request.<span class="property">onerror</span> = <span class="function"><span class="params">event</span> =&gt;</span> <span class="title function_">reject</span>(event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">        request.<span class="property">onsuccess</span> = <span class="function"><span class="params">event</span> =&gt;</span> <span class="title function_">resolve</span>(event.<span class="property">target</span>.<span class="property">result</span>);</span><br><span class="line">        request.<span class="property">onupgradeneeded</span> = <span class="function"><span class="params">event</span> =&gt;</span> &#123;</span><br><span class="line">            <span class="keyword">const</span> db = event.<span class="property">target</span>.<span class="property">result</span>;</span><br><span class="line">            <span class="comment">// 在这里执行升级逻辑，例如创建/更新 object store 和索引</span></span><br><span class="line">            <span class="keyword">if</span> (!db.<span class="property">objectStoreNames</span>.<span class="title function_">contains</span>(<span class="string">&#x27;settings&#x27;</span>)) &#123;</span><br><span class="line">                db.<span class="title function_">createObjectStore</span>(<span class="string">&#x27;settings&#x27;</span>, &#123; <span class="attr">keyPath</span>: <span class="string">&#x27;key&#x27;</span> &#125;);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">addSetting</span>(<span class="params">dbInstance, key, value</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> transaction = dbInstance.<span class="title function_">transaction</span>([<span class="string">&#x27;settings&#x27;</span>], <span class="string">&#x27;readwrite&#x27;</span>);</span><br><span class="line">        <span class="keyword">const</span> store = transaction.<span class="title function_">objectStore</span>(<span class="string">&#x27;settings&#x27;</span>);</span><br><span class="line">        <span class="keyword">const</span> request = store.<span class="title function_">add</span>(&#123; key, value &#125;);</span><br><span class="line"></span><br><span class="line">        request.<span class="property">onsuccess</span> = <span class="function">() =&gt;</span> <span class="title function_">resolve</span>(request.<span class="property">result</span>);</span><br><span class="line">        request.<span class="property">onerror</span> = <span class="function"><span class="params">event</span> =&gt;</span> <span class="title function_">reject</span>(event.<span class="property">target</span>.<span class="property">error</span>);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 示例调用</span></span><br><span class="line"><span class="comment">// async function main() &#123;</span></span><br><span class="line"><span class="comment">//     try &#123;</span></span><br><span class="line"><span class="comment">//         const myDb = await openDbPromise(&#x27;mySettingsDb&#x27;, 1);</span></span><br><span class="line"><span class="comment">//         await addSetting(myDb, &#x27;theme&#x27;, &#x27;dark&#x27;);</span></span><br><span class="line"><span class="comment">//         console.log(&#x27;Setting added successfully.&#x27;);</span></span><br><span class="line"><span class="comment">//     &#125; catch (error) &#123;</span></span><br><span class="line"><span class="comment">//         console.error(&#x27;Operation failed:&#x27;, error);</span></span><br><span class="line"><span class="comment">//     &#125;</span></span><br><span class="line"><span class="comment">// &#125;</span></span><br><span class="line"><span class="comment">// main();</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-错误处理"><a href="#4-2-错误处理" class="headerlink" title="4.2 错误处理"></a>4.2 错误处理</h3><ul>
+<li>所有 <code>IDBRequest</code> 对象都有 <code>onerror</code> 事件。</li>
+<li>事务对象有 <code>onerror</code> 和 <code>onabort</code> 事件，用于处理整个事务范围内的错误。</li>
+<li>当事务中的任何一个请求失败时，整个事务都会自动中止 (abort) 并回滚。</li>
+</ul>
+<h3 id="4-3-存储限制与持久性"><a href="#4-3-存储限制与持久性" class="headerlink" title="4.3 存储限制与持久性"></a>4.3 存储限制与持久性</h3><ul>
+<li>IndexedDB 的存储限制通常非常大，但不是无限的。浏览器会根据设备存储空间、用户设置和使用情况进行管理。</li>
+<li>默认情况下，IndexedDB 存储是<strong>持久化</strong>的，即数据不会在浏览器关闭后丢失。但在某些极端情况下（如存储空间不足、用户清除缓存），数据仍可能被删除。</li>
+<li>为了更强的持久性保证，可以使用 <a target="_blank" rel="noopener external nofollow noreferrer" href="https://developer.mozilla.org/en-US/docs/Web/API/StorageManager">StorageManager API</a> 请求 <code>persisted</code> 存储。</li>
+</ul>
+<h3 id="4-4-内存管理"><a href="#4-4-内存管理" class="headerlink" title="4.4 内存管理"></a>4.4 内存管理</h3><ul>
+<li>如果你在 IndexedDB 中存储了 <code>Blob</code> 或 <code>File</code> 对象，并且通过 <code>URL.createObjectURL()</code> 创建了临时的 Object URL，请务必在不再需要时调用 <code>URL.revokeObjectURL()</code> 释放内存。</li>
+</ul>
+<h3 id="4-5-并发与锁"><a href="#4-5-并发与锁" class="headerlink" title="4.5 并发与锁"></a>4.5 并发与锁</h3><ul>
+<li>IndexedDB 支持多个事务同时进行，但不同的事务对同一 Object Store 的 <code>readwrite</code> 操作会进行排队。</li>
+<li>并发的 <code>readonly</code> 事务可以并行执行。</li>
+<li><code>versionchange</code> 事务（升级数据库结构）是排他性的，在它执行期间，不允许有其他事务。</li>
+</ul>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>IndexedDB 作为浏览器端的一种低级 API，提供了强大的、异步的、事务性的数据存储能力。它是构建离线优先 Web 应用、PWA 和需要处理大量结构化数据的 Web 应用的基石。虽然其原生 API 相对复杂，但通过理解其核心概念和工作流程，并结合适当的封装或第三方库，开发者可以高效地利用 IndexedDB 来提升 Web 应用的性能和用户体验。</p>
+<p><strong>请注意</strong>：IndexedDB 是一个纯粹的<strong>客户端 (浏览器端) API</strong>，其所有操作都在用户的浏览器中执行。因此，本篇文章中的代码示例均为 <strong>JavaScript</strong>。Go 语言通常用于<strong>服务器端</strong>开发，无法直接用于浏览器中与 IndexedDB 进行交互。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/469d3e424114/">https://blog.tbf1211.xx.kg/469d3e424114/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/HTML/">HTML</a><a class="post-meta__tags" href="/tags/2023/">2023</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-09.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/828da7ae380f/" title="Docker Compose 详解：定义和运行多容器 Docker 应用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Docker Compose 详解：定义和运行多容器 Docker 应用</div></div><div class="info-2"><div class="info-item-1"> Docker Compose 是一个用于定义和运行多容器 Docker 应用程序的工具。通过一个 YAML 文件（通常命名为 docker-compose.yml），你可以配置应用程序的所有服务（容器）、网络和卷。然后，只需一个命令，就可以从这个配置文件中启动、停止和管理整个应用程序。  在实际的生产环境中，一个完整的应用程序通常由多个服务组成，例如一个 Web 应用可能包含一个 Web 服务器（Nginx&#x2F;Apache）、一个应用服务（Python&#x2F;Node.js&#x2F;Java）、一个数据库（PostgreSQL&#x2F;MySQL）和一个缓存服务（Redis）。手动管理这些独立容器的创建、网络连接和启动顺序非常繁琐且容易出错。Docker Compose 的出现正是为了解决这些多容器应用的管理复杂性。   一、Docker Compose 简介与核心优势Docker Compose 简化了多容器应用的开发、测试和（小规模）部署。它将应用的整个拓扑结构描述在一个文件中，实现了“基础设施即代码”的理念。 Docker Compose 的核心优势：  ...</div></div></div></a><a class="pagination-related" href="/ec0c74ef7e6c/" title="Dockerfile 常用指令详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Dockerfile 常用指令详解</div></div><div class="info-2"><div class="info-item-1"> Dockerfile 是一个文本文件，其中包含用户可以在命令行上调用以组装映像的所有命令。Docker 可以通过读取 Dockerfile 中的指令自动构建映像。它本质上是一个“可执行程序脚本”，用于自动化构建 Docker 镜像的过程。  理解和熟练使用 Dockerfile 指令是 Docker 应用开发和部署的核心技能之一。一个优化良好、结构清晰的 Dockerfile 不仅能构建出高效、安全、体积小的镜像，还能提高构建速度和可维护性。   一、Dockerfile 基础概念 镜像 (Image)：一个只读的模板，包含了创建 Docker 容器所需的所有文件和配置。 容器 (Container)：镜像运行时的实例。可以启动、停止、删除。 层 (Layer)：Dockerfile 中的每个指令都会创建一个新的镜像层。这些层是只读的，可以被缓存和共享，是 Docker 镜像高效和可复用的关键。 构建上下文 (Build Context)：当执行 docker build 命令时，它会向 Docker 守护进程发送一个目录（通常是当前目录）及其所有内容。这个目录被称为构建上下文...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/40c57ff5cb61/" title="Pug(前Jade)模板引擎详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-17</div><div class="info-item-2">Pug(前Jade)模板引擎详解</div></div><div class="info-2"><div class="info-item-1"> Pug（发音 &#x2F;pʌɡ&#x2F;），前身为 Jade，是一个高性能的 Node.js 模板引擎。它以其简洁、富有表现力的语法而闻名，旨在让 HTML 编写变得更加高效和愉快。Pug 摒弃了传统 HTML 的尖括号和闭合标签，转而使用缩进和基于文本的语法，这使得模板文件更小、更易读、也更不易出错。  核心思想：Pug 通过简洁的缩进语法替代冗长的 HTML 标签，提供强大的动态数据渲染、代码重用和条件逻辑功能。   一、Pug 简介1.1 什么是模板引擎？模板引擎是一种将数据填充到预定义模板中以生成最终输出（通常是 HTML 字符串）的工具。它将页面的结构（模板）与数据分离，使得前端开发更加模块化和可维护。 1.2 Pug 的特点 独特语法：使用缩进表示嵌套关系，无需关闭标签。 简洁明了：代码量显著少于对应的 HTML。 强大功能：支持变量、循环、条件判断、Mixin（类似于函数或组件）、包含（文件复用）、布局继承等高级特性。 编译到 HTML：Pug 模板最终会被编译成标准的 HTML。 Node.js 支持：作为 Node.js 的模板引擎，Pug 完美集成于 E...</div></div></div></a><a class="pagination-related" href="/0c202b3d53be/" title="前端文件下载的各种方式的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-19</div><div class="info-item-2">前端文件下载的各种方式的详解</div></div><div class="info-2"><div class="info-item-1"> 在 Web 开发中，文件下载是一个常见且重要的功能。无论是下载用户生成的数据、报告、图片，还是静态资源，前端开发者都需要掌握多种实现文件下载的方法。本文将详细探讨前端实现文件下载的各种技术，包括 HTML 原生方式、JavaScript 编程方式以及涉及服务器端配合的场景。  核心思想：前端文件下载的核心在于如何将文件数据（无论是服务器传输的还是客户端生成的）转化为可供浏览器识别并触发下载操作的格式（如 Blob 对象或直接的 URL），并通过特定的机制（如 &lt;a&gt; 标签的 download 属性或服务器响应头）来提示浏览器进行下载而非直接显示。   一、文件下载的基础概念在深入具体方法之前，我们先理解文件下载的一些基本概念：  下载 vs. 显示：浏览器在处理文件时，会根据 Content-Type 和 Content-Disposition 等 HTTP 响应头来决定是下载文件（保存到本地）还是在浏览器中直接显示（如图片、PDF）。 文件来源： 服务器端文件：文件存储在服务器上，前端通过 URL 请求获取。 客户端生成文件：文件内容由前端 JavaScript ...</div></div></div></a><a class="pagination-related" href="/234c44d5851b/" title="HTML5 单页面应用 (SPA) 路由实现详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-26</div><div class="info-item-2">HTML5 单页面应用 (SPA) 路由实现详解</div></div><div class="info-2"><div class="info-item-1"> 单页面应用 (Single Page Application, SPA) 是一种 Web 应用程序模型，它通过动态重写当前页面而非从服务器加载整个新页面来实现与用户的交互。这种模式极大地提升了用户体验，使其更接近桌面应用。SPA 的核心技术之一是客户端路由 (Client-Side Routing)，它允许应用程序在不进行整页刷新的情况下，根据 URL 路径的变化渲染不同的视图。  核心思想：HTML5 History API 允许 Web 应用程序在客户端直接操纵浏览器会话历史记录，从而实现 URL 的无刷新更新和状态管理，这是现代 SPA 路由的基础。   一、传统页面跳转与 SPA 路由的区别在深入探讨 SPA 路由之前，我们首先理解传统多页面应用 (Multi-Page Application, MPA) 的页面跳转机制及其与 SPA 的根本不同：  传统 MPA 页面跳转：  用户点击链接或提交表单。 浏览器向服务器发送 HTTP 请求，请求新的 HTML 页面。 服务器响应并发送完整的 HTML 文档。 浏览器销毁当前页面，加载并渲染新的 HTML 文档。   特点...</div></div></div></a><a class="pagination-related" href="/f02d15c85cac/" title="Server-Sent Events (SSE) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-15</div><div class="info-item-2">Server-Sent Events (SSE) 详解</div></div><div class="info-2"><div class="info-item-1"> Server-Sent Events (SSE) 是一种 HTML5 规范，允许服务器通过持久的 HTTP 连接，以文本流 (text-stream) 的形式向客户端推送事件。它提供了一种高效、简单的方式来实现服务器到客户端的单向实时通信，特别适用于需要从服务器端持续获取数据更新的场景，如实时数据流、通知推送等。  核心思想：SSE 利用标准的 HTTP&#x2F;1.1 协议，通过一个持久的 GET 请求建立连接，服务器端持续向客户端发送带有特定格式的数据流，客户端通过 EventSource API 监听并处理这些事件。   一、为什么需要 SSE？(实时通信的演进)在 Web 应用中，实现服务器向客户端的实时数据推送一直是开发者面临的挑战。随着技术的发展，出现了多种解决方案，SSE 是其中一种重要的选择。 1.1 传统轮询 (Polling) 定义：客户端定期（如每隔几秒）向服务器发送 HTTP 请求，询问是否有新的数据。 优点：实现简单，兼容性好。 缺点： 效率低下：大多数请求可能是无效的（无新数据），造成大量不必要的 HTTP 请求和服务器资源浪费。 延迟高：数据的实...</div></div></div></a><a class="pagination-related" href="/b519dd676c66/" title="PWA (Progressive Web Apps) 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-05</div><div class="info-item-2">PWA (Progressive Web Apps) 深度解析</div></div><div class="info-2"><div class="info-item-1"> PWA (Progressive Web Apps - 渐进式 Web 应用) 是一种利用现代 Web 技术，将 Web 应用提升至接近原生应用体验的新方法。它旨在结合 Web 的广阔可达性与原生应用的丰富功能，为用户提供可靠 (Reliable)、快速 (Fast)、沉浸式 (Engaging) 的体验。PWA 不仅仅是一种技术，更是一套开发理念和最佳实践。  核心思想：PWA 的目标是让 Web 应用具备类似原生应用的体验和功能，同时保留 Web 的优点（无需安装、易于发现、跨平台）。这主要通过 Service Worker 实现离线能力和性能优化，通过 Web App Manifest 实现安装和应用体验，以及通过 HTTPS 确保安全性来达成。   一、为什么需要 PWA？(Web 与原生应用的融合)传统 Web 应用和原生移动应用各有优缺点：  传统 Web 应用 (网站)： 优点：无需安装、易于发现、跨平台、更新灵活、共享方便。 缺点：依赖网络、加载慢、无离线功能、无法添加到主屏幕、无法发送推送通知、用户体验与原生应用有差距。   原生移动应用： 优点：性能好、可离...</div></div></div></a><a class="pagination-related" href="/f6760e6cdcc0/" title="Chrome 扩展程序 (Extension) 开发详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-15</div><div class="info-item-2">Chrome 扩展程序 (Extension) 开发详解</div></div><div class="info-2"><div class="info-item-1"> Chrome 扩展程序 (Chrome Extension) 是一种通过 Web 技术 (HTML, CSS, JavaScript) 构建的小型程序，旨在扩展 Google Chrome 浏览器的功能。它们运行在独立的、受沙盒保护的环境中，可以与浏览器功能深度集成，允许用户根据个人需求和工作流定制和增强其浏览体验。  核心思想：Chrome 扩展程序通过 manifest.json 文件定义其元数据、权限和组件，并通过各种 JavaScript 文件 (如后台脚本、内容脚本、弹出页面脚本) 与浏览器 API 交互，实现对网页内容、浏览器行为和用户界面的定制化增强。Chrome 扩展开发已全面转向 Manifest V3。   一、为什么开发 Chrome 扩展程序？Chrome 扩展程序为用户和开发者提供了独特的价值：  功能增强：为浏览器添加新的功能，如广告拦截、密码管理、翻译、截图工具等。 效率提升：自动化重复任务，整合第三方服务，优化工作流程。 定制化体验：修改网页 UI，注入自定义样式或脚本，提供个性化的浏览体验。 开发便捷：基于标准 Web 技术，学习曲线相对平缓，...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">306</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">199</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">69</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-IndexedDB%EF%BC%9F-%E4%B8%8E%E5%85%B6%E5%AE%83%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%AD%98%E5%82%A8%E7%9A%84%E5%AF%B9%E6%AF%94"><span class="toc-text">一、为什么需要 IndexedDB？(与其它客户端存储的对比)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81IndexedDB-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、IndexedDB 核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%95%B0%E6%8D%AE%E5%BA%93-Database"><span class="toc-text">2.1 数据库 (Database)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E7%89%88%E6%9C%AC-Version"><span class="toc-text">2.2 版本 (Version)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%AF%B9%E8%B1%A1%E4%BB%93%E5%BA%93-Object-Store"><span class="toc-text">2.3 对象仓库 (Object Store)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E7%B4%A2%E5%BC%95-Index"><span class="toc-text">2.4 索引 (Index)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E4%BA%8B%E5%8A%A1-Transaction"><span class="toc-text">2.5 事务 (Transaction)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-%E8%AF%B7%E6%B1%82-Request"><span class="toc-text">2.6 请求 (Request)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-7-%E6%B8%B8%E6%A0%87-Cursor"><span class="toc-text">2.7 游标 (Cursor)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81IndexedDB-API-%E6%A0%B8%E5%BF%83%E6%B5%81%E7%A8%8B"><span class="toc-text">三、IndexedDB API 核心流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%89%93%E5%BC%80%E6%95%B0%E6%8D%AE%E5%BA%93"><span class="toc-text">3.1 打开数据库</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%90%AF%E5%8A%A8%E4%BA%8B%E5%8A%A1"><span class="toc-text">3.2 启动事务</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-CRUD-%E6%93%8D%E4%BD%9C-%E5%A2%9E%E5%88%A0%E6%94%B9%E6%9F%A5"><span class="toc-text">3.3 CRUD 操作 (增删改查)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-1-%E6%B7%BB%E5%8A%A0%E6%95%B0%E6%8D%AE-add"><span class="toc-text">3.3.1 添加数据 (add)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-2-%E8%8E%B7%E5%8F%96%E6%95%B0%E6%8D%AE-get-getAll-%E9%80%9A%E8%BF%87%E7%B4%A2%E5%BC%95%E6%9F%A5%E8%AF%A2"><span class="toc-text">3.3.2 获取数据 (get &#x2F; getAll &#x2F; 通过索引查询)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-3-%E6%9B%B4%E6%96%B0%E6%95%B0%E6%8D%AE-put"><span class="toc-text">3.3.3 更新数据 (put)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-4-%E5%88%A0%E9%99%A4%E6%95%B0%E6%8D%AE-delete-clear"><span class="toc-text">3.3.4 删除数据 (delete &#x2F; clear)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E6%B8%B8%E6%A0%87%E9%81%8D%E5%8E%86-openCursor"><span class="toc-text">3.4 游标遍历 (openCursor)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%AB%98%E7%BA%A7%E6%A6%82%E5%BF%B5%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">四、高级概念与最佳实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-Promise-%E5%B0%81%E8%A3%85"><span class="toc-text">4.1 Promise 封装</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86"><span class="toc-text">4.2 错误处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%AD%98%E5%82%A8%E9%99%90%E5%88%B6%E4%B8%8E%E6%8C%81%E4%B9%85%E6%80%A7"><span class="toc-text">4.3 存储限制与持久性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="toc-text">4.4 内存管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E5%B9%B6%E5%8F%91%E4%B8%8E%E9%94%81"><span class="toc-text">4.5 并发与锁</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Codex 详解与使用技巧：OpenAI 的代码智能模型"/></a><div class="content"><a class="title" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型">Codex 详解与使用技巧：OpenAI 的代码智能模型</a><time datetime="2025-11-06T22:24:00.000Z" title="发表于 2025-11-07 06:24:00">2025-11-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Claude Code 详解：Anthropic 的代码智能模型"/></a><div class="content"><a class="title" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型">Claude Code 详解：Anthropic 的代码智能模型</a><time datetime="2025-11-04T22:24:00.000Z" title="发表于 2025-11-05 06:24:00">2025-11-05</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-09.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
