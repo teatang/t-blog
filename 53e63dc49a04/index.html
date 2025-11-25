@@ -1,0 +1,784 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>PyInstaller 深度解析与指令详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PyInstaller 是一个将 Python 应用程序及其所有依赖项（包括 Python 解释器本身、所有第三方库、数据文件等）打包成一个独立的、可执行的二进制文件的工具。其核心目标是简化 Python 应用程序的分发，使得最终用户无需安装 Python 环境或任何依赖即可直接运行程序。  核心思想：将 Python 应用程序及其所有运行时依赖“冻结”为一个独立的软件包，通常是一个可执行文件（">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PyInstaller 深度解析与指令详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/53e63dc49a04/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="PyInstaller 是一个将 Python 应用程序及其所有依赖项（包括 Python 解释器本身、所有第三方库、数据文件等）打包成一个独立的、可执行的二进制文件的工具。其核心目标是简化 Python 应用程序的分发，使得最终用户无需安装 Python 环境或任何依赖即可直接运行程序。  核心思想：将 Python 应用程序及其所有运行时依赖“冻结”为一个独立的软件包，通常是一个可执行文件（">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg">
+<meta property="article:published_time" content="2025-11-24T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-25T07:28:35.501Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="项目构建">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="2025">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PyInstaller 深度解析与指令详解",
+  "url": "https://blog.tbf1211.xx.kg/53e63dc49a04/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg",
+  "datePublished": "2025-11-24T22:24:00.000Z",
+  "dateModified": "2025-11-25T07:28:35.501Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/53e63dc49a04/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'PyInstaller 深度解析与指令详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">319</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">200</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">70</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-12.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PyInstaller 深度解析与指令详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PyInstaller 深度解析与指令详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-11-24T22:24:00.000Z" title="发表于 2025-11-25 06:24:00">2025-11-25</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/">Python</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">5.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>19分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/53e63dc49a04/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>PyInstaller</strong> 是一个将 Python 应用程序及其所有依赖项（包括 Python 解释器本身、所有第三方库、数据文件等）打包成一个独立的、可执行的二进制文件的工具。其核心目标是简化 Python 应用程序的分发，使得最终用户无需安装 Python 环境或任何依赖即可直接运行程序。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：将 Python 应用程序及其所有运行时依赖“<strong>冻结</strong>”为一个独立的软件包，通常是一个可执行文件（<code>.exe</code>、可执行二进制文件等）或一个包含可执行文件和相关资源的目录。</p>
+</div>
+<hr>
+<h2 id="一、为什么需要-PyInstaller？"><a href="#一、为什么需要-PyInstaller？" class="headerlink" title="一、为什么需要 PyInstaller？"></a>一、为什么需要 PyInstaller？</h2><p>Python 应用程序的部署和分发常常面临以下挑战：</p>
+<ol>
+<li><strong>用户环境依赖</strong>：最终用户需要安装正确版本的 Python 解释器，并手动安装所有项目所需的第三方库。这对于非技术用户而言门槛较高。</li>
+<li><strong>环境差异性</strong>：不同操作系统、不同 Python 版本或不同库版本之间的兼容性问题可能导致应用程序在某些环境中无法正常运行。</li>
+<li><strong>依赖管理复杂性</strong>：应用程序依赖的库可能有很多，手动追踪和安装这些依赖既繁琐又容易出错。</li>
+<li><strong>源代码暴露</strong>：直接分发 Python 脚本会暴露源代码，这对于商业应用或知识产权保护而言可能不理想（尽管 PyInstaller 并非严格意义上的代码加密，但至少让逆向工程更困难）。</li>
+</ol>
+<p>PyInstaller 旨在解决这些问题，提供一种“<strong>即插即用</strong>”的分发方式：</p>
+<ul>
+<li><strong>单文件或单目录分发</strong>：将所有内容封装在一个文件或一个目录中，极大简化了分发过程。</li>
+<li><strong>消除 Python 环境依赖</strong>：最终用户只需双击可执行文件即可运行，无需预装 Python。</li>
+<li><strong>跨平台支持</strong>：支持在 Windows、macOS 和 Linux 上打包应用程序，但<strong>只能在当前操作系统上为当前操作系统打包</strong>（例如，在 Windows 上打包的 <code>.exe</code> 只能在 Windows 上运行）。</li>
+<li><strong>隔离性</strong>：将应用程序及其依赖封装起来，避免了与用户系统上其他 Python 环境的冲突。</li>
+</ul>
+<h2 id="二、PyInstaller-的工作原理"><a href="#二、PyInstaller-的工作原理" class="headerlink" title="二、PyInstaller 的工作原理"></a>二、PyInstaller 的工作原理</h2><p>PyInstaller 的工作流程可以分为以下几个主要阶段：</p>
+<ol>
+<li><p><strong>分析 (Analysis) 阶段</strong>：</p>
+<ul>
+<li>PyInstaller 从你指定的主脚本开始，递归地扫描所有 <code>import</code> 语句，构建一个完整的依赖图。</li>
+<li>它会尝试检测所有直接和间接导入的模块、包，以及运行时可能需要的 C 扩展模块 (<code>.pyd</code>, <code>.so</code>, <code>.dll</code>)。</li>
+<li>它还会识别和处理特殊的 <code>hook</code> 文件，这些 <code>hook</code> 文件包含针对特定库（如 <code>PyQt</code>, <code>Django</code>, <code>matplotlib</code> 等）的打包规则，以确保它们能正确工作。</li>
+</ul>
+</li>
+<li><p><strong>收集 (Collect) 阶段</strong>：</p>
+<ul>
+<li>根据分析阶段的结果，PyInstaller 收集所有检测到的模块、源代码文件、数据文件（如配置文件、图片、模板等）、非 Python 二进制文件（如 <code>.dll</code>, <code>.so</code> 文件）等。</li>
+<li>它还会嵌入一个精简版的 Python 解释器副本，以及 PyInstaller 自己的引导程序 (bootloader)。</li>
+</ul>
+</li>
+<li><p><strong>构建 (Build) 阶段</strong>：</p>
+<ul>
+<li>PyInstaller 将收集到的所有文件组织起来，并将其打包成目标格式。</li>
+<li><strong>单目录模式 (<code>--onedir</code> &#x2F; <code>-D</code>)</strong>：默认模式，创建一个包含所有依赖文件和可执行文件的目录。可执行文件通常是一个小型的引导程序，它会在运行时加载目录中的其他模块和文件。</li>
+<li><strong>单文件模式 (<code>--onefile</code> &#x2F; <code>-F</code>)</strong>：创建一个单一的可执行文件。这个文件内部包含了所有依赖，运行时会先解压到临时目录，然后执行。</li>
+<li>最终产物通常位于项目根目录下的 <code>dist/</code> 目录中。</li>
+</ul>
+</li>
+<li><p><strong>引导程序 (Bootloader)</strong>：</p>
+<ul>
+<li>这是一个用 C 语言编写的小程序。当用户运行打包后的可执行文件时，引导程序会首先启动。</li>
+<li>在单文件模式下，引导程序负责将嵌入的 Python 环境和应用程序文件解压到临时位置。</li>
+<li>引导程序然后启动嵌入的 Python 解释器，并将控制权交给应用程序的主脚本。</li>
+</ul>
+</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[PyInstaller 打包流程] --&gt; B{分析阶段};
+    B --&gt; C[扫描 import 语句];
+    C --&gt; D[构建依赖图];
+    D --&gt; E[识别 C 扩展和 hook 文件];
+    E --&gt; F{收集阶段};
+    F --&gt; G[收集模块, 源码文件, 数据文件];
+    G --&gt; H[收集非 Python 二进制文件];
+    H --&gt; I[嵌入 Python 解释器和 Bootloader];
+    I --&gt; J{构建阶段};
+    J --&gt; K[打包为单目录或单文件];
+    K --&gt; L[输出到 dist 目录];
+    L --&gt; M[最终可执行文件];
+    M --&gt; N[引导程序启动];
+    N --&gt; O[&quot;解压嵌入内容 (仅单文件模式)&quot;];
+    O --&gt; P[启动嵌入的 Python 解释器];
+    P --&gt; Q[运行应用程序主脚本];
+  </pre></div>
+
+<h2 id="三、安装-PyInstaller"><a href="#三、安装-PyInstaller" class="headerlink" title="三、安装 PyInstaller"></a>三、安装 PyInstaller</h2><p>PyInstaller 可以通过 <code>pip</code> 命令轻松安装：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip install pyinstaller</span><br></pre></td></tr></table></figure>
+
+<p>建议在项目的虚拟环境中安装 PyInstaller，以避免与系统全局环境的冲突。</p>
+<h2 id="四、PyInstaller-指令详解"><a href="#四、PyInstaller-指令详解" class="headerlink" title="四、PyInstaller 指令详解"></a>四、PyInstaller 指令详解</h2><p>PyInstaller 的基本用法是 <code>pyinstaller [options] &lt;script_name.py&gt;</code>。以下是详细的指令说明和常用选项：</p>
+<h3 id="4-1-基本用法"><a href="#4-1-基本用法" class="headerlink" title="4.1 基本用法"></a>4.1 基本用法</h3><p>最简单的打包命令，会生成一个包含所有依赖的目录：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller your_script.py</span><br></pre></td></tr></table></figure>
+<p>这会在 <code>dist/your_script</code> (macOS&#x2F;Linux) 或 <code>dist\your_script</code> (Windows) 目录下生成一个可执行文件和所有依赖文件。</p>
+<h3 id="4-2-核心打包模式"><a href="#4-2-核心打包模式" class="headerlink" title="4.2 核心打包模式"></a>4.2 核心打包模式</h3><ul>
+<li><p><strong><code>--onefile</code> 或 <code>-F</code></strong>: 创建单个可执行文件。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 将所有内容（包括 Python 解释器、库、数据文件）打包进一个单一的可执行文件。运行时，这个文件会先将内容解压到临时目录，然后再执行。</li>
+<li><strong>优点</strong>: 分发最简单，只需一个文件。</li>
+<li><strong>缺点</strong>: 运行时启动速度可能稍慢（需要先解压），文件体积可能相对较大，可能更容易被杀毒软件误报。</li>
+</ul>
+</li>
+<li><p><strong><code>--onedir</code> 或 <code>-D</code></strong>: 创建一个包含可执行文件和所有依赖的目录 (默认模式)。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onedir my_app.py</span><br><span class="line"><span class="comment"># 或直接</span></span><br><span class="line">pyinstaller my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 创建一个目录，其中包含主可执行文件和所有运行时所需的库文件、数据文件等。可执行文件是一个小型的引导程序，它会在运行时加载目录中的其他模块和文件。</li>
+<li><strong>优点</strong>: 运行时启动更快，文件体积通常小于 <code>onefile</code> (因为模块和数据文件是独立的)，更适合大型应用。</li>
+<li><strong>缺点</strong>: 分发时需要打包整个目录。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-3-控制台输出"><a href="#4-3-控制台输出" class="headerlink" title="4.3 控制台输出"></a>4.3 控制台输出</h3><ul>
+<li><p><strong><code>--noconsole</code> 或 <code>-w</code></strong>: 不显示命令行窗口。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --noconsole gui_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 当应用程序启动时，不会弹出控制台窗口。这非常适合 GUI 应用程序（如使用 PyQt, Tkinter, Kivy 等）或不需要用户查看命令行输出的后台服务。</li>
+<li><strong>注意</strong>: 在 macOS 上，<code>-w</code> 选项还会改变应用的图标显示方式（从命令行工具变为 GUI 应用）。</li>
+</ul>
+</li>
+<li><p><strong><code>--console</code> 或 <code>-c</code></strong>: 显示命令行窗口 (默认)。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --console cli_tool.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 当应用程序启动时，会显示一个命令行窗口。适用于命令行工具或需要调试输出、用户交互的应用。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-4-图标设置"><a href="#4-4-图标设置" class="headerlink" title="4.4 图标设置"></a>4.4 图标设置</h3><ul>
+<li><strong><code>--icon=&lt;FILE&gt;</code> 或 <code>-i &lt;FILE&gt;</code></strong>: 指定可执行文件的图标。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --icon=my_icon.ico my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 设置生成的可执行文件的图标。</li>
+<li><strong>文件格式</strong>:<ul>
+<li>Windows: 必须是 <code>.ico</code> 文件。</li>
+<li>macOS: 必须是 <code>.icns</code> 文件。</li>
+<li>Linux: 通常是 <code>.png</code> 文件（或将其嵌入 <code>.desktop</code> 文件中，具体取决于桌面环境）。</li>
+</ul>
+</li>
+<li><strong>多个图标</strong>: 可以提供多个图标路径，PyInstaller 会选择最合适的。例如 <code>--icon=&quot;icon1.ico&quot; --icon=&quot;icon2.ico&quot;</code>。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-5-文件-目录管理"><a href="#4-5-文件-目录管理" class="headerlink" title="4.5 文件&#x2F;目录管理"></a>4.5 文件&#x2F;目录管理</h3><ul>
+<li><p><strong><code>--add-data &lt;SRC;DEST&gt;</code> (Windows) 或 <code>--add-data &lt;SRC:DEST&gt;</code> (Unix-like)</strong>: 添加数据文件或目录到包中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Windows 示例：将 config.ini 添加到应用程序的根目录</span></span><br><span class="line">pyinstaller --onefile --add-data <span class="string">&quot;config.ini:.&quot;</span> my_app.py</span><br><span class="line"></span><br><span class="line"><span class="comment"># Unix-like (macOS/Linux) 示例：将 templates 目录添加到应用程序内部的 templates 目录</span></span><br><span class="line">pyinstaller --onefile --add-data <span class="string">&quot;templates:templates&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 用于包含 PyInstaller 无法自动检测到的非 Python 文件（如配置文件、图片、HTML 模板、字体、数据库文件等）。</li>
+<li><strong><code>SRC</code></strong>: 源文件或目录的路径，可以是相对路径或绝对路径。</li>
+<li><strong><code>DEST</code></strong>: 在打包后的应用程序内部的相对路径。如果目标是应用程序的根目录，可以使用 <code>.</code>。</li>
+<li><strong>Python 代码中访问</strong>: 在打包后的应用中，通常通过 <code>sys._MEIPASS</code>（一个指向临时解压目录的路径）来访问这些文件。例如 <code>os.path.join(sys._MEIPASS, &#39;data.txt&#39;)</code>。PyInstaller 会自动处理这些路径。</li>
+</ul>
+</li>
+<li><p><strong><code>--add-binary &lt;SRC;DEST&gt;</code> (Windows) 或 <code>--add-binary &lt;SRC:DEST&gt;</code> (Unix-like)</strong>: 添加非 Python 二进制文件或目录。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 将 my_custom_lib.dll 复制到应用程序的根目录</span></span><br><span class="line">pyinstaller --onefile --add-binary <span class="string">&quot;path/to/my_custom_lib.dll:.&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 与 <code>--add-data</code> 类似，但专用于添加 PyInstaller 无法自动检测到的二进制文件，例如某些特殊的动态链接库 (<code>.dll</code>, <code>.so</code>, <code>.dylib</code>)。</li>
+</ul>
+</li>
+<li><p><strong><code>--exclude-module &lt;module_name&gt;</code></strong>: 排除不需要打包的模块。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --exclude-module <span class="string">&quot;tkinter&quot;</span> my_app_without_gui.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 当 PyInstaller 错误地包含了不必要的模块（例如，即使应用程序是命令行工具，也可能包含了 Tkinter 相关的库），可以使用此选项将其排除，从而减小最终文件的大小。可以多次使用此选项来排除多个模块。</li>
+</ul>
+</li>
+<li><p><strong><code>--hidden-import &lt;module_name&gt;</code></strong>: 显式地包含一个模块。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --hidden-import <span class="string">&quot;PIL.Image&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 如果 PyInstaller 未能自动检测到某个模块（例如，模块是通过 <code>exec()</code>、<code>eval()</code>、<code>importlib</code> 或其他动态方式导入的），可以使用此选项手动强制其包含该模块。</li>
+</ul>
+</li>
+<li><p><strong><code>--collect-all &lt;package_name&gt;</code></strong>: 收集指定包的所有子模块、数据文件、二进制文件等。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --collect-all <span class="string">&quot;mypackage&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 当一个第三方库非常复杂，PyInstaller 的自动分析可能漏掉一些文件时，可以使用此选项强制 PyInstaller 收集该包的所有内容。</li>
+</ul>
+</li>
+<li><p><strong><code>--copy-metadata &lt;package_name&gt;</code></strong>: 复制指定包的元数据（如 <code>PKG-INFO</code>）。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --copy-metadata <span class="string">&quot;requests&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 有些库在运行时需要访问它们的元数据，例如版本号等。此选项确保这些元数据被包含。</li>
+</ul>
+</li>
+<li><p><strong><code>--distpath &lt;path&gt;</code></strong>: 指定 <code>dist</code> 目录（最终可执行文件&#x2F;目录的输出位置）的路径。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --distpath <span class="string">&quot;./build/output&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 默认情况下，PyInstaller 会在项目根目录下创建一个 <code>dist</code> 目录。使用此选项可以更改输出目录。</li>
+</ul>
+</li>
+<li><p><strong><code>--workpath &lt;path&gt;</code></strong>: 指定 <code>build</code> 目录（PyInstaller 临时文件和缓存）的路径。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --workpath <span class="string">&quot;./build/temp&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: PyInstaller 在构建过程中会生成许多临时文件。这些文件默认存储在项目根目录下的 <code>build</code> 目录中。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-6-辅助选项"><a href="#4-6-辅助选项" class="headerlink" title="4.6 辅助选项"></a>4.6 辅助选项</h3><ul>
+<li><p><strong><code>--clean</code></strong>: 在构建之前清理 PyInstaller 缓存和临时文件。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --clean my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 当你遇到打包问题时，或者在更改了某些依赖后，清理缓存可以确保 PyInstaller 从头开始重新分析和构建，有助于解决一些构建问题。</li>
+</ul>
+</li>
+<li><p><strong><code>--noconfirm</code></strong>: 如果 <code>dist</code> 和 <code>build</code> 目录已存在，不询问是否覆盖，直接执行。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --noconfirm my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 在自动化脚本或持续集成&#x2F;部署 (CI&#x2F;CD) 环境中非常有用，可以避免交互式确认。</li>
+</ul>
+</li>
+<li><p><strong><code>--debug=[all,imports,bootloader,noarchive]</code></strong>: 启用调试输出。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --debug=imports my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 用于诊断打包过程中出现的问题，例如模块未找到。<code>imports</code> 会打印所有导入的模块信息。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-7-Spec-文件相关选项"><a href="#4-7-Spec-文件相关选项" class="headerlink" title="4.7 Spec 文件相关选项"></a>4.7 Spec 文件相关选项</h3><ul>
+<li><p><strong><code>--specpath &lt;path&gt;</code></strong>: 生成 <code>.spec</code> 文件到指定路径，而不执行实际构建。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --specpath . my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 生成一个 <code>.spec</code> 文件。这个文件是 PyInstaller 配置的文本表示，你可以手动编辑它以进行更高级的定制，然后再使用 <code>pyinstaller &lt;your_script&gt;.spec</code> 命令进行构建。</li>
+</ul>
+</li>
+<li><p><strong><code>--name &lt;name&gt;</code></strong>: 设置生成的应用程序名称。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --name <span class="string">&quot;My Awesome App&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: 决定了最终可执行文件或目录的名称。默认是主脚本的名称。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-8-压缩选项"><a href="#4-8-压缩选项" class="headerlink" title="4.8 压缩选项"></a>4.8 压缩选项</h3><ul>
+<li><strong><code>--upx-dir &lt;UPX_DIR&gt;</code></strong>: 指定 UPX 可执行文件的路径。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 如果 UPX 不在 PATH 中</span></span><br><span class="line">pyinstaller --onefile --upx-dir <span class="string">&quot;/path/to/upx&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>描述</strong>: UPX (Ultimate Packer for eXecutables) 是一个开源的通用可执行文件压缩器。PyInstaller 可以利用它进一步压缩生成的可执行文件，减小其体积。</li>
+<li><strong>使用方式</strong>: 通常需要在 <code>spec</code> 文件中设置 <code>upx=True</code>，并确保系统 PATH 中包含 UPX，或使用此选项指定 UPX 路径。</li>
+</ul>
+</li>
+</ul>
+<h2 id="五、实践示例"><a href="#五、实践示例" class="headerlink" title="五、实践示例"></a>五、实践示例</h2><p>为了更好地理解这些指令，我们通过几个例子来演示。</p>
+<h3 id="5-1-简单命令行脚本打包"><a href="#5-1-简单命令行脚本打包" class="headerlink" title="5.1 简单命令行脚本打包"></a>5.1 简单命令行脚本打包</h3><p>创建一个 <code>hello.py</code> 文件：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># hello.py</span></span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">main</span>():</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Hello from PyInstaller!&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Python executable: <span class="subst">&#123;sys.executable&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Is frozen (PyInstaller): <span class="subst">&#123;<span class="built_in">getattr</span>(sys, <span class="string">&#x27;frozen&#x27;</span>, <span class="literal">False</span>)&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;PyInstaller temporary path: <span class="subst">&#123;<span class="built_in">getattr</span>(sys, <span class="string">&#x27;_MEIPASS&#x27;</span>, <span class="string">&#x27;Not found&#x27;</span>)&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="built_in">input</span>(<span class="string">&quot;Press Enter to exit...&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
+<p>打包为单个可执行文件，带控制台，并清理缓存：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --onefile --console --clean hello.py</span><br></pre></td></tr></table></figure>
+<p>打包完成后，在 <code>dist</code> 目录下找到 <code>hello</code> (Linux&#x2F;macOS) 或 <code>hello.exe</code> (Windows)。运行它，你会看到命令行输出。</p>
+<h3 id="5-2-带数据文件的应用打包"><a href="#5-2-带数据文件的应用打包" class="headerlink" title="5.2 带数据文件的应用打包"></a>5.2 带数据文件的应用打包</h3><p>创建一个 <code>my_app.py</code> 和 <code>data.txt</code>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># my_app.py</span></span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_resource_path</span>(<span class="params">relative_path</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;获取打包后应用程序中资源的绝对路径&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">getattr</span>(sys, <span class="string">&#x27;frozen&#x27;</span>, <span class="literal">False</span>) <span class="keyword">and</span> <span class="built_in">hasattr</span>(sys, <span class="string">&#x27;_MEIPASS&#x27;</span>):</span><br><span class="line">        <span class="comment"># 在打包环境中</span></span><br><span class="line">        <span class="keyword">return</span> os.path.join(sys._MEIPASS, relative_path)</span><br><span class="line">    <span class="comment"># 在开发环境中</span></span><br><span class="line">    <span class="keyword">return</span> os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">main</span>():</span><br><span class="line">    data_file_path = get_resource_path(<span class="string">&#x27;data.txt&#x27;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="keyword">with</span> <span class="built_in">open</span>(data_file_path, <span class="string">&#x27;r&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">            content = f.read()</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">&quot;Content from data.txt:&quot;</span>)</span><br><span class="line">            <span class="built_in">print</span>(content)</span><br><span class="line">    <span class="keyword">except</span> FileNotFoundError:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Error: data.txt not found at <span class="subst">&#123;data_file_path&#125;</span>&quot;</span>)</span><br><span class="line">  </span><br><span class="line">    <span class="built_in">input</span>(<span class="string">&quot;Press Enter to exit...&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
+<p><code>data.txt</code> 内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">This is some important data, embedded with PyInstaller.</span><br></pre></td></tr></table></figure>
+<p>打包命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 将 data.txt 添加到打包后的应用根目录 (.: .)</span></span><br><span class="line">pyinstaller --onefile --console --add-data <span class="string">&quot;data.txt:.&quot;</span> my_app.py</span><br></pre></td></tr></table></figure>
+<p>运行打包后的 <code>my_app</code>，会看到 <code>data.txt</code> 的内容被正确读取。</p>
+<h3 id="5-3-打包一个-Tkinter-GUI-应用"><a href="#5-3-打包一个-Tkinter-GUI-应用" class="headerlink" title="5.3 打包一个 Tkinter GUI 应用"></a>5.3 打包一个 Tkinter GUI 应用</h3><p>创建一个 <code>gui_app.py</code> 和 <code>my_icon.ico</code> (或 <code>.icns</code> &#x2F; <code>.png</code>)：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># gui_app.py</span></span><br><span class="line"><span class="keyword">import</span> tkinter <span class="keyword">as</span> tk</span><br><span class="line"><span class="keyword">from</span> tkinter <span class="keyword">import</span> messagebox</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_icon_path</span>(<span class="params">icon_name</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">getattr</span>(sys, <span class="string">&#x27;frozen&#x27;</span>, <span class="literal">False</span>) <span class="keyword">and</span> <span class="built_in">hasattr</span>(sys, <span class="string">&#x27;_MEIPASS&#x27;</span>):</span><br><span class="line">        <span class="keyword">return</span> os.path.join(sys._MEIPASS, icon_name)</span><br><span class="line">    <span class="keyword">return</span> icon_name <span class="comment"># 在开发环境中直接使用当前目录的图标</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show_message</span>():</span><br><span class="line">    messagebox.showinfo(<span class="string">&quot;Hello&quot;</span>, <span class="string">&quot;Hello from Tkinter App!&quot;</span>)</span><br><span class="line"></span><br><span class="line">root = tk.Tk()</span><br><span class="line">root.title(<span class="string">&quot;My GUI App&quot;</span>)</span><br><span class="line">root.geometry(<span class="string">&quot;300x200&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置窗口图标（对于 Windows，ico 文件可以直接作为窗口图标）</span></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    icon_path = get_icon_path(<span class="string">&#x27;my_icon.ico&#x27;</span>) <span class="comment"># 假设图标名为 my_icon.ico</span></span><br><span class="line">    <span class="keyword">if</span> os.path.exists(icon_path):</span><br><span class="line">        root.iconbitmap(icon_path)</span><br><span class="line"><span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Could not set window icon: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">label = tk.Label(root, text=<span class="string">&quot;Welcome to my GUI App!&quot;</span>)</span><br><span class="line">label.pack(pady=<span class="number">20</span>)</span><br><span class="line"></span><br><span class="line">button = tk.Button(root, text=<span class="string">&quot;Click Me&quot;</span>, command=show_message)</span><br><span class="line">button.pack(pady=<span class="number">10</span>)</span><br><span class="line"></span><br><span class="line">root.mainloop()</span><br></pre></td></tr></table></figure>
+<p>打包命令（假设 <code>my_icon.ico</code> 在当前目录）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># --noconsole 隐藏控制台，--icon 设置可执行文件图标，--add-data 包含窗口图标</span></span><br><span class="line">pyinstaller --onefile --noconsole --icon=my_icon.ico --add-data <span class="string">&quot;my_icon.ico:.&quot;</span> gui_app.py</span><br></pre></td></tr></table></figure>
+<p>运行打包后的 <code>gui_app</code>，将会看到一个带有自定义图标的窗口，且没有额外的控制台窗口弹出。</p>
+<h2 id="六、spec-文件的使用与高级配置"><a href="#六、spec-文件的使用与高级配置" class="headerlink" title="六、spec 文件的使用与高级配置"></a>六、<code>spec</code> 文件的使用与高级配置</h2><p>当你运行 <code>pyinstaller my_app.py</code> 时，PyInstaller 会在后台自动创建一个 <code>.spec</code> 文件。对于更复杂的项目，或者需要细粒度控制打包过程时，可以先生成一个 <code>.spec</code> 文件，然后手动编辑它，再使用 <code>pyinstaller &lt;your_script&gt;.spec</code> 命令进行构建。</p>
+<h3 id="6-1-生成-spec-文件"><a href="#6-1-生成-spec-文件" class="headerlink" title="6.1 生成 spec 文件"></a>6.1 生成 <code>spec</code> 文件</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller --noconsole --onefile my_app.py --specpath .</span><br><span class="line"><span class="comment"># 这将在当前目录生成 my_app.spec 文件，但不执行实际的构建。</span></span><br><span class="line"><span class="comment"># 如果不加 --specpath .，则会在 build 目录中生成。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-spec-文件结构示例"><a href="#6-2-spec-文件结构示例" class="headerlink" title="6.2 spec 文件结构示例"></a>6.2 <code>spec</code> 文件结构示例</h3><p>一个典型的 <code>.spec</code> 文件大致结构如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -*- mode: python ; coding: utf-8 -*-</span></span><br><span class="line"></span><br><span class="line">block_cipher = <span class="literal">None</span> <span class="comment"># 用于文件加密的 cipher 对象，通常不用修改</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">a = Analysis(</span><br><span class="line">    [<span class="string">&#x27;my_app.py&#x27;</span>], <span class="comment"># 要打包的主脚本列表</span></span><br><span class="line">    pathex=[<span class="string">&#x27;/path/to/my/app&#x27;</span>], <span class="comment"># PyInstaller 搜索模块的额外路径列表</span></span><br><span class="line">    binaries=[], <span class="comment"># PyInstaller 无法自动检测到的额外二进制文件</span></span><br><span class="line">    datas=[(<span class="string">&#x27;data.txt&#x27;</span>, <span class="string">&#x27;.&#x27;</span>)], <span class="comment"># 对应 --add-data &quot;data.txt:.&quot;</span></span><br><span class="line">    hiddenimports=[], <span class="comment"># 对应 --hidden-import</span></span><br><span class="line">    hookspath=[], <span class="comment"># 自定义 hook 文件的路径列表</span></span><br><span class="line">    hooksconfig=&#123;&#125;, <span class="comment"># 传递给 hook 文件的配置</span></span><br><span class="line">    runtime_hooks=[], <span class="comment"># 应用程序启动前执行的 Python 脚本</span></span><br><span class="line">    excludes=[], <span class="comment"># 排除的模块列表，对应 --exclude-module</span></span><br><span class="line">    win_no_prefer_redirects=<span class="literal">False</span>, <span class="comment"># Windows 上的特殊行为</span></span><br><span class="line">    win_private_assemblies=<span class="literal">False</span>, <span class="comment"># Windows 上的特殊行为</span></span><br><span class="line">    cipher=block_cipher,</span><br><span class="line">    noarchive=<span class="literal">False</span>, <span class="comment"># 如果为 True，则不将文件打包成 PyZ 存档，而是作为普通文件</span></span><br><span class="line">)</span><br><span class="line">pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher) <span class="comment"># PyInstaller 内部使用的 Python 模块存档</span></span><br><span class="line"></span><br><span class="line">exe = EXE(</span><br><span class="line">    pyz,</span><br><span class="line">    a.scripts, <span class="comment"># 脚本列表</span></span><br><span class="line">    [], <span class="comment"># 排除的二进制文件</span></span><br><span class="line">    exclude_binaries=<span class="literal">True</span>,</span><br><span class="line">    name=<span class="string">&#x27;my_app&#x27;</span>, <span class="comment"># 可执行文件名称，对应 --name</span></span><br><span class="line">    debug=<span class="literal">False</span>,</span><br><span class="line">    bootloader_ignore_signals=<span class="literal">False</span>,</span><br><span class="line">    strip=<span class="literal">False</span>, <span class="comment"># 剥离可执行文件中的调试信息</span></span><br><span class="line">    upx=<span class="literal">True</span>, <span class="comment"># 是否使用 UPX 压缩，对应 --upx-dir</span></span><br><span class="line">    console=<span class="literal">False</span>, <span class="comment"># 是否显示控制台，对应 --noconsole</span></span><br><span class="line">    disable_windowed_traceback=<span class="literal">False</span>,</span><br><span class="line">    argv_emulation=<span class="literal">False</span>,</span><br><span class="line">    target_arch=<span class="literal">None</span>,</span><br><span class="line">    codesign_identity=<span class="literal">None</span>, <span class="comment"># macOS 代码签名</span></span><br><span class="line">    entitlements_file=<span class="literal">None</span>, <span class="comment"># macOS 权限文件</span></span><br><span class="line">    icon=<span class="string">&#x27;my_icon.ico&#x27;</span>, <span class="comment"># 可执行文件图标，对应 --icon</span></span><br><span class="line">)</span><br><span class="line">coll = COLLECT( <span class="comment"># 仅在 --onedir 模式下使用，收集所有文件到目录</span></span><br><span class="line">    exe,</span><br><span class="line">    a.binaries,</span><br><span class="line">    a.datas,</span><br><span class="line">    strip=<span class="literal">False</span>,</span><br><span class="line">    upx=<span class="literal">True</span>,</span><br><span class="line">    upx_exclude=[],</span><br><span class="line">    name=<span class="string">&#x27;my_app&#x27;</span>,</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-3-常用-spec-文件修改点"><a href="#6-3-常用-spec-文件修改点" class="headerlink" title="6.3 常用 spec 文件修改点"></a>6.3 常用 <code>spec</code> 文件修改点</h3><ul>
+<li><strong><code>a.datas</code></strong>: 添加数据文件。例如 <code>datas=[(&#39;path/to/data.json&#39;, &#39;data&#39;)]</code> 会将 <code>data.json</code> 复制到打包后的 <code>data</code> 目录下。</li>
+<li><strong><code>a.binaries</code></strong>: 添加额外的非 Python 二进制文件或动态链接库。例如 <code>binaries=[(&#39;path/to/mylib.dll&#39;, &#39;.&#39;)]</code>。</li>
+<li><strong><code>a.hiddenimports</code></strong>: 如果 PyInstaller 无法自动检测到某些模块（特别是通过字符串、<code>__import__</code> 或延迟导入方式加载的模块），可以在这里手动添加。例如 <code>hiddenimports=[&#39;PIL.Image&#39;, &#39;pandas&#39;]</code>。</li>
+<li><strong><code>exe.name</code></strong>: 设置可执行文件的名称。</li>
+<li><strong><code>exe.icon</code></strong>: 设置可执行文件的图标。</li>
+<li><strong><code>exe.console</code></strong>: <code>True</code> 显示控制台，<code>False</code> 隐藏控制台。</li>
+<li><strong><code>exe.upx</code></strong>: 设置为 <code>True</code> 以启用 UPX 压缩（需要安装 UPX）。</li>
+<li><strong><code>coll</code> 对象 (仅 <code>onedir</code> 模式)</strong>: 如果你在使用 <code>onedir</code> 模式，<code>COLL</code> 对象用于指定如何收集文件。例如，你可以修改 <code>coll.name</code> 来改变输出目录的名称。</li>
+</ul>
+<p>修改完 <code>spec</code> 文件后，使用以下命令进行构建：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pyinstaller my_app.spec</span><br></pre></td></tr></table></figure>
+<p>PyInstaller 会读取 <code>spec</code> 文件的配置并执行打包。</p>
+<h2 id="七、注意事项与常见问题"><a href="#七、注意事项与常见问题" class="headerlink" title="七、注意事项与常见问题"></a>七、注意事项与常见问题</h2><ol>
+<li><p><strong>二进制文件大小</strong>：</p>
+<ul>
+<li><code>--onefile</code> 模式通常会生成一个更大的文件，因为它内部包含了所有解压运行时所需的文件。</li>
+<li><code>--onedir</code> 模式会生成一个目录，其中包含多个文件，但总体大小可能更小，且启动速度通常更快。选择哪种模式取决于你的分发需求。</li>
+<li>可以通过 <code>UPX</code> 压缩（在 <code>spec</code> 文件中设置 <code>upx=True</code>，需安装 UPX 工具并将其放在 PATH 中或指定其路径）来减小可执行文件大小，但可能略微增加启动时间。</li>
+</ul>
+</li>
+<li><p><strong>杀毒软件误报</strong>：</p>
+<ul>
+<li>PyInstaller 打包后的 <code>.exe</code> 文件（尤其是在 Windows 上）有时会被杀毒软件误报为病毒或恶意软件。这是因为其引导程序的工作方式类似于一些恶意程序（解压并执行代码），且包含了一个精简的 Python 解释器。</li>
+<li><strong>解决办法</strong>：<ul>
+<li>使用 <code>onedir</code> 模式代替 <code>onefile</code>。</li>
+<li>向杀毒软件厂商报告误报。</li>
+<li>对可执行文件进行数字签名（仅适用于 Windows 和 macOS，需要购买代码签名证书）。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>动态加载模块</strong>：</p>
+<ul>
+<li>PyInstaller 很难处理在运行时动态加载的模块（例如通过 <code>eval()</code> 或 <code>importlib</code> 根据字符串来导入）。</li>
+<li>如果遇到 <code>ModuleNotFoundError</code>，通常需要在 <code>spec</code> 文件的 <code>a.hiddenimports</code> 或命令行 <code>--hidden-import</code> 中手动添加这些模块。</li>
+<li>对于一些大型框架（如 Django, Flask），PyInstaller 提供了专门的 <code>hook</code> 文件来处理其复杂的导入逻辑。</li>
+</ul>
+</li>
+<li><p><strong>跨平台打包限制</strong>：</p>
+<ul>
+<li>PyInstaller 无法进行交叉编译。你必须在目标操作系统上运行 PyInstaller 来为该操作系统打包。例如，要在 Windows 上创建 <code>.exe</code> 文件，就必须在 Windows 系统上运行 PyInstaller。如果你需要为多个平台打包，你需要在每个对应的平台上执行打包操作。</li>
+</ul>
+</li>
+<li><p><strong>虚拟环境最佳实践</strong>：</p>
+<ul>
+<li>强烈建议在<strong>虚拟环境</strong> (<code>venv</code> 或 <code>conda env</code>) 中安装项目依赖和 PyInstaller。这确保了 PyInstaller 只会打包你的应用程序实际所需的依赖，避免打包不必要的系统级库，从而减小最终文件大小并提高兼容性。</li>
+</ul>
+</li>
+<li><p><strong>资源文件路径问题</strong>：</p>
+<ul>
+<li>在打包后的应用程序中访问资源文件时，不能直接使用相对路径，因为程序的“当前工作目录”可能不是你期望的。</li>
+<li>正确的方法是使用 <code>sys._MEIPASS</code> 变量，如示例 5.2 所示。</li>
+</ul>
+</li>
+</ol>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>PyInstaller 是 Python 生态系统中一个不可或缺的工具，它极大地简化了 Python 应用程序的分发和部署。通过将应用程序及其所有依赖打包成独立的二进制文件，PyInstaller 使得非技术用户也能轻松运行 Python 程序，极大地拓展了 Python 应用的用户群体。</p>
+<p>理解 PyInstaller 的工作原理、详尽的命令行选项以及 <code>spec</code> 文件的配置，是高效使用它的关键。虽然会遇到一些挑战，如文件大小和杀毒软件误报，但通过合理的配置和最佳实践，PyInstaller 能够帮助开发者构建出专业、易于分发的 Python 应用程序。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/53e63dc49a04/">https://blog.tbf1211.xx.kg/53e63dc49a04/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-12.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go 语言 GC (Garbage Collection) 机制详解</div></div><div class="info-2"><div class="info-item-1"> 垃圾回收 (Garbage Collection, GC) 是现代编程语言运行时环境中的一个重要组成部分，它负责自动管理内存，识别并回收程序不再使用的对象所占用的内存，从而减轻开发者的内存管理负担，并降低内存泄漏的风险。Go 语言作为一个现代并发语言，其 GC 机制经过精心设计和持续优化，以在低延迟和高吞吐量之间取得平衡。Go 的 GC 目标是提供并发的、非分代的、三色标记清除的垃圾回收器，其显著特点是极低的停顿时间 (STW, Stop-The-World)。  核心思想：Go GC 采用并发的三色标记清除算法，结合混合写屏障，最大限度地减少 STW 时间，确保应用程序的流畅运行。   一、垃圾回收 (GC) 的基本概念1.1 什么是垃圾回收 (GC)？垃圾回收是一种自动内存管理机制，它自动识别并回收程序中不再被任何活跃部分引用的内存对象。程序开发者无需手动分配和释放内存。 1.2 为什么需要 GC？ 避免内存泄漏：减少因忘记释放内存而导致的内存资源耗尽。 简化开发：开发者可以专注于业务逻辑，而无需担心复杂的内存管理细节。 提高安全性：防止野指针、重复释放等内存错误。  1....</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/92d90a6caba1/" title="Python 项目管理工具 Poetry 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-10</div><div class="info-item-2">Python 项目管理工具 Poetry 详解</div></div><div class="info-2"><div class="info-item-1"> Poetry 是一款现代化的 Python 项目管理和打包工具。它将依赖管理、虚拟环境管理、打包和发布功能集成在一个直观的命令行界面中。Poetry 的核心理念是提供一个统一的、声明式的项目配置方式，以 pyproject.toml 文件 (遵循 PEP 518 和 PEP 621) 作为所有项目元数据和依赖的唯一真实来源。  核心思想：Poetry 旨在通过一个工具，简化 Python 项目从创建到发布的全生命周期管理，确保环境隔离、依赖可重现性和便捷的打包发布流程。   一、为什么需要 Poetry？传统的 Python 项目管理方式通常涉及多个工具和手动步骤，带来了诸多痛点：  pip 和 requirements.txt 的局限性： requirements.txt 仅记录直接依赖，不处理传递性依赖，容易导致环境不一致。 缺乏强大的依赖解析能力，解决包版本冲突困难。 没有统一的元数据管理，项目信息分散在 setup.py、README.md 等文件中。   虚拟环境管理不便： 需要手动创建 venv 或 virtualenv，并手动激活、切换。 项目与虚拟环境的关联不够...</div></div></div></a><a class="pagination-related" href="/62acbead38d8/" title="Python 打包工具 uv 详解：下一代包管理器与构建器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-12</div><div class="info-item-2">Python 打包工具 uv 详解：下一代包管理器与构建器</div></div><div class="info-2"><div class="info-item-1"> UV 是由 Astral (Ruff 的创建者) 公司开发的一款极速的 Python 包安装器、解析器和虚拟环境管理器。它被设计为 pip、pip-tools 和 virtualenv 的直接替代品，旨在解决 Python 现有包管理工具的速度瓶颈和用户体验问题。UV 完全用 Rust 编写，专注于提供闪电般的性能、一致的行为和可靠的依赖解析，同时兼容 pip 和 virtualenv 的现有工作流。  核心思想：UV 利用 Rust 的高性能和并发能力，提供超快的依赖解析、虚拟环境创建和包安装体验，旨在通过一个统一的、命令与 pip 相似的工具，成为 Python 包管理的新一代标准。   一、为什么需要 UV？Python 的包管理生态系统虽然成熟，但在速度和用户体验方面一直存在痛点：  pip 的速度瓶颈： pip 在解析大型或复杂项目的依赖图时可能会非常缓慢，尤其是在 requirements.txt 中包含大量次级依赖时。 每次安装都需要重新下载已有的包，缺乏高效的缓存机制。   virtualenv &#x2F; venv 的性能： 创建和管理虚拟环境的速度通常不够...</div></div></div></a><a class="pagination-related" href="/2565d3c3db01/" title="Go语言embed包详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-12</div><div class="info-item-2">Go语言embed包详解</div></div><div class="info-2"><div class="info-item-1"> Go 1.16 版本引入了一个内置的 embed包，它提供了一种将文件和文件系统内容直接嵌入到 Go 程序的可执行二进制文件中的简单、高效的方式。这使得开发者可以方便地将网页模板、静态资源（如 HTML、CSS、JavaScript、图片）、配置文件等打包进编译后的程序中，从而创建一个完全自包含 (self-contained) 的应用程序，无需在部署时额外管理静态文件。  核心思想：通过编译时指令将文件内容注入到 Go 程序的数据段，使其在运行时像普通变量一样被访问，实现单文件部署。   一、为什么需要 embed 包？在 embed 包出现之前，Go 程序处理静态资源通常有以下几种方式：  外部文件引用：将静态资源放在程序运行目录的相对路径下。 缺点：部署时需要额外管理这些文件，容易出现文件丢失或路径错误。   go:generate 工具 + bytes 包：利用 go:generate 生成 Go 代码文件，将静态资源转换为 []byte 或 string 变量。 缺点：需要引入额外的第三方工具（如 go-bindata），增加项目复杂度；生成的代码文件通常很大，不便于...</div></div></div></a><a class="pagination-related" href="/18a421861554/" title="Golang 项目的 Makefile 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-17</div><div class="info-item-2">Golang 项目的 Makefile 详解</div></div><div class="info-2"><div class="info-item-1"> Makefile 是一种自动化构建工具，它通过定义文件之间的依赖关系和生成这些文件的命令，帮助开发者管理和自动化项目中的各种任务。尽管 Golang 自身提供了强大的内置工具链 (go build, go test, go run 等)，Makefile 在 Go 项目中依然扮演着重要角色，尤其是在需要协调多个任务、管理复杂构建流程、实现跨平台编译、集成外部工具或自动化部署脚本的场景下。  核心思想：将一系列 go 命令、Shell 脚本以及其他工具的调用封装成可复用的、有依赖关系的任务，实现一键式项目管理和自动化。   一、为什么 Go 项目需要 Makefile？Go 语言的工具链设计得非常出色，go build 能够自动处理依赖，go test 能够运行测试，go run 可以直接运行源代码。那么，为什么我们还需要 Makefile 呢？  任务编排与自动化： 一个 Go 项目通常不仅仅是编译代码。它可能涉及代码格式化 (go fmt)、静态分析 (go vet, golangci-lint)、代码生成 (go generate)、测试、构建 Docker 镜像、部署、清...</div></div></div></a><a class="pagination-related" href="/13596be529bf/" title="Python神库Pydantic深度解析：数据验证与设置管理的利器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-10</div><div class="info-item-2">Python神库Pydantic深度解析：数据验证与设置管理的利器</div></div><div class="info-2"><div class="info-item-1"> Pydantic 是一个 Python 库，用于数据验证和设置管理，它利用 Python 的类型提示 (type hints) 来定义数据模式。Pydantic 在运行时强制执行类型提示，并为您的数据提供友好的错误信息，使得数据模型更加健壮、可维护和自文档化。它广泛应用于 Web API (如 FastAPI)、数据科学、配置管理等领域。  核心思想：将 Python 的类型提示转化为强大的运行时数据验证和序列化工具，从而提高代码的健壮性和开发效率。   一、为什么需要 Pydantic？在现代 Python 应用开发中，数据从外部来源（如 JSON API、数据库、配置文件、用户输入）进入系统是常态。这些外部数据往往不可信，结构复杂且容易出错。传统的 Python 处理方式存在一些问题：  缺乏数据验证：直接使用字典或弱类型对象，无法保证数据的结构和类型正确性，容易导致运行时错误。 手动验证繁琐：编写大量的 if/else 语句进行数据类型检查和值验证，导致代码冗长、难以维护。 序列化&#x2F;反序列化复杂：将 Python 对象转换为 JSON&#x2F;XML 或反之，...</div></div></div></a><a class="pagination-related" href="/cac9fddb0534/" title="Python 3 各版本新特性详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-19</div><div class="info-item-2">Python 3 各版本新特性详解</div></div><div class="info-2"><div class="info-item-1"> Python 3.x 系列 自 2008 年首次发布以来，一直在持续发展和完善。每个小版本（如 3.6, 3.7, 3.8 等）都会引入一系列新的语言特性、标准库改进、性能优化以及重要的 bug 修复。理解这些新特性对于 Python 开发者来说至关重要，它能帮助我们编写更高效、更简洁、更现代的代码。  核心思想： Python 3 的版本迭代聚焦于提升开发效率、代码可读性、执行性能以及引入现代编程范式，同时保持语言的易用性。   一、Python 3.0 - 3.3：从 2.x 到 3.x 的演变Python 3.0 是一个里程碑式的版本，它引入了许多不兼容的改变，旨在解决 Python 2.x 的设计缺陷并为未来发展铺平道路。 1.1 Python 3.0 (2008-12-03) 字符串和字节分离：str 类型现在是 Unicode 字符串，bytes 类型是原始字节序列。这是最重要的改变，解决了 Python 2.x 中 Unicode 处理的混乱。 print 成为函数：print 语句被 print() 函数取代。 Python 2.x: print &quot;H...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">319</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">200</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">70</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-PyInstaller%EF%BC%9F"><span class="toc-text">一、为什么需要 PyInstaller？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81PyInstaller-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">二、PyInstaller 的工作原理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AE%89%E8%A3%85-PyInstaller"><span class="toc-text">三、安装 PyInstaller</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81PyInstaller-%E6%8C%87%E4%BB%A4%E8%AF%A6%E8%A7%A3"><span class="toc-text">四、PyInstaller 指令详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95"><span class="toc-text">4.1 基本用法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%A0%B8%E5%BF%83%E6%89%93%E5%8C%85%E6%A8%A1%E5%BC%8F"><span class="toc-text">4.2 核心打包模式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%8E%A7%E5%88%B6%E5%8F%B0%E8%BE%93%E5%87%BA"><span class="toc-text">4.3 控制台输出</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%9B%BE%E6%A0%87%E8%AE%BE%E7%BD%AE"><span class="toc-text">4.4 图标设置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E6%96%87%E4%BB%B6-%E7%9B%AE%E5%BD%95%E7%AE%A1%E7%90%86"><span class="toc-text">4.5 文件&#x2F;目录管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E8%BE%85%E5%8A%A9%E9%80%89%E9%A1%B9"><span class="toc-text">4.6 辅助选项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-7-Spec-%E6%96%87%E4%BB%B6%E7%9B%B8%E5%85%B3%E9%80%89%E9%A1%B9"><span class="toc-text">4.7 Spec 文件相关选项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-8-%E5%8E%8B%E7%BC%A9%E9%80%89%E9%A1%B9"><span class="toc-text">4.8 压缩选项</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%AE%9E%E8%B7%B5%E7%A4%BA%E4%BE%8B"><span class="toc-text">五、实践示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%AE%80%E5%8D%95%E5%91%BD%E4%BB%A4%E8%A1%8C%E8%84%9A%E6%9C%AC%E6%89%93%E5%8C%85"><span class="toc-text">5.1 简单命令行脚本打包</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%B8%A6%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6%E7%9A%84%E5%BA%94%E7%94%A8%E6%89%93%E5%8C%85"><span class="toc-text">5.2 带数据文件的应用打包</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%89%93%E5%8C%85%E4%B8%80%E4%B8%AA-Tkinter-GUI-%E5%BA%94%E7%94%A8"><span class="toc-text">5.3 打包一个 Tkinter GUI 应用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81spec-%E6%96%87%E4%BB%B6%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E9%AB%98%E7%BA%A7%E9%85%8D%E7%BD%AE"><span class="toc-text">六、spec 文件的使用与高级配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E7%94%9F%E6%88%90-spec-%E6%96%87%E4%BB%B6"><span class="toc-text">6.1 生成 spec 文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-spec-%E6%96%87%E4%BB%B6%E7%BB%93%E6%9E%84%E7%A4%BA%E4%BE%8B"><span class="toc-text">6.2 spec 文件结构示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E5%B8%B8%E7%94%A8-spec-%E6%96%87%E4%BB%B6%E4%BF%AE%E6%94%B9%E7%82%B9"><span class="toc-text">6.3 常用 spec 文件修改点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9%E4%B8%8E%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98"><span class="toc-text">七、注意事项与常见问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="PyInstaller 深度解析与指令详解"/></a><div class="content"><a class="title" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解">PyInstaller 深度解析与指令详解</a><time datetime="2025-11-24T22:24:00.000Z" title="发表于 2025-11-25 06:24:00">2025-11-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go 语言 GC (Garbage Collection) 机制详解"/></a><div class="content"><a class="title" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解">Go 语言 GC (Garbage Collection) 机制详解</a><time datetime="2025-11-23T22:24:00.000Z" title="发表于 2025-11-24 06:24:00">2025-11-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-12.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
