@@ -1,0 +1,656 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>多轮对话与上下文记忆详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在构建基于大型语言模型 (LLM) 的交互式应用时，仅仅能够进行单次问答是远远不够的。为了实现自然、流畅且富有意义的交流，我们需要让 LLM 能够进行多轮对话，并且记住并理解对话的先前内容，即拥有上下文记忆 (Context Memory)。这使得 LLM 能够在理解历史信息的基础上对新问题做出连贯且相关的响应。  核心思想：多轮对话要求 LLM “记住”之前的交流内容，并通过各种 “记忆策略”">
+<meta property="og:type" content="article">
+<meta property="og:title" content="多轮对话与上下文记忆详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/58479316819e/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在构建基于大型语言模型 (LLM) 的交互式应用时，仅仅能够进行单次问答是远远不够的。为了实现自然、流畅且富有意义的交流，我们需要让 LLM 能够进行多轮对话，并且记住并理解对话的先前内容，即拥有上下文记忆 (Context Memory)。这使得 LLM 能够在理解历史信息的基础上对新问题做出连贯且相关的响应。  核心思想：多轮对话要求 LLM “记住”之前的交流内容，并通过各种 “记忆策略”">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-19.jpg">
+<meta property="article:published_time" content="2025-04-26T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-26T10:09:56.803Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-19.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "多轮对话与上下文记忆详解",
+  "url": "https://blog.tbf1211.xx.kg/58479316819e/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-19.jpg",
+  "datePublished": "2025-04-26T22:24:00.000Z",
+  "dateModified": "2025-11-26T10:09:56.803Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/58479316819e/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '多轮对话与上下文记忆详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">325</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">201</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">71</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-19.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">多轮对话与上下文记忆详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">多轮对话与上下文记忆详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-04-26T22:24:00.000Z" title="发表于 2025-04-27 06:24:00">2025-04-27</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/">AI</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/LLM/">LLM</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/58479316819e/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在构建基于大型语言模型 (LLM) 的交互式应用时，仅仅能够进行单次问答是远远不够的。为了实现自然、流畅且富有意义的交流，我们需要让 LLM 能够进行<strong>多轮对话</strong>，并且<strong>记住并理解</strong>对话的先前内容，即拥有<strong>上下文记忆 (Context Memory)</strong>。这使得 LLM 能够在理解历史信息的基础上对新问题做出连贯且相关的响应。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>多轮对话要求 LLM “记住”之前的交流内容，并通过各种 “记忆策略” (例如拼接、总结、检索) 来将相关上下文传递给每次新的模型调用，从而实现连贯且智能的交互。</strong></p>
+</div>
+
+<hr>
+<h2 id="一、什么是多轮对话-Multi-turn-Conversation"><a href="#一、什么是多轮对话-Multi-turn-Conversation" class="headerlink" title="一、什么是多轮对话 (Multi-turn Conversation)"></a>一、什么是多轮对话 (Multi-turn Conversation)</h2><p><strong>多轮对话</strong> 指的是用户与 AI 之间的一系列相互关联、彼此依赖的交流轮次。与单轮对话（一次提问，一次回答，对话结束）不同，多轮对话中的每一次交互都会受到先前对话内容的影响，并且会为后续对话提供新的上下文。</p>
+<p><strong>特点</strong>：</p>
+<ul>
+<li><strong>连续性</strong>：多个请求和响应构成一个逻辑流，而非孤立的事件。</li>
+<li><strong>上下文依赖</strong>：用户后续的提问或指令常常省略先前已经提及的信息，需要 AI 自动关联。</li>
+<li><strong>共同状态维护</strong>：用户和 AI 在对话过程中逐渐建立起对某个主题或任务的共同理解。</li>
+</ul>
+<p><strong>为什么需要多轮对话？</strong></p>
+<ol>
+<li><strong>自然的用户体验</strong>：模仿人类交流方式，用户无需反复重申背景信息。</li>
+<li><strong>复杂任务解决</strong>：许多复杂任务（如预订、规划、调试）需要逐步明确需求、收集信息，单轮对话难以完成。</li>
+<li><strong>增量式信息输入</strong>：用户可能分多次提供信息，或逐步修正想法。</li>
+</ol>
+<h2 id="二、什么是上下文记忆-Context-Memory"><a href="#二、什么是上下文记忆-Context-Memory" class="headerlink" title="二、什么是上下文记忆 (Context Memory)"></a>二、什么是上下文记忆 (Context Memory)</h2><p><strong>上下文记忆</strong> 是指 LLM 在多轮对话过程中，能够记住并利用先前对话内容的能力。它确保了模型在每次响应时都能考虑到整个对话历史，从而保持对话的连贯性、相关性和准确性。</p>
+<p><strong>为什么上下文记忆至关重要？</strong></p>
+<ul>
+<li><strong>保持连贯性</strong>：防止模型在对话中“忘记”之前说过的话，避免矛盾或重复信息。</li>
+<li><strong>理解指代</strong>：允许用户使用代词（如“它”、“那个”）或省略主语，模型能够正确理解其指代的先前实体。</li>
+<li><strong>避免重复信息</strong>：用户无需在每次提问时都提供完整的背景信息。</li>
+<li><strong>处理复杂任务</strong>：只有记住任务的当前状态和已完成的步骤，才能逐步引导用户完成任务。</li>
+</ul>
+<p><strong>上下文记忆的挑战</strong>：</p>
+<ol>
+<li><strong>Token 窗口限制</strong>：大多数 LLM 都有最大输入 Token 限制。随着对话的进行，历史信息会积累，很容易超出限制。</li>
+<li><strong>相关性过滤</strong>：并非所有历史信息都对当前回复有用，如何有效筛选相关信息是关键。</li>
+<li><strong>信息密度</strong>：随着对话变长，原始对话记录可能变得冗长且低效。</li>
+<li><strong>计算成本</strong>：输入越长，推理成本和延时越高。</li>
+</ol>
+<h2 id="三、上下文记忆的实现策略"><a href="#三、上下文记忆的实现策略" class="headerlink" title="三、上下文记忆的实现策略"></a>三、上下文记忆的实现策略</h2><p>由于 LLM 本身是无状态的，它不会自动“记住”之前的对话。因此，实现上下文记忆需要应用程序在每次调用 LLM 时，策略性地将相关历史信息包含在新的 Prompt 中。</p>
+<h3 id="3-1-短时记忆-Short-term-Memory"><a href="#3-1-短时记忆-Short-term-Memory" class="headerlink" title="3.1 短时记忆 (Short-term Memory)"></a>3.1 短时记忆 (Short-term Memory)</h3><p>短时记忆主要关注如何将最近的对话历史直接传递给 LLM。</p>
+<h4 id="3-1-1-拼接历史-Concatenation-Stacking"><a href="#3-1-1-拼接历史-Concatenation-Stacking" class="headerlink" title="3.1.1 拼接历史 (Concatenation &#x2F; Stacking)"></a>3.1.1 拼接历史 (Concatenation &#x2F; Stacking)</h4><p>这是最直接也最常用的方法，将所有或最近的 N 条对话消息直接作为新的 Prompt 一部分输入给 LLM。</p>
+<ul>
+<li><strong>工作原理</strong>：将用户和 AI 之间的每一轮对话（<code>HumanMessage</code> 和 <code>AIMessage</code>）按时间顺序连接起来，形成一个更长的字符串或消息列表，然后与当前的用户输入一起发送给模型。</li>
+<li><strong>优点</strong>：<ul>
+<li><strong>简单易实现</strong>：无需复杂的逻辑。</li>
+<li><strong>保留完整语义</strong>：原始对话内容完整地传递给模型。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>Token 限制严重</strong>：对话一长就容易超出 LLM 的输入 Token 限制。</li>
+<li><strong>效率低</strong>：模型每次都需要处理冗余信息，增加推理时间和成本。</li>
+</ul>
+</li>
+<li><strong>适用模型</strong>：非对话模型（需要应用层手动拼接成一个大字符串）和对话模型（通过消息列表形式）。</li>
+</ul>
+<p><strong>示例 (逻辑示意)</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># 初始对话</span><br><span class="line">Prompt = &quot;Human: 你好！\nAI: 你好！有什么可以帮助你的吗？&quot;</span><br><span class="line"></span><br><span class="line"># 第二轮</span><br><span class="line">current_user_input = &quot;请问法国大革命是哪一年发生的？&quot;</span><br><span class="line">new_prompt = Prompt + &quot;\nHuman: &quot; + current_user_input + &quot;\nAI:&quot;</span><br><span class="line"># 发送 new_prompt 给 LLM</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-1-2-消息列表-Message-List"><a href="#3-1-2-消息列表-Message-List" class="headerlink" title="3.1.2 消息列表 (Message List)"></a>3.1.2 消息列表 (Message List)</h4><p>专为对话模型设计，通过 <code>SystemMessage</code>, <code>HumanMessage</code>, <code>AIMessage</code> 等对象组成的列表来传递上下文。这是 LangChain 等框架推荐的方式。</p>
+<ul>
+<li><strong>工作原理</strong>：将每轮对话包装成特定类型的消息对象，并按照对话顺序存储在列表中。每次调用时，将整个消息列表发送给对话模型。</li>
+<li><strong>优点</strong>：<ul>
+<li><strong>模型原生支持</strong>：对话模型（如 GPT-3.5-turbo, GPT-4）在训练时就优化了这种输入格式，能更好地理解角色和上下文。</li>
+<li><strong>结构清晰</strong>：消息类型有助于模型区分不同角色的发言。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li>仍受 Token 限制，但通过模型优化，通常比字符串拼接更有效率。</li>
+</ul>
+</li>
+<li><strong>适用模型</strong>：对话模型 (Chat Models)。</li>
+</ul>
+<h3 id="3-2-长时记忆-Long-term-Memory"><a href="#3-2-长时记忆-Long-term-Memory" class="headerlink" title="3.2 长时记忆 (Long-term Memory)"></a>3.2 长时记忆 (Long-term Memory)</h3><p>当对话变得非常长，超出了短时记忆（拼接历史 &#x2F; 消息列表）的 Token 限制时，我们需要更复杂的策略来总结、过滤或检索相关信息。</p>
+<h4 id="3-2-1-总结-Summarization"><a href="#3-2-1-总结-Summarization" class="headerlink" title="3.2.1 总结 (Summarization)"></a>3.2.1 总结 (Summarization)</h4><p>不把所有原始对话内容都传递给模型，而是定期或按需对对话历史进行总结，将摘要作为上下文传递。</p>
+<ul>
+<li><strong>工作原理</strong>：当对话历史达到一定长度时，调用 LLM 对过往对话进行总结，生成一个简洁的摘要。后续Prompt中，用这个摘要替代大部分原始历史。</li>
+<li><strong>优点</strong>：<ul>
+<li><strong>显著节省 Token</strong>：将大量信息压缩成少量 Token。</li>
+<li><strong>保留核心信息</strong>：摘要捕捉对话的关键主题和结论。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>信息损失</strong>：总结不可避免地会丢失一些细节。</li>
+<li><strong>总结质量影响</strong>：如果LLM总结得不好，会影响后续对话质量。</li>
+<li><strong>额外的LLM调用</strong>：总结本身也需要调用LLM，增加了成本和延时。</li>
+</ul>
+</li>
+<li><strong>实现方式示例</strong>：LangChain 中的 <code>ConversationSummaryMemory</code>。</li>
+</ul>
+<h4 id="3-2-2-基于向量数据库的检索-Retrieval-Augmented-Generation-RAG"><a href="#3-2-2-基于向量数据库的检索-Retrieval-Augmented-Generation-RAG" class="headerlink" title="3.2.2 基于向量数据库的检索 (Retrieval-Augmented Generation - RAG)"></a>3.2.2 基于向量数据库的检索 (Retrieval-Augmented Generation - RAG)</h4><p>将对话历史（或外部知识库）嵌入成向量并存储在向量数据库中。当需要上下文时，通过当前用户查询的语义相似性从数据库中检索最相关的历史片段。</p>
+<ul>
+<li><strong>工作原理</strong>：<ol>
+<li>将每一轮对话或重要的外部文档片段嵌入成向量并存储在向量数据库中。</li>
+<li>当用户提出新问题时，将该问题也嵌入成向量。</li>
+<li>在向量数据库中检索与用户问题最相似的 K 段历史对话或知识。</li>
+<li>将检索到的相关片段和当前用户问题一起作为 Prompt 发送给 LLM。</li>
+</ol>
+</li>
+<li><strong>优点</strong>：<ul>
+<li><strong>突破 Token 限制</strong>：可以无限扩展记忆容量，只检索最相关的部分。</li>
+<li><strong>结合外部知识</strong>：不仅限于对话历史，还可以引入企业文档、知识库等。</li>
+<li><strong>提高准确性</strong>：为模型提供更精确、更具体的上下文。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>复杂性增加</strong>：需要额外的组件（嵌入模型、向量数据库）。</li>
+<li><strong>检索质量影响</strong>：如果检索到的信息不相关或不准确，会影响 LLM 响应。</li>
+<li><strong>实时性问题</strong>：检索过程会增加延时。</li>
+</ul>
+</li>
+<li><strong>实现方式示例</strong>：LangChain 的 RAG 模式，结合 <code>VectorStoreRetriever</code>。</li>
+</ul>
+<h4 id="3-2-3-基于图数据库的记忆-Graph-based-Memory"><a href="#3-2-3-基于图数据库的记忆-Graph-based-Memory" class="headerlink" title="3.2.3 基于图数据库的记忆 (Graph-based Memory)"></a>3.2.3 基于图数据库的记忆 (Graph-based Memory)</h4><p>将对话中提取的实体、概念及其关系存储在图数据库中。模型可以通过对图的遍历来构建更高级的上下文理解。</p>
+<ul>
+<li><strong>工作原理</strong>：从对话中识别实体（人、地点、事物）和它们之间的关系，存储在图数据库中。当需要上下文时，根据当前对话焦点，查询图数据库以提取相关的事实和关系。</li>
+<li><strong>优点</strong>：<ul>
+<li><strong>结构化知识</strong>：提供深层次的语义理解和推理能力。</li>
+<li><strong>避免 Token 爆炸</strong>：不需要存储原始文本，只存储抽象的知识表示。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>实现难度高</strong>：需要强大的实体识别和关系提取能力。</li>
+<li><strong>维护成本</strong>：图数据的更新和管理复杂。</li>
+</ul>
+</li>
+<li><strong>适用场景</strong>：需要复杂逻辑推理、知识关联的Agent或高级对话系统。</li>
+</ul>
+<h2 id="四、LangChain-中的记忆-Memory-模块"><a href="#四、LangChain-中的记忆-Memory-模块" class="headerlink" title="四、LangChain 中的记忆 (Memory) 模块"></a>四、LangChain 中的记忆 (Memory) 模块</h2><p>LangChain 提供了一套强大的 <code>Memory</code> 模块来简化上下文记忆的实现。这些模块封装了不同的记忆策略，并能方便地与 LLM 和 Chain 集成。</p>
+<p>所有 LangChain 的 <code>Memory</code> 类都继承自 <code>BaseMemory</code>。</p>
+<h3 id="4-1-常见的-LangChain-记忆类型"><a href="#4-1-常见的-LangChain-记忆类型" class="headerlink" title="4.1 常见的 LangChain 记忆类型"></a>4.1 常见的 LangChain 记忆类型</h3><ol>
+<li><p><strong><code>ChatMessageHistory</code></strong>: 最基本的记忆类，只存储原始的 <code>BaseMessage</code> 列表。</p>
+</li>
+<li><p><strong><code>ConversationBufferMemory</code></strong>: 将所有对话历史作为字符串存储在内存中。最简单，但受 Token 限制。</p>
+<ul>
+<li><strong>工作方式</strong>：将 <code>input_key</code> 和 <code>output_key</code> 对应的消息拼接成一个字符串。</li>
+<li><strong>示例</strong> (Python):<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain.memory <span class="keyword">import</span> ConversationBufferMemory</span><br><span class="line"><span class="keyword">from</span> langchain_openai <span class="keyword">import</span> ChatOpenAI</span><br><span class="line"><span class="keyword">from</span> langchain.chains <span class="keyword">import</span> ConversationChain</span><br><span class="line"></span><br><span class="line">llm = ChatOpenAI(temperature=<span class="number">0.7</span>)</span><br><span class="line">memory = ConversationBufferMemory() <span class="comment"># 默认为空</span></span><br><span class="line"></span><br><span class="line">conversation = ConversationChain(</span><br><span class="line">    llm=llm,</span><br><span class="line">    memory=memory,</span><br><span class="line">    verbose=<span class="literal">False</span> <span class="comment"># 设置为 True 可以看到完整的 Prompt</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(conversation.invoke(<span class="string">&quot;我的名字是 Alice。&quot;</span>)[<span class="string">&#x27;response&#x27;</span>])</span><br><span class="line"><span class="built_in">print</span>(conversation.invoke(<span class="string">&quot;你在和谁说话？&quot;</span>)[<span class="string">&#x27;response&#x27;</span>])</span><br><span class="line"><span class="built_in">print</span>(conversation.memory.buffer) <span class="comment"># 查看记忆中存储的内容</span></span><br></pre></td></tr></table></figure>
+输出示例：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">很高兴认识你，Alice！有什么我可以帮助你的吗？</span><br><span class="line">我在和 Alice 说话，你就是 Alice 对吧？很高兴能和你交流！</span><br><span class="line">Human: 我的名字是 Alice。</span><br><span class="line">AI: 很高兴认识你，Alice！有什么我可以帮助你的吗？</span><br><span class="line">Human: 你在和谁说话？</span><br><span class="line">AI: 我在和 Alice 说话，你就是 Alice 对吧？很高兴能和你交流！</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p><strong><code>ConversationBufferWindowMemory</code></strong>: 存储最近 K 轮对话，当对话超过 K 轮时，移除最旧的对话。</p>
+<ul>
+<li><strong>工作方式</strong>：用一个滑动窗口来限制记忆大小，只保留最近的 N 轮对话。</li>
+<li><strong>示例</strong> (Python):<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain.memory <span class="keyword">import</span> ConversationBufferWindowMemory</span><br><span class="line"><span class="comment"># ... (同上导入 ChatOpenAI, ConversationChain)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 记住最近 2 轮对话</span></span><br><span class="line">memory = ConversationBufferWindowMemory(k=<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">conversation = ConversationChain(llm=llm, memory=memory)</span><br><span class="line">_ = conversation.invoke(<span class="string">&quot;我的名字是 Alice。&quot;</span>)</span><br><span class="line">_ = conversation.invoke(<span class="string">&quot;我的爱好是阅读。&quot;</span>)</span><br><span class="line">_ = conversation.invoke(<span class="string">&quot;我现在在问你什么？&quot;</span>) <span class="comment"># 这里的回答会基于最后2轮对话</span></span><br><span class="line"><span class="built_in">print</span>(conversation.memory.buffer) <span class="comment"># 查看记忆中存储的内容，会发现第一轮被移除了</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p><strong><code>ConversationSummaryMemory</code></strong>: 总结对话历史，将摘要存储在内存中。当对话达到一定长度时，旧的原始对话会被摘要替换。</p>
+<ul>
+<li><strong>工作方式</strong>：通过另一个 LLM 对对话历史进行总结，用总结文本作为记忆。</li>
+<li><strong>优点</strong>：有效应对 Token 限制，适用于长对话。</li>
+<li><strong>缺点</strong>：总结过程需额外 LLM 调用。</li>
+</ul>
+</li>
+<li><p><strong><code>ConversationSummaryBufferMemory</code></strong>: <code>ConversationBufferWindowMemory</code> 和 <code>ConversationSummaryMemory</code> 的结合。在 Token 限制内保留原始对话，超过限制则自动生成摘要。</p>
+<ul>
+<li><strong>工作方式</strong>：在达到某个 Token 阈值之前，行为与 <code>ConversationBufferMemory</code> 类似。一旦超过阈值，它就会调用另一个 LLM 来总结较旧的对话，并用摘要替换它们，只保留最近的原始对话块。</li>
+</ul>
+</li>
+<li><p><strong><code>ConversationTokenBufferMemory</code></strong>: 类似于 <code>ConversationBufferWindowMemory</code>，但它是基于 Token 数量而不是对话轮次来限制记忆大小。</p>
+<ul>
+<li><strong>优点</strong>：更精确地控制记忆大小，避免超出 LLM Token 限制。</li>
+</ul>
+</li>
+<li><p><strong><code>ConversationKnnMemory</code></strong>: 基于语义相似性检索记忆。存储的记忆会通过 K-近邻算法与当前输入进行匹配，并返回最相关的 K 条记忆。</p>
+</li>
+</ol>
+<h3 id="4-2-将记忆集成到-Chain-中"><a href="#4-2-将记忆集成到-Chain-中" class="headerlink" title="4.2 将记忆集成到 Chain 中"></a>4.2 将记忆集成到 Chain 中</h3><p>在 LangChain 中，通过在 <code>Chain</code> 初始化时传入 <code>memory</code> 参数，可以将这些记忆模块轻松集成到对话流中。例如 <code>ConversationChain</code>、<code>RunnableWithMessageHistory</code>。</p>
+<p><strong>示例：使用 <code>RunnableWithMessageHistory</code> 实现存储在会话 ID 中的记忆</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">from</span> langchain_openai <span class="keyword">import</span> ChatOpenAI</span><br><span class="line"><span class="keyword">from</span> langchain_core.prompts <span class="keyword">import</span> ChatPromptTemplate, MessagesPlaceholder</span><br><span class="line"><span class="keyword">from</span> langchain_core.runnables.history <span class="keyword">import</span> RunnableWithMessageHistory</span><br><span class="line"><span class="keyword">from</span> langchain_community.chat_message_histories <span class="keyword">import</span> ChatMessageHistory</span><br><span class="line"><span class="keyword">from</span> langchain_core.messages <span class="keyword">import</span> AIMessage, HumanMessage</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置 LLM</span></span><br><span class="line">llm = ChatOpenAI(model_name=<span class="string">&quot;gpt-3.5-turbo&quot;</span>, temperature=<span class="number">0.7</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建一个 Prompt Template，包含一个 MessagesPlaceholder 用于插入历史消息</span></span><br><span class="line">prompt = ChatPromptTemplate.from_messages(</span><br><span class="line">    [</span><br><span class="line">        (<span class="string">&quot;system&quot;</span>, <span class="string">&quot;你是一个友好的助手。在每次对话中，请记住我的名字。&quot;</span>),</span><br><span class="line">        MessagesPlaceholder(variable_name=<span class="string">&quot;history&quot;</span>), <span class="comment"># Placeholder for the chat history</span></span><br><span class="line">        (<span class="string">&quot;human&quot;</span>, <span class="string">&quot;&#123;input&#125;&quot;</span>),</span><br><span class="line">    ]</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用 RunnableWithMessageHistory 构建链</span></span><br><span class="line"><span class="comment"># get_session_history 定义了如何为每个会话 ID 获取或创建消息历史</span></span><br><span class="line"><span class="comment"># 这里使用简单的字典模拟数据库存储</span></span><br><span class="line">store = &#123;&#125;</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_session_history</span>(<span class="params">session_id: <span class="built_in">str</span></span>) -&gt; ChatMessageHistory:</span><br><span class="line">    <span class="keyword">if</span> session_id <span class="keyword">not</span> <span class="keyword">in</span> store:</span><br><span class="line">        store[session_id] = ChatMessageHistory()</span><br><span class="line">    <span class="keyword">return</span> store[session_id]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建一个带记忆的 Runnable 对象</span></span><br><span class="line">with_message_history = RunnableWithMessageHistory(</span><br><span class="line">    prompt | llm, <span class="comment"># LCEL 链: Prompt -&gt; LLM</span></span><br><span class="line">    get_session_history_for_session=get_session_history,</span><br><span class="line">    input_messages_key=<span class="string">&quot;input&quot;</span>, <span class="comment"># 用户输入的键</span></span><br><span class="line">    history_messages_key=<span class="string">&quot;history&quot;</span>, <span class="comment"># 历史消息的键</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 模拟与不同用户进行对话</span></span><br><span class="line"><span class="comment"># 用户 A</span></span><br><span class="line">config_user_a = &#123;<span class="string">&quot;configurable&quot;</span>: &#123;<span class="string">&quot;session_id&quot;</span>: <span class="string">&quot;user_a&quot;</span>&#125;&#125;</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;--- 用户 A 的对话 ---&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(with_message_history.invoke(&#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;我的名字是 Bob。&quot;</span>&#125;, config=config_user_a).content)</span><br><span class="line"><span class="built_in">print</span>(with_message_history.invoke(&#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;你在和谁说话？&quot;</span>&#125;, config=config_user_a).content)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 用户 B</span></span><br><span class="line">config_user_b = &#123;<span class="string">&quot;configurable&quot;</span>: &#123;<span class="string">&quot;session_id&quot;</span>: <span class="string">&quot;user_b&quot;</span>&#125;&#125;</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- 用户 B 的对话 ---&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(with_message_history.invoke(&#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;我的名字是 Eva。&quot;</span>&#125;, config=config_user_b).content)</span><br><span class="line"><span class="built_in">print</span>(with_message_history.invoke(&#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;你在和谁说话？&quot;</span>&#125;, config=config_user_b).content)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 再次与用户 A 对话，之前的信息会被记住</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- 用户 A 再次对话 ---&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(with_message_history.invoke(&#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;我的名字是什么？&quot;</span>&#125;, config=config_user_a).content)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看存储</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- 存储内容 ---&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(store)</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、挑战与考量"><a href="#五、挑战与考量" class="headerlink" title="五、挑战与考量"></a>五、挑战与考量</h2><ol>
+<li><strong>Token 爆炸</strong>：这是最核心的挑战。即使通过总结和检索，也总有达到 Token 限制的可能。智能的记忆管理策略是关键。</li>
+<li><strong>遗忘机制</strong>：何时以及如何“遗忘”不相关或过时的信息？如何平衡记忆的广度与深度？</li>
+<li><strong>信息幻觉</strong>：LLM 有时会在总结或响应中出现“幻觉”，凭空捏造信息。记忆管理不当可能加剧此问题。</li>
+<li><strong>隐私与安全</strong>：对话历史可能包含敏感信息。如何在记住对话的同时保护用户隐私是一个重要考量。需要对记忆进行脱敏或加密。</li>
+<li><strong>实时性与成本</strong>：更复杂的记忆策略（如总结、检索）需要额外的计算资源和时间，可能影响应用的实时响应速度和运行成本。</li>
+<li><strong>检索质量</strong>：对于基于检索的记忆，嵌入模型和检索算法的质量直接影响记忆的有效性。</li>
+</ol>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>多轮对话和上下文记忆是构建智能、交互式 LLM 应用的基石。理解 LLM 是无状态的这一本质，并通过策略性地管理和传递上下文，是让 AI 能够理解“记忆”并进行连贯交流的关键。从简单的拼接历史到复杂的总结和检索机制，每种策略都有其优缺点和适用场景。LangChain 等框架提供的 <code>Memory</code> 模块极大地简化了这些复杂性的处理，使得开发者能够更专注于构建功能丰富、用户体验友好的 LLM 应用程序。在实际开发中，往往需要根据具体应用需求权衡 Token 效率、信息保持、实时性和成本，选择最合适的记忆策略。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/58479316819e/">https://blog.tbf1211.xx.kg/58479316819e/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/AI/">AI</a><a class="post-meta__tags" href="/tags/LLM/">LLM</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-19.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/84d87a2eca4d/" title="Caddy Web Server详解：现代Web服务器的优雅选择"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Caddy Web Server详解：现代Web服务器的优雅选择</div></div><div class="info-2"><div class="info-item-1"> Caddy 是一款用 Go 语言编写的开源 Web 服务器，以其自动 HTTPS 功能、简洁的配置以及强大的功能而闻名。它被设计成现代 Web 的瑞士军刀，能够胜任静态文件服务、反向代理、负载均衡、API 网关等多种任务，并且在安全性和易用性方面表现出色。  “Caddy 是未来 Web 服务器的样子：默认安全、易于管理、功能强大，并且能够自动处理 HTTPS 证书的申请和续期，让你的网站在几秒钟内上线并享受加密连接。”   一、Caddy 简介1.1 什么是 Caddy？Caddy 是一个高性能、可扩展的 Web 服务器，其核心特性包括：  自动 HTTPS：这是 Caddy 最吸引人的特性之一。对于绝大多数公共可访问的域名，Caddy 可以自动从 Let’s Encrypt 申请、配置和续期 SSL&#x2F;TLS 证书，无需手动干预。 配置简洁：Caddyfile 配置文件语法非常直观易懂，相比 Nginx 和 Apache 更加简洁。 HTTP&#x2F;2 和 HTTP&#x2F;3 支持：Caddy 默认启用 HTTP&#x2F;2，并且是首批支持 QUIC (H...</div></div></div></a><a class="pagination-related" href="/9a400d225757/" title="对话模型与非对话模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">对话模型与非对话模型详解</div></div><div class="info-2"><div class="info-item-1"> 在大型语言模型 (LLM) 的领域中，”对话模型” (Chat Models) 和 “非对话模型” (或称为 “文本模型” Text Models) 是两种基本但又有所区别的模型范式，它们在设计、训练数据、输入&#x2F;输出格式以及最佳应用场景上存在差异。理解这两种模型的区别是有效利用 LLM 进行开发的关键。  核心思想：对话模型优化用于多轮、上下文感知的交互，通过消息列表进行输入输出；非对话模型则擅长单次、直接的文本指令处理，通过字符串进行输入输出。    一、非对话模型 (Text Models &#x2F; LLMs)非对话模型是早期和传统的大型语言模型形式，它们通常设计为接收一个单一的字符串作为输入（通常称为 “prompt”），并生成一个单一的字符串作为输出。虽然这些模型也能在一定程度上处理对话，但通常需要通过在单次 Prompt 中手动构建对话历史来模拟。 1.1 特点 字符串输入&#x2F;输出：输入是一个字符串，输出也是一个字符串。 输入示例：&quot;把以下文本总结一下：[文本内容]&quot; 输出示例：&quot;这是一段总结后的文本。&quot; ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/21e140c78f80/" title="大型语言模型如何理解人类文字：从Token到语义表征"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-16</div><div class="info-item-2">大型语言模型如何理解人类文字：从Token到语义表征</div></div><div class="info-2"><div class="info-item-1"> 大型语言模型 (Large Language Models, LLMs) 在处理和生成人类语言方面展现出了前所未有的能力，这引发了一个核心问题：它们是如何“理解”人类文字的？这种理解并非传统意义上的认知或意识，而是通过对海量文本数据中统计模式和语义关联的深度学习，构建出高度复杂的语言表征。  核心思想：LLMs 将人类语言转化为高维数学向量，并通过 Transformer 架构中的注意力机制，捕捉词语、句子乃至篇章间的复杂关联，从而在统计层面模拟人类对语言的理解和生成。   一、基础构建模块：从文本到向量LLMs 的“理解”始于将人类可读的文字转化为机器可处理的数值形式。这一过程主要依赖于分词 (Tokenization) 和词嵌入 (Word Embeddings)。 1.1 分词 (Tokenization)分词是将连续的文本序列切分成有意义的最小单位——Token 的过程。Token 可以是一个词、一个子词 (subword) 甚至一个字符。  词级别分词 (Word-level Tokenization)：以空格或标点符号为界，将文本切分为词。简单直观，但词汇量庞大，且...</div></div></div></a><a class="pagination-related" href="/1bd89b02cd88/" title="大型语言模型中的Token详解：数据、处理与意义"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-20</div><div class="info-item-2">大型语言模型中的Token详解：数据、处理与意义</div></div><div class="info-2"><div class="info-item-1"> Token 是大型语言模型 (Large Language Models, LLMs) 处理文本的基本单位。它不是传统意义上的“词”，而是模型将人类可读的文字序列（如句子、段落）切分、编码并最终用于学习和生成文本的离散符号表示。理解 Token 的概念对于深入了解 LLMs 的工作原理、能力边界以及成本核算至关重要。  核心思想：LLMs 不直接处理原始文本，而是将其分解为一系列经过特殊编码的 Token。这些 Token 构成了模型输入和输出的最小单元，并直接影响模型的性能、效率和成本。   一、什么是 Token？在自然语言处理 (NLP) 领域，尤其是在 LLMs 中，Token 是指模型进行训练和推理时所使用的文本片段。它可能是：  一个完整的词 (Word)：例如 “cat”, “run”。 一个词的一部分 (Subword)：例如 “un”, “believe”, “able” 组合成 “unbelievable”。 一个标点符号 (Punctuation)：例如 “.”, “,”, “!”。 一个特殊符号或控制字符 (Special Token)：例如 [CLS]...</div></div></div></a><a class="pagination-related" href="/33aeea5bfccf/" title="大语言模型参数详解：规模、类型与意义"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-22</div><div class="info-item-2">大语言模型参数详解：规模、类型与意义</div></div><div class="info-2"><div class="info-item-1"> 参数 (Parameters) 是大型语言模型 (Large Language Models, LLMs) 的核心组成部分，它们是模型在训练过程中从海量数据中学习到的数值权重和偏置。这些参数共同构成了模型的“知识”和“理解”能力。参数的规模，尤其是数量，是衡量一个 LLM 大小的关键指标，并直接影响其性能、能力边界以及所需的计算资源。  核心思想：LLMs 的“智能”并非来自于明确的编程规则，而是通过在海量数据上优化数亿甚至数万亿个可学习参数而涌现。这些参数以分布式形式存储了语言的语法、语义、事实知识和世界常识。   一、什么是大语言模型参数？在神经网络的上下文中，参数是指模型在训练过程中需要学习和调整的所有权重 (weights) 和偏置 (biases)。它们是连接神经元之间强度的数值表示，决定了模型的输入如何被转换、处理并最终生成输出。  权重 (Weights)：定义了输入特征（或前一层神经元的输出）对当前神经元输出的贡献程度。一个较大的权重意味着该输入特征对结果有更强的影响。 偏置 (Biases)：是一种加性项，允许激活函数在不依赖任何输入的情况下被激活。它相当于调...</div></div></div></a><a class="pagination-related" href="/9a400d225757/" title="对话模型与非对话模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-26</div><div class="info-item-2">对话模型与非对话模型详解</div></div><div class="info-2"><div class="info-item-1"> 在大型语言模型 (LLM) 的领域中，”对话模型” (Chat Models) 和 “非对话模型” (或称为 “文本模型” Text Models) 是两种基本但又有所区别的模型范式，它们在设计、训练数据、输入&#x2F;输出格式以及最佳应用场景上存在差异。理解这两种模型的区别是有效利用 LLM 进行开发的关键。  核心思想：对话模型优化用于多轮、上下文感知的交互，通过消息列表进行输入输出；非对话模型则擅长单次、直接的文本指令处理，通过字符串进行输入输出。    一、非对话模型 (Text Models &#x2F; LLMs)非对话模型是早期和传统的大型语言模型形式，它们通常设计为接收一个单一的字符串作为输入（通常称为 “prompt”），并生成一个单一的字符串作为输出。虽然这些模型也能在一定程度上处理对话，但通常需要通过在单次 Prompt 中手动构建对话历史来模拟。 1.1 特点 字符串输入&#x2F;输出：输入是一个字符串，输出也是一个字符串。 输入示例：&quot;把以下文本总结一下：[文本内容]&quot; 输出示例：&quot;这是一段总结后的文本。&quot; ...</div></div></div></a><a class="pagination-related" href="/c1c3c8b5b003/" title="LangChain Model I&#x2F;O 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-13</div><div class="info-item-2">LangChain Model I&#x2F;O 详解</div></div><div class="info-2"><div class="info-item-1"> LangChain Model I&#x2F;O 是 LangChain 框架的核心组成部分之一，它提供了一套标准化的接口和工具，用于与各种大型语言模型 (LLMs) 和聊天模型 (Chat Models) 进行交互，并对其输入和输出进行有效的管理和结构化。这是构建任何基于 LLM 的应用程序的基础。  核心思想：将与 LLM 的“对话”分解为可管理、可组合的组件：输入 (Prompt Templates)、模型调用 (LLM&#x2F;Chat Models) 和输出处理 (Output Parsers)。   一、为什么 Model I&#x2F;O 至关重要？在没有 LangChain Model I&#x2F;O 的情况下，直接与 LLM 交互通常意味着：  手动拼接 Prompt: 需要手动构建复杂的字符串，其中包含指令、上下文、示例和用户输入。这既繁琐又容易出错。 硬编码模型调用: 每次更换模型或供应商时，都需要修改底层代码。 非结构化的输出: LLM 的原始输出通常是自由文本，需要编写复杂的字符串解析逻辑来提取所需信息。 缺乏可复用性: 不同应用场景下的 Prom...</div></div></div></a><a class="pagination-related" href="/3201b8057954/" title="LangChain 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-12</div><div class="info-item-2">LangChain 详解</div></div><div class="info-2"><div class="info-item-1"> LangChain 是一个开源框架，旨在帮助开发者使用大语言模型 (LLMs) 构建端到端的应用程序。它提供了一套工具、组件和接口，极大地简化了 LLMs 应用的开发流程，特别是对于那些需要多步骤推理、与外部数据源交互、具备记忆能力的复杂应用场景。LangChain 的核心理念是将 LLM 的能力与外部计算和数据源结合起来，使其不仅仅是一个文本生成器，而是一个能够执行复杂任务的智能代理。  核心思想：连接 LLM 与外部世界，赋能 LLM 解决更复杂、更实际的问题。   一、为什么需要 LangChain？大语言模型（如 GPT-3&#x2F;4, Claude, Llama 等）拥有强大的文本理解和生成能力，但它们本身存在一些局限性：  知识截止日期 (Knowledge Cut-off)：LLMs 的知识库停留在其训练数据的截止日期，无法获取最新信息。 幻觉 (Hallucination)：LLMs 可能会生成听起来合理但实际上错误或捏造的信息。 缺乏上下文记忆 (Lack of Contextual Memory)：LLMs 默认是无状态的，无法记住之前的对话或交互。 无...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">325</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">201</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">71</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF%E5%A4%9A%E8%BD%AE%E5%AF%B9%E8%AF%9D-Multi-turn-Conversation"><span class="toc-text">一、什么是多轮对话 (Multi-turn Conversation)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF%E4%B8%8A%E4%B8%8B%E6%96%87%E8%AE%B0%E5%BF%86-Context-Memory"><span class="toc-text">二、什么是上下文记忆 (Context Memory)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%B8%8A%E4%B8%8B%E6%96%87%E8%AE%B0%E5%BF%86%E7%9A%84%E5%AE%9E%E7%8E%B0%E7%AD%96%E7%95%A5"><span class="toc-text">三、上下文记忆的实现策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E7%9F%AD%E6%97%B6%E8%AE%B0%E5%BF%86-Short-term-Memory"><span class="toc-text">3.1 短时记忆 (Short-term Memory)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-%E6%8B%BC%E6%8E%A5%E5%8E%86%E5%8F%B2-Concatenation-Stacking"><span class="toc-text">3.1.1 拼接历史 (Concatenation &#x2F; Stacking)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-2-%E6%B6%88%E6%81%AF%E5%88%97%E8%A1%A8-Message-List"><span class="toc-text">3.1.2 消息列表 (Message List)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E9%95%BF%E6%97%B6%E8%AE%B0%E5%BF%86-Long-term-Memory"><span class="toc-text">3.2 长时记忆 (Long-term Memory)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-1-%E6%80%BB%E7%BB%93-Summarization"><span class="toc-text">3.2.1 总结 (Summarization)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-2-%E5%9F%BA%E4%BA%8E%E5%90%91%E9%87%8F%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E6%A3%80%E7%B4%A2-Retrieval-Augmented-Generation-RAG"><span class="toc-text">3.2.2 基于向量数据库的检索 (Retrieval-Augmented Generation - RAG)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-3-%E5%9F%BA%E4%BA%8E%E5%9B%BE%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E8%AE%B0%E5%BF%86-Graph-based-Memory"><span class="toc-text">3.2.3 基于图数据库的记忆 (Graph-based Memory)</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81LangChain-%E4%B8%AD%E7%9A%84%E8%AE%B0%E5%BF%86-Memory-%E6%A8%A1%E5%9D%97"><span class="toc-text">四、LangChain 中的记忆 (Memory) 模块</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%B8%B8%E8%A7%81%E7%9A%84-LangChain-%E8%AE%B0%E5%BF%86%E7%B1%BB%E5%9E%8B"><span class="toc-text">4.1 常见的 LangChain 记忆类型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%B0%86%E8%AE%B0%E5%BF%86%E9%9B%86%E6%88%90%E5%88%B0-Chain-%E4%B8%AD"><span class="toc-text">4.2 将记忆集成到 Chain 中</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%8C%91%E6%88%98%E4%B8%8E%E8%80%83%E9%87%8F"><span class="toc-text">五、挑战与考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="PyInstaller 深度解析与指令详解"/></a><div class="content"><a class="title" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解">PyInstaller 深度解析与指令详解</a><time datetime="2025-11-24T22:24:00.000Z" title="发表于 2025-11-25 06:24:00">2025-11-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go 语言 GC (Garbage Collection) 机制详解"/></a><div class="content"><a class="title" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解">Go 语言 GC (Garbage Collection) 机制详解</a><time datetime="2025-11-23T22:24:00.000Z" title="发表于 2025-11-24 06:24:00">2025-11-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 空结构体 (struct{}) 详解"/></a><div class="content"><a class="title" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解">Golang 空结构体 (struct{}) 详解</a><time datetime="2025-11-10T22:24:00.000Z" title="发表于 2025-11-11 06:24:00">2025-11-11</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-19.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
