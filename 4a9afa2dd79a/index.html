@@ -1,0 +1,684 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>深入理解同步/异步与阻塞/非阻塞 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在计算机科学和并发编程中，同步&#x2F;异步 (Synchronous&#x2F;Asynchronous) 和 阻塞&#x2F;非阻塞 (Blocking&#x2F;Non-blocking) 是描述程序执行流程和资源访问方式的两个核心概念。它们经常被一起讨论，但实际上是从不同的角度来描述系统行为的。理解这两对概念对于设计高性能、响应式的系统至关重要。  核心思想：  同步&#x2F;异步">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深入理解同步&#x2F;异步与阻塞&#x2F;非阻塞">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/4a9afa2dd79a/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在计算机科学和并发编程中，同步&#x2F;异步 (Synchronous&#x2F;Asynchronous) 和 阻塞&#x2F;非阻塞 (Blocking&#x2F;Non-blocking) 是描述程序执行流程和资源访问方式的两个核心概念。它们经常被一起讨论，但实际上是从不同的角度来描述系统行为的。理解这两对概念对于设计高性能、响应式的系统至关重要。  核心思想：  同步&#x2F;异步">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2023-10-18T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-11-28T10:09:01.184Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="异步编程">
+<meta property="article:tag" content="并发编程">
+<meta property="article:tag" content="编程技巧">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "深入理解同步/异步与阻塞/非阻塞",
+  "url": "https://blog.tbf1211.xx.kg/4a9afa2dd79a/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2023-10-18T22:24:00.000Z",
+  "dateModified": "2025-11-28T10:09:01.184Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/4a9afa2dd79a/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '深入理解同步/异步与阻塞/非阻塞',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">328</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">202</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">71</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">深入理解同步/异步与阻塞/非阻塞</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">深入理解同步/异步与阻塞/非阻塞</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-10-18T22:24:00.000Z" title="发表于 2023-10-19 06:24:00">2023-10-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%BC%96%E7%A8%8B%E6%8A%80%E5%B7%A7/">编程技巧</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.2k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/4a9afa2dd79a/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在计算机科学和并发编程中，<strong>同步&#x2F;异步</strong> (Synchronous&#x2F;Asynchronous) 和 <strong>阻塞&#x2F;非阻塞</strong> (Blocking&#x2F;Non-blocking) 是描述程序执行流程和资源访问方式的两个核心概念。它们经常被一起讨论，但实际上是从不同的角度来描述系统行为的。理解这两对概念对于设计高性能、响应式的系统至关重要。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：</p>
+<ul>
+<li><strong>同步&#x2F;异步</strong> 描述的是<strong>消息通知机制</strong>：调用者何时收到被调用者的结果。</li>
+<li><strong>阻塞&#x2F;非阻塞</strong> 描述的是<strong>调用者等待结果时的状态</strong>：调用者是否可以继续执行其他任务。</li>
+</ul>
+</div>
+
+<hr>
+<h2 id="一、同步-Synchronous-与-异步-Asynchronous"><a href="#一、同步-Synchronous-与-异步-Asynchronous" class="headerlink" title="一、同步 (Synchronous) 与 异步 (Asynchronous)"></a>一、同步 (Synchronous) 与 异步 (Asynchronous)</h2><p><strong>同步</strong> (Synchronous) 和 <strong>异步</strong> (Asynchronous) 关注的是<strong>一个任务的调用者 (Caller) 何时才能获得被调用者 (Callee) 的执行结果或通知。</strong></p>
+<h3 id="1-1-同步-Synchronous"><a href="#1-1-同步-Synchronous" class="headerlink" title="1.1 同步 (Synchronous)"></a>1.1 同步 (Synchronous)</h3><p>当一个任务是同步的时候，<strong>调用者在调用被调用者后，必须等待被调用者完成其全部工作并返回结果后，才能继续执行调用者自己的后续操作。</strong></p>
+<p><strong>特点：</strong></p>
+<ul>
+<li><strong>顺序执行</strong>：任务按照代码编写的顺序逐一执行。</li>
+<li><strong>简单直观</strong>：编程模型简单，逻辑易于理解。</li>
+<li><strong>效率低下</strong>：当被调用者进行耗时操作（如 I&#x2F;O、网络请求）时，调用者会被“挂起”，无法利用这段时间做其他事情，导致整体效率不高。</li>
+</ul>
+<p><strong>生活类比：</strong><br>你打电话给客服咨询问题。客服说“请稍等，我查一下”，然后你拿着电话一直在听等待，直到客服查完告诉你结果，你才能做其他事情。</p>
+<p><strong>编程示例 (Python)：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sync_task</span>(<span class="params">name</span>):</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Task <span class="subst">&#123;name&#125;</span>: 开始执行...&quot;</span>)</span><br><span class="line">    time.sleep(<span class="number">2</span>) <span class="comment"># 模拟耗时操作 (例如，文件读写、网络请求)</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Task <span class="subst">&#123;name&#125;</span>: 执行完毕。&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="string">f&quot;结果来自 <span class="subst">&#123;name&#125;</span>&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;主程序：调用 Task A&quot;</span>)</span><br><span class="line">result_a = sync_task(<span class="string">&quot;A&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;主程序：收到结果：<span class="subst">&#123;result_a&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;主程序：调用 Task B&quot;</span>)</span><br><span class="line">result_b = sync_task(<span class="string">&quot;B&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;主程序：收到结果：<span class="subst">&#123;result_b&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;主程序：所有任务完成&quot;</span>)</span><br><span class="line"><span class="comment"># Output:</span></span><br><span class="line"><span class="comment"># 主程序：调用 Task A</span></span><br><span class="line"><span class="comment"># Task A: 开始执行...</span></span><br><span class="line"><span class="comment"># Task A: 执行完毕。</span></span><br><span class="line"><span class="comment"># 主程序：收到结果：结果来自 A</span></span><br><span class="line"><span class="comment"># 主程序：调用 Task B</span></span><br><span class="line"><span class="comment"># Task B: 开始执行...</span></span><br><span class="line"><span class="comment"># Task B: 执行完毕。</span></span><br><span class="line"><span class="comment"># 主程序：收到结果：结果来自 B</span></span><br><span class="line"><span class="comment"># 主程序：所有任务完成</span></span><br><span class="line"><span class="comment"># 总耗时约 4 秒</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-异步-Asynchronous"><a href="#1-2-异步-Asynchronous" class="headerlink" title="1.2 异步 (Asynchronous)"></a>1.2 异步 (Asynchronous)</h3><p>当一个任务是异步的时候，<strong>调用者在调用被调用者后，不会立即等待被调用者返回结果。它会继续执行自己的后续操作，而被调用者在后台进行操作。当被调用者完成工作后，会通过某种机制（如回调函数、事件、Promise&#x2F;Future）通知调用者并传递结果。</strong></p>
+<p><strong>特点：</strong></p>
+<ul>
+<li><strong>并发执行</strong>：调用者可以在等待被调用者执行的同时，执行其他任务，提高了资源利用率和系统响应性。</li>
+<li><strong>编程模型复杂</strong>：需要处理回调、事件循环等机制，逻辑可能不如同步直观。</li>
+<li><strong>高效率</strong>：特别适合 I&#x2F;O 密集型操作，能够显著提升系统吞吐量。</li>
+</ul>
+<p><strong>生活类比：</strong><br>你给客服留言咨询问题。客服说“我们收到留言了，稍后会回复”，然后你挂了电话继续做自己的事情。客服查完后，通过短信或邮件通知你结果。</p>
+<p><strong>编程示例 (Python - 使用 <code>asyncio</code>)：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> asyncio</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">async_task</span>(<span class="params">name</span>):</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Async Task <span class="subst">&#123;name&#125;</span>: 开始执行...&quot;</span>)</span><br><span class="line">    <span class="keyword">await</span> asyncio.sleep(<span class="number">2</span>) <span class="comment"># 模拟耗时操作，非阻塞等待</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Async Task <span class="subst">&#123;name&#125;</span>: 执行完毕。&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="string">f&quot;结果来自 <span class="subst">&#123;name&#125;</span>&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">main</span>():</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;主程序：调用 Async Task A 和 B&quot;</span>)</span><br><span class="line">    <span class="comment"># concurrently_tasks = [async_task(&quot;A&quot;), async_task(&quot;B&quot;)]</span></span><br><span class="line">    <span class="comment"># results = await asyncio.gather(*concurrently_tasks) # 同时运行 A 和 B</span></span><br><span class="line"></span><br><span class="line">    task_a = asyncio.create_task(async_task(<span class="string">&quot;A&quot;</span>)) <span class="comment"># 创建任务，立即返回</span></span><br><span class="line">    task_b = asyncio.create_task(async_task(<span class="string">&quot;B&quot;</span>)) <span class="comment"># 创建任务，立即返回</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;主程序：我还在忙其他事情...&quot;</span>) <span class="comment"># 在等待的同时可以执行其他操作</span></span><br><span class="line"></span><br><span class="line">    result_a = <span class="keyword">await</span> task_a <span class="comment"># 等待 Task A 完成</span></span><br><span class="line">    result_b = <span class="keyword">await</span> task_b <span class="comment"># 等待 Task B 完成</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;主程序：收到结果：<span class="subst">&#123;result_a&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;主程序：收到结果：<span class="subst">&#123;result_b&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;主程序：所有任务完成&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    asyncio.run(main())</span><br><span class="line"><span class="comment"># Output (大致顺序，实际可能因调度而异):</span></span><br><span class="line"><span class="comment"># 主程序：调用 Async Task A 和 B</span></span><br><span class="line"><span class="comment"># Async Task A: 开始执行...</span></span><br><span class="line"><span class="comment"># Async Task B: 开始执行...</span></span><br><span class="line"><span class="comment"># 主程序：我还在忙其他事情...</span></span><br><span class="line"><span class="comment"># Async Task A: 执行完毕。</span></span><br><span class="line"><span class="comment"># Async Task B: 执行完毕。</span></span><br><span class="line"><span class="comment"># 主程序：收到结果：结果来自 A</span></span><br><span class="line"><span class="comment"># 主程序：收到结果：结果来自 B</span></span><br><span class="line"><span class="comment"># 主程序：所有任务完成</span></span><br><span class="line"><span class="comment"># 总耗时约 2 秒 (因为 A 和 B 并发执行)</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="二、阻塞-Blocking-与-非阻塞-Non-blocking"><a href="#二、阻塞-Blocking-与-非阻塞-Non-blocking" class="headerlink" title="二、阻塞 (Blocking) 与 非阻塞 (Non-blocking)"></a>二、阻塞 (Blocking) 与 非阻塞 (Non-blocking)</h2><p><strong>阻塞</strong> (Blocking) 和 <strong>非阻塞</strong> (Non-blocking) 关注的是<strong>调用者 (Caller) 在调用被调用者 (Callee) 时，其线程是否会被暂停 (挂起)，直到被调用者处理完成并返回。</strong></p>
+<h3 id="2-1-阻塞-Blocking"><a href="#2-1-阻塞-Blocking" class="headerlink" title="2.1 阻塞 (Blocking)"></a>2.1 阻塞 (Blocking)</h3><p>当一个操作是阻塞的时候，<strong>调用者在发出调用后，其执行线程会暂停，等待被调用者返回结果，期间不能做任何其他事情。</strong></p>
+<p><strong>特点：</strong></p>
+<ul>
+<li><strong>线程挂起</strong>：调用线程在操作完成前无法继续执行。</li>
+<li><strong>资源浪费</strong>：如果线程被长时间阻塞，它就无法服务其他请求，特别是在单线程或线程池大小有限的系统中，可能导致性能瓶颈。</li>
+<li><strong>编程模型简单</strong>：与同步类似，因为线程被挂起，所以可以像编写顺序代码一样处理。</li>
+</ul>
+<p><strong>生活类比：</strong><br>你把水壶放到炉子上烧水。你不能离开炉子，必须一直盯着水壶，直到水烧开，你才能拿起水壶做其他事情。</p>
+<p><strong>编程示例 (Python - 文件 I&#x2F;O)：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">read_blocking_file</span>(<span class="params">filename</span>):</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Blocking Read: 线程开始读取文件 &#x27;<span class="subst">&#123;filename&#125;</span>&#x27;...&quot;</span>)</span><br><span class="line">    <span class="keyword">with</span> <span class="built_in">open</span>(filename, <span class="string">&#x27;r&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">        <span class="comment"># read() 操作是阻塞的，直到所有内容读取完毕才能继续</span></span><br><span class="line">        content = f.read()</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Blocking Read: 线程读取文件 &#x27;<span class="subst">&#123;filename&#125;</span>&#x27; 完毕。&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> content</span><br><span class="line"></span><br><span class="line"><span class="comment"># 写入一个大文件用于测试</span></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;test_blocking.txt&quot;</span>, <span class="string">&quot;w&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(<span class="string">&quot;A&quot;</span> * <span class="number">1024</span> * <span class="number">1024</span> * <span class="number">10</span>) <span class="comment"># 10MB 文件</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;主线程：开始执行阻塞文件读取。&quot;</span>)</span><br><span class="line">start_time = time.time()</span><br><span class="line">file_content = read_blocking_file(<span class="string">&quot;test_blocking.txt&quot;</span>)</span><br><span class="line">end_time = time.time()</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;主线程：读取内容长度 <span class="subst">&#123;<span class="built_in">len</span>(file_content)&#125;</span>。&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;主线程：阻塞文件读取耗时 <span class="subst">&#123;end_time - start_time:<span class="number">.2</span>f&#125;</span> 秒。&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;主线程：我只能在读取完毕后才能做其他事情。&quot;</span>)</span><br><span class="line"><span class="comment"># Output (大致):</span></span><br><span class="line"><span class="comment"># 主线程：开始执行阻塞文件读取。</span></span><br><span class="line"><span class="comment"># Blocking Read: 线程开始读取文件 &#x27;test_blocking.txt&#x27;...</span></span><br><span class="line"><span class="comment"># Blocking Read: 线程读取文件 &#x27;test_blocking.txt&#x27; 完毕。</span></span><br><span class="line"><span class="comment"># 主线程：读取内容长度 10485760。</span></span><br><span class="line"><span class="comment"># 主线程：阻塞文件读取耗时 0.0X 秒。(取决于硬盘速度)</span></span><br><span class="line"><span class="comment"># 主线程：我只能在读取完毕后才能做其他事情。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-非阻塞-Non-blocking"><a href="#2-2-非阻塞-Non-blocking" class="headerlink" title="2.2 非阻塞 (Non-blocking)"></a>2.2 非阻塞 (Non-blocking)</h3><p>当一个操作是非阻塞的时候，<strong>调用者在发出调用后，会立即得到一个响应（通常表示操作是否已开始或当前状态），而不会等待被调用者完成其全部工作。调用者可以继续执行其他任务，并需要在将来某个时刻主动查询或通过事件机制获取操作的最终结果。</strong></p>
+<p><strong>特点：</strong></p>
+<ul>
+<li><strong>线程不挂起</strong>：调用线程可以立即返回并执行其他任务。</li>
+<li><strong>高效率</strong>：提高了线程的利用率，特别适合处理大量并发连接的 I&#x2F;O 操作。</li>
+<li><strong>编程模型复杂</strong>：需要额外的机制来处理结果（如轮询、事件通知）。</li>
+</ul>
+<p><strong>生活类比：</strong><br>你把水壶放到炉子上烧水。你设定了一个定时器或在水壶上装了一个哨子。放下水壶后，你可以去做其他事情，当定时器响或哨子响时（事件通知），你才回来处理水壶。</p>
+<p><strong>编程示例 (Python - 网络 I&#x2F;O，概念性示例，需要 <code>selectors</code> 或 <code>asyncio</code> 等库实际实现)：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ! 这个例子是概念性的，Python 的内置文件I/O通常是阻塞的。</span></span><br><span class="line"><span class="comment"># ! 真正做非阻塞I/O需要使用像 asyncio 模块或底层系统调用（如 select/poll/epoll/kqueue）。</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># import os</span></span><br><span class="line"><span class="comment"># import time</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># # 假设有一个非阻塞的文件读取API (实际Python标准库没有直接的非阻塞文件读取)</span></span><br><span class="line"><span class="comment"># # 真正的非阻塞文件IO在Python中通常通过 event loop 和 Futures 实现</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># def non_blocking_read_start(filename):</span></span><br><span class="line"><span class="comment">#     print(f&quot;Non-blocking Read: 开始非阻塞读取文件 &#x27;&#123;filename&#125;&#x27;...&quot;)</span></span><br><span class="line"><span class="comment">#     # 实际这里会触发一个底层非阻塞I/O操作，并立即返回一个&quot;句柄&quot;或&quot;Future&quot;</span></span><br><span class="line"><span class="comment">#     # 应用程序可以继续做其他事情</span></span><br><span class="line"><span class="comment">#     print(f&quot;Non-blocking Read: 立即返回，应用程序可继续执行。&quot;)</span></span><br><span class="line"><span class="comment">#     return f&quot;file_handle_&#123;filename&#125;&quot; # 返回一个占位符句柄</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># def check_non_blocking_read_status(handle):</span></span><br><span class="line"><span class="comment">#     # 模拟检查状态，这里假设每隔一段时间会完成</span></span><br><span class="line"><span class="comment">#     if hasattr(check_non_blocking_read_status, &#x27;progress&#x27;):</span></span><br><span class="line"><span class="comment">#         check_non_blocking_read_status.progress += 1</span></span><br><span class="line"><span class="comment">#     else:</span></span><br><span class="line"><span class="comment">#         check_non_blocking_read_status.progress = 0</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment">#     if check_non_blocking_read_status.progress &lt; 3: # 模拟多次检查后才会完成</span></span><br><span class="line"><span class="comment">#         return &quot;IN_PROGRESS&quot;, None</span></span><br><span class="line"><span class="comment">#     else:</span></span><br><span class="line"><span class="comment">#         return &quot;COMPLETED&quot;, &quot;文件内容假装已读取&quot;</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># print(&quot;主线程：开始执行非阻塞文件读取。&quot;)</span></span><br><span class="line"><span class="comment"># start_time = time.time()</span></span><br><span class="line"><span class="comment"># file_handle = non_blocking_read_start(&quot;large_file.txt&quot;)</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># print(&quot;主线程：我可以在等待文件读取完成的同时，做其他事情...&quot;)</span></span><br><span class="line"><span class="comment"># # 模拟在此期间做一些其他工作</span></span><br><span class="line"><span class="comment"># for i in range(5):</span></span><br><span class="line"><span class="comment">#     print(f&quot;主线程：做其他工作 &#123;i&#125;...&quot;)</span></span><br><span class="line"><span class="comment">#     time.sleep(0.5)</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># # 轮询检查操作状态，或者通过事件机制</span></span><br><span class="line"><span class="comment"># status = &quot;IN_PROGRESS&quot;</span></span><br><span class="line"><span class="comment"># content = None</span></span><br><span class="line"><span class="comment"># while status == &quot;IN_PROGRESS&quot;:</span></span><br><span class="line"><span class="comment">#     status, content = check_non_blocking_read_status(file_handle)</span></span><br><span class="line"><span class="comment">#     if status == &quot;IN_PROGRESS&quot;:</span></span><br><span class="line"><span class="comment">#         print(&quot;主线程：文件仍在读取中，继续等待或做其他事。&quot;)</span></span><br><span class="line"><span class="comment">#         time.sleep(0.5)</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># end_time = time.time()</span></span><br><span class="line"><span class="comment"># print(f&quot;主线程：非阻塞文件读取最终完成。内容：&#123;content[:20]&#125;...&quot;)</span></span><br><span class="line"><span class="comment"># print(f&quot;主线程：总耗时 &#123;end_time - start_time:.2f&#125; 秒。&quot;)</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="三、关系解读与组合"><a href="#三、关系解读与组合" class="headerlink" title="三、关系解读与组合"></a>三、关系解读与组合</h2><p>同步&#x2F;异步和阻塞&#x2F;非阻塞是正交的概念，它们可以有四种组合：</p>
+<h3 id="3-1-同步阻塞-Synchronous-Blocking"><a href="#3-1-同步阻塞-Synchronous-Blocking" class="headerlink" title="3.1 同步阻塞 (Synchronous Blocking)"></a>3.1 同步阻塞 (Synchronous Blocking)</h3><p>这是最常见、最简单的编程模型。调用者在调用后会等待被调用者完成并返回结果，期间线程被挂起。</p>
+<ul>
+<li><strong>场景</strong>：大部分传统的单线程程序中的函数调用，如简单的文件读写、数据库操作（不使用异步驱动时）。</li>
+<li><strong>特点</strong>：任务串行，编程简单，但效率低。</li>
+</ul>
+<p><strong>示例：</strong></p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Caller
+    participant Callee
+
+    Caller-&gt;&gt;Callee: 调用一个同步阻塞函数
+    Note over Callee: 执行耗时操作... (调用线程在此处被挂起，无法执行其他任务)
+    Callee--&gt;&gt;Caller: 返回结果 (完成)
+    Caller-&gt;&gt;Caller: 继续执行后续操作
+  </pre></div>
+
+<h3 id="3-2-同步非阻塞-Synchronous-Non-blocking"><a href="#3-2-同步非阻塞-Synchronous-Non-blocking" class="headerlink" title="3.2 同步非阻塞 (Synchronous Non-blocking)"></a>3.2 同步非阻塞 (Synchronous Non-blocking)</h3><p>调用者发出调用后，立即返回，但调用者需要<strong>主动轮询</strong> (Polling) 被调用者的状态，直到操作完成。在每次轮询间隔中，调用者可以做其他事情。</p>
+<ul>
+<li><strong>场景</strong>：游戏循环中的输入检查、某些嵌入式系统的硬件状态查询。这种模式相对较少直接使用，更多是作为底层异步I&#x2F;O的实现机制。</li>
+<li><strong>特点</strong>：调用者线程不会被完全挂起，但需要不断轮询状态，可能导致 CPU 浪费。</li>
+</ul>
+<p><strong>示例：</strong></p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Caller
+    participant Callee
+
+    Caller-&gt;&gt;Callee: 调用一个同步非阻塞函数 (立即返回)
+    Callee--&gt;&gt;Caller: 操作未完成，返回 &quot;进行中&quot; 状态&#x2F;句柄
+    loop 轮询检查
+        Caller-&gt;&gt;Caller: 执行其他操作...
+        Caller-&gt;&gt;Callee: 检查状态?
+        Callee--&gt;&gt;Caller: 操作未完成，返回 &quot;进行中&quot;
+    end
+    Caller-&gt;&gt;Callee: 检查状态?
+    Callee--&gt;&gt;Caller: 操作已完成，返回结果
+    Caller-&gt;&gt;Caller: 继续执行后续操作
+  </pre></div>
+
+<h3 id="3-3-异步阻塞-Asynchronous-Blocking"><a href="#3-3-异步阻塞-Asynchronous-Blocking" class="headerlink" title="3.3 异步阻塞 (Asynchronous Blocking)"></a>3.3 异步阻塞 (Asynchronous Blocking)</h3><p>这个组合在直觉上听起来有些矛盾，但在某些上下文是有意义的：<strong>调用者发起了对一个异步操作的调用，但自身却通过某种机制（如 <code>Future.get()</code>、<code>await</code> 在没有 <code>async</code> 标记的函数中）阻塞等待这个异步操作的结果。</strong> 尽管被调用的操作本身在后台是非阻塞执行的，但调用者选择阻塞等待其完成。</p>
+<ul>
+<li><strong>场景</strong>：在非 <code>async</code> 函数中，调用一个返回 <code>Future</code> 的函数，并立即调用 <code>Future.result()</code> 或 <code>Future.wait()</code> 等方法。这相当于将一个异步操作“同步化”了。</li>
+<li><strong>特点</strong>：虽然底层操作是异步执行的，但调用者的线程依然会被挂起，直到结果可用。这通常是为了简化某个局部代码的逻辑，但牺牲了整体效率。</li>
+</ul>
+<p><strong>示例：</strong></p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Caller
+    participant ServiceThread # 模拟执行异步操作的线程&#x2F;协程
+    participant CalleeTask # 被调用的异步任务
+
+    Caller-&gt;&gt;ServiceThread: 启动异步任务 (并阻塞等待结果)
+    Note over ServiceThread: 线程被Caller阻塞
+    ServiceThread-&gt;&gt;CalleeTask: 派发异步任务(非阻塞)
+    Note over CalleeTask: 在后台执行耗时操作...
+    CalleeTask--&gt;&gt;ServiceThread: 任务完成，返回结果
+    Note over ServiceThread: 解除阻塞
+    ServiceThread--&gt;&gt;Caller: 返回最终结果
+    Caller-&gt;&gt;Caller: 继续执行后续操作
+  </pre></div>
+
+<h3 id="3-4-异步非阻塞-Asynchronous-Non-blocking"><a href="#3-4-异步非阻塞-Asynchronous-Non-blocking" class="headerlink" title="3.4 异步非阻塞 (Asynchronous Non-blocking)"></a>3.4 异步非阻塞 (Asynchronous Non-blocking)</h3><p>这是最高效、最复杂的组合。调用者在调用后立即返回，不等待操作完成，并且通过<strong>事件通知 (Event Notification)</strong> 或<strong>回调函数</strong>来获取操作结果。调用者线程在等待期间可以自由地执行其他任务。</p>
+<ul>
+<li><strong>场景</strong>：Node.js 中的 I&#x2F;O 操作、Python 的 <code>asyncio</code>、Java 的 NIO、Go 的 Goroutines + Channels。适用于高并发、I&#x2F;O 密集型应用，如 Web 服务器、聊天室等。</li>
+<li><strong>特点</strong>：极大提升系统吞吐量和响应性，但编程模型复杂，需要管理事件循环、回调或协程。</li>
+</ul>
+<p><strong>示例：</strong></p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Caller
+    participant CalleeSystem # 或事件循环
+    participant CalleeTask # 被调用的异步任务
+
+    Caller-&gt;&gt;CalleeSystem: 派发一个异步非阻塞任务 (立即返回)
+    CalleeSystem--&gt;&gt;Caller: 返回任务句柄&#x2F;Future
+    Caller-&gt;&gt;Caller: 继续执行其他操作... (线程不被挂起)
+    CalleeSystem-&gt;&gt;CalleeTask: 启动后台任务
+    Note over CalleeTask: 在后台执行耗时操作...
+    CalleeTask--&gt;&gt;CalleeSystem: 任务完成，通知 CalleSystem
+    CalleeSystem-&gt;&gt;Caller: 事件通知&#x2F;回调函数传递结果
+    Caller-&gt;&gt;Caller: 处理收到的结果
+  </pre></div>
+
+<h2 id="四、总结与辨析"><a href="#四、总结与辨析" class="headerlink" title="四、总结与辨析"></a>四、总结与辨析</h2><table>
+<thead>
+<tr>
+<th align="left">特性维度</th>
+<th align="left">同步 (Synchronous)</th>
+<th align="left">异步 (Asynchronous)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>关注点</strong></td>
+<td align="left">结果通知时机：调用方等待被调方返回结果</td>
+<td align="left">结果通知时机：调用方不等待被调方，通过回调&#x2F;事件接收结果</td>
+</tr>
+<tr>
+<td align="left"><strong>控制力</strong></td>
+<td align="left">调用方完全控制被调方何时返回</td>
+<td align="left">被调方完成任务后，通过外部机制通知调用方</td>
+</tr>
+<tr>
+<td align="left"><strong>编程模型</strong></td>
+<td align="left">简单、顺序</td>
+<td align="left">复杂、需要回调&#x2F;Promises&#x2F;Futures&#x2F;协程</td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th align="left">特性维度</th>
+<th align="left">阻塞 (Blocking)</th>
+<th align="left">非阻塞 (Non-blocking)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>关注点</strong></td>
+<td align="left">线程状态：调用方线程是否暂停</td>
+<td align="left">线程状态：调用方线程是否暂停</td>
+</tr>
+<tr>
+<td align="left"><strong>性能</strong></td>
+<td align="left">线程利用率低，等待耗时操作时浪费资源</td>
+<td align="left">线程利用率高，可同时执行其他任务</td>
+</tr>
+<tr>
+<td align="left"><strong>实现</strong></td>
+<td align="left">通常由操作系统或运行时环境自动挂起和恢复线程</td>
+<td align="left">需要底层 I&#x2F;O 模型 （如 select&#x2F;poll&#x2F;epoll）和事件循环支持</td>
+</tr>
+</tbody></table>
+<p><strong>关键区分：</strong></p>
+<ul>
+<li><strong>同步&#x2F;异步是高级概念，描述的是通信机制</strong>：你期望的是即时反馈 (同步) 还是稍后通知 (异步)。</li>
+<li><strong>阻塞&#x2F;非阻塞是底层概念，描述的是线程状态</strong>：你的线程是否被强制暂停等待 (阻塞) 还是可以继续运行 (非阻塞)。</li>
+</ul>
+<h3 id="哪个最优？"><a href="#哪个最优？" class="headerlink" title="哪个最优？"></a>哪个最优？</h3><p>没有绝对的“最优”模式，选择取决于具体的应用场景：</p>
+<ul>
+<li><strong>编程简单性优先，且任务耗时短或 CPU 密集型</strong>：同步阻塞模型可能就足够了。</li>
+<li><strong>I&#x2F;O 密集型，需要高并发和响应性</strong>：异步非阻塞模型是最佳选择，但会增加编程复杂性。</li>
+<li><strong>需要利用多核 CPU 资源</strong>：并行处理（多线程&#x2F;多进程）可能更合适，它与同步&#x2F;异步、阻塞&#x2F;非阻塞的概念可以结合使用。</li>
+</ul>
+<p>理解这些概念是构建高效、健壮的软件系统的第一步。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/4a9afa2dd79a/">https://blog.tbf1211.xx.kg/4a9afa2dd79a/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B/">异步编程</a><a class="post-meta__tags" href="/tags/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/">并发编程</a><a class="post-meta__tags" href="/tags/%E7%BC%96%E7%A8%8B%E6%8A%80%E5%B7%A7/">编程技巧</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/29a4efacf775/" title="Stylus CSS预处理器详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Stylus CSS预处理器详解</div></div><div class="info-2"><div class="info-item-1"> Stylus 是一个富有表现力、动态且功能强大的 CSS 预处理器。它由 TJ Holowaychuk（Pug 模板引擎的作者）创建，与 Less 和 Sass 齐名，是前端开发中提高 CSS 编写效率和可维护性的重要工具之一。Stylus 以其高度灵活和简洁的语法而著称，允许开发者以多种方式编写 CSS，包括类似原生 CSS 的语法、省略括号和冒号的缩进语法等。  核心思想：Stylus 通过灵活的语法（可省略分号、冒号、括号），提供变量、混合、函数、条件判断、循环等高级特性，使 CSS 编写更高效、模块化和可维护。   一、Stylus 简介1.1 什么是 CSS 预处理器？CSS 预处理器是一种编程语言，它允许你使用变量、函数、混合 (Mixins)、嵌套、继承等编程特性来编写 CSS。这些预处理器代码最终会被编译成浏览器能够理解的标准 CSS。它们解决了传统 CSS 编程性差、难以维护和复用的问题。 常见的 CSS 预处理器包括：Sass&#x2F;SCSS、Less 和 Stylus。 1.2 Stylus 的特点 极度灵活的语法： 可省略分号：一行一个属性时，可省略...</div></div></div></a><a class="pagination-related" href="/14fbc43cdbd2/" title="Trojan协议详解：伪装为 HTTPS 的无状态代理协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Trojan协议详解：伪装为 HTTPS 的无状态代理协议</div></div><div class="info-2"><div class="info-item-1"> Trojan 是一个开源的代理协议，其核心设计理念是“伪装为最常见的 HTTPS 流量”。它通过模仿 HTTPS 流量的特征，并利用 TLS (Transport Layer Security) 的加密和认证机制，旨在实现几乎无法被识别和阻断的代理连接。Trojan 协议放弃了传统代理协议常见的复杂头部和混淆算法，转而直接将代理数据封装在 TLS 中，并强制要求使用 443 端口和合法 TLS 证书，以最大化其隐蔽性。  核心思想：将代理流量深度伪装为 HTTPS 流量，通过在 443 端口上直接利用 TLS 协议的加密会话来传输代理数据，从而使其在外部看来与正常的 HTTPS 流量几乎无异。   一、Trojan 协议的诞生背景与目标Trojan 协议的出现，是对传统代理协议（如 Shadowsocks、VMess 等）在对抗深度包检测 (DPI) 和主动探测时的局限性的一种回应。主要背景如下：  协议特征识别：许多代理协议，即使经过混淆，仍可能因其特定的协议头部、握手流程、流量模式或不符合 TLS 规范的行为而被识别。 主动探测：审查系统可能会主动连接代理服务器，发送探测包...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/38c508ec9ee0/" title="PHP Fibers (协程) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-06</div><div class="info-item-2">PHP Fibers (协程) 详解</div></div><div class="info-2"><div class="info-item-1"> Fibers (协程) 是 PHP 8.1 引入的一个重要新特性，它为 PHP 带来了原生的用户空间并发能力。与传统的线程或进程不同，Fibers 允许代码在执行过程中暂停和恢复，而无需使用生成器 (Generators) 或复杂的事件循环回调。这使得开发者能够编写更具可读性和可维护性的异步非阻塞代码，从而更好地应对 I&#x2F;O 密集型任务，如网络请求、数据库查询等。  核心思想：Fibers 是一种轻量级的并发原语，允许 PHP 代码在用户空间中实现非阻塞操作，通过显式地暂停和恢复执行，简化了异步代码的编写。   一、为什么需要 Fibers？在 PHP 8.1 之前，实现异步非阻塞代码通常依赖于以下两种方式：  Callbacks (回调函数)： 优点：简单直接，适用于简单的异步操作。 缺点：容易陷入“回调地狱 (Callback Hell)”，代码可读性和维护性差，错误处理复杂。   Generators (生成器)： 优点：通过 yield 实现了伪协程，可以在一定程度上改善回调地狱，允许代码暂停和恢复。 缺点：生成器本质上是迭代器，其语义更偏向于数据生成。将生成...</div></div></div></a><a class="pagination-related" href="/a1d408b2ddbe/" title="Python多进程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-15</div><div class="info-item-2">Python多进程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的线程（或进程）同步问题。在 Python 中，可以使用 multiprocessing 模块实现多进程版的生产者-消费者模式，以充分利用多核 CPU 资源。  核心思想：利用共享队列作为缓冲，实现生产者与消费者解耦，并通过互斥锁和条件变量（或自带的线程安全队列）进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式概述模式构成：  生产者 (Producer)：负责生成数据，并将其放入共享的缓冲区（队列）中。 消费者 (Consumer)：负责从共享的缓冲区（队列）中取出数据进行处理。 缓冲区 (Buffer &#x2F; Queue)：一个共享的数据结构，通常是一个队列，用于存储生产者生产的数据和消费者消费的数据。它充当了生产者和消费者之间的桥梁。  解决的问题：  解耦：生产者和消费者可以独立运行，互不干扰，提高系统的灵活性。 并发：允许多个生产者和多个消费者同时存在，提高处理效率。 削峰填谷：当生产速度快于消费速度时，缓冲区可以存储多余的数据，防止数...</div></div></div></a><a class="pagination-related" href="/832eaf04ac40/" title="Python多线程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-21</div><div class="info-item-2">Python多线程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的同步问题。在 Python 中，由于全局解释器锁 (GIL) 的存在，多线程在 CPU 密集型任务上并不能真正并行，但在 I&#x2F;O 密集型任务上，多线程仍然可以有效地提高程序的效率和响应速度。本篇将详细介绍如何使用 Python 的 threading 模块和 queue 模块实现多线程版的生产者-消费者模式。  核心思想：利用线程安全的共享队列作为缓冲，实现生产者与消费者解耦，并通过队列自带的互斥锁和条件变量进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式与多线程概述1.1 生产者-消费者模式参考 Python 多进程生产者-消费者模式详解 中的概述，其核心构成和解决的问题在多线程场景下是相同的：  生产者 (Producer)：生成数据并放入队列。 消费者 (Consumer)：从队列取出数据并处理。 缓冲区 (Queue)：共享的、线程安全的数据容器。  1.2 Python 多线程与 GIL threading 模块：Python 标...</div></div></div></a><a class="pagination-related" href="/10b74b4460f9/" title="Python 异步编程详解：从并发到协程"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-22</div><div class="info-item-2">Python 异步编程详解：从并发到协程</div></div><div class="info-2"><div class="info-item-1"> Python 异步编程 是一种处理并发任务的编程范式，它允许程序在等待某些操作（如 I&#x2F;O 操作、网络请求、数据库查询）完成时，切换到执行其他任务，从而提高程序的吞吐量和响应速度。与传统的多线程&#x2F;多进程并发模型不同，异步编程通常使用协程 (Coroutines) 和事件循环 (Event Loop) 来实现，避免了线程&#x2F;进程切换的开销，也绕开了 Python 的全局解释器锁 (GIL) 对 CPU 密集型任务的限制（尽管异步编程主要适用于 I&#x2F;O 密集型任务）。  核心思想：异步编程通过在等待 I&#x2F;O 完成时“暂停”当前任务，并“切换”到其他可执行任务，从而在单线程内实现并发和最大化 I&#x2F;O 利用率。   一、为什么需要异步编程？传统的 Python 程序（同步阻塞式）在执行 I&#x2F;O 操作时会阻塞整个程序，直到 I&#x2F;O 完成。例如，一个 Web 服务器在处理一个耗时的网络请求时，就无法处理其他用户的请求，导致性能低下。 1.1 同步阻塞 (Synchronous Blocking)123456789...</div></div></div></a><a class="pagination-related" href="/abb68b6fbe95/" title="从单机到哨兵，一张图理清redis架构演进！"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-26</div><div class="info-item-2">从单机到哨兵，一张图理清redis架构演进！</div></div><div class="info-2"><div class="info-item-1">Redis 的架构是逐步演进而来的，正所谓“罗马不是一天建成的”。    2010 年：单机版 Redis  当 Redis1.0在 2010 年首次发布时，整体架构非常简单，通常作为业务系统的缓存使用。不过，Redis 的数据是存储在内存中的，一旦重启，数据就会全部丢失，导致请求会直接打到数据库上，带来较大的压力。  2013 年：持久化机制上线  2013 年，Redis2.8版本发布，解决了之前“重启就丢数据”的问题。Redis 引入了 RDB（内存快照）机制，用于定时将内存中的数据持久化到磁盘。同时还支持 AOF（只追加文件）方式，将每一次写操作都记录到日志文件中，实现更高级别的持久化保障。  2013 年：主从复制机制  同样在 Redis2.8中，官方引入了主从复制功能，提升了系统的高可用性。主节点负责处理实时的读写请求，从节点则负责同步主节点的数据，起到备份和读扩展的作用。  2013 年：Sentinel 哨兵机制上线  在 Redis2.8版本中，引入了 Sentinel（哨兵）机制，用于实时监控 Redis 实例的运行状态。它主要负责以下几个方面的工作：   ...</div></div></div></a><a class="pagination-related" href="/895bad372d95/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-27</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> 索引是数据库中用于提高查询速度的一种数据结构。在 MySQL 中，合理有效地使用索引能够显著提升数据库的查询性能，减少 I&#x2F;O 操作。然而，不恰当的索引也可能带来额外的开销。理解 MySQL 索引的原理和优化策略，是数据库性能调优的关键。  “好的索引，事半功倍；坏的索引，越帮越忙。” - 数据库优化格言   一、什么是索引？索引（Index）是一种特殊的查找表，数据库搜索引擎可以利用它来快速定位数据。可以将其类比为一本书的目录，通过目录我们可以快速找到感兴趣的章节，而不需要通读整本书。 在数据库中，没有索引的查询需要全表扫描，即逐行检查每条记录，直到找到符合条件的记录。当数据量非常大时，这种操作的效率会非常低下。索引通过创建指向数据物理位置的指针，使得数据库在查询时能够直接跳转到相关记录，从而大大加快查询速度。 二、索引的优缺点优点 显著提高数据检索速度：这是索引最核心、最主要的优点。 加快表与表之间的连接速度：对于 JOIN 操作，索引可以加速连接条件的匹配。 加快分组和排序操作：GROUP BY 和 ORDER BY 操作通常通过消除临时表和对文件进行排序来提高...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">328</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">202</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">71</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%90%8C%E6%AD%A5-Synchronous-%E4%B8%8E-%E5%BC%82%E6%AD%A5-Asynchronous"><span class="toc-text">一、同步 (Synchronous) 与 异步 (Asynchronous)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%90%8C%E6%AD%A5-Synchronous"><span class="toc-text">1.1 同步 (Synchronous)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%BC%82%E6%AD%A5-Asynchronous"><span class="toc-text">1.2 异步 (Asynchronous)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E9%98%BB%E5%A1%9E-Blocking-%E4%B8%8E-%E9%9D%9E%E9%98%BB%E5%A1%9E-Non-blocking"><span class="toc-text">二、阻塞 (Blocking) 与 非阻塞 (Non-blocking)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E9%98%BB%E5%A1%9E-Blocking"><span class="toc-text">2.1 阻塞 (Blocking)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E9%9D%9E%E9%98%BB%E5%A1%9E-Non-blocking"><span class="toc-text">2.2 非阻塞 (Non-blocking)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%85%B3%E7%B3%BB%E8%A7%A3%E8%AF%BB%E4%B8%8E%E7%BB%84%E5%90%88"><span class="toc-text">三、关系解读与组合</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%90%8C%E6%AD%A5%E9%98%BB%E5%A1%9E-Synchronous-Blocking"><span class="toc-text">3.1 同步阻塞 (Synchronous Blocking)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%90%8C%E6%AD%A5%E9%9D%9E%E9%98%BB%E5%A1%9E-Synchronous-Non-blocking"><span class="toc-text">3.2 同步非阻塞 (Synchronous Non-blocking)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%BC%82%E6%AD%A5%E9%98%BB%E5%A1%9E-Asynchronous-Blocking"><span class="toc-text">3.3 异步阻塞 (Asynchronous Blocking)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E5%BC%82%E6%AD%A5%E9%9D%9E%E9%98%BB%E5%A1%9E-Asynchronous-Non-blocking"><span class="toc-text">3.4 异步非阻塞 (Asynchronous Non-blocking)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%80%BB%E7%BB%93%E4%B8%8E%E8%BE%A8%E6%9E%90"><span class="toc-text">四、总结与辨析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%93%AA%E4%B8%AA%E6%9C%80%E4%BC%98%EF%BC%9F"><span class="toc-text">哪个最优？</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/be24ef88e59a/" title="WebRTC 技术详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebRTC 技术详解"/></a><div class="content"><a class="title" href="/be24ef88e59a/" title="WebRTC 技术详解">WebRTC 技术详解</a><time datetime="2025-11-27T22:24:00.000Z" title="发表于 2025-11-28 06:24:00">2025-11-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="PyInstaller 深度解析与指令详解"/></a><div class="content"><a class="title" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解">PyInstaller 深度解析与指令详解</a><time datetime="2025-11-24T22:24:00.000Z" title="发表于 2025-11-25 06:24:00">2025-11-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go 语言 GC (Garbage Collection) 机制详解"/></a><div class="content"><a class="title" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解">Go 语言 GC (Garbage Collection) 机制详解</a><time datetime="2025-11-23T22:24:00.000Z" title="发表于 2025-11-24 06:24:00">2025-11-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="压缩字典树 (Radix Trie/Patricia Trie) 深度解析"/></a><div class="content"><a class="title" href="/fae19f12de23/" title="压缩字典树 (Radix Trie/Patricia Trie) 深度解析">压缩字典树 (Radix Trie/Patricia Trie) 深度解析</a><time datetime="2025-11-17T22:24:00.000Z" title="发表于 2025-11-18 06:24:00">2025-11-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 内存对齐详解"/></a><div class="content"><a class="title" href="/c28be5a597e1/" title="Golang 内存对齐详解">Golang 内存对齐详解</a><time datetime="2025-11-12T22:24:00.000Z" title="发表于 2025-11-13 06:24:00">2025-11-13</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
