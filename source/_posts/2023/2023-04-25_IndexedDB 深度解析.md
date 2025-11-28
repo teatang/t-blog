@@ -3,11 +3,11 @@ title: IndexedDB 深度解析
 date: 2023-04-25 06:24:00
 tags:
   - 2023
-  - HTML
+  - Web技术
   - 前端技术
 categories:
   - 前端技术
-  - HTML
+  - Web技术
 ---
 
 > **IndexedDB** 是一种基于浏览器的高性能、非关系型 (NoSQL) 数据库，允许在客户端存储大量结构化数据。它提供了一个强大的 API，用于在用户的浏览器中创建和管理数据库，支持事务、索引和异步操作，是构建离线应用 (Offline First) 和 PWA (Progressive Web Apps) 的核心技术之一。

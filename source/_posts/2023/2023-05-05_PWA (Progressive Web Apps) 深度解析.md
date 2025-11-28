@@ -3,11 +3,11 @@ title: PWA (Progressive Web Apps) 深度解析
 date: 2023-05-05 06:24:00
 tags:
   - 2023
-  - HTML
+  - Web技术
   - 前端技术
 categories:
   - 前端技术
-  - HTML
+  - Web技术
 ---
 
 > **PWA (Progressive Web Apps - 渐进式 Web 应用)** 是一种利用现代 Web 技术，将 Web 应用提升至接近原生应用体验的新方法。它旨在结合 Web 的广阔可达性与原生应用的丰富功能，为用户提供**可靠 (Reliable)**、**快速 (Fast)**、**沉浸式 (Engaging)** 的体验。PWA 不仅仅是一种技术，更是一套开发理念和最佳实践。

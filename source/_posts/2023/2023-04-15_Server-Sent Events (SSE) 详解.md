@@ -3,11 +3,11 @@ title: Server-Sent Events (SSE) 详解
 date: 2023-04-15 06:24:00
 tags:
   - 2023
-  - HTML
+  - Web技术
   - 前端技术
 categories:
   - 前端技术
-  - HTML
+  - Web技术
 ---
 
 > **Server-Sent Events (SSE)** 是一种 HTML5 规范，允许服务器通过持久的 HTTP 连接，以文本流 (text-stream) 的形式向客户端推送事件。它提供了一种高效、简单的方式来实现服务器到客户端的**单向实时通信**，特别适用于需要从服务器端持续获取数据更新的场景，如实时数据流、通知推送等。

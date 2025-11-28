@@ -9,7 +9,7 @@ tags:
   - JavaScript
 categories:
   - 前端技术
-  - HTML
+  - 库
 ---
 
 > 在过去十年中，前端开发领域由 JavaScript 框架（如 React, Vue, Angular）占据主导地位，它们将整个用户界面放在客户端，通过 API 与后端交互。然而，这种“单页应用 (SPA)”模式并非总是最佳选择，它带来了复杂的构建流程、初始加载性能问题、SEO 挑战以及较高的开发和维护成本。

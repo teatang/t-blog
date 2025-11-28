@@ -3,11 +3,11 @@ title: Chrome 扩展程序 (Extension) 开发详解
 date: 2023-05-15 06:24:00
 tags:
   - 2023
-  - HTML
+  - Web技术
   - 前端技术
 categories:
   - 前端技术
-  - HTML
+  - Web技术
 ---
 
 > **Chrome 扩展程序 (Chrome Extension)** 是一种通过 Web 技术 (HTML, CSS, JavaScript) 构建的小型程序，旨在扩展 Google Chrome 浏览器的功能。它们运行在独立的、受沙盒保护的环境中，可以与浏览器功能深度集成，允许用户根据个人需求和工作流定制和增强其浏览体验。
