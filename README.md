@@ -4,6 +4,7 @@
 [![Butterfly](https://img.shields.io/badge/Theme-Butterfly-blue)](https://butterfly.js.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-brightgreen?logo=node.js)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Container-blue?logo=docker)](https://www.docker.com/)
+![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)
 
 一个基于 Hexo 和 Butterfly 主题构建的技术博客，专注于编程、网络、安全等技术领域的深度解析文章。
 
