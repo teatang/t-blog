@@ -1,0 +1,690 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>跨域问题详解及解决方案 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在 Web 开发中，“跨域” (Cross-Origin) 是一个非常常见且令人困扰的问题。它源于浏览器的一项重要安全策略：同源策略 (Same-Origin Policy)。理解同源策略以及如何安全有效地解决跨域问题，是每个 Web 开发者必备的知识。  核心思想：同源策略是浏览器的一项安全机制，它限制了来自一个源的文档或脚本与来自另一个源的资源进行交互。当请求的目标源与当前页面的源不一致时，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="跨域问题详解及解决方案">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/23aa2938b836/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在 Web 开发中，“跨域” (Cross-Origin) 是一个非常常见且令人困扰的问题。它源于浏览器的一项重要安全策略：同源策略 (Same-Origin Policy)。理解同源策略以及如何安全有效地解决跨域问题，是每个 Web 开发者必备的知识。  核心思想：同源策略是浏览器的一项安全机制，它限制了来自一个源的文档或脚本与来自另一个源的资源进行交互。当请求的目标源与当前页面的源不一致时，">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-26.jpg">
+<meta property="article:published_time" content="2023-03-16T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-03T10:14:31.641Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="Web技术">
+<meta property="article:tag" content="HTML">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="跨域">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-26.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "跨域问题详解及解决方案",
+  "url": "https://blog.tbf1211.xx.kg/23aa2938b836/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-26.jpg",
+  "datePublished": "2023-03-16T22:24:00.000Z",
+  "dateModified": "2025-12-03T10:14:31.641Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/23aa2938b836/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '跨域问题详解及解决方案',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">343</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">207</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">74</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-26.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">跨域问题详解及解决方案</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">跨域问题详解及解决方案</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-03-16T22:24:00.000Z" title="发表于 2023-03-17 06:24:00">2023-03-17</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/Web%E6%8A%80%E6%9C%AF/">Web技术</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/23aa2938b836/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在 Web 开发中，<strong>“跨域” (Cross-Origin)</strong> 是一个非常常见且令人困扰的问题。它源于浏览器的一项重要安全策略：<strong>同源策略 (Same-Origin Policy)</strong>。理解同源策略以及如何安全有效地解决跨域问题，是每个 Web 开发者必备的知识。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<br><strong>同源策略是浏览器的一项安全机制，它限制了来自一个源的文档或脚本与来自另一个源的资源进行交互。当请求的目标源与当前页面的源不一致时，就发生了跨域。解决跨域问题的关键是让服务器端或中间代理明确允许跨域请求。</strong></p>
+</div>
+
+<hr>
+<h2 id="一、什么是同源策略-Same-Origin-Policy-？"><a href="#一、什么是同源策略-Same-Origin-Policy-？" class="headerlink" title="一、什么是同源策略 (Same-Origin Policy)？"></a>一、什么是同源策略 (Same-Origin Policy)？</h2><p><strong>同源策略</strong> 是浏览器为了保护用户隐私和数据安全而制定的一项基本安全功能。它限制了一个 HMTL 文档中加载的脚本如何与来自不同源的资源进行交互。</p>
+<h3 id="1-1-“源”的定义"><a href="#1-1-“源”的定义" class="headerlink" title="1.1 “源”的定义"></a>1.1 “源”的定义</h3><p>如果两个 URL 的<strong>协议 (Protocol)</strong>、<strong>域名 (Domain)</strong> 和<strong>端口 (Port)</strong> 都相同，则称它们是“同源”的。只要其中任何一个不同，就被认为是“跨源”或“不同源”。</p>
+<table>
+<thead>
+<tr>
+<th align="left">URL A</th>
+<th align="left">URL B</th>
+<th align="left">结果</th>
+<th align="left">原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>http://example.com/a.html</code></td>
+<td align="left"><code>http://example.com/b.html</code></td>
+<td align="left">同源</td>
+<td align="left">协议、域名、端口都相同</td>
+</tr>
+<tr>
+<td align="left"><code>http://example.com/a.html</code></td>
+<td align="left"><code>https://example.com/b.html</code></td>
+<td align="left">不同源</td>
+<td align="left">协议不同 (<code>http</code> vs <code>https</code>)</td>
+</tr>
+<tr>
+<td align="left"><code>http://example.com/a.html</code></td>
+<td align="left"><code>http://www.example.com/b.html</code></td>
+<td align="left">不同源</td>
+<td align="left">域名不同 (<code>example.com</code> vs <code>www.example.com</code>)</td>
+</tr>
+<tr>
+<td align="left"><code>http://example.com:8080/a.html</code></td>
+<td align="left"><code>http://example.com/b.html</code></td>
+<td align="left">不同源</td>
+<td align="left">端口不同 (<code>8080</code> vs <code>80</code> (默认))</td>
+</tr>
+<tr>
+<td align="left"><code>http://example.com/a.html</code></td>
+<td align="left"><code>http://example.org/b.html</code></td>
+<td align="left">不同源</td>
+<td align="left">域名不同</td>
+</tr>
+</tbody></table>
+<h3 id="1-2-同源策略的限制范围"><a href="#1-2-同源策略的限制范围" class="headerlink" title="1.2 同源策略的限制范围"></a>1.2 同源策略的限制范围</h3><p>同源策略主要限制以下三种类型的跨域行为：</p>
+<ol>
+<li><strong>DOM 访问限制</strong>：不同源的 iframe 无法相互访问 DOM，也无法调用彼此的 JavaScript 方法。</li>
+<li><strong>Web 存储限制</strong>：不同源的 <code>localStorage</code>、<code>sessionStorage</code>、<code>IndexedDB</code> 无法相互访问。</li>
+<li><strong>HTTP 请求限制</strong>：<strong>这是我们通常讨论的“跨域问题”的核心</strong>。浏览器限制从一个源发起的 Ajax 请求不能直接获取来自另一个源的响应数据。</li>
+</ol>
+<p><strong>注意</strong>：同源策略并非阻止所有跨域请求的发出，而是阻止脚本读取和处理跨域响应。例如，<code>&lt;img&gt;</code>、<code>&lt;script&gt;</code>、<code>&lt;link&gt;</code> 等标签可以加载跨域资源，但脚本无法获取这些资源的内容（Image 的像素数据、Script 的执行结果等）。</p>
+<h3 id="1-3-为什么要有同源策略？"><a href="#1-3-为什么要有同源策略？" class="headerlink" title="1.3 为什么要有同源策略？"></a>1.3 为什么要有同源策略？</h3><p>同源策略是 Web 安全的基石。如果缺少它，将会导致严重的安全漏洞：</p>
+<ul>
+<li><strong>恶意网站窃取用户敏感信息</strong>：例如，你登录了银行网站，然后在另一个标签页打开了一个恶意网站。如果没有同源策略，恶意网站上的 JavaScript 就可以向银行网站发送请求（携带你的身份认证信息，如 Cookie），并读取你的账户余额、交易记录等信息。</li>
+<li><strong>伪造请求</strong>：恶意网站可以伪造请求（如发帖、转账），由于浏览器会自动携带 Cookie，可能导致用户在不知情的情况下执行了危险操作。</li>
+<li><strong>DOM 篡改</strong>：恶意脚本可以访问并修改其他网站的 DOM 结构，进行钓鱼或其他恶意行为。</li>
+</ul>
+<h2 id="二、典型的跨域场景"><a href="#二、典型的跨域场景" class="headerlink" title="二、典型的跨域场景"></a>二、典型的跨域场景</h2><p>当你在 <code>http://localhost:3000</code> 运行前端应用，向 <code>http://api.myserver.com:8080</code> 发送后端 API 请求时，就会发生跨域。这是最常见的开发场景。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">    A[浏览器] --发起HTTP请求--&gt; B(前端应用: http://localhost:3000)</span><br><span class="line">    B --Ajax请求(GET /users)--&gt; C(后端API: http://api.myserver.com:8080/users)</span><br><span class="line">    C --返回数据--&gt; D(浏览器接收响应)</span><br><span class="line">    D --违反同源策略--&gt; E(浏览器阻止前端JS获取响应，报错)</span><br><span class="line">    style C fill:#f9f,stroke:#333,stroke-width:2px</span><br><span class="line">    style D fill:#f99,stroke:#333,stroke-width:2px</span><br><span class="line">    style E fill:#f90,stroke:#333,stroke-width:2px</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、跨域解决方案"><a href="#三、跨域解决方案" class="headerlink" title="三、跨域解决方案"></a>三、跨域解决方案</h2><p>解决跨域问题的核心思路是绕过或满足同源策略的限制。以下是几种常见的解决方案。</p>
+<h3 id="3-1-跨域资源共享-CORS-Cross-Origin-Resource-Sharing"><a href="#3-1-跨域资源共享-CORS-Cross-Origin-Resource-Sharing" class="headerlink" title="3.1 跨域资源共享 (CORS - Cross-Origin Resource Sharing)"></a>3.1 跨域资源共享 (CORS - Cross-Origin Resource Sharing)</h3><p>CORS 是 W3C 推荐的、最标准、最现代的跨域解决方案。它通过在 HTTP 响应头中添加一组特殊的字段，允许服务器端来明确告知浏览器，哪些源（<code>Origin</code>）、哪些 HTTP 方法（<code>Method</code>）、哪些自定义请求头（<code>Headers</code>）被允许访问其资源。</p>
+<h4 id="3-1-1-简单请求-Simple-Requests"><a href="#3-1-1-简单请求-Simple-Requests" class="headerlink" title="3.1.1 简单请求 (Simple Requests)"></a>3.1.1 简单请求 (Simple Requests)</h4><p>满足以下所有条件的请求被认为是“简单请求”：</p>
+<ul>
+<li>使用 <code>GET</code>、<code>POST</code>、<code>HEAD</code> 方法。</li>
+<li>请求头中只有 CORS 安全列表内的字段（例如 <code>Accept</code>、<code>Accept-Language</code>、<code>Content-Language</code>、<code>Content-Type</code>），并且 <code>Content-Type</code> 只能是 <code>application/x-www-form-urlencoded</code>、<code>multipart/form-data</code> 或 <code>text/plain</code>。</li>
+<li><strong>流程</strong>：<ol>
+<li>浏览器发送跨域请求时，自动在请求头中添加 <code>Origin</code> 字段，值为当前页面的源（例如 <code>Origin: http://localhost:3000</code>）。</li>
+<li>服务器接收到请求后，检查 <code>Origin</code> 字段。</li>
+<li>如果服务器允许该源访问，则在响应头中添加 <code>Access-Control-Allow-Origin</code> 字段，值为请求的 <code>Origin</code> 或 <code>*</code> (表示允许所有源)。</li>
+<li>浏览器收到响应后，检查响应头。如果存在有效的 <code>Access-Control-Allow-Origin</code>，且与当前请求的 <code>Origin</code> 匹配，则允许脚本访问响应数据；否则抛出跨域错误。</li>
+</ol>
+</li>
+</ul>
+<p><strong>示例 (服务器端响应头)：</strong></p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">HTTP/1.1</span> <span class="number">200</span> OK</span><br><span class="line"><span class="attribute">Content-Type</span><span class="punctuation">: </span>application/json</span><br><span class="line"><span class="attribute">Access-Control-Allow-Origin</span><span class="punctuation">: </span>http://localhost:3000  // 允许来自此源的请求</span><br><span class="line">// 或者 Access-Control-Allow-Origin: *            // 允许所有源</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-1-2-预检请求-Preflight-Requests"><a href="#3-1-2-预检请求-Preflight-Requests" class="headerlink" title="3.1.2 预检请求 (Preflight Requests)"></a>3.1.2 预检请求 (Preflight Requests)</h4><p>不满足“简单请求”条件的请求（例如使用 <code>PUT</code>&#x2F;<code>DELETE</code> 方法，或发送 <code>Content-Type: application/json</code> 的请求），在发送实际请求之前，会先发送一个 <code>OPTIONS</code> 方法的“预检请求”到服务器，以询问服务器是否允许该跨域请求。</p>
+<ul>
+<li><strong>流程</strong>：<ol>
+<li>浏览器发送一个 <code>OPTIONS</code> 请求，请求头包含：<ul>
+<li><code>Origin</code>: 当前页面的源。</li>
+<li><code>Access-Control-Request-Method</code>: 实际请求将使用的 HTTP 方法。</li>
+<li><code>Access-Control-Request-Headers</code>: 实际请求将发送的自定义请求头。</li>
+</ul>
+</li>
+<li>服务器接收到 <code>OPTIONS</code> 请求后，检查这些信息。如果服务器允许该实际请求，则在响应头中包含：<ul>
+<li><code>Access-Control-Allow-Origin</code>: 允许的源。</li>
+<li><code>Access-Control-Allow-Methods</code>: 允许的 HTTP 方法。</li>
+<li><code>Access-Control-Allow-Headers</code>: 允许的自定义请求头。</li>
+<li><code>Access-Control-Max-Age</code>: 预检请求的缓存时间（秒），在此时间内浏览器无需再次发送预检请求。</li>
+</ul>
+</li>
+<li>浏览器接收到预检响应后，如果确认允许，<strong>才会发送真正的实际请求</strong>。否则，直接抛出跨域错误。</li>
+</ol>
+</li>
+</ul>
+<p><strong>示例 (服务器端 <code>OPTIONS</code> 响应头)：</strong></p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">HTTP/1.1</span> <span class="number">204</span> No Content // <span class="number">204</span> 表示无内容</span><br><span class="line"><span class="attribute">Access-Control-Allow-Origin</span><span class="punctuation">: </span>http://localhost:3000</span><br><span class="line"><span class="attribute">Access-Control-Allow-Methods</span><span class="punctuation">: </span>GET, POST, PUT, DELETE</span><br><span class="line"><span class="attribute">Access-Control-Allow-Headers</span><span class="punctuation">: </span>Content-Type, Authorization // 允许携带 Content-Type 和 Authorization 头</span><br><span class="line"><span class="attribute">Access-Control-Max-Age</span><span class="punctuation">: </span>86400 // 缓存预检结果24小时</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-1-3-携带凭证的请求-Credentials"><a href="#3-1-3-携带凭证的请求-Credentials" class="headerlink" title="3.1.3 携带凭证的请求 (Credentials)"></a>3.1.3 携带凭证的请求 (Credentials)</h4><p>默认情况下，浏览器发起的跨域请求不会携带 <code>Cookie</code>、HTTP 认证信息等凭证。如果需要携带凭证，需要：</p>
+<ol>
+<li><strong>客户端设置</strong>：在 Ajax 请求中设置 <code>withCredentials = true</code> (例如 Axios 的 <code>withCredentials: true</code>)。</li>
+<li><strong>服务器端设置</strong>：在响应头中添加 <code>Access-Control-Allow-Credentials: true</code>。<strong>注意：如果设置了 <code>Access-Control-Allow-Credentials: true</code>，则 <code>Access-Control-Allow-Origin</code> 不能设置为 <code>*</code>，必须是明确的源。</strong></li>
+</ol>
+<p><strong>CORS 优势</strong>：</p>
+<ul>
+<li><strong>标准解决方案</strong>：由 W3C 规范定义，是官方推荐的方式。</li>
+<li><strong>功能全面</strong>：支持各种 HTTP 方法和请求头，可以携带凭证。</li>
+<li><strong>部署简单</strong>：只需要配置服务器端即可。</li>
+</ul>
+<p><strong>CORS 劣势</strong>：</p>
+<ul>
+<li><strong>需要服务器端支持</strong>：如果无法修改后端配置，则无法使用。</li>
+<li><strong>预检请求开销</strong>：对于非简单请求，会多一次 <code>OPTIONS</code> 请求的往返延迟。</li>
+</ul>
+<h3 id="3-2-JSONP-JSON-with-Padding"><a href="#3-2-JSONP-JSON-with-Padding" class="headerlink" title="3.2 JSONP (JSON with Padding)"></a>3.2 JSONP (JSON with Padding)</h3><p>JSONP 是一种非官方的、利用 <code>&lt;script&gt;</code> 标签没有同源策略限制的“漏洞”来实现跨域请求的旧有技术。它只支持 <code>GET</code> 请求。</p>
+<ul>
+<li><strong>原理</strong>：<ol>
+<li>客户端定义一个 JavaScript 回调函数（例如 <code>myCallback</code>）。</li>
+<li>客户端通过动态创建 <code>&lt;script&gt;</code> 标签，其 <code>src</code> 属性指向跨域的 API 接口，并在 URL 参数中包含回调函数名（例如 <code>?callback=myCallback</code>）。</li>
+<li>服务器接收到请求后，将数据包裹在指定的回调函数中返回，例如 <code>myCallback(&#123;&quot;data&quot;: &quot;some value&quot;&#125;)</code>。</li>
+<li>浏览器加载 <code>&lt;script&gt;</code> 标签，执行返回的 JavaScript 代码，从而调用客户端定义的回 <code>myCallback</code> 函数，并将数据作为参数传入。</li>
+</ol>
+</li>
+</ul>
+<p><strong>客户端 (HTML&#x2F;JS)：</strong></p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">script</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript"><span class="keyword">function</span> <span class="title function_">handleData</span>(<span class="params">data</span>) &#123;</span></span><br><span class="line"><span class="language-javascript">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;Received data:&quot;</span>, data);</span></span><br><span class="line"><span class="language-javascript">&#125;</span></span><br><span class="line"><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript"><span class="comment">// 动态创建 script 标签</span></span></span><br><span class="line"><span class="language-javascript"><span class="keyword">var</span> script = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&#x27;script&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">script.<span class="property">src</span> = <span class="string">&#x27;http://api.myserver.com:8080/data?callback=handleData&#x27;</span>;</span></span><br><span class="line"><span class="language-javascript"><span class="variable language_">document</span>.<span class="property">body</span>.<span class="title function_">appendChild</span>(script);</span></span><br><span class="line"><span class="language-javascript"></span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>服务器端 (响应)：</strong></p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 当请求 http://api.myserver.com:8080/data?callback=handleData 时</span></span><br><span class="line"><span class="comment">// 返回的响应内容：</span></span><br><span class="line"><span class="title function_">handleData</span>(&#123;<span class="string">&quot;message&quot;</span>: <span class="string">&quot;Hello from server via JSONP!&quot;</span>&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>JSONP 优势</strong>：</p>
+<ul>
+<li><strong>兼容性好</strong>：支持所有现代浏览器，包括一些老旧浏览器。</li>
+<li><strong>支持 GET 请求的数据传输</strong>：可以获取数据。</li>
+</ul>
+<p><strong>JSONP 劣势</strong>：</p>
+<ul>
+<li><strong>只支持 GET 请求</strong>：无法发送 <code>POST</code>、<code>PUT</code> 等请求。</li>
+<li><strong>安全性差</strong>：<code>script</code> 标签加载的 JS 代码拥有完整的页面权限，如果第三方 API 不可信，可能存在 XSS 漏洞。</li>
+<li><strong>维护困难</strong>：需要服务器端和客户端配合，逻辑相对复杂。</li>
+<li><strong>已不被推荐</strong>：在 CORS 普及后，JSONP 很少用于新项目。</li>
+</ul>
+<h3 id="3-3-代理-Proxy"><a href="#3-3-代理-Proxy" class="headerlink" title="3.3 代理 (Proxy)"></a>3.3 代理 (Proxy)</h3><p>代理是一种非常通用的解决跨域问题的方法，尤其是当前后端分离开发时。其原理是：<strong>让同源的服务器去请求跨域的服务器，然后将结果返回给客户端。</strong> 这样，客户端发送的请求都是同源的，避免了浏览器端的跨域限制。</p>
+<h4 id="3-3-1-开发环境代理"><a href="#3-3-1-开发环境代理" class="headerlink" title="3.3.1 开发环境代理"></a>3.3.1 开发环境代理</h4><p>在前端开发环境中，通常使用 Webpack Dev Server、Vite Dev Server 或 Nginx 进行代理。</p>
+<p><strong>Webpack Dev Server 配置示例：</strong></p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// webpack.config.js</span></span><br><span class="line"><span class="variable language_">module</span>.<span class="property">exports</span> = &#123;</span><br><span class="line">  <span class="comment">// ... 其他配置</span></span><br><span class="line">  <span class="attr">devServer</span>: &#123;</span><br><span class="line">    <span class="attr">port</span>: <span class="number">3000</span>,</span><br><span class="line">    <span class="attr">proxy</span>: &#123;</span><br><span class="line">      <span class="string">&#x27;/api&#x27;</span>: &#123; <span class="comment">// 凡是请求路径以 &#x27;/api&#x27; 开头的，都会被代理</span></span><br><span class="line">        <span class="attr">target</span>: <span class="string">&#x27;http://api.myserver.com:8080&#x27;</span>, <span class="comment">// 目标服务器地址</span></span><br><span class="line">        <span class="attr">changeOrigin</span>: <span class="literal">true</span>, <span class="comment">// 改变源，将请求的 Host 头设置为 target 的 Host</span></span><br><span class="line">        <span class="attr">pathRewrite</span>: &#123; <span class="string">&#x27;^/api&#x27;</span>: <span class="string">&#x27;&#x27;</span> &#125;, <span class="comment">// 重写路径：将 &#x27;/api&#x27; 替换为空字符串</span></span><br><span class="line">      &#125;,</span><br><span class="line">    &#125;,</span><br><span class="line">  &#125;,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>当前端代码请求 <code>http://localhost:3000/api/users</code> 时，Webpack Dev Server 会将请求转发到 <code>http://api.myserver.com:8080/users</code>。对于浏览器而言，请求的目标仍是 <code>http://localhost:3000</code>，因此是同源的。</p>
+<h4 id="3-3-2-生产环境代理-Nginx"><a href="#3-3-2-生产环境代理-Nginx" class="headerlink" title="3.3.2 生产环境代理 (Nginx)"></a>3.3.2 生产环境代理 (Nginx)</h4><p>在生产环境中，最常见的方式是使用 Nginx 作为反向代理。将前端应用和后端 API 部署在同一个域名下，通过 Nginx 进行区分和转发。</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># nginx.conf 配置示例</span></span><br><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">    <span class="attribute">listen</span> <span class="number">80</span>;</span><br><span class="line">    <span class="attribute">server_name</span> www.yourfrontend.com; <span class="comment"># 前端域名</span></span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> / &#123;</span><br><span class="line">        <span class="attribute">root</span> /path/to/your/frontend/dist; <span class="comment"># 前端静态文件目录</span></span><br><span class="line">        <span class="attribute">index</span> index.html;</span><br><span class="line">        <span class="attribute">try_files</span> <span class="variable">$uri</span> <span class="variable">$uri</span>/ /index.html;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="section">location</span> /api/ &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://api.myserver.com:8080/;   <span class="comment"># 后端API地址</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> Host <span class="variable">$host</span>;                <span class="comment"># 保持原始请求的Host头</span></span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Real-IP <span class="variable">$remote_addr</span>;</span><br><span class="line">        <span class="attribute">proxy_set_header</span> X-Forwarded-For <span class="variable">$proxy_add_x_forwarded_for</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当浏览器请求 <code>http://www.yourfrontend.com/api/users</code> 时，Nginx 会将 <code>/api/</code> 路径的请求转发给 <code>http://api.myserver.com:8080</code> (后端服务)，并将结果返回给浏览器。对浏览器而言，所有请求都发往 <code>www.yourfrontend.com</code>，因此没有跨域问题。</p>
+<p><strong>代理优势</strong>：</p>
+<ul>
+<li><strong>根本解决</strong>：从根本上解决了浏览器端的跨域限制，所有客户端请求都是同源的。</li>
+<li><strong>安全性高</strong>：服务器之间传输数据没有浏览器的同源限制，可以更好地控制。</li>
+<li><strong>通用性强</strong>：支持所有 HTTP 方法和各种请求头，可以携带凭证。</li>
+<li><strong>对后端无侵入</strong>：后端 API 无需为跨域额外修改代码。</li>
+</ul>
+<p><strong>代理劣势</strong>：</p>
+<ul>
+<li><strong>增加部署复杂性</strong>：需要额外的代理服务器配置。</li>
+<li><strong>可能增加一层网络延迟</strong>：请求会经过代理服务器再到达目标服务器。</li>
+</ul>
+<h3 id="3-4-WebSocket"><a href="#3-4-WebSocket" class="headerlink" title="3.4 WebSocket"></a>3.4 WebSocket</h3><p>WebSocket 协议是独立于 HTTP 的协议，它本身不受同源策略的限制。一旦 WebSocket 连接建立，就可以实现全双工的、跨域的数据传输。</p>
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>天生跨域</strong>：WebSocket 握手请求受同源策略限制，但一旦握手成功，数据帧传输不受限制。</li>
+<li><strong>实时通信</strong>：适用于需要低延迟、高频率双向通信的场景。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>协议不同</strong>：不适用于传统的 RESTful API 请求。</li>
+<li><strong>服务器端和客户端都需要实现 WebSocket 协议</strong>。</li>
+</ul>
+<h3 id="3-5-postMessage-窗口间通信"><a href="#3-5-postMessage-窗口间通信" class="headerlink" title="3.5 postMessage (窗口间通信)"></a>3.5 postMessage (窗口间通信)</h3><p><code>window.postMessage()</code> 方法提供了一种安全的方式，允许来自不同源的窗口（如 <code>window</code>、<code>iframe</code>、<code>弹出窗口</code>）之间进行通信。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 页面 A (http://a.com)</span></span><br><span class="line"><span class="keyword">let</span> iframe = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;myIframe&#x27;</span>);</span><br><span class="line">iframe.<span class="property">contentWindow</span>.<span class="title function_">postMessage</span>(<span class="string">&#x27;Hello from A!&#x27;</span>, <span class="string">&#x27;http://b.com&#x27;</span>); <span class="comment">// 发送消息给 B</span></span><br><span class="line"></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;message&#x27;</span>, <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">origin</span> === <span class="string">&#x27;http://b.com&#x27;</span>) &#123; <span class="comment">// 验证消息来源</span></span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Received from B:&#x27;</span>, event.<span class="property">data</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 页面 B (http://b.com) 在 iframe 中</span></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;message&#x27;</span>, <span class="keyword">function</span>(<span class="params">event</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">origin</span> === <span class="string">&#x27;http://a.com&#x27;</span>) &#123; <span class="comment">// 验证消息来源</span></span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Received from A:&#x27;</span>, event.<span class="property">data</span>);</span><br><span class="line">        event.<span class="property">source</span>.<span class="title function_">postMessage</span>(<span class="string">&#x27;Hello from B!&#x27;</span>, event.<span class="property">origin</span>); <span class="comment">// 回复给 A</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>优势</strong>：</p>
+<ul>
+<li><strong>安全</strong>：可以验证消息来源 <code>event.origin</code>。</li>
+<li><strong>特定场景</strong>：主要用于父子窗口、兄弟窗口或 iframe 之间的消息传递。</li>
+</ul>
+<p><strong>劣势</strong>：</p>
+<ul>
+<li><strong>不适用于 Ajax 请求</strong>：无法用于解决普通的 HTTP API 跨域问题。</li>
+</ul>
+<h3 id="3-6-其他（不常用或不推荐）"><a href="#3-6-其他（不常用或不推荐）" class="headerlink" title="3.6 其他（不常用或不推荐）"></a>3.6 其他（不常用或不推荐）</h3><ul>
+<li><strong>document.domain</strong>：主要用于主域和子域之间的跨域，通过设置 <code>document.domain</code> 为相同的顶级域名来实现。例如，<code>a.example.com</code> 和 <code>b.example.com</code> 可以都设置为 <code>document.domain = &#39;example.com&#39;</code>。但现在已不常推荐，且有安全隐患。</li>
+<li><strong>web-worker</strong>：Web Worker 本身受同源策略限制，其内部的代码仍然不能直接发送跨域 Ajax 请求。</li>
+<li><strong>图片打点&#x2F;Beacon</strong>：早期用于统计场景，通过 <code>&lt;img&gt;</code> 标签的 <code>src</code> 属性发送 <code>GET</code> 请求，不关心返回数据，只用于日志上报等。但无法获取响应。</li>
+</ul>
+<h2 id="四、选择合适的解决方案"><a href="#四、选择合适的解决方案" class="headerlink" title="四、选择合适的解决方案"></a>四、选择合适的解决方案</h2><p>选择哪种跨域解决方案取决于您的具体场景和对后端服务器的控制能力。</p>
+<ul>
+<li><strong>首选 CORS</strong>：如果能修改后端代码，CORS 是最标准、最推荐的解决方案。</li>
+<li><strong>开发环境代理</strong>：在开发前端时，使用代理是最高效、最便捷的方式，无须修改后端。</li>
+<li><strong>生产环境代理 (Nginx)</strong>：当前端和后端部署在不同端口或服务时，使用 Nginx 等服务器层代理，将所有请求路由到同一域名下，是生产环境的常见做法。</li>
+<li><strong>JSONP (遗留系统)</strong>：仅在需要兼容老旧浏览器，且只涉及 <code>GET</code> 请求时作为备选，不推荐新项目使用。</li>
+<li><strong>postMessage</strong>：用于不同窗口之间的安全通信。</li>
+<li><strong>WebSocket</strong>：用于实时双向通信，不适用于传统 RESTful API。</li>
+</ul>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>跨域问题是 Web 开发中最常见的挑战之一，但有了同源策略，Web 应用程序才得以在相对安全的沙箱中运行。通过理解同源策略的原理，并掌握 CORS、代理等主流解决方案，开发者可以有效地应对各种跨域场景，构建稳定且安全的 Web 应用。在现代开发中，<strong>CORS 和服务器代理是解决多数 HTTP 请求跨域问题的黄金搭档。</strong></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/23aa2938b836/">https://blog.tbf1211.xx.kg/23aa2938b836/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/Web%E6%8A%80%E6%9C%AF/">Web技术</a><a class="post-meta__tags" href="/tags/HTML/">HTML</a><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/%E8%B7%A8%E5%9F%9F/">跨域</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-26.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/832eaf04ac40/" title="Python多线程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Python多线程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的同步问题。在 Python 中，由于全局解释器锁 (GIL) 的存在，多线程在 CPU 密集型任务上并不能真正并行，但在 I&#x2F;O 密集型任务上，多线程仍然可以有效地提高程序的效率和响应速度。本篇将详细介绍如何使用 Python 的 threading 模块和 queue 模块实现多线程版的生产者-消费者模式。  核心思想：利用线程安全的共享队列作为缓冲，实现生产者与消费者解耦，并通过队列自带的互斥锁和条件变量进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式与多线程概述1.1 生产者-消费者模式参考 Python 多进程生产者-消费者模式详解 中的概述，其核心构成和解决的问题在多线程场景下是相同的：  生产者 (Producer)：生成数据并放入队列。 消费者 (Consumer)：从队列取出数据并处理。 缓冲区 (Queue)：共享的、线程安全的数据容器。  1.2 Python 多线程与 GIL threading 模块：Python 标...</div></div></div></a><a class="pagination-related" href="/a1d408b2ddbe/" title="Python多进程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Python多进程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的线程（或进程）同步问题。在 Python 中，可以使用 multiprocessing 模块实现多进程版的生产者-消费者模式，以充分利用多核 CPU 资源。  核心思想：利用共享队列作为缓冲，实现生产者与消费者解耦，并通过互斥锁和条件变量（或自带的线程安全队列）进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式概述模式构成：  生产者 (Producer)：负责生成数据，并将其放入共享的缓冲区（队列）中。 消费者 (Consumer)：负责从共享的缓冲区（队列）中取出数据进行处理。 缓冲区 (Buffer &#x2F; Queue)：一个共享的数据结构，通常是一个队列，用于存储生产者生产的数据和消费者消费的数据。它充当了生产者和消费者之间的桥梁。  解决的问题：  解耦：生产者和消费者可以独立运行，互不干扰，提高系统的灵活性。 并发：允许多个生产者和多个消费者同时存在，提高处理效率。 削峰填谷：当生产速度快于消费速度时，缓冲区可以存储多余的数据，防止数...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/40c57ff5cb61/" title="Pug(前Jade)模板引擎详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-17</div><div class="info-item-2">Pug(前Jade)模板引擎详解</div></div><div class="info-2"><div class="info-item-1"> Pug（发音 &#x2F;pʌɡ&#x2F;），前身为 Jade，是一个高性能的 Node.js 模板引擎。它以其简洁、富有表现力的语法而闻名，旨在让 HTML 编写变得更加高效和愉快。Pug 摒弃了传统 HTML 的尖括号和闭合标签，转而使用缩进和基于文本的语法，这使得模板文件更小、更易读、也更不易出错。  核心思想：Pug 通过简洁的缩进语法替代冗长的 HTML 标签，提供强大的动态数据渲染、代码重用和条件逻辑功能。   一、Pug 简介1.1 什么是模板引擎？模板引擎是一种将数据填充到预定义模板中以生成最终输出（通常是 HTML 字符串）的工具。它将页面的结构（模板）与数据分离，使得前端开发更加模块化和可维护。 1.2 Pug 的特点 独特语法：使用缩进表示嵌套关系，无需关闭标签。 简洁明了：代码量显著少于对应的 HTML。 强大功能：支持变量、循环、条件判断、Mixin（类似于函数或组件）、包含（文件复用）、布局继承等高级特性。 编译到 HTML：Pug 模板最终会被编译成标准的 HTML。 Node.js 支持：作为 Node.js 的模板引擎，Pug 完美集成于 E...</div></div></div></a><a class="pagination-related" href="/0c202b3d53be/" title="前端文件下载的各种方式的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-19</div><div class="info-item-2">前端文件下载的各种方式的详解</div></div><div class="info-2"><div class="info-item-1"> 在 Web 开发中，文件下载是一个常见且重要的功能。无论是下载用户生成的数据、报告、图片，还是静态资源，前端开发者都需要掌握多种实现文件下载的方法。本文将详细探讨前端实现文件下载的各种技术，包括 HTML 原生方式、JavaScript 编程方式以及涉及服务器端配合的场景。  核心思想：前端文件下载的核心在于如何将文件数据（无论是服务器传输的还是客户端生成的）转化为可供浏览器识别并触发下载操作的格式（如 Blob 对象或直接的 URL），并通过特定的机制（如 &lt;a&gt; 标签的 download 属性或服务器响应头）来提示浏览器进行下载而非直接显示。   一、文件下载的基础概念在深入具体方法之前，我们先理解文件下载的一些基本概念：  下载 vs. 显示：浏览器在处理文件时，会根据 Content-Type 和 Content-Disposition 等 HTTP 响应头来决定是下载文件（保存到本地）还是在浏览器中直接显示（如图片、PDF）。 文件来源： 服务器端文件：文件存储在服务器上，前端通过 URL 请求获取。 客户端生成文件：文件内容由前端 JavaScript ...</div></div></div></a><a class="pagination-related" href="/234c44d5851b/" title="HTML5 单页面应用 (SPA) 路由实现详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-02-26</div><div class="info-item-2">HTML5 单页面应用 (SPA) 路由实现详解</div></div><div class="info-2"><div class="info-item-1"> 单页面应用 (Single Page Application, SPA) 是一种 Web 应用程序模型，它通过动态重写当前页面而非从服务器加载整个新页面来实现与用户的交互。这种模式极大地提升了用户体验，使其更接近桌面应用。SPA 的核心技术之一是客户端路由 (Client-Side Routing)，它允许应用程序在不进行整页刷新的情况下，根据 URL 路径的变化渲染不同的视图。  核心思想：HTML5 History API 允许 Web 应用程序在客户端直接操纵浏览器会话历史记录，从而实现 URL 的无刷新更新和状态管理，这是现代 SPA 路由的基础。   一、传统页面跳转与 SPA 路由的区别在深入探讨 SPA 路由之前，我们首先理解传统多页面应用 (Multi-Page Application, MPA) 的页面跳转机制及其与 SPA 的根本不同：  传统 MPA 页面跳转：  用户点击链接或提交表单。 浏览器向服务器发送 HTTP 请求，请求新的 HTML 页面。 服务器响应并发送完整的 HTML 文档。 浏览器销毁当前页面，加载并渲染新的 HTML 文档。   特点...</div></div></div></a><a class="pagination-related" href="/f02d15c85cac/" title="Server-Sent Events (SSE) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-15</div><div class="info-item-2">Server-Sent Events (SSE) 详解</div></div><div class="info-2"><div class="info-item-1"> Server-Sent Events (SSE) 是一种 HTML5 规范，允许服务器通过持久的 HTTP 连接，以文本流 (text-stream) 的形式向客户端推送事件。它提供了一种高效、简单的方式来实现服务器到客户端的单向实时通信，特别适用于需要从服务器端持续获取数据更新的场景，如实时数据流、通知推送等。  核心思想：SSE 利用标准的 HTTP&#x2F;1.1 协议，通过一个持久的 GET 请求建立连接，服务器端持续向客户端发送带有特定格式的数据流，客户端通过 EventSource API 监听并处理这些事件。   一、为什么需要 SSE？(实时通信的演进)在 Web 应用中，实现服务器向客户端的实时数据推送一直是开发者面临的挑战。随着技术的发展，出现了多种解决方案，SSE 是其中一种重要的选择。 1.1 传统轮询 (Polling) 定义：客户端定期（如每隔几秒）向服务器发送 HTTP 请求，询问是否有新的数据。 优点：实现简单，兼容性好。 缺点： 效率低下：大多数请求可能是无效的（无新数据），造成大量不必要的 HTTP 请求和服务器资源浪费。 延迟高：数据的实...</div></div></div></a><a class="pagination-related" href="/469d3e424114/" title="IndexedDB 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-25</div><div class="info-item-2">IndexedDB 深度解析</div></div><div class="info-2"><div class="info-item-1"> IndexedDB 是一种基于浏览器的高性能、非关系型 (NoSQL) 数据库，允许在客户端存储大量结构化数据。它提供了一个强大的 API，用于在用户的浏览器中创建和管理数据库，支持事务、索引和异步操作，是构建离线应用 (Offline First) 和 PWA (Progressive Web Apps) 的核心技术之一。  核心思想：IndexedDB 提供了一个强大的、异步的、事务性的客户端数据存储方案，专为存储大量结构化数据而设计。它通过键值对的形式存储 JavaScript 对象，并支持索引来高效查询数据。   一、为什么需要 IndexedDB？(与其它客户端存储的对比)在 Web 开发中，有多种客户端存储技术，但它们各有优缺点，IndexedDB 旨在解决其中一些局限性。  localStorage 和 sessionStorage： 优点：API 简单，同步操作。 缺点： 存储容量小：通常只有 5MB 左右。 仅支持字符串：只能存储字符串，复杂数据需要手动序列化&#x2F;反序列化 (JSON.stringify&#x2F;parse)。 无索引：无法进行高效查...</div></div></div></a><a class="pagination-related" href="/b519dd676c66/" title="PWA (Progressive Web Apps) 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-05</div><div class="info-item-2">PWA (Progressive Web Apps) 深度解析</div></div><div class="info-2"><div class="info-item-1"> PWA (Progressive Web Apps - 渐进式 Web 应用) 是一种利用现代 Web 技术，将 Web 应用提升至接近原生应用体验的新方法。它旨在结合 Web 的广阔可达性与原生应用的丰富功能，为用户提供可靠 (Reliable)、快速 (Fast)、沉浸式 (Engaging) 的体验。PWA 不仅仅是一种技术，更是一套开发理念和最佳实践。  核心思想：PWA 的目标是让 Web 应用具备类似原生应用的体验和功能，同时保留 Web 的优点（无需安装、易于发现、跨平台）。这主要通过 Service Worker 实现离线能力和性能优化，通过 Web App Manifest 实现安装和应用体验，以及通过 HTTPS 确保安全性来达成。   一、为什么需要 PWA？(Web 与原生应用的融合)传统 Web 应用和原生移动应用各有优缺点：  传统 Web 应用 (网站)： 优点：无需安装、易于发现、跨平台、更新灵活、共享方便。 缺点：依赖网络、加载慢、无离线功能、无法添加到主屏幕、无法发送推送通知、用户体验与原生应用有差距。   原生移动应用： 优点：性能好、可离...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">343</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">207</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">74</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF%E5%90%8C%E6%BA%90%E7%AD%96%E7%95%A5-Same-Origin-Policy-%EF%BC%9F"><span class="toc-text">一、什么是同源策略 (Same-Origin Policy)？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E2%80%9C%E6%BA%90%E2%80%9D%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="toc-text">1.1 “源”的定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%90%8C%E6%BA%90%E7%AD%96%E7%95%A5%E7%9A%84%E9%99%90%E5%88%B6%E8%8C%83%E5%9B%B4"><span class="toc-text">1.2 同源策略的限制范围</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%9C%89%E5%90%8C%E6%BA%90%E7%AD%96%E7%95%A5%EF%BC%9F"><span class="toc-text">1.3 为什么要有同源策略？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%85%B8%E5%9E%8B%E7%9A%84%E8%B7%A8%E5%9F%9F%E5%9C%BA%E6%99%AF"><span class="toc-text">二、典型的跨域场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E8%B7%A8%E5%9F%9F%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="toc-text">三、跨域解决方案</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E8%B7%A8%E5%9F%9F%E8%B5%84%E6%BA%90%E5%85%B1%E4%BA%AB-CORS-Cross-Origin-Resource-Sharing"><span class="toc-text">3.1 跨域资源共享 (CORS - Cross-Origin Resource Sharing)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-%E7%AE%80%E5%8D%95%E8%AF%B7%E6%B1%82-Simple-Requests"><span class="toc-text">3.1.1 简单请求 (Simple Requests)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-2-%E9%A2%84%E6%A3%80%E8%AF%B7%E6%B1%82-Preflight-Requests"><span class="toc-text">3.1.2 预检请求 (Preflight Requests)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-3-%E6%90%BA%E5%B8%A6%E5%87%AD%E8%AF%81%E7%9A%84%E8%AF%B7%E6%B1%82-Credentials"><span class="toc-text">3.1.3 携带凭证的请求 (Credentials)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-JSONP-JSON-with-Padding"><span class="toc-text">3.2 JSONP (JSON with Padding)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E4%BB%A3%E7%90%86-Proxy"><span class="toc-text">3.3 代理 (Proxy)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-1-%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E4%BB%A3%E7%90%86"><span class="toc-text">3.3.1 开发环境代理</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-2-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%BB%A3%E7%90%86-Nginx"><span class="toc-text">3.3.2 生产环境代理 (Nginx)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-WebSocket"><span class="toc-text">3.4 WebSocket</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-postMessage-%E7%AA%97%E5%8F%A3%E9%97%B4%E9%80%9A%E4%BF%A1"><span class="toc-text">3.5 postMessage (窗口间通信)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-%E5%85%B6%E4%BB%96%EF%BC%88%E4%B8%8D%E5%B8%B8%E7%94%A8%E6%88%96%E4%B8%8D%E6%8E%A8%E8%8D%90%EF%BC%89"><span class="toc-text">3.6 其他（不常用或不推荐）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%80%89%E6%8B%A9%E5%90%88%E9%80%82%E7%9A%84%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="toc-text">四、选择合适的解决方案</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1ae20d2726d8/" title="MiniRTC 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MiniRTC 详解"/></a><div class="content"><a class="title" href="/1ae20d2726d8/" title="MiniRTC 详解">MiniRTC 详解</a><time datetime="2025-11-28T22:24:00.000Z" title="发表于 2025-11-29 06:24:00">2025-11-29</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/be24ef88e59a/" title="WebRTC 技术详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebRTC 技术详解"/></a><div class="content"><a class="title" href="/be24ef88e59a/" title="WebRTC 技术详解">WebRTC 技术详解</a><time datetime="2025-11-27T22:24:00.000Z" title="发表于 2025-11-28 06:24:00">2025-11-28</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="PyInstaller 深度解析与指令详解"/></a><div class="content"><a class="title" href="/53e63dc49a04/" title="PyInstaller 深度解析与指令详解">PyInstaller 深度解析与指令详解</a><time datetime="2025-11-24T22:24:00.000Z" title="发表于 2025-11-25 06:24:00">2025-11-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go 语言 GC (Garbage Collection) 机制详解"/></a><div class="content"><a class="title" href="/61fddda6a7a8/" title="Go 语言 GC (Garbage Collection) 机制详解">Go 语言 GC (Garbage Collection) 机制详解</a><time datetime="2025-11-23T22:24:00.000Z" title="发表于 2025-11-24 06:24:00">2025-11-24</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-26.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
