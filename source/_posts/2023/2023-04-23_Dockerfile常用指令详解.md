@@ -8,316 +8,371 @@ tags:
 categories: Docker
 ---
 
-> `Dockerfile` 是一个文本文件，其中包含用户可以在命令行上调用以组装映像的所有命令。Docker 可以通过读取 `Dockerfile` 中的指令自动构建映像。它本质上是一个“可执行程序脚本”，用于自动化构建 Docker 镜像的过程。
+> **Dockerfile** 是一个文本文件，其中包含了用户可以在命令行上调用以组装映像的所有命令。Docker 读取 `Dockerfile` 中的指令并自动构建镜像。通过 `Dockerfile`，你可以构建可移植、可复用、可共享的 Docker 镜像，这对于实现应用程序的容器化、简化部署流程和CI/CD（持续集成/持续部署）至关重要。
 
 {% note info %}
-理解和熟练使用 `Dockerfile` 指令是 Docker 应用开发和部署的核心技能之一。一个优化良好、结构清晰的 `Dockerfile` 不仅能构建出高效、安全、体积小的镜像，还能提高构建速度和可维护性。
+核心思想：
+`Dockerfile` 提供了一种**声明式**的方式来定义 Docker 镜像的构建过程。通过一系列指令，它描述了如何从一个基础镜像开始，逐步添加文件、安装软件、配置环境、暴露端口，最终形成一个可运行的、自包含的应用程序镜像。
 {% endnote %}
+
 ------
 
 ## 一、Dockerfile 基础概念
 
-*   **镜像 (Image)**：一个只读的模板，包含了创建 Docker 容器所需的所有文件和配置。
-*   **容器 (Container)**：镜像运行时的实例。可以启动、停止、删除。
-*   **层 (Layer)**：Dockerfile 中的每个指令都会创建一个新的镜像层。这些层是只读的，可以被缓存和共享，是 Docker 镜像高效和可复用的关键。
-*   **构建上下文 (Build Context)**：当执行 `docker build` 命令时，它会向 Docker 守护进程发送一个目录（通常是当前目录）及其所有内容。这个目录被称为构建上下文。`Dockerfile` 和其中引用的所有文件都必须在这个上下文中。
+1.  **镜像 (Image)**：是 Docker 容器的只读模板，包含了运行某个软件所需的一切，包括代码、运行时、库、环境变量和配置文件。镜像通过 `Dockerfile` 构建。
+2.  **容器 (Container)**：是镜像的运行实例。容器是轻量级、独立的、可执行的软件包，包含应用程序及其所有依赖。
+3.  **层 (Layer)**：Docker 镜像由一系列只读层（Layer）组成。`Dockerfile` 中的每条指令都会创建一个新的层。这些层是可重用的，并且优化了镜像的存储和传输效率。
+4.  **构建上下文 (Build Context)**：当执行 `docker build` 命令时，它会将本地的特定目录（通常是 `Dockerfile` 所在的目录）发送给 Docker Daemon。这个目录中的所有文件和子目录构成了构建上下文。`COPY` 和 `ADD` 指令只能引用构建上下文中的内容。
 
 ## 二、Dockerfile 常用指令详解
 
-以下是 `Dockerfile` 中常用的指令及其详细解释。
+`Dockerfile` 由一系列指令和参数组成。以下是常用的 `Dockerfile` 指令及其详细说明。
 
-### 1. `FROM`
+### 2.1 FROM
 
-*   **作用**：指定基础镜像，是 `Dockerfile` 的第一个指令（除 `ARG` 之外）。所有的构建都必须基于一个基础镜像。
-*   **语法**：
-    ```dockerfile
-    FROM <image> [AS <name>]
-    FROM <image>[:<tag>] [AS <name>]
-    FROM <image>@<digest> [AS <name>]
-    ```
+*   **语法**：`FROM <image>[:<tag>] [AS <name>]`
+*   **用途**：指定构建新镜像所基于的**基础镜像**。`Dockerfile` 的第一条指令通常是 `FROM`。
+*   **说明**：基础镜像可以是 Docker Hub 上的官方镜像，也可以是自己构建的其他镜像。`<tag>` 默认为 `latest`。
 *   **示例**：
     ```dockerfile
-    FROM ubuntu:22.04        # 基于 Ubuntu 22.04 镜像
-    FROM python:3.9-slim-buster AS builder # 基于 Python 3.9 瘦身版镜像，并命名为 builder
+    FROM ubuntu:22.04 # 基于 Ubuntu 22.04 镜像
+    FROM alpine/git:latest AS git-tool # 使用带 Git 工具的 Alpine 镜像，并命名阶段
     ```
-*   **最佳实践**：
-    *   选择官方镜像，更可靠。
-    *   选择尽可能小的基础镜像（如 `alpine` 或 `slim` 版本），以减小最终镜像体积。
-    *   指定精确的标签（tag），避免使用 `latest`，确保构建的可复现性。
-    *   使用多阶段构建（`AS <name>`），优化最终镜像。
 
-### 2. `RUN`
+### 2.2 LABEL
 
-*   **作用**：在当前镜像层之上执行命令，并提交结果作为新的镜像层。主要用于安装软件包、配置环境等。
-*   **语法**：
-    ```dockerfile
-    RUN <command>           # shell 形式，命令在 shell 中运行 (默认是 `/bin/sh -c` on Linux, `cmd /S /C` on Windows)
-    RUN ["executable", "param1", "param2"] # exec 形式，直接执行命令，不经过 shell
-    ```
+*   **语法**：`LABEL <key>=<value> [<key>=<value> ...]`
+*   **用途**：为镜像添加元数据 (Metadata)。
+*   **说明**：这些元数据可以是作者信息、版本号、描述等，可以提高镜像的可管理性。
 *   **示例**：
     ```dockerfile
+    LABEL author="Your Name <your.email@example.com>"
+    LABEL version="1.0"
+    LABEL description="This is a sample Node.js application image."
+    ```
+
+### 2.3 RUN
+
+*   **语法**：
+    *   `RUN <command>` (shell 格式，命令在 `/bin/sh -c` 中运行)
+    *   `RUN ["executable", "param1", "param2"]` (exec 格式，推荐使用，避免 shell 解释器问题)
+*   **用途**：在当前镜像层上执行命令行命令，并生成一个新的镜像层。
+*   **说明**：`RUN` 指令常用于安装软件包、创建目录、下载文件等。每个 `RUN` 命令都会创建一个新的镜像层，因此为了优化镜像大小，最好将多个相关联的命令链式组合为一个 `RUN` 指令。
+*   **示例**：
+    ```dockerfile
+    # shell 格式
     RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx \
-        && rm -rf /var/lib/apt/lists/* # shell 形式，安装 Nginx 并清理缓存
-
-    RUN ["/bin/bash", "-c", "echo hello"] # exec 形式，指定 bash 运行
+        curl \
+        && rm -rf /var/lib/apt/lists/*
+  
+    # exec 格式 (用于更明确地控制命令执行)
+    RUN ["/bin/bash", "-c", "echo Hello Docker"]
     ```
-*   **最佳实践**：
-    *   将多个 `RUN` 命令合并成一个 `RUN` 命令，可以减少镜像层数，**这是优化镜像大小的关键**。使用 `&&` 连接命令，并在末尾添加清理命令（如 `rm -rf /var/lib/apt/lists/*`）。
-    *   使用 `exec` 形式可以避免 shell 的额外开销，但通常 `shell` 形式更容易编写和理解。
 
-### 3. `CMD`
+### 2.4 COPY
 
-*   **作用**：为执行中的容器提供默认的命令。如果 `docker run` 命令指定了其他命令，`CMD` 的命令会被覆盖。一个 `Dockerfile` 中只能有一个 `CMD` 指令，如果有多个，只有最后一个生效。
-*   **语法**：
-    ```dockerfile
-    CMD ["executable","param1","param2"] # exec 形式 (推荐)
-    CMD ["param1","param2"]              # 作为 ENTRYPOINT 的附加参数 (推荐)
-    CMD command param1 param2            # shell 形式
-    ```
+*   **语法**：`COPY <src>... <dest>` 或 `COPY ["<src>",... "<dest>"]`
+*   **用途**：将**构建上下文目录**中的文件或目录复制到镜像中的指定路径。
+*   **说明**：`<src>` 是相对于构建上下文的路径，`<dest>` 是镜像中的绝对路径或工作目录 (WORKDIR) 相对路径。`COPY` 智能处理文件权限。
 *   **示例**：
     ```dockerfile
-    CMD ["nginx", "-g", "daemon off;"] # 容器启动时运行 Nginx
-    CMD echo "Hello Docker!" # shell 形式
-    ```
-*   **最佳实践**：
-    *   建议使用 `exec` 形式，因为它能避免 shell 处理，更清晰地表示容器启动后的主要进程。
-    *   当与 `ENTRYPOINT` 结合使用时，`CMD` 用于为 `ENTRYPOINT` 提供默认参数。
-
-### 4. `ENTRYPOINT`
-
-*   **作用**：配置一个容器作为可执行文件运行。它为容器提供了一个固定的命令和参数，而 `CMD` 只是为 `ENTRYPOINT` 提供默认参数，或者在没有 `ENTRYPOINT` 时提供默认命令。
-*   **语法**：
-    ```dockerfile
-    ENTRYPOINT ["executable", "param1", "param2"] # exec 形式 (推荐)
-    ENTRYPOINT command param1 param2              # shell 形式 (不推荐)
-    ```
-*   **示例**：
-    ```dockerfile
-    ENTRYPOINT ["java", "-jar", "app.jar"] # 容器作为 Java 应用运行
-    CMD ["--spring.profiles.active=prod"] # 为 ENTRYPOINT 提供默认参数
-    ```
-*   **最佳实践**：
-    *   使用 `exec` 形式。
-    *   与 `CMD` 结合使用时，`ENTRYPOINT` 定义了容器启动的固定行为，而 `CMD` 提供了可变的默认参数，方便通过 `docker run ...` 覆盖这些参数。
-
-### 5. `COPY`
-
-*   **作用**：从构建上下文复制文件或目录到镜像中指定路径。
-*   **语法**：
-    ```dockerfile
-    COPY <源路径>... <目标路径>
-    COPY ["<源路径>", ..., "<目标路径>"]
-    ```
-*   **示例**：
-    ```dockerfile
-    COPY . /app/      # 将当前构建上下文所有文件复制到镜像的 /app 目录
+    COPY . /app      # 将构建上下文中的所有内容复制到镜像的 /app 目录
     COPY src/main.go /app/main.go # 复制单个文件
-    COPY --chown=user:group myapp /app/myapp # 复制并改变所有者
+    COPY --chown=user:group myapp /opt/myapp # 复制文件并改变所有者
     ```
-*   **最佳实践**：
-    *   只复制需要的文件，避免复制不必要的文件（如 `.git` 目录、日志文件等），通常通过 `.dockerignore` 文件来控制。
-    *   指定精确的源和目标路径，减少不必要的拷贝。
 
-### 6. `ADD`
+### 2.5 ADD
 
-*   **作用**：与 `COPY` 类似，但它有额外的功能：
-    1.  如果源路径是 URL，`ADD` 会下载该文件。
-    2.  如果源路径是 `tar` 压缩文件，`ADD` 会自动解压到目标路径。
-*   **语法**：
-    ```dockerfile
-    ADD <源路径>... <目标路径>
-    ADD ["<源路径>", ..., "<目标路径>"]
-    ```
+*   **语法**：`ADD <src>... <dest>` 或 `ADD ["<src>",... "<dest>"]`
+*   **用途**：与 `COPY` 类似，但具有额外功能。
+*   **说明**：
+    1.  如果 `<src>` 是一个可识别的压缩文件 (如 `.tar`, `.gz`, `.xz`)，`ADD` 会自动解压缩到 `<dest>`。
+    2.  如果 `<src>` 是一个 URL，`ADD` 会下载该 URL 的内容到 `<dest>`。
+    由于其自动解压缩和 URL 下载功能，通常推荐优先使用 `COPY`，因为它更透明，更易于理解。`ADD` 的额外功能在某些特定场景下有用，但在很多情况可能并非期望行为。
 *   **示例**：
     ```dockerfile
-    ADD https://example.com/latest.tar.gz /app/ # 下载并解压
-    ADD myapp.tar.gz /app/  # 解压本地压缩包
+    ADD http://example.com/latest.tar.gz /app/ # 下载并解压缩
+    ADD myarchive.tar.gz /app/                   # 复制并解压缩
     ```
-*   **最佳实践**：
-    *   由于 `ADD` 的自动解压和远程文件下载功能可能引入不确定性和安全风险，**更推荐使用 `COPY`**。只有当确实需要自动解压本地 `tar` 文件时才考虑 `ADD`。
-    *   下载远程文件建议使用 `RUN wget` 或 `RUN curl`，这样可以更明确地控制下载过程和校验，并能清理下载缓存。
 
-### 7. `WORKDIR`
+### 2.6 WORKDIR
 
-*   **作用**：为 `RUN`, `CMD`, `ENTRYPOINT`, `COPY`, `ADD` 等指令设置工作目录。后续的指令都会在这个目录下执行。
-*   **语法**：
-    ```dockerfile
-    WORKDIR /path/to/workdir
-    ```
+*   **语法**：`WORKDIR /path/to/workdir`
+*   **用途**：设置在 `RUN`, `CMD`, `ENTRYPOINT`, `COPY`, `ADD` 等指令执行时的工作目录。
+*   **说明**：如果指定的目录不存在，`WORKDIR` 会自动创建它。一个 `Dockerfile` 中可以有多个 `WORKDIR` 指令，后续指令都会基于最新的 `WORKDIR`。
 *   **示例**：
     ```dockerfile
     WORKDIR /app
-    COPY . . # 相当于 COPY . /app/.
-    RUN npm install
-    CMD ["npm", "start"]
+    COPY . . # 此时的 . 指的是 /app
+    RUN pwd  # 输出 /app
     ```
-*   **最佳实践**：
-    *   为应用程序设置一个明确的工作目录，保持 `Dockerfile` 的整洁和可读性。
-    *   避免每次都使用绝对路径，利用 `WORKDIR` 简化指令。
 
-### 8. `EXPOSE`
+### 2.7 EXPOSE
 
-*   **作用**：声明容器运行时监听的端口。这仅仅是一个文档作用，告诉用户容器服务监听哪个端口。它**不会**实际发布端口到宿主机，需要在使用 `docker run` 命令时通过 `-p` 或 `-P` 参数来映射。
-*   **语法**：
-    ```dockerfile
-    EXPOSE <port> [<port>/<protocol>...]
-    ```
+*   **语法**：`EXPOSE <port> [<port>/<protocol> ...]`
+*   **用途**：通知 Docker 容器在运行时会监听哪些端口。
+*   **说明**：`EXPOSE` 仅仅是声明，它不会实际发布端口。要在运行容器时将容器端口映射到主机端口，需要使用 `docker run -p` 选项。
 *   **示例**：
     ```dockerfile
-    EXPOSE 80      # 暴露 TCP 80 端口
-    EXPOSE 80/tcp  # 明确指定 TCP
-    EXPOSE 53/udp  # 暴露 UDP 53 端口
-    EXPOSE 80 443  # 暴露多个端口
+    EXPOSE 80 # 声明容器会监听 TCP 80 端口
+    EXPOSE 80/tcp 443/udp # 声明 TCP 80 和 UDP 443 端口
     ```
-*   **最佳实践**：
-    *   声明应用程序监听的所有端口。
-    *   这对于容器编排工具（如 Kubernetes）尤其有用，它们可以读取 `Dockerfile` 中的 `EXPOSE` 信息来配置服务。
 
-### 9. `ENV`
+### 2.8 ENV
 
-*   **作用**：设置环境变量，这些变量在构建时和容器运行时都可用。
-*   **语法**：
-    ```dockerfile
-    ENV <key>=<value> ...
-    ```
+*   **语法**：`ENV <key>=<value> [<key>=<value> ...]`
+*   **用途**：设置环境变量。
+*   **说明**：环境变量在构建时和容器运行时都可用。它们可以用于配置应用程序行为、路径等。
 *   **示例**：
     ```dockerfile
-    ENV MY_ENV_VAR="hello"
-    ENV PATH="/usr/local/bin:$PATH" # 添加 PATH
+    ENV MY_VAR="hello world"
+    ENV PATH="/usr/local/go/bin:${PATH}" # 添加到 PATH
     ```
-*   **最佳实践**：
-    *   定义应用程序所需的配置参数（如数据库连接字符串、API 密钥等）。
-    *   环境变量会增加镜像层，如果设置了敏感信息，它们会保留在镜像历史中。**敏感信息不应直接硬编码在 `ENV` 中，而应通过 `docker run -e` 或 secret manager 传递**。
 
-### 10. `ARG`
+### 2.9 ARG
 
-*   **作用**：定义构建时变量。这些变量在 `docker build` 命令中传递，并且只在构建阶段有效，容器运行时不可见。
-*   **语法**：
-    ```dockerfile
-    ARG <name>[=<default value>]
-    ```
+*   **语法**：`ARG <name>[=<default value>]`
+*   **用途**：定义一个构建时变量，可在 `docker build` 命令中使用 `--build-arg` 参数来传递其值。
+*   **说明**：`ARG` 变量只在镜像构建过程中有效，容器运行时不可用。
 *   **示例**：
     ```dockerfile
-    ARG BUILD_VERSION=1.0.0
-    ARG NODE_VERSION
-    RUN echo "Building version: $BUILD_VERSION" # 在 RUN 命令中使用 BUILD_VERSION
+    ARG VERSION=1.0
+    RUN echo "Building version $VERSION"
+    # 构建时: docker build --build-arg VERSION=2.0 -t myapp .
     ```
-    构建时传递：`docker build --build-arg NODE_VERSION=16.x .`
-*   **最佳实践**：
-    *   用于传递构建参数，如版本号、代理设置等。
-    *   `ARG` 在 `FROM` 之前定义可以影响 `FROM` 指令。
-    *   注意，如果 `ARG` 定义的变量在 `CMD`/`ENTRYPOINT` 中使用，需要用 `ENV` 重新声明，因为 `ARG` 只在构建时可见。
 
-### 11. `VOLUME`
+### 2.10 CMD
 
-*   **作用**：创建一个挂载点，将宿主机的目录或 Docker 管理的卷挂载到容器中，绕过 Union File System。通常用于存储动态数据或共享数据。
 *   **语法**：
-    ```dockerfile
-    VOLUME ["/data"]            # 推荐 exec 形式
-    VOLUME /var/log/app
-    ```
+    *   `CMD ["executable","param1","param2"]` (exec 格式，推荐)
+    *   `CMD ["param1","param2"]` (作为 ENTRYPOINT 的默认参数)
+    *   `CMD command param1 param2` (shell 格式)
+*   **用途**：为执行容器化应用程序提供默认命令。
+*   **说明**：
+    *   一个 `Dockerfile` 中只能有一条 `CMD` 指令。如果有多条，只有最后一条生效。
+    *   `CMD` 用于设置容器启动时要执行的**默认命令**。
+    *   如果 `docker run` 命令明确指定了命令，则 `CMD` 指定的默认命令会被覆盖。
+    *   通常与 `ENTRYPOINT` 结合使用。
 *   **示例**：
     ```dockerfile
-    VOLUME ["/var/www/html"] # 声明此目录将用于存储 Web 服务器的数据
+    CMD ["nginx", "-g", "daemon off;"] # 启动 Nginx
     ```
-*   **最佳实践**：
-    *   声明应用程序可能需要外部持久化存储的目录。
-    *   尽管 `VOLUME` 指令在 `Dockerfile` 中指定了挂载点，但实际的卷挂载是在 `docker run -v` 命令中完成的。
 
-### 12. `USER`
+### 2.11 ENTRYPOINT
 
-*   **作用**：设置运行容器或执行 `RUN`, `CMD`, `ENTRYPOINT` 命令时使用的用户名或 UID/GID。
 *   **语法**：
-    ```dockerfile
-    USER <user>[:<group>]
-    USER <UID>[:<GID>]
-    ```
+    *   `ENTRYPOINT ["executable", "param1", "param2"]` (exec 格式，推荐)
+    *   `ENTRYPOINT command param1 param2` (shell 格式)
+*   **用途**：配置一个容器作为可执行程序运行。
+*   **说明**：
+    *   一个 `Dockerfile` 中只能有一条 `ENTRYPOINT` 指令。
+    *   `ENTRYPOINT` 设置的命令始终会被执行，即使 `docker run` 命令指定了其他参数。
+    *   当 `ENTRYPOINT` 使用 exec 格式时，`CMD` 指令会被添加为 `ENTRYPOINT` 的参数。这使其成为一个可配置的命令。
 *   **示例**：
     ```dockerfile
-    FROM ubuntu:22.04
-    RUN useradd -ms /bin/bash appuser # 创建一个新用户
-    USER appuser # 后续命令将以 appuser 身份运行
-    CMD ["echo", "Hello from appuser"]
+    ENTRYPOINT ["/usr/bin/supervisord", "-n"] # 始终以 supervisord 启动
     ```
-*   **最佳实践**：
-    *   **不要以 `root` 用户运行容器应用程序**。这是`安全最佳实践`。创建并使用非 `root` 用户来运行应用程序。
-
-### 13. `HEALTHCHECK`
-
-*   **作用**：告诉 Docker 如何检测容器内的服务是否健康。
-*   **语法**：
+    配合 `CMD` 的示例：
     ```dockerfile
-    HEALTHCHECK [OPTIONS] CMD command
-    HEALTHCHECK NONE
+    ENTRYPOINT ["/usr/local/bin/my-app"]
+    CMD ["--config", "/etc/my-app/config.json"] # CMD 是ENTRYPOINT的默认参数
+    # 如果运行 `docker run my-image --port 8080`, 则实际执行 `/usr/local/bin/my-app --port 8080`
     ```
-    **Options:**
-    *   `--interval=DURATION` (default: 30s)
-    *   `--timeout=DURATION` (default: 30s)
-    *   `--start-period=DURATION` (default: 0s)
-    *   `--retries=N` (default: 3)
+
+### 2.12 VOLUME
+
+*   **语法**：`VOLUME ["/data"]` 或 `VOLUME /var/log`
+*   **用途**：创建一个挂载点，将一个或多个指定的路径声明为外部挂载卷。
+*   **说明**：
+    *   用于持久化容器数据，或在容器和主机之间共享数据。
+    *   当容器启动时，如果主机没有为该路径显式挂载卷，Docker 会自动创建一个匿名卷并挂载到此路径。
+    *   `VOLUME` 指令通常用于指定应该被外部挂载的目录，以避免数据丢失和方便共享。
 *   **示例**：
     ```dockerfile
-    HEALTHCHECK --interval=5s --timeout=3s --retries=3 \
-        CMD curl --fail http://localhost/ || exit 1
+    VOLUME /var/lib/mysql # 声明 /var/lib/mysql 是一个卷，用于数据库持久化
     ```
-*   **最佳实践**：
-    *   定义一个命令来检查应用程序的健康状况，例如检查 HTTP 端点是否返回 200 状态码，或者 TCP 端口是否响应。
-    *   这对于容器编排系统（如 Kubernetes, Docker Compose）进行服务管理和自动恢复非常有用。
 
-### 14. `LABEL`
+### 2.13 USER
 
-*   **作用**：为镜像添加元数据。这允许用户添加自定义信息，如维护者、版本、描述等。
-*   **语法**：
-    ```dockerfile
-    LABEL <key>="<value>" [<key>="<value>" ...]
-    ```
+*   **语法**：`USER <user>[:<group>]`
+*   **用途**：设置执行后续 `RUN`, `CMD`, `ENTRYPOINT` 指令时使用的用户或用户组。
+*   **说明**：通常建议在容器中以非 root 用户运行应用程序，以增强安全性。
 *   **示例**：
     ```dockerfile
-    LABEL maintainer="Your Name <your.email@example.com>"
-    LABEL version="1.0"
-    LABEL description="This is a sample web application."
+    RUN groupadd -r appuser && useradd -r -g appuser appuser
+    USER appuser # 后续命令以 appuser 用户身份运行
     ```
-*   **最佳实践**：
-    *   提供清晰的元数据，方便管理和识别镜像。
-    *   可以使用多行 `LABEL`，但合并成一个 `LABEL` 指令可以减少镜像层数。
 
-## 三、Dockerfile 构建最佳实践
+### 2.14 HEALTHCHECK
 
-1.  **使用 `.dockerignore` 文件**：类似于 `.gitignore`，防止不必要的文件（如 `node_modules`, `.git`, `.vscode` 等）被复制到构建上下文中，加快构建速度并减小镜像体积。
-2.  **多阶段构建 (Multi-stage Builds)**：
-    *   将构建环境和运行时环境分离。
-    *   例如，第一阶段编译代码，然后将编译好的二进制文件复制到第二阶段的轻量级运行时镜像中。
-    *   这能显著减小最终镜像体积，提高安全性。
+*   **语法**：`HEALTHCHECK [OPTIONS] CMD command` (通过运行命令来检查)
+    `HEALTHCHECK NONE` (禁用继承来的健康检查)
+*   **用途**：配置如何检测容器是否处于健康状态（即应用程序是否正常运行）。
+*   **说明**：当容器持续失败健康检查时，Docker 会将其状态标记为 `unhealthy`。这对于自动化管理（例如，在发现不健康容器时重启或将其从负载均衡中移除）非常有用。
+*   **选项**：
+    *   `--interval=DURATION` (默认 `30s`): 两次检查的间隔时间。
+    *   `--timeout=DURATION` (默认 `30s`): 单次检查的超时时间。
+    *   `--start-period=DURATION` (默认 `0s`): 容器启动后，在开始执行健康检查命令之前，需要等待的初始化时间。
+    *   `--retries=N` (默认 `3`): 在将容器标记为 `unhealthy` 之前，允许失败的重试次数。
+*   **示例**：
     ```dockerfile
-    # 第一阶段：构建
-    FROM golang:1.20-alpine AS builder
-    WORKDIR /app
-    COPY . .
-    RUN go mod download
-    RUN CGO_ENABLED=0 GOOS=linux go build -o myapp .
-
-    # 第二阶段：运行
-    FROM alpine:latest
-    WORKDIR /app
-    COPY --from=builder /app/myapp .
-    EXPOSE 8080
-    CMD ["./myapp"]
+    HEALTHCHECK --interval=5m --timeout=3s \
+      CMD curl -f http://localhost/ || exit 1 # 每5分钟检查一次，超时3秒，如果 curl 失败则退出
     ```
-3.  **减少镜像层数**：每个 `RUN`, `COPY`, `ADD` 指令都会创建一个新层。将相关的指令合并，特别是 `RUN` 命令，使用 `&&` 连接。
-4.  **利用缓存**：Docker 会缓存每个指令的结果。将不变的指令放在 `Dockerfile` 的顶部，变化的指令放在底部，最大限度地利用缓存，加快重复构建的速度。
-5.  **指定精确的基础镜像标签**：避免使用 `latest`，以确保构建的可复现性。
-6.  **非 Root 用户**：尽量使用 `USER` 指令将容器运行为非 `root` 用户，提高安全性。
-7.  **清理中间文件**：在 `RUN` 命令中，安装完软件包后立即清理包管理器的缓存 (`apt-get clean`, `rm -rf /var/cache/apk/*` 等)。
-8.  **明智地使用 `VOLUME`**：只在需要持久化或共享数据时使用。
 
-## 四、总结
+### 2.15 ONBUILD
 
-`Dockerfile` 是容器化工作流的核心。通过深入理解其常用指令及其最佳实践，你可以：
+*   **语法**：`ONBUILD <Dockerfile instruction>`
+*   **用途**：添加一个触发器指令到镜像。当此镜像作为其他镜像的基础镜像时，这些触发器指令将被执行。
+*   **说明**：`ONBUILD` 指令在当前镜像构建时不做任何操作。它只在将当前镜像作为 `FROM` 语句的基础镜像时被触发和执行。
+*   **示例**：
+    ```dockerfile
+    # 在父镜像 Dockerfile 中
+    ONBUILD COPY . /app/src
+    ONBUILD RUN /usr/local/bin/build-scripts/app-builder
 
-*   **构建更小、更快的 Docker 镜像**
-*   **提高镜像的可维护性和安全性**
-*   **优化 CI/CD 流程中的构建时间**
-*   **更好地管理应用程序的依赖和配置**
+    # 当从此父镜像构建子镜像时
+    FROM my-base-image:1.0
+    # 此时，上述的 COPY 和 RUN 指令会被自动执行
+    ```
 
-掌握这些知识，你就能更有效地利用 Docker，将你的应用程序打包、分发和部署到任何环境。
+### 2.16 SHELL
+
+*   **语法**：`SHELL ["executable", "parameters"]`
+*   **用途**：设置 `RUN`, `CMD`, `ENTRYPOINT` 的 shell 格式指令的默认 shell。
+*   **说明**：默认是 `["/bin/sh", "-c"]` (Linux) 或 `["cmd", "/S", "/C"]` (Windows)。可以修改为 `["/bin/bash", "-c"]` 来使用 Bash 特性，例如更复杂的管道操作和变量扩展。
+*   **示例**：
+    ```dockerfile
+    SHELL ["/bin/bash", "-c"]
+    RUN echo "Running with Bash in $PWD"
+    ```
+
+### 2.17 STOPSIGNAL
+
+*   **语法**：`STOPSIGNAL signal`
+*   **用途**：设置发送给容器以终止它的系统调用信号。
+*   **说明**：默认是 `SIGTERM`。可以更改为其他信号，如 `SIGKILL`，但这通常不推荐，因为 `SIGKILL` 无法被应用程序捕获，可能导致数据丢失。合适的信号允许应用程序优雅关闭。
+*   **示例**：
+    ```dockerfile
+    STOPSIGNAL SIGQUIT
+    ```
+
+### 2.18 MAINTAINER (已废弃)
+
+*   **用途**：指定镜像的维护者信息。
+*   **说明**：已经被 `LABEL` 指令取代。
+*   **示例**：
+    `MAINTAINER Your Name <your.email@example.com>` (不推荐使用)
+    应替换为 `LABEL maintainer="Your Name <your.email@example.com>"`
+
+## 三、Docker 镜像构建过程和最佳实践
+
+### 3.1 镜像构建流程示意图
+
+{% mermaid %}
+graph TD
+    A[开始 Docker Build] --> B{读取 Dockerfile}
+    B --> C[FROM: 选择基础镜像]
+    C --> D[RUN: 执行命令, 如安装依赖]
+    D --> E[COPY/ADD: 复制文件到镜像]
+    E --> F[WORKDIR: 设置工作目录]
+    F --> G[ENV/ARG: 配置环境变量/构建变量]
+    G --> H[EXPOSE: 声明端口]
+    H --> I[CMD/ENTRYPOINT: 定义容器启动命令]
+    I --> J[构建完成, 生成新镜像]
+{% endmermaid %}
+
+### 3.2 镜像构建最佳实践
+
+遵循以下最佳实践可以帮助你构建更小、更安全、更高效的 Docker 镜像。
+
+1.  **选择合适的基础镜像**：
+    *   优先使用官方镜像，它们通常更稳定、更安全。
+    *   选择最小化的基础镜像，如 `alpine` 系列 (基于 Alpine Linux)，以减小镜像体积和攻击面。例如，对于 Go 应用，可以直接使用 `scratch` (完全空白镜像) 或 `alpine`。
+2.  **利用多阶段构建 (Multi-stage Builds)**：
+    *   将构建过程（编译代码、安装开发工具）与最终运行时的镜像隔离开来。
+    *   只将最终的、编译好的应用程序和其运行时依赖复制到最终的轻量级镜像中。
+    *   **示例**：
+        ```dockerfile
+        # 构建阶段
+        FROM golang:1.20 AS builder
+        WORKDIR /app
+        COPY go.mod go.sum ./
+        RUN go mod download
+        COPY . .
+        RUN CGO_ENABLED=0 GOOS=linux go build -o myapp .
+
+        # 最终镜像阶段
+        FROM alpine:latest
+        WORKDIR /root/
+        COPY --from=builder /app/myapp .
+        EXPOSE 8080
+        CMD ["./myapp"]
+        ```
+3.  **合并 `RUN` 指令以减少层数**：
+    *   每个 `RUN` 指令都会创建一个新的镜像层。将多个命令通过 `&&` 链接起来，可以减少镜像层数，从而减小最终镜像大小。
+    *   在 `apt-get install` 后，通常需要清理缓存 (`rm -rf /var/lib/apt/lists/*`)，以防止不必要的包管理器缓存占用空间。
+    *   **错误示例**：
+        ```dockerfile
+        RUN apt-get update
+        RUN apt-get install -y nginx
+        RUN rm -rf /var/lib/apt/lists/*
+        ```
+    *   **推荐示例**：
+        ```dockerfile
+        RUN apt-get update && apt-get install -y --no-install-recommends nginx \
+            && rm -rf /var/lib/apt/lists/*
+        ```
+4.  **精确指定版本而非 `latest`**：
+    *   `FROM` 指令中使用具体的版本号 (例如 `node:18` 而不是 `node:latest`)，以确保构建的可复现性。
+5.  **合理使用 `.dockerignore`**：
+    *   类似于 `.gitignore`，`.dockerignore` 文件可以指定在构建上下文传输时忽略的文件和目录。这可以加速构建过程并避免将不必要的敏感文件 (如 `.git` 目录、`node_modules` 等) 包含到镜像中。
+6.  **优先使用 `COPY` 而非 `ADD`**：
+    *   除非你需要 `ADD` 的自动解压缩或 URL 下载功能，否则始终优先使用 `COPY`。`COPY` 更清晰，意图更明确。
+7.  **按需安装依赖**：
+    *   只安装应用程序运行所必需的软件包和依赖项。避免安装开发工具、编译器等在运行时不需要的组件。
+8.  **非 Root 用户运行**：
+    *   通过 `USER` 指令在容器中创建一个非 `root` 用户并切换到该用户，以最小化潜在的安全风险。
+9.  **配置健康检查 `HEALTHCHECK`**：
+    *   为你的应用程序配置健康检查，以便 Docker 可以判断容器是否正常运行，并在不健康时采取自动化恢复措施。
+10. **考虑缓存机制**：
+    *   Docker 构建会利用层缓存。将不常变化的指令（如 `FROM`, `COPY` 依赖文件）放在 `Dockerfile` 的顶部，将经常变化的指令（如 `COPY` 应用代码）放在底部，可以最大限度地利用缓存，加速后续构建。
+    *   例如，在 Go 项目中，`COPY go.mod go.sum ./` 应该放在 `COPY . .` 之前，因为依赖文件变化频率低于代码文件。
+
+## 四、Docker Compose 中的 `Dockerfile`
+
+`Dockerfile` 通常与 `Docker Compose` 结合使用，以定义和运行多容器 Docker 应用程序。在 `docker-compose.yml` 文件中，你可以通过 `build` 关键字指向你的 `Dockerfile`。
+
+**`docker-compose.yml` 示例**：
+
+```yaml
+version: '3.8'
+services:
+  web:
+    build: . # 指向当前目录，Docker Compose 会在这里查找 Dockerfile 并构建镜像
+    ports:
+      - "80:80"
+    volumes:
+      - ./app:/app
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+```
+
+## 五、总结
+
+`Dockerfile` 是 Docker 生态系统的核心组成部分，是实现应用程序容器化的基石。通过理解和熟练运用 `Dockerfile` 的各项指令及遵循最佳实践，开发者可以创建出高效、安全、可维护的 Docker 镜像，从而极大地简化应用程序的开发、部署和运维流程，是现代 DevOps 和云原生架构中不可或缺的工具。
