@@ -1,6 +1,6 @@
 ---
 title: Golang 特殊注释 (Special Comments) 详解
-date: 2025-06-15f 06:24:00
+date: 2025-06-15 06:24:00
 tags: 
     - 2025
     - Golang
