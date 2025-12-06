@@ -35,8 +35,6 @@ Matplotlib 的出现，提供了一个强大、灵活且广泛支持的解决方
 *   **多后端支持**：支持多种图形后端，可以生成 PNG、JPG、PDF、SVG 等静态图片，也可以在 GUI 框架（如 Tkinter, PyQt, wxPython）中嵌入交互式图表。
 *   **活跃的社区**：拥有庞大而活跃的用户社区，丰富的文档和教程，遇到问题时容易找到帮助。
 
-> **特别说明**：根据原要求，此处应包含Go语言代码示例。但Matplotlib是Python库，Go语言不直接支持Matplotlib。为了提供实用且相关的示例，本文档将使用**Python代码**来演示Matplotlib的使用。
-
 ## 二、Matplotlib 的核心概念
 
 理解 Matplotlib 的核心概念对于高效使用它至关重要。
