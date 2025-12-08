@@ -1,0 +1,635 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Go Jaeger 深度解析：分布式追踪实践 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Jaeger 是一个开源的分布式追踪系统，由 Uber Technologies 开发并捐赠给 Cloud Native Computing Foundation (CNCF)。它用于监控和排除基于微服务架构的复杂分布式系统中的故障。通过收集、存储和可视化请求在各个服务之间的调用链，Jaeger 帮助开发者理解请求流、识别性能瓶颈和诊断错误。  核心思想：Jaeger 实现了 OpenTraci">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go Jaeger 深度解析：分布式追踪实践">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/bcbe0f78ef1d/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Jaeger 是一个开源的分布式追踪系统，由 Uber Technologies 开发并捐赠给 Cloud Native Computing Foundation (CNCF)。它用于监控和排除基于微服务架构的复杂分布式系统中的故障。通过收集、存储和可视化请求在各个服务之间的调用链，Jaeger 帮助开发者理解请求流、识别性能瓶颈和诊断错误。  核心思想：Jaeger 实现了 OpenTraci">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-18.jpg">
+<meta property="article:published_time" content="2025-12-04T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-08T03:58:25.144Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="程序设计">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="2025">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-18.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Go Jaeger 深度解析：分布式追踪实践",
+  "url": "https://blog.tbf1211.xx.kg/bcbe0f78ef1d/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-18.jpg",
+  "datePublished": "2025-12-04T22:24:00.000Z",
+  "dateModified": "2025-12-08T03:58:25.144Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/bcbe0f78ef1d/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Go Jaeger 深度解析：分布式追踪实践',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">353</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">207</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">74</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-18.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Go Jaeger 深度解析：分布式追踪实践</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Go Jaeger 深度解析：分布式追踪实践</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/bcbe0f78ef1d/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Jaeger</strong> 是一个开源的分布式追踪系统，由 Uber Technologies 开发并捐赠给 Cloud Native Computing Foundation (CNCF)。它用于监控和排除基于微服务架构的复杂分布式系统中的故障。通过收集、存储和可视化请求在各个服务之间的调用链，Jaeger 帮助开发者理解请求流、识别性能瓶颈和诊断错误。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>Jaeger 实现了 OpenTracing API（现已融合到 OpenTelemetry 中），通过在请求流经每个服务时生成和传递独特的追踪上下文 (Trace Context)，并在每个服务中记录操作信息 (Span)，将分散的日志和指标关联起来，形成完整的请求链路视图。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要分布式追踪？"><a href="#一、为什么需要分布式追踪？" class="headerlink" title="一、为什么需要分布式追踪？"></a>一、为什么需要分布式追踪？</h2><p>在单体应用时代，通过日志和 APM (Application Performance Monitoring) 工具可以相对容易地定位问题。然而，随着服务架构向<strong>微服务</strong>演进，一个用户请求可能涉及数十甚至上百个独立服务的协同处理。这带来了新的挑战：</p>
+<ol>
+<li><strong>请求链路复杂性</strong>：难以追踪一个请求从前端到后端，再穿越多个微服务的完整路径。</li>
+<li><strong>性能瓶颈识别</strong>：难以确定哪个服务或哪个环节导致了请求延迟。</li>
+<li><strong>故障定位</strong>：当请求失败时，难以 pinpoint 是哪个服务抛出了异常，以及是上游还是下游服务的影响。</li>
+<li><strong>调用依赖分析</strong>：难以可视化服务之间的相互调用关系，以及请求的 fan-out&#x2F;fan-in 模式。</li>
+</ol>
+<p><strong>分布式追踪系统 (Distributed Tracing System)</strong> 正是为了解决这些问题而生。它提供了对整个请求生命周期的可见性，将分散的事件关联起来，形成统一的视图。</p>
+<h2 id="二、Jaeger-核心概念"><a href="#二、Jaeger-核心概念" class="headerlink" title="二、Jaeger 核心概念"></a>二、Jaeger 核心概念</h2><p>Jaeger 建立在 OpenTracing&#x2F;OpenTelemetry 规范之上，其核心概念包括：</p>
+<h3 id="2-1-Trace-追踪"><a href="#2-1-Trace-追踪" class="headerlink" title="2.1 Trace (追踪)"></a>2.1 Trace (追踪)</h3><p><strong>Trace</strong> 代表了分布式系统中一个完整的操作或请求。它由一个或多个 Span 组成，这些 Span 共同描述了从请求开始到完成的全过程。一个 Trace 通常由一个唯一的 ID 标识。</p>
+<h3 id="2-2-Span-跨度"><a href="#2-2-Span-跨度" class="headerlink" title="2.2 Span (跨度)"></a>2.2 Span (跨度)</h3><p><strong>Span</strong> 代表 Trace 中一个独立的、命名的操作单元。每个 Span 都有开始时间、结束时间、操作名称，以及一组标签 (Tags) 和日志 (Logs)。Span 可以嵌套，形成父子关系，以表示操作的层级结构。</p>
+<ul>
+<li><strong>操作名称 (Operation Name)</strong>：描述 Span 所代表的操作，例如 <code>HTTP GET /users/&#123;id&#125;</code>, <code>authenticateUser</code>, <code>database.query</code>。</li>
+<li><strong>开始时间 (Start Time)</strong>：Span 开始执行的时间戳。</li>
+<li><strong>结束时间 (End Time)</strong>：Span 完成执行的时间戳。</li>
+<li><strong>Duration (持续时间)</strong>：结束时间减去开始时间，表示操作耗时。</li>
+<li><strong>Span Context (Span 上下文)</strong>：包含 Trace ID、Span ID 和其他追踪元数据，用于在服务之间传递追踪信息。</li>
+<li><strong>Tags (标签)</strong>：键值对，用于存储 Span 的元数据，例如 HTTP 状态码、数据库查询语句、用户 ID 等。常用于筛选和搜索 Trace。</li>
+<li><strong>Logs (日志)</strong>：时间戳事件，记录特定时间点的日志信息，例如异常发生、关键业务事件等。</li>
+</ul>
+<h3 id="2-3-Span-之间的关系"><a href="#2-3-Span-之间的关系" class="headerlink" title="2.3 Span 之间的关系"></a>2.3 Span 之间的关系</h3><p>Span 之间可以存在关系，最常见的是父子关系：</p>
+<ul>
+<li><strong>ChildOf (子级)</strong>：一个 Span 是另一个 Span 的直接子级。例如，一个 HTTP 请求 Span 可能是处理该请求的数据库查询 Span 的父级。</li>
+<li><strong>FollowsFrom (跟随)</strong>：一个 Span 逻辑上依赖于另一个 Span，但不是直接的父子关系，例如异步操作。</li>
+</ul>
+<p><strong>Trace 和 Span 示意图</strong>：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[Trace: 用户请求] --&gt; B[Span A: Web Frontend &#x2F;api&#x2F;users];
+    B --&gt; C[&quot;Span B: User Service &#x2F;getUser(id)&quot;];
+    C --&gt; D[&quot;Span C: Database Service &#x2F;queryUser(id)&quot;];
+    D --&gt; C;
+    C --&gt; B;
+    B --&gt; E[&quot;Span E: Auth Service &#x2F;checkAuth(token)&quot;];
+    E --&gt; B;
+    B --&gt; F[Span F: Web Frontend 返回响应];
+  </pre></div>
+<p>在上图中，<code>Trace: 用户请求</code> 包含 <code>Span A</code>, <code>Span B</code>, <code>Span C</code>, <code>Span E</code>, <code>Span F</code>。<code>Span A</code> 是 <code>Span B</code> 和 <code>Span E</code> 的父级。<code>Span B</code> 是 <code>Span C</code> 的父级。</p>
+<h3 id="2-4-Jaeger-架构"><a href="#2-4-Jaeger-架构" class="headerlink" title="2.4 Jaeger 架构"></a>2.4 Jaeger 架构</h3><p>Jaeger 的主要组件包括：</p>
+<ol>
+<li><strong>Jaeger Client (客户端)</strong>：集成到应用程序中，用于生成和报告 Span。它实现了 OpenTracing&#x2F;OpenTelemetry API。</li>
+<li><strong>Agent (代理)</strong>：一个网络守护进程，运行在与应用程序相同的宿主机上。它接收 Jaeger Client 发送的 Span，并批量发送给 Collector。这减轻了 Client 直接与 Collector 通信的负担，并提供了更可靠的传输。</li>
+<li><strong>Collector (收集器)</strong>：接收 Agent 发送的 Span，对它们进行验证、处理和索引，然后写入存储后端。</li>
+<li><strong>Query (查询服务)</strong>：接收 UI 请求，从存储后端检索 Trace 数据，并提供给 Jaeger UI。</li>
+<li><strong>Storage (存储后端)</strong>：用于持久化 Trace 数据。支持 Cassandra, Elasticsearch, Kafka 等。</li>
+<li><strong>UI (用户界面)</strong>：提供 Web 界面，用于可视化、搜索和分析 Trace 数据。</li>
+</ol>
+<p><strong>Jaeger 架构示意图</strong>：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    subgraph Service A
+        AppA[应用程序 A] --&gt; ClientA[Jaeger Client A];
+    end
+    subgraph Service B
+        AppB[应用程序 B] --&gt; ClientB[Jaeger Client B];
+    end
+
+    ClientA -- UDP --&gt; AgentA[&quot;Jaeger Agent (host A)&quot;];
+    ClientB -- UDP --&gt; AgentB[&quot;Jaeger Agent (host B)&quot;];
+
+    AgentA -- Thrift over HTTP&#x2F;HTTPS&#x2F;Kafka&#x2F;gRPC --&gt; Collector[Jaeger Collector];
+    AgentB -- Thrift over HTTP&#x2F;HTTPS&#x2F;Kafka&#x2F;gRPC --&gt; Collector;
+
+    Collector --&gt; Storage[&quot;存储后端 (Cassandra&#x2F;Elasticsearch&#x2F;Kafka)&quot;];
+
+    Query[Jaeger Query Service] --&gt; Storage;
+
+    User[用户] --&gt; UI[Jaeger UI];
+    UI --&gt; Query;
+  </pre></div>
+
+<h2 id="三、Go-语言集成-Jaeger-OpenTelemetry"><a href="#三、Go-语言集成-Jaeger-OpenTelemetry" class="headerlink" title="三、Go 语言集成 Jaeger (OpenTelemetry)"></a>三、Go 语言集成 Jaeger (OpenTelemetry)</h2><p>在 Go 语言中集成 Jaeger，目前推荐使用 <strong>OpenTelemetry</strong>。OpenTelemetry 是 CNCF 的一个可观测性项目，旨在提供一套标准的 API、SDK 和工具，用于生成、收集和导出追踪、指标和日志。它已将 OpenTracing 和 OpenCensus 合并。</p>
+<p>以下是一个 Go 应用程序如何使用 OpenTelemetry (导出到 Jaeger) 的基本示例。</p>
+<h3 id="3-1-准备工作"><a href="#3-1-准备工作" class="headerlink" title="3.1 准备工作"></a>3.1 准备工作</h3><ol>
+<li><p><strong>运行 Jaeger All-in-One</strong>：<br>为了方便演示，可以使用 Docker 运行 Jaeger 的 All-in-One 镜像，它包含了 Agent, Collector, Query 和 UI。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">docker run -d --name jaeger \</span><br><span class="line">  -e COLLECTOR_OTLP_ENABLED=<span class="literal">true</span> \</span><br><span class="line">  -p 6831:6831/udp \</span><br><span class="line">  -p 6832:6832/udp \</span><br><span class="line">  -p 16686:16686 \</span><br><span class="line">  -p 4317:4317 \</span><br><span class="line">  -p 4318:4318 \</span><br><span class="line">  jaegertracing/all-in-one:latest</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>-p 16686:16686</code>：Jaeger UI 端口。访问 <code>http://localhost:16686</code> 查看追踪。</li>
+<li><code>-p 4317:4317</code>：OTLP&#x2F;gRPC 端口，用于 Go 应用发送追踪数据。</li>
+</ul>
+</li>
+<li><p><strong>创建 Go 项目</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> go-jaeger-example</span><br><span class="line"><span class="built_in">cd</span> go-jaeger-example</span><br><span class="line">go mod init go-jaeger-example</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>安装 OpenTelemetry Go SDK 和 Jaeger Exporter</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">go get go.opentelemetry.io/otel \</span><br><span class="line">       go.opentelemetry.io/otel/trace \</span><br><span class="line">       go.opentelemetry.io/otel/sdk/trace \</span><br><span class="line">       go.opentelemetry.io/otel/exporters/otlp/otlptrace \</span><br><span class="line">       go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc \</span><br><span class="line">       google.golang.org/grpc</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="3-2-Go-示例代码"><a href="#3-2-Go-示例代码" class="headerlink" title="3.2 Go 示例代码"></a>3.2 Go 示例代码</h3><p>创建一个 <code>main.go</code> 文件：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;io&quot;</span></span><br><span class="line">	<span class="string">&quot;log&quot;</span></span><br><span class="line">	<span class="string">&quot;net/http&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;go.opentelemetry.io/otel&quot;</span></span><br><span class="line">	<span class="string">&quot;go.opentelemetry.io/otel/attribute&quot;</span></span><br><span class="line">	<span class="string">&quot;go.opentelemetry.io/otel/exporters/otlp/otlptrace&quot;</span></span><br><span class="line">	<span class="string">&quot;go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc&quot;</span></span><br><span class="line">	<span class="string">&quot;go.opentelemetry.io/otel/sdk/resource&quot;</span></span><br><span class="line">	sdktrace <span class="string">&quot;go.opentelemetry.io/otel/sdk/trace&quot;</span></span><br><span class="line">	<span class="string">&quot;go.opentelemetry.io/otel/trace&quot;</span> <span class="comment">// 引入 trace 包</span></span><br><span class="line">	semconv <span class="string">&quot;go.opentelemetry.io/otel/semconv/v1.21.0&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;google.golang.org/grpc&quot;</span></span><br><span class="line">	<span class="string">&quot;google.golang.org/grpc/credentials/insecure&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// serviceName 定义当前服务的名称，将在 Jaeger UI 中显示</span></span><br><span class="line"><span class="keyword">const</span> serviceName = <span class="string">&quot;go-example-service&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// initTracerProvider 初始化 OpenTelemetry TracerProvider，并配置 Jaeger Exporter</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">initTracerProvider</span><span class="params">(ctx context.Context)</span></span> (*sdktrace.TracerProvider, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="comment">// 创建 OTLP gRPC 追踪导出器，连接到 Jaeger Collector 的 OTLP gRPC 端口 (4317)</span></span><br><span class="line">	conn, err := grpc.DialContext(ctx, <span class="string">&quot;localhost:4317&quot;</span>,</span><br><span class="line">		<span class="comment">// grpc.WithInsecure() is deprecated. Use credentials.WithInsecure() instead.</span></span><br><span class="line">		grpc.WithTransportCredentials(insecure.NewCredentials()),</span><br><span class="line">		grpc.WithBlock(), <span class="comment">// 阻塞直到连接成功</span></span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;failed to create gRPC connection to collector: %w&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;failed to create trace exporter: %w&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 定义资源，包含服务名称</span></span><br><span class="line">	res := resource.NewWithAttributes(</span><br><span class="line">		semconv.SchemaURL,</span><br><span class="line">		semconv.ServiceName(serviceName),</span><br><span class="line">		attribute.String(<span class="string">&quot;environment&quot;</span>, <span class="string">&quot;development&quot;</span>),</span><br><span class="line">	)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 创建 TracerProvider</span></span><br><span class="line">	bsp := sdktrace.NewBatchSpanProcessor(traceExporter) <span class="comment">// 批量处理 Span</span></span><br><span class="line">	tracerProvider := sdktrace.NewTracerProvider(</span><br><span class="line">		sdktrace.WithSampler(sdktrace.AlwaysSample()), <span class="comment">// 总是采样所有 Span</span></span><br><span class="line">		sdktrace.WithResource(res),</span><br><span class="line">		sdktrace.WithSpanProcessor(bsp),</span><br><span class="line">	)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 将 TracerProvider 设置为全局默认</span></span><br><span class="line">	otel.SetTracerProvider(tracerProvider)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> tracerProvider, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// simulateWork 模拟一些耗时操作</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">simulateWork</span><span class="params">(ctx context.Context, parentSpan trace.Span)</span></span> &#123;</span><br><span class="line">	<span class="comment">// 创建子 Span</span></span><br><span class="line">	_, span := otel.Tracer(serviceName).Start(ctx, <span class="string">&quot;simulateWork&quot;</span>, trace.WithLinks(trace.Link&#123;SpanContext: parentSpan.SpanContext()&#125;))</span><br><span class="line">	<span class="keyword">defer</span> span.End()</span><br><span class="line"></span><br><span class="line">	log.Println(<span class="string">&quot;Simulating some work...&quot;</span>)</span><br><span class="line">	time.Sleep(<span class="number">100</span> * time.Millisecond) <span class="comment">// 模拟耗时 100ms</span></span><br><span class="line">	span.SetAttributes(attribute.String(<span class="string">&quot;work.status&quot;</span>, <span class="string">&quot;completed&quot;</span>))</span><br><span class="line">	span.AddEvent(<span class="string">&quot;WorkStep1 Finished&quot;</span>, trace.WithAttributes(attribute.Int(<span class="string">&quot;progress&quot;</span>, <span class="number">50</span>)))</span><br><span class="line">	time.Sleep(<span class="number">50</span> * time.Millisecond)</span><br><span class="line">	span.AddEvent(<span class="string">&quot;WorkStep2 Finished&quot;</span>, trace.WithAttributes(attribute.Int(<span class="string">&quot;progress&quot;</span>, <span class="number">100</span>)))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// handler 是 HTTP 请求处理器</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">handler</span><span class="params">(w http.ResponseWriter, r *http.Request)</span></span> &#123;</span><br><span class="line">	<span class="comment">// 从 HTTP 请求上下文中提取父 Span context (如果存在)</span></span><br><span class="line">	<span class="comment">// 如果是第一个服务，会创建一个新的 Trace</span></span><br><span class="line">	ctx, span := otel.Tracer(serviceName).Start(r.Context(), <span class="string">&quot;HTTP GET /hello&quot;</span>,</span><br><span class="line">		trace.WithSpanKind(trace.SpanKindServer), <span class="comment">// 标记为服务器端 Span</span></span><br><span class="line">		trace.WithAttributes(</span><br><span class="line">			semconv.HTTPMethod(r.Method),</span><br><span class="line">			semconv.HTTPTarget(r.URL.Path),</span><br><span class="line">			semconv.NetHostName(r.Host),</span><br><span class="line">		),</span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">defer</span> span.End()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 将 Span context 注入到 HTTP 响应头部，以便下游服务可以继续追踪</span></span><br><span class="line">	<span class="comment">// 如果是纯 Go 服务间调用，可以手动传递 ctx</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 模拟处理逻辑</span></span><br><span class="line">	name := r.URL.Query().Get(<span class="string">&quot;name&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> name == <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">		name = <span class="string">&quot;World&quot;</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 调用模拟的工作函数，它会创建子 Span</span></span><br><span class="line">	simulateWork(ctx, span) <span class="comment">// 传递当前 Span 作为父 Span</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 模拟对外部服务的调用 (使用 http.Client 进行追踪)</span></span><br><span class="line">	_, subSpan := otel.Tracer(serviceName).Start(ctx, <span class="string">&quot;CallExternalService&quot;</span>,</span><br><span class="line">		trace.WithLinks(trace.Link&#123;SpanContext: span.SpanContext()&#125;),</span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">defer</span> subSpan.End()</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// Create a new request context with the current span injected</span></span><br><span class="line">	req, err := http.NewRequestWithContext(ctx, <span class="string">&quot;GET&quot;</span>, <span class="string">&quot;http://example.com&quot;</span>, <span class="literal">nil</span>) <span class="comment">// 模拟调用外部服务</span></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		span.RecordError(err) <span class="comment">// 记录错误</span></span><br><span class="line">		http.Error(w, <span class="string">&quot;Failed to create request&quot;</span>, http.StatusInternalServerError)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// Use HTTP propagator to inject trace context into the outgoing request headers</span></span><br><span class="line">	<span class="comment">// This is crucial for distributed tracing across services</span></span><br><span class="line">	otel.GetTextMapPropagator().Inject(ctx, otel.HeaderCarrier(req.Header))</span><br><span class="line"></span><br><span class="line">	<span class="comment">// In a real microservice scenario, you would use this client to call another internal service</span></span><br><span class="line">	client := http.Client&#123;&#125;</span><br><span class="line">	externalResp, err := client.Do(req)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		span.RecordError(err) <span class="comment">// 记录错误</span></span><br><span class="line">		http.Error(w, <span class="string">&quot;Failed to call external service&quot;</span>, http.StatusInternalServerError)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> externalResp.Body.Close()</span><br><span class="line">	</span><br><span class="line">	subSpan.SetAttributes(attribute.Int(<span class="string">&quot;http.status_code&quot;</span>, externalResp.StatusCode))</span><br><span class="line">	_, _ = io.ReadAll(externalResp.Body) <span class="comment">// 读取响应体以确保连接关闭</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 记录日志事件</span></span><br><span class="line">	span.AddEvent(<span class="string">&quot;Processing complete&quot;</span>, trace.WithAttributes(attribute.String(<span class="string">&quot;user.name&quot;</span>, name)))</span><br><span class="line">	span.SetAttributes(attribute.String(<span class="string">&quot;response.message&quot;</span>, <span class="string">&quot;Greeting sent&quot;</span>))</span><br><span class="line"></span><br><span class="line">	response := fmt.Sprintf(<span class="string">&quot;Hello, %s! (Processed by %s)&quot;</span>, name, serviceName)</span><br><span class="line">	fmt.Fprintln(w, response)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	ctx := context.Background()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 初始化 TracerProvider</span></span><br><span class="line">	tp, err := initTracerProvider(ctx)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Fatalf(<span class="string">&quot;failed to initialize TracerProvider: %v&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// 在应用程序退出时确保所有 Span 都被刷新和导出</span></span><br><span class="line">		<span class="keyword">if</span> err := tp.Shutdown(ctx); err != <span class="literal">nil</span> &#123;</span><br><span class="line">			log.Fatalf(<span class="string">&quot;failed to shutdown TracerProvider: %v&quot;</span>, err)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 注册 HTTP 处理器</span></span><br><span class="line">	http.HandleFunc(<span class="string">&quot;/hello&quot;</span>, handler)</span><br><span class="line"></span><br><span class="line">	log.Printf(<span class="string">&quot;Starting %s on :8080...&quot;</span>, serviceName)</span><br><span class="line">	log.Fatal(http.ListenAndServe(<span class="string">&quot;:8080&quot;</span>, <span class="literal">nil</span>))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-运行与验证"><a href="#3-3-运行与验证" class="headerlink" title="3.3 运行与验证"></a>3.3 运行与验证</h3><ol>
+<li><p>确保 Jaeger All-in-One Docker 容器正在运行。</p>
+</li>
+<li><p>编译并运行 Go 应用程序：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go run main.go</span><br></pre></td></tr></table></figure></li>
+<li><p>在浏览器中访问 <code>http://localhost:8080/hello?name=GoUser</code>。</p>
+</li>
+<li><p>打开 Jaeger UI：<code>http://localhost:16686</code>。</p>
+</li>
+<li><p>在 Jaeger UI 中，选择 <code>Service</code> 为 <code>go-example-service</code>，然后点击 <code>Find Traces</code>。<br>你将看到一个完整的 Trace，其中包含 <code>HTTP GET /hello</code> 主 Span，以及其子 Span <code>simulateWork</code> 和 <code>CallExternalService</code>。每个 Span 都将包含自定义的 Tags 和 Logs。</p>
+</li>
+</ol>
+<h3 id="3-4-关键点解释"><a href="#3-4-关键点解释" class="headerlink" title="3.4 关键点解释"></a>3.4 关键点解释</h3><ul>
+<li><strong><code>initTracerProvider</code></strong>：<ul>
+<li>创建 <code>otlptracegrpc.New</code> 导出器，通过 gRPC 将 Span 发送到 Jaeger Collector (默认端口 4317)。</li>
+<li><code>resource.NewWithAttributes</code> 用于定义服务的基本信息，如 <code>service.name</code>，这在 Jaeger UI 中用于标识服务。</li>
+<li><code>sdktrace.NewBatchSpanProcessor</code> 批量处理 Span，减少网络开销。</li>
+<li><code>sdktrace.WithSampler(sdktrace.AlwaysSample())</code> 配置为总是采样所有 Span (生产环境可能需要更智能的采样策略)。</li>
+<li><code>otel.SetTracerProvider</code> 将配置好的 <code>TracerProvider</code> 设置为全局默认，方便在代码中获取 <code>Tracer</code>。</li>
+</ul>
+</li>
+<li><strong><code>otel.Tracer(serviceName).Start(ctx, &quot;Operation Name&quot;, ...)</code></strong>：<ul>
+<li><code>otel.Tracer(serviceName)</code> 获取一个 <code>Tracer</code> 实例。</li>
+<li><code>Start</code> 方法开始一个新的 Span。它返回一个新的上下文 (<code>ctx</code>) 和 Span 对象。新的 <code>ctx</code> 会包含新 Span 的上下文信息。</li>
+<li><code>trace.WithSpanKind(trace.SpanKindServer)</code> 标记 Span 的类型。</li>
+<li><code>semconv</code> (Semantic Conventions) 提供了一组标准化的属性键，有助于统一不同服务报告的追踪数据。</li>
+<li><code>trace.WithLinks(trace.Link&#123;SpanContext: parentSpan.SpanContext()&#125;)</code>：在新 Span 和其父 Span 之间建立链接，确保它们在同一 Trace 中。在 OpenTelemetry 中，如果 <code>Start</code> 方法的第一个参数 <code>ctx</code> 中已经包含父 Span 信息，则会自动建立父子关系，无需显式 <code>WithLinks</code>。这里的 <code>WithLinks</code> 更多是示例性质。</li>
+</ul>
+</li>
+<li><strong><code>defer span.End()</code></strong>：确保 Span 在函数结束时被关闭，并计算其持续时间。</li>
+<li><strong><code>span.SetAttributes()</code> 和 <code>span.AddEvent()</code></strong>：<ul>
+<li><code>SetAttributes</code> 添加键值对标签，用于记录 Span 的元数据。</li>
+<li><code>AddEvent</code> 记录时间戳事件，类似于日志，但更紧密地绑定到 Span。</li>
+</ul>
+</li>
+<li><strong>分布式上下文传播</strong>：在 <code>handler</code> 中，<code>otel.Tracer(serviceName).Start(r.Context(), ...)</code> 自动从传入的 <code>http.Request</code> 中提取追踪上下文。在调用外部服务时，<code>otel.GetTextMapPropagator().Inject(ctx, otel.HeaderCarrier(req.Header))</code> 将当前的追踪上下文注入到传出请求的 HTTP 头部，确保追踪链路的连续性。这是分布式追踪的<strong>核心机制</strong>。</li>
+</ul>
+<h2 id="四、生产环境考虑"><a href="#四、生产环境考虑" class="headerlink" title="四、生产环境考虑"></a>四、生产环境考虑</h2><ol>
+<li><strong>采样策略 (Sampling)</strong>：<br>在生产环境中，不可能对所有请求进行追踪，这会产生巨大的性能开销和存储成本。需要配置采样器：<ul>
+<li><code>AlwaysSample</code>：总是采样。</li>
+<li><code>NeverSample</code>：从不采样。</li>
+<li><code>TraceIDRatioBased</code>：基于 Trace ID 决定是否采样，例如 1% 的请求。</li>
+<li><code>ParentBased</code>：如果父 Span 已被采样，则子 Span 也被采样。</li>
+</ul>
+</li>
+<li><strong>异步发送与批量处理</strong>：<br>使用 <code>sdktrace.NewBatchSpanProcessor</code> 异步批量发送 Span，减少对应用程序性能的影响。</li>
+<li><strong>日志与指标集成</strong>：<br>将 Trace ID 注入到应用程序日志中，以便在查看日志时能够快速跳转到 Jaeger 中的相关 Trace。未来 OpenTelemetry 将提供统一的 API 来关联追踪、指标和日志。</li>
+<li><strong>配置外部化</strong>：<br>通过环境变量或配置文件来配置 Jaeger Collector 地址、采样率等，方便部署。</li>
+<li><strong>高可用性和伸缩性</strong>：<br>部署多个 Jaeger Collector 实例，并使用 Kafka 等消息队列作为 Collector 和 Storage 之间的缓冲。存储后端也需要具备高可用和伸缩能力。</li>
+</ol>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>Jaeger 作为一款强大的分布式追踪系统，结合 OpenTelemetry Go SDK，为 Go 语言开发的微服务架构提供了出色的可观测性。它使得开发者能够：</p>
+<ul>
+<li><strong>可视化请求流</strong>：清晰地看到请求在各个服务间的调用路径。</li>
+<li><strong>识别性能瓶颈</strong>：通过 Span 的持续时间快速定位哪个服务或操作导致了延迟。</li>
+<li><strong>加速故障诊断</strong>：在错误发生时，能够快速找到出错的服务和上下文信息。</li>
+<li><strong>理解服务依赖</strong>：分析服务之间的调用关系和拓扑结构。</li>
+</ul>
+<p>通过在 Go 应用程序中正确集成 OpenTelemetry 和 Jaeger，我们能够获得对复杂分布式系统深层次的洞察力，从而提升系统的稳定性、性能和可维护性。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/bcbe0f78ef1d/">https://blog.tbf1211.xx.kg/bcbe0f78ef1d/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-18.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Bun.js 深度解析：冷启动与边缘函数优化</div></div><div class="info-2"><div class="info-item-1"> Bun.js 是一个现代化的 JavaScript 运行时、工具包和包管理器，旨在提供极致的性能和一体化的开发体验。它由 Jarred Sumner 创建，使用 Zig 语言开发，并基于 WebKit 的 JavaScriptCore 引擎。Bun 的一个突出优势是其极快的冷启动速度，这使其成为在边缘计算 (Edge Computing) 和 Serverless 函数环境中运行 JavaScript&#x2F;TypeScript 代码的理想选择。  核心思想：Bun 通过利用 JavaScriptCore 引擎的快速启动特性和 Zig 语言的底层优化，显著缩短了 JavaScript&#x2F;TypeScript 应用的冷启动时间。这种性能优势使其特别适合部署到边缘函数和 Serverless 平台，从而提供更低的延迟和更高的资源利用效率。   一、Bun.js 概述与性能基石1.1 什么是 Bun.js？Bun 是一个多功能一体的 JavaScript 工具链，它集成了一个高性能的 JavaScript&#x2F;TypeScript 运行时、包管理器、打包器、转译器和...</div></div></div></a><a class="pagination-related" href="/15920229f914/" title="Supabase 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Supabase 深度解析</div></div><div class="info-2"><div class="info-item-1"> Supabase 是一个开源的 Firebase 替代品，它提供了一整套后端即服务 (BaaS) 工具，旨在帮助开发者更快地构建应用。Its core philosophical difference from Firebase lies in its foundation: Supabase is built entirely around PostgreSQL作为其核心数据存储，并围绕 PostgreSQL 提供了认证、实时订阅、存储和边缘函数等一系列服务。这使得开发者可以使用熟悉的 SQL 语言来管理数据和定义业务逻辑，同时享受现代化 BaaS 服务的便利。  核心思想：以强大的开源关系型数据库 PostgreSQL 为中心，提供一套集成且可扩展的 BaaS 服务，实现从数据库到 API、认证、实时功能的无缝连接。    一、为什么需要 Supabase？传统上，构建一个功能完善的应用程序需要开发者处理大量的后端基础设施工作，包括：  数据库管理：选择、设置、维护数据库，编写 CRUD API。 用户认证和授权：实现用户注册、登录、密码重置、JWT 管理、权限控制。 实时...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/aa76a35a1a49/" title="Go语言范型 (Generics) 详解：从概念到实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-11</div><div class="info-item-2">Go语言范型 (Generics) 详解：从概念到实践</div></div><div class="info-2"><div class="info-item-1"> Go 语言在诞生之初，以其简洁、高效和内置并发特性迅速崛起，但长期以来缺少一个重要的现代语言特性：范型 (Generics)。这导致开发者在处理通用数据结构和算法时，不得不依赖空接口 (interface&#123;&#125;) 加上类型断言，或者为每种类型复制粘贴代码，带来了类型不安全和代码冗余的问题。  随着 Go 1.18 版本的发布，Go 正式引入了范型，为 Go 语言的表达能力带来了革命性的提升。本文将深入解析 Go 语言范型的核心概念、语法、使用场景以及注意事项，帮助你理解并掌握这一重要特性。   一、 什么是范型 (Generics)？范型，也称作“泛型”或“类型参数”，是一种允许代码处理 多种类型数据 的编程机制。它使得我们能够编写不依赖于特定数据类型的函数、方法或数据结构，从而实现代码的重用和抽象。 在没有范型之前，如果你想写一个能比较两个 int 类型值的最大函数，然后又想比较两个 float64 类型值的最大函数，你需要这样写： 12345678910111213func MaxInt(a, b int) int &#123;    if a &gt; ...</div></div></div></a><a class="pagination-related" href="/723e73a7d735/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-04</div><div class="info-item-2">Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用</div></div><div class="info-2"><div class="info-item-1"> 在 Golang 中，数组 (Array) 和 切片 (Slice) 是两种常用的、用于存储同类型数据序列的数据结构。虽然它们在表面上看起来相似，但其底层实现、特性和用法却有着本质的区别。理解它们之间的差异对于编写高效且符合 Go 惯例的代码至关重要。  核心思想：数组是固定长度的值类型数据结构，而切片是可变长度的引用类型数据结构，它引用了一个底层数组。切片提供了更灵活、更强大的序列操作能力，是 Go 语言中推荐的动态序列类型。   在 Go 语言的世界里，数组 (Array) 和切片 (Slice) 是我们日常编程中接触最频繁的两种数据结构。它们虽然在表面上有些相似，但骨子里却有着根本性的区别，深刻理解这些差异是写出高效、可靠 Go 代码的关键。本文将带你深入剖析 Array 和 Slice 的核心原理、实战中的使用场景、常见陷阱，以及如何做出最明智的选择。 1. 基础定义：Array vs Slice1.1 数组 (Array)：编译时确定的固定长度序列数组是一种固定长度的、连续存储的相同类型元素序列。它的长度在声明时就已确定，并且是其类型的一部分。这意味着 [3]int ...</div></div></div></a><a class="pagination-related" href="/325e0377afd7/" title="Golang 内存逃逸详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-24</div><div class="info-item-2">Golang 内存逃逸详解</div></div><div class="info-2"><div class="info-item-1"> 内存逃逸 (Memory Escape) 是 Go 语言编译器在编译时进行的一项静态分析。它的核心目的是确定程序中变量的内存分配位置：是分配在栈 (Stack) 上，还是分配在堆 (Heap) 上。通过精确地判断变量的生命周期和作用域，编译器能够做出最优化选择，从而有效降低垃圾回收 (GC) 的压力，提升程序性能。  核心思想：如果一个变量的生命周期超出了其声明函数的作用域，它就必须被分配在堆上；否则，如果其生命周期仅限于函数内部，优先分配在栈上。   一、内存分配基础：栈与堆在深入理解内存逃逸之前，我们首先需要了解程序中两种基本的内存分配区域：栈和堆。 1.1 栈 (Stack) 特性： LIFO (Last-In, First-Out) 结构。 由编译器自动管理，分配和回收速度极快。 内存是连续的。 分配与释放成本低：只需移动栈指针即可。 线程&#x2F;Goroutine 私有：每个 Goroutine 都有自己的栈。   用途： 存储局部变量。 存储函数参数。 存储函数返回值。 存储函数调用栈帧。   生命周期：与函数调用栈帧一致，函数执行完毕后，栈上的内存会被自动回收...</div></div></div></a><a class="pagination-related" href="/b10b8bccf756/" title="Go语言指向指针的指针(Pointer to Pointer)详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-01</div><div class="info-item-2">Go语言指向指针的指针(Pointer to Pointer)详解</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，指针是一种重要的概念，它存储了一个变量的内存地址。我们通常通过 * 运算符来解引用指针，获取指针指向的值。但 Go 语言还支持更复杂的指针类型，例如指向指针的指针 (Pointer to Pointer)，也称为二级指针 (Double Pointer)。虽然在日常开发中不常用，但理解其工作原理对于深入理解内存管理、某些高级数据结构（如链表、树的修改操作）或在特定场景下修改指针本身的值至关重要。  核心概念：一个指针变量存储一个普通变量的地址，而指向指针的指针存储一个指针变量的地址。   一、基本指针回顾在深入指向指针的指针之前，我们先快速回顾一下 Go 语言中的基本指针：  定义指针：使用 * 符号和类型名来声明一个指针变量，例如 *int 表示一个指向 int 类型的指针。 获取地址：使用 &amp; 运算符来获取一个变量的内存地址。 解引用：使用 * 运算符来访问指针指向的内存中的值。  示例： 123456789101112131415161718192021package mainimport &quot;fmt&quot;func main() &...</div></div></div></a><a class="pagination-related" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-11</div><div class="info-item-2">Golang 空结构体 (struct{}) 详解</div></div><div class="info-2"><div class="info-item-1"> 空结构体 struct&#123;&#125; 是 Go 语言中一种特殊的结构体类型，它不包含任何字段。它的独特之处在于，它的大小为 零字节 (zero size)。这一特性使得空结构体在 Go 语言中具有多种巧妙的应用，尤其是在涉及内存优化和并发编程的场景中。  核心思想：空结构体 struct{} 的零字节大小特性，使其成为表达“存在即意义”或“信号”的最佳选择，它不占用额外内存，避免了不必要的资源开销。   一、空结构体的定义与特性1.1 定义一个空结构体是指不包含任何字段的结构体类型： 1type Empty struct&#123;&#125;  或者直接作为匿名类型使用： 1var e struct&#123;&#125;  1.2 零字节大小这是空结构体的最核心特性。在 Go 语言中，struct&#123;&#125; 类型的值在内存中不占用任何空间。你可以通过 unsafe.Sizeof 函数来验证这一点： 1234567891011package mainimport (	&quot;fmt&quot;	&quot;unsafe&quot;)func mai...</div></div></div></a><a class="pagination-related" href="/c28be5a597e1/" title="Golang 内存对齐详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-13</div><div class="info-item-2">Golang 内存对齐详解</div></div><div class="info-2"><div class="info-item-1"> 内存对齐 (Memory Alignment) 是计算机系统中一个基础且重要的概念。它指的是数据在内存中的存放方式，即数据项的首地址相对于某个特定值的倍数。在 Go 语言中，编译器会自动处理内存对齐，但理解其原理对于编写高效、节省内存的代码至关重要，尤其是在定义结构体时。  核心思想：内存对齐旨在提升 CPU 访问内存的效率，同时满足某些硬件和原子操作的要求。Go 语言的结构体字段排序会直接影响其最终大小和内存布局。   一、内存对齐的基本概念1.1 什么是内存对齐？内存对齐是指数据在内存中的起始地址必须是其自身对齐系数 (或其倍数) 的整数倍。这个对齐系数通常是数据类型的大小，但也可能由编译器或处理器架构决定。 例如：  一个 int32 类型的变量，其大小为 4 字节，如果其对齐系数也是 4，那么它应该存储在内存地址是 4 的倍数（如 0x00, 0x04, 0x08 等）的位置。 一个 int64 类型的变量，其大小为 8 字节，如果其对齐系数是 8，那么它应该存储在内存地址是 8 的倍数（如 0x00, 0x08, 0x10 等）的位置。  1.2 为什么需要内存对齐？...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">353</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">207</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">74</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%88%86%E5%B8%83%E5%BC%8F%E8%BF%BD%E8%B8%AA%EF%BC%9F"><span class="toc-text">一、为什么需要分布式追踪？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Jaeger-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Jaeger 核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Trace-%E8%BF%BD%E8%B8%AA"><span class="toc-text">2.1 Trace (追踪)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Span-%E8%B7%A8%E5%BA%A6"><span class="toc-text">2.2 Span (跨度)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Span-%E4%B9%8B%E9%97%B4%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">2.3 Span 之间的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-Jaeger-%E6%9E%B6%E6%9E%84"><span class="toc-text">2.4 Jaeger 架构</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Go-%E8%AF%AD%E8%A8%80%E9%9B%86%E6%88%90-Jaeger-OpenTelemetry"><span class="toc-text">三、Go 语言集成 Jaeger (OpenTelemetry)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%87%86%E5%A4%87%E5%B7%A5%E4%BD%9C"><span class="toc-text">3.1 准备工作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Go-%E7%A4%BA%E4%BE%8B%E4%BB%A3%E7%A0%81"><span class="toc-text">3.2 Go 示例代码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E8%BF%90%E8%A1%8C%E4%B8%8E%E9%AA%8C%E8%AF%81"><span class="toc-text">3.3 运行与验证</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E5%85%B3%E9%94%AE%E7%82%B9%E8%A7%A3%E9%87%8A"><span class="toc-text">3.4 关键点解释</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E8%80%83%E8%99%91"><span class="toc-text">四、生产环境考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Bun.js 深度解析：冷启动与边缘函数优化"/></a><div class="content"><a class="title" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化">Bun.js 深度解析：冷启动与边缘函数优化</a><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go Jaeger 深度解析：分布式追踪实践"/></a><div class="content"><a class="title" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践">Go Jaeger 深度解析：分布式追踪实践</a><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1ae20d2726d8/" title="MiniRTC 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MiniRTC 详解"/></a><div class="content"><a class="title" href="/1ae20d2726d8/" title="MiniRTC 详解">MiniRTC 详解</a><time datetime="2025-11-28T22:24:00.000Z" title="发表于 2025-11-29 06:24:00">2025-11-29</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/be24ef88e59a/" title="WebRTC 技术详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebRTC 技术详解"/></a><div class="content"><a class="title" href="/be24ef88e59a/" title="WebRTC 技术详解">WebRTC 技术详解</a><time datetime="2025-11-27T22:24:00.000Z" title="发表于 2025-11-28 06:24:00">2025-11-28</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-18.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>

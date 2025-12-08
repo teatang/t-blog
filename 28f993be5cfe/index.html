@@ -1,0 +1,607 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Bun.js 深度解析：冷启动与边缘函数优化 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Bun.js 是一个现代化的 JavaScript 运行时、工具包和包管理器，旨在提供极致的性能和一体化的开发体验。它由 Jarred Sumner 创建，使用 Zig 语言开发，并基于 WebKit 的 JavaScriptCore 引擎。Bun 的一个突出优势是其极快的冷启动速度，这使其成为在边缘计算 (Edge Computing) 和 Serverless 函数环境中运行 JavaScr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bun.js 深度解析：冷启动与边缘函数优化">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/28f993be5cfe/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Bun.js 是一个现代化的 JavaScript 运行时、工具包和包管理器，旨在提供极致的性能和一体化的开发体验。它由 Jarred Sumner 创建，使用 Zig 语言开发，并基于 WebKit 的 JavaScriptCore 引擎。Bun 的一个突出优势是其极快的冷启动速度，这使其成为在边缘计算 (Edge Computing) 和 Serverless 函数环境中运行 JavaScr">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-26.jpg">
+<meta property="article:published_time" content="2025-12-07T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-08T03:58:25.144Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="项目构建">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="Serverless">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-26.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Bun.js 深度解析：冷启动与边缘函数优化",
+  "url": "https://blog.tbf1211.xx.kg/28f993be5cfe/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-26.jpg",
+  "datePublished": "2025-12-07T22:24:00.000Z",
+  "dateModified": "2025-12-08T03:58:25.144Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/28f993be5cfe/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Bun.js 深度解析：冷启动与边缘函数优化',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">353</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">207</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">74</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-26.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Bun.js 深度解析：冷启动与边缘函数优化</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Bun.js 深度解析：冷启动与边缘函数优化</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.2k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>17分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/28f993be5cfe/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Bun.js</strong> 是一个现代化的 JavaScript 运行时、工具包和包管理器，旨在提供极致的性能和一体化的开发体验。它由 Jarred Sumner 创建，使用 Zig 语言开发，并基于 WebKit 的 JavaScriptCore 引擎。Bun 的一个突出优势是其<strong>极快的冷启动速度</strong>，这使其成为在<strong>边缘计算 (Edge Computing)</strong> 和 <strong>Serverless 函数</strong>环境中运行 JavaScript&#x2F;TypeScript 代码的理想选择。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>Bun 通过利用 JavaScriptCore 引擎的快速启动特性和 Zig 语言的底层优化，显著缩短了 JavaScript&#x2F;TypeScript 应用的冷启动时间。这种性能优势使其特别适合部署到边缘函数和 Serverless 平台，从而提供更低的延迟和更高的资源利用效率。</strong></p>
+</div>
+<hr>
+<h2 id="一、Bun-js-概述与性能基石"><a href="#一、Bun-js-概述与性能基石" class="headerlink" title="一、Bun.js 概述与性能基石"></a>一、Bun.js 概述与性能基石</h2><h3 id="1-1-什么是-Bun-js？"><a href="#1-1-什么是-Bun-js？" class="headerlink" title="1.1 什么是 Bun.js？"></a>1.1 什么是 Bun.js？</h3><p>Bun 是一个多功能一体的 JavaScript 工具链，它集成了一个高性能的 JavaScript&#x2F;TypeScript 运行时、包管理器、打包器、转译器和测试运行器。它的设计目标是全面超越现有解决方案的性能。</p>
+<h3 id="1-2-Bun-的技术栈与性能优势"><a href="#1-2-Bun-的技术栈与性能优势" class="headerlink" title="1.2 Bun 的技术栈与性能优势"></a>1.2 Bun 的技术栈与性能优势</h3><p>Bun 的卓越性能，尤其是在冷启动方面，源于其独特的技术栈：</p>
+<ul>
+<li><strong>Zig 语言开发</strong>：Zig 是一种低级系统编程语言，提供了接近 C&#x2F;C++ 的性能和对底层系统资源的精细控制。这使得 Bun 能够进行高度优化，减少不必要的抽象层。</li>
+<li><strong>JavaScriptCore (JSC) 引擎</strong>：Bun 选用 WebKit 的 JavaScriptCore 引擎。JSC 以其<strong>快速启动时间</strong>和较低的内存占用而闻名，这与 V8 引擎（Node.js 和 Deno 使用）在某些场景下专注于峰值执行性能的策略有所不同。JSC 能够更快地完成 JavaScript 代码的解析和 JIT (Just-In-Time) 编译，是实现快速冷启动的关键。</li>
+<li><strong>原生系统调用优化</strong>：Bun 大量利用了高效的原生系统调用，例如在文件 I&#x2F;O、网络通信和进程管理等方面，减少了用户态和内核态之间的切换开销。</li>
+<li><strong>一体化设计</strong>：将多个工具集成到一个二进制文件中，减少了工具链的复杂性和启动不同进程的开销。</li>
+</ul>
+<h2 id="二、冷启动-Cold-Start-详解与-Bun-的优化"><a href="#二、冷启动-Cold-Start-详解与-Bun-的优化" class="headerlink" title="二、冷启动 (Cold Start) 详解与 Bun 的优化"></a>二、冷启动 (Cold Start) 详解与 Bun 的优化</h2><h3 id="2-1-什么是冷启动？"><a href="#2-1-什么是冷启动？" class="headerlink" title="2.1 什么是冷启动？"></a>2.1 什么是冷启动？</h3><p>在 Serverless 函数（如 AWS Lambda, Vercel Edge Functions, Cloudflare Workers）或边缘计算环境中，<strong>冷启动 (Cold Start)</strong> 是指函数实例在长时间不活动后首次被调用时，需要经历的初始化过程。这个过程包括：</p>
+<ol>
+<li><strong>加载运行时环境</strong>：例如，加载 Node.js 或 Bun 运行时。</li>
+<li><strong>加载用户代码</strong>：从存储中获取函数的 JavaScript&#x2F;TypeScript 代码。</li>
+<li><strong>解析和编译代码</strong>：JavaScript 引擎对代码进行解析和 JIT 编译。</li>
+<li><strong>初始化依赖项</strong>：加载和初始化函数所依赖的模块（如数据库连接、API 客户端等）。</li>
+</ol>
+<p>这些步骤都会增加函数的响应延迟，是 Serverless 应用体验的常见痛点。</p>
+<h3 id="2-2-Bun-如何优化冷启动？"><a href="#2-2-Bun-如何优化冷启动？" class="headerlink" title="2.2 Bun 如何优化冷启动？"></a>2.2 Bun 如何优化冷启动？</h3><p>Bun 从多个层面系统性地解决了冷启动问题：</p>
+<h4 id="2-2-1-JavaScriptCore-引擎的优势"><a href="#2-2-1-JavaScriptCore-引擎的优势" class="headerlink" title="2.2.1 JavaScriptCore 引擎的优势"></a>2.2.1 JavaScriptCore 引擎的优势</h4><ul>
+<li><strong>快速启动</strong>：JSC 引擎在设计上就偏向于快速启动和首次执行。它能够更快地解析和编译 JavaScript 代码，减少了 JIT 编译的初始阶段。</li>
+<li><strong>内存效率</strong>：较低的内存占用使得 Bun 实例可以更快地被分配和启动，尤其是在资源受限的边缘环境中。</li>
+</ul>
+<h4 id="2-2-2-内部优化"><a href="#2-2-2-内部优化" class="headerlink" title="2.2.2 内部优化"></a>2.2.2 内部优化</h4><ul>
+<li><strong>高度优化的二进制文件</strong>：Bun 是一个单一的、编译为原生代码的二进制文件，启动自身的速度极快。</li>
+<li><strong>快速模块加载</strong>：Bun 实现了自己的模块加载器，针对 CommonJS 和 ES Modules 进行了优化，减少了文件系统 I&#x2F;O 和解析时间。它通过高效的缓存和并行加载来加速依赖项的解析和加载。</li>
+<li><strong>内建的转译器</strong>：Bun 可以直接运行 TypeScript 和 JSX 文件，而无需额外的转译步骤或启动 Babel&#x2F;SWC 等外部工具，这在启动时节省了大量时间。</li>
+</ul>
+<h4 id="2-2-3-包管理器的优化-Bun-lockb"><a href="#2-2-3-包管理器的优化-Bun-lockb" class="headerlink" title="2.2.3 包管理器的优化 (Bun.lockb)"></a>2.2.3 包管理器的优化 (Bun.lockb)</h4><ul>
+<li><strong>高效的依赖安装</strong>：<code>bun install</code> 不仅速度快，它生成的 <code>bun.lockb</code> 文件是二进制格式，加载和解析速度比传统的 <code>package-lock.json</code> 或 <code>yarn.lock</code> 更快。这意味着在冷启动时加载项目依赖的元数据更快。</li>
+<li><strong>扁平化的 <code>node_modules</code></strong>：Bun 尽可能地创建扁平化的 <code>node_modules</code> 结构，减少了文件路径的深度和文件查找的复杂性。</li>
+</ul>
+<p><strong>冷启动时间对比 (概念性)</strong>：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph LR
+    A[Serverless 函数冷启动];
+    A --&gt; B[Bun 运行时];
+    A --&gt; C[Node.js 运行时];
+    A --&gt; D[Deno 运行时];
+
+    subgraph Bun 冷启动步骤
+        B1[加载 Bun 二进制];
+        B2[&quot;快速解析和 JIT (JSC)&quot;];
+        B3[高效模块加载];
+        B1 -- 极短 --&gt; B2;
+        B2 -- 极短 --&gt; B3;
+    end
+
+    subgraph Node.js 冷启动步骤
+        C1[加载 Node.js 二进制];
+        C2[加载 V8 引擎];
+        C3[&quot;解析和 JIT (V8)&quot;];
+        C4[&quot;模块加载 (Require&#x2F;Import)&quot;];
+        C1 --&gt; C2;
+        C2 --&gt; C3;
+        C3 --&gt; C4;
+    end
+
+    subgraph Deno 冷启动步骤
+        D1[加载 Deno 二进制];
+        D2[加载 V8 引擎];
+        D3[&quot;解析和 JIT (V8)&quot;];
+        D4[&quot;模块加载 (TS 转译, Import)&quot;];
+        D1 --&gt; D2;
+        D2 --&gt; D3;
+        D3 --&gt; D4;
+    end
+
+    B1 &amp; B2 &amp; B3 -- &quot;总耗时更短&quot; --&gt; B_Total(Bun 总冷启动时间);
+    C1 &amp; C2 &amp; C3 &amp; C4 -- &quot;总耗时较长&quot; --&gt; C_Total(Node.js 总冷启动时间);
+    D1 &amp; D2 &amp; D3 &amp; D4 -- &quot;总耗时中等&quot; --&gt; D_Total(Deno 总冷启动时间);
+  </pre></div>
+
+<h2 id="三、对边缘函数-Edge-Functions-的支持与适用性"><a href="#三、对边缘函数-Edge-Functions-的支持与适用性" class="headerlink" title="三、对边缘函数 (Edge Functions) 的支持与适用性"></a>三、对边缘函数 (Edge Functions) 的支持与适用性</h2><h3 id="3-1-什么是边缘函数？"><a href="#3-1-什么是边缘函数？" class="headerlink" title="3.1 什么是边缘函数？"></a>3.1 什么是边缘函数？</h3><p><strong>边缘函数 (Edge Functions)</strong> 是 Serverless 计算的一种特殊形式，它们运行在全球分布的边缘网络位置（CDN 节点附近），而不是集中的数据中心。其核心目标是：</p>
+<ul>
+<li><strong>低延迟</strong>：代码更接近用户，减少网络延迟。</li>
+<li><strong>高可用性</strong>：利用分布式网络的弹性。</li>
+<li><strong>请求&#x2F;响应拦截</strong>：在请求到达源服务器之前或响应返回客户端之前，对其进行修改、验证或重定向。</li>
+<li><strong>轻量级</strong>：通常限制执行时间、内存和包大小，以确保快速启动和高效运行。</li>
+</ul>
+<p>Vercel Edge Functions, Cloudflare Workers, Deno Deploy 等都是边缘函数的典型代表。</p>
+<h3 id="3-2-Bun-在边缘函数场景的优势"><a href="#3-2-Bun-在边缘函数场景的优势" class="headerlink" title="3.2 Bun 在边缘函数场景的优势"></a>3.2 Bun 在边缘函数场景的优势</h3><p>Bun 的设计理念与边缘函数的运行环境高度契合，使其成为理想的运行时选择：</p>
+<ol>
+<li><strong>极速冷启动</strong>：这是边缘函数最关键的需求之一。由于实例通常是按需启动并在短时间不活动后销毁，快速冷启动意味着更低的响应延迟和更好的用户体验。Bun 在这方面表现卓越。</li>
+<li><strong>低资源占用</strong>：边缘函数环境通常对内存和 CPU 有严格限制。Bun 更低的内存占用和高效的资源管理使其非常适合在这些受限环境中运行。</li>
+<li><strong>高性能 I&#x2F;O</strong>：边缘函数常常需要快速处理网络请求，Bun 在 HTTP 服务器和网络 I&#x2F;O 方面的优化能够提升整体吞吐量。</li>
+<li><strong>Web API 兼容性</strong>：边缘函数通常提供与 Web 标准兼容的 API (如 <code>fetch</code>, <code>Request</code>, <code>Response</code>)。Bun 对这些 Web API 的原生支持简化了代码编写。</li>
+<li><strong>一体化开发体验</strong>：虽然在部署到边缘平台时，通常会有平台特定的工具链，但 Bun 在本地开发、打包和测试阶段提供的一体化体验，大大提升了开发效率。</li>
+</ol>
+<h3 id="3-3-Bun-运行边缘函数的示例-概念性"><a href="#3-3-Bun-运行边缘函数的示例-概念性" class="headerlink" title="3.3 Bun 运行边缘函数的示例 (概念性)"></a>3.3 Bun 运行边缘函数的示例 (概念性)</h3><p>许多边缘函数平台提供了自己的运行时或基于标准 Web API 的环境。Bun 可以作为这些平台上的本地开发和测试工具，或者如果平台允许自定义运行时，Bun 可以直接部署。</p>
+<p>以下是一个 Bun 兼容 Web 标准的 HTTP 服务的示例，它可以很容易地适配为边缘函数：</p>
+<figure class="highlight ts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// edge-function.ts</span></span><br><span class="line"><span class="comment">// 这是一个符合 Web fetch API 标准的函数，可以被大多数边缘运行时兼容</span></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> &#123;</span><br><span class="line">  <span class="keyword">async</span> <span class="title function_">fetch</span>(<span class="attr">request</span>: <span class="title class_">Request</span>): <span class="title class_">Promise</span>&lt;<span class="title class_">Response</span>&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> url = <span class="keyword">new</span> <span class="title function_">URL</span>(request.<span class="property">url</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (url.<span class="property">pathname</span> === <span class="string">&quot;/&quot;</span>) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Response</span>(<span class="string">&quot;Hello from Bun on the Edge!&quot;</span>, &#123;</span><br><span class="line">        <span class="attr">headers</span>: &#123; <span class="string">&quot;Content-Type&quot;</span>: <span class="string">&quot;text/plain&quot;</span> &#125;,</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (url.<span class="property">pathname</span> === <span class="string">&quot;/greet&quot;</span>) &#123;</span><br><span class="line">      <span class="keyword">const</span> name = url.<span class="property">searchParams</span>.<span class="title function_">get</span>(<span class="string">&quot;name&quot;</span>) || <span class="string">&quot;Guest&quot;</span>;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Response</span>(<span class="string">`Hello, <span class="subst">$&#123;name&#125;</span>! This is an edge response.`</span>, &#123;</span><br><span class="line">        <span class="attr">headers</span>: &#123; <span class="string">&quot;Content-Type&quot;</span>: <span class="string">&quot;text/plain&quot;</span> &#125;,</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 模拟一个需要等待的异步操作</span></span><br><span class="line">    <span class="keyword">if</span> (url.<span class="property">pathname</span> === <span class="string">&quot;/delay&quot;</span>) &#123;</span><br><span class="line">      <span class="keyword">await</span> <span class="keyword">new</span> <span class="title class_">Promise</span>(<span class="function"><span class="params">resolve</span> =&gt;</span> <span class="built_in">setTimeout</span>(resolve, <span class="number">50</span>)); <span class="comment">// 延迟 50ms</span></span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Response</span>(<span class="string">&quot;Delayed response from Bun.&quot;</span>, &#123;</span><br><span class="line">        <span class="attr">headers</span>: &#123; <span class="string">&quot;Content-Type&quot;</span>: <span class="string">&quot;text/plain&quot;</span> &#125;,</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Response</span>(<span class="string">&quot;404 Not Found&quot;</span>, &#123; <span class="attr">status</span>: <span class="number">404</span> &#125;);</span><br><span class="line">  &#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 本地运行：bun run edge-function.ts</span></span><br><span class="line"><span class="comment">// 部署到边缘平台时，平台会将其编译/打包，并使用其兼容的运行时执行</span></span><br></pre></td></tr></table></figure>
+<p><strong>Go 代码解释</strong>：<br>为了更好地说明 Bun 在边缘计算环境中的优势，这里提供一个简化的 Go 语言服务，它模拟了边缘函数的调度器行为。这个 Go 服务会“启动”Bun 进程来处理请求，并测量冷启动和热启动的延迟。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;log&quot;</span></span><br><span class="line">	<span class="string">&quot;net/http&quot;</span></span><br><span class="line">	<span class="string">&quot;os&quot;</span></span><br><span class="line">	<span class="string">&quot;os/exec&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// BunProcess 代表一个模拟的 Bun 进程实例</span></span><br><span class="line"><span class="keyword">type</span> BunProcess <span class="keyword">struct</span> &#123;</span><br><span class="line">	ID        <span class="type">int</span></span><br><span class="line">	IsWarm    <span class="type">bool</span></span><br><span class="line">	LastUsed  time.Time</span><br><span class="line">	Port      <span class="type">int</span></span><br><span class="line">	Cmd       *exec.Cmd</span><br><span class="line">	Cancel    context.CancelFunc <span class="comment">// 用于停止进程的上下文取消函数</span></span><br><span class="line">	Mu        sync.Mutex</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Global state for simplicity in this example</span></span><br><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	bunInstances     = <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">int</span>]*BunProcess)</span><br><span class="line">	instanceCounter  = <span class="number">0</span></span><br><span class="line">	instanceMutex    sync.Mutex</span><br><span class="line">	warmInstancePool = <span class="built_in">make</span>(<span class="keyword">chan</span> *BunProcess, <span class="number">5</span>) <span class="comment">// 模拟一个预热实例池</span></span><br><span class="line">	ctx, cancel      = context.WithCancel(context.Background())</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	coldStartTimeout = <span class="number">2</span> * time.Second</span><br><span class="line">	idleTimeout      = <span class="number">5</span> * time.Second <span class="comment">// 实例空闲超过此时间将被视为可回收</span></span><br><span class="line">	maxInstances     = <span class="number">10</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// startBunInstance 启动一个新的 Bun 进程</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">startBunInstance</span><span class="params">(ctx context.Context, id <span class="type">int</span>, port <span class="type">int</span>)</span></span> (*BunProcess, <span class="type">error</span>) &#123;</span><br><span class="line">	fmt.Printf(<span class="string">&quot;[Scheduler] Starting new Bun instance #%d on port %d...\n&quot;</span>, id, port)</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// Create a new context for the child process so it can be cancelled independently</span></span><br><span class="line">	childCtx, childCancel := context.WithCancel(ctx)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// In a real scenario, you&#x27;d compile the TS/JS to a single JS file</span></span><br><span class="line">	<span class="comment">// or use a Bun server file directly.</span></span><br><span class="line">	<span class="comment">// For simplicity, we&#x27;re assuming &#x27;edge-function.ts&#x27; is directly runnable by Bun.</span></span><br><span class="line">	cmd := exec.CommandContext(childCtx, <span class="string">&quot;bun&quot;</span>, <span class="string">&quot;run&quot;</span>, <span class="string">&quot;edge-function.ts&quot;</span>, fmt.Sprintf(<span class="string">&quot;--port=%d&quot;</span>, port))</span><br><span class="line">	cmd.Stderr = os.Stderr <span class="comment">// Pipe stderr to main process for debugging</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Start the Bun process</span></span><br><span class="line">	err := cmd.Start()</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		childCancel()</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;failed to start bun process: %w&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Wait for Bun to become ready (e.g., by checking HTTP port or log output)</span></span><br><span class="line">	<span class="comment">// This is a simplified check for demonstration</span></span><br><span class="line">	ready := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">bool</span>)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">20</span>; i++ &#123; <span class="comment">// Try for up to 2 seconds (20 * 100ms)</span></span><br><span class="line">			resp, err := http.Get(fmt.Sprintf(<span class="string">&quot;http://localhost:%d&quot;</span>, port))</span><br><span class="line">			<span class="keyword">if</span> err == <span class="literal">nil</span> &amp;&amp; resp.StatusCode != http.StatusNotFound &#123; <span class="comment">// Any non-404 indicates it&#x27;s up</span></span><br><span class="line">				resp.Body.Close()</span><br><span class="line">				ready &lt;- <span class="literal">true</span></span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			&#125;</span><br><span class="line">			time.Sleep(<span class="number">100</span> * time.Millisecond)</span><br><span class="line">		&#125;</span><br><span class="line">		ready &lt;- <span class="literal">false</span></span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-childCtx.Done():</span><br><span class="line">		cmd.Wait() <span class="comment">// Ensure process is cleaned up if context is cancelled</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;bun instance start cancelled&quot;</span>)</span><br><span class="line">	<span class="keyword">case</span> isReady := &lt;-ready:</span><br><span class="line">		<span class="keyword">if</span> !isReady &#123;</span><br><span class="line">			childCancel()</span><br><span class="line">			cmd.Wait() <span class="comment">// Ensure process is cleaned up</span></span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;bun instance #%d did not become ready in time&quot;</span>, id)</span><br><span class="line">		&#125;</span><br><span class="line">	<span class="keyword">case</span> &lt;-time.After(coldStartTimeout):</span><br><span class="line">		childCancel()</span><br><span class="line">		cmd.Wait() <span class="comment">// Ensure process is cleaned up</span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;bun instance #%d cold start timed out&quot;</span>, id)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;[Scheduler] Bun instance #%d on port %d is READY.\n&quot;</span>, id, port)</span><br><span class="line">	<span class="keyword">return</span> &amp;BunProcess&#123;</span><br><span class="line">		ID:        id,</span><br><span class="line">		IsWarm:    <span class="literal">true</span>, <span class="comment">// Once ready, it&#x27;s warm</span></span><br><span class="line">		LastUsed:  time.Now(),</span><br><span class="line">		Port:      port,</span><br><span class="line">		Cmd:       cmd,</span><br><span class="line">		Cancel:    childCancel,</span><br><span class="line">	&#125;, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// stopBunInstance 停止 Bun 进程</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">stopBunInstance</span><span class="params">(p *BunProcess)</span></span> &#123;</span><br><span class="line">	fmt.Printf(<span class="string">&quot;[Scheduler] Stopping Bun instance #%d on port %d...\n&quot;</span>, p.ID, p.Port)</span><br><span class="line">	<span class="keyword">if</span> p.Cancel != <span class="literal">nil</span> &#123;</span><br><span class="line">		p.Cancel() <span class="comment">// Send cancellation signal to the child process</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> p.Cmd != <span class="literal">nil</span> &#123;</span><br><span class="line">		p.Cmd.Wait() <span class="comment">// Wait for the process to exit</span></span><br><span class="line">	&#125;</span><br><span class="line">	p.IsWarm = <span class="literal">false</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;[Scheduler] Bun instance #%d stopped.\n&quot;</span>, p.ID, p.Port)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// recycleIdleInstances 定期回收空闲实例</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">recycleIdleInstances</span><span class="params">()</span></span> &#123;</span><br><span class="line">	ticker := time.NewTicker(idleTimeout)</span><br><span class="line">	<span class="keyword">defer</span> ticker.Stop()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		<span class="keyword">case</span> &lt;-ticker.C:</span><br><span class="line">			instanceMutex.Lock()</span><br><span class="line">			<span class="keyword">for</span> id, p := <span class="keyword">range</span> bunInstances &#123;</span><br><span class="line">				p.Mu.Lock()</span><br><span class="line">				<span class="keyword">if</span> p.IsWarm &amp;&amp; time.Since(p.LastUsed) &gt; idleTimeout &#123;</span><br><span class="line">					fmt.Printf(<span class="string">&quot;[Scheduler] Recycling idle Bun instance #%d.\n&quot;</span>, p.ID)</span><br><span class="line">					stopBunInstance(p)</span><br><span class="line">					<span class="built_in">delete</span>(bunInstances, id)</span><br><span class="line">					<span class="comment">// Remove from warm pool if it&#x27;s there</span></span><br><span class="line">					<span class="keyword">select</span> &#123;</span><br><span class="line">					<span class="keyword">case</span> &lt;-warmInstancePool: <span class="comment">// Try to remove one, if any</span></span><br><span class="line">					<span class="keyword">default</span>:</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">				p.Mu.Unlock()</span><br><span class="line">			&#125;</span><br><span class="line">			instanceMutex.Unlock()</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// getOrCreateBunInstance 获取或创建一个 Bun 实例</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">getOrCreateBunInstance</span><span class="params">()</span></span> (*BunProcess, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> p := &lt;-warmInstancePool:</span><br><span class="line">		p.Mu.Lock()</span><br><span class="line">		p.LastUsed = time.Now()</span><br><span class="line">		p.Mu.Unlock()</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[Scheduler] Reusing warm Bun instance #%d.\n&quot;</span>, p.ID)</span><br><span class="line">		<span class="keyword">return</span> p, <span class="literal">nil</span></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		instanceMutex.Lock()</span><br><span class="line">		<span class="keyword">defer</span> instanceMutex.Unlock()</span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(bunInstances) &gt;= maxInstances &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;max instances reached, try again later&quot;</span>)</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		instanceCounter++</span><br><span class="line">		id := instanceCounter</span><br><span class="line">		port := <span class="number">8080</span> + id <span class="comment">// Assign a unique port</span></span><br><span class="line"></span><br><span class="line">		coldStartTime := time.Now()</span><br><span class="line">		p, err := startBunInstance(ctx, id, port)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">		&#125;</span><br><span class="line">		bunInstances[id] = p</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[Scheduler] Cold start for Bun instance #%d took %s.\n&quot;</span>, id, time.Since(coldStartTime))</span><br><span class="line"></span><br><span class="line">		<span class="comment">// Add to warm pool if space available (non-blocking)</span></span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> warmInstancePool &lt;- p:</span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> p, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">handler</span><span class="params">(w http.ResponseWriter, r *http.Request)</span></span> &#123;</span><br><span class="line">	requestStartTime := time.Now()</span><br><span class="line"></span><br><span class="line">	p, err := getOrCreateBunInstance()</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		http.Error(w, err.Error(), http.StatusInternalServerError)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Forward request to the Bun instance</span></span><br><span class="line">	bunURL := fmt.Sprintf(<span class="string">&quot;http://localhost:%d%s&quot;</span>, p.Port, r.URL.Path)</span><br><span class="line">	proxyReq, _ := http.NewRequest(r.Method, bunURL, r.Body)</span><br><span class="line">	proxyReq.Header = r.Header <span class="comment">// Copy headers</span></span><br><span class="line"></span><br><span class="line">	client := &amp;http.Client&#123;Timeout: <span class="number">30</span> * time.Second&#125;</span><br><span class="line">	resp, err := client.Do(proxyReq)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		http.Error(w, <span class="string">&quot;Failed to proxy request to Bun instance&quot;</span>, http.StatusBadGateway)</span><br><span class="line">		<span class="comment">// Mark instance as potentially bad</span></span><br><span class="line">		p.Mu.Lock()</span><br><span class="line">		p.IsWarm = <span class="literal">false</span></span><br><span class="line">		p.Mu.Unlock()</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> resp.Body.Close()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Copy response back to client</span></span><br><span class="line">	<span class="keyword">for</span> k, v := <span class="keyword">range</span> resp.Header &#123;</span><br><span class="line">		w.Header()[k] = v</span><br><span class="line">	&#125;</span><br><span class="line">	w.WriteHeader(resp.StatusCode)</span><br><span class="line">	io.Copy(w, resp.Body)</span><br><span class="line"></span><br><span class="line">	totalRequestTime := time.Since(requestStartTime)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;[Handler] Request to instance #%d (warm: %t) served in %s.\n&quot;</span>, p.ID, p.IsWarm, totalRequestTime)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Ensure the instance is put back into the warm pool (if it&#x27;s still warm)</span></span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> warmInstancePool &lt;- p:</span><br><span class="line">	<span class="keyword">default</span>: <span class="comment">// Pool is full, instance will be recycled eventually</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	log.Println(<span class="string">&quot;Starting Bun Edge Function Simulator on :8000&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Start a background goroutine for recycling idle instances</span></span><br><span class="line">	<span class="keyword">go</span> recycleIdleInstances()</span><br><span class="line"></span><br><span class="line">	http.HandleFunc(<span class="string">&quot;/&quot;</span>, handler)</span><br><span class="line">	log.Fatal(http.ListenAndServe(<span class="string">&quot;:8000&quot;</span>, <span class="literal">nil</span>))</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Clean up all running Bun instances on shutdown</span></span><br><span class="line">	<span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		cancel() <span class="comment">// Signal all child contexts and recycle goroutine to stop</span></span><br><span class="line">		instanceMutex.Lock()</span><br><span class="line">		<span class="keyword">for</span> _, p := <span class="keyword">range</span> bunInstances &#123;</span><br><span class="line">			stopBunInstance(p)</span><br><span class="line">		&#125;</span><br><span class="line">		instanceMutex.Unlock()</span><br><span class="line">		fmt.Println(<span class="string">&quot;[Scheduler] All Bun instances cleaned up.&quot;</span>)</span><br><span class="line">	&#125;()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Go 代码解释 (边缘函数模拟器)</strong>：<br>这段 Go 代码是一个概念性的<strong>边缘函数调度器模拟器</strong>。它没有直接嵌入 Bun 运行时，而是通过 <code>os/exec</code> 包来启动和管理 Bun 进程，模拟边缘函数平台的工作方式。</p>
+<ul>
+<li><strong><code>BunProcess</code> 结构体</strong>：代表一个 Bun 运行时实例，包含 ID、端口、进程命令等信息。</li>
+<li><strong><code>warmInstancePool</code></strong>：一个 Go channel，模拟边缘函数平台维护的“热”实例池。请求会优先从这里获取实例，以避免冷启动。</li>
+<li><strong><code>startBunInstance</code> 函数</strong>：负责启动一个新的 Bun 进程。它会启动 <code>bun run edge-function.ts</code> 命令，并等待 Bun 服务就绪。此过程模拟了冷启动的延迟。</li>
+<li><strong><code>recycleIdleInstances</code> goroutine</strong>：在后台运行，定期检查并停止那些长时间未被使用的 Bun 实例，模拟资源回收机制。</li>
+<li><strong><code>getOrCreateBunInstance</code> 函数</strong>：这是核心调度逻辑。它首先尝试从 <code>warmInstancePool</code> 获取一个预热的实例。如果池中没有可用实例，并且未达到最大实例数限制，它就会调用 <code>startBunInstance</code> 来创建一个新的实例（触发冷启动）。</li>
+<li><strong><code>handler</code> 函数</strong>：接收 HTTP 请求，并将其转发到获得的 Bun 实例进行处理。它会记录请求的总耗时，并反馈实例是否为“热”启动。</li>
+</ul>
+<p><strong>要运行此模拟器，你需要：</strong></p>
+<ol>
+<li>保存上述 Go 代码为 <code>main.go</code>。</li>
+<li>保存之前提到的 <code>edge-function.ts</code> 文件在同一目录下。</li>
+<li>确保你已经安装了 Bun (<code>bun --version</code> 可用)。</li>
+<li>运行 <code>go run main.go</code>。</li>
+<li>在浏览器或 <code>curl</code> 中访问 <code>http://localhost:8000</code> 或 <code>http://localhost:8000/greet?name=World</code>。</li>
+</ol>
+<p>你会观察到：</p>
+<ul>
+<li>首次访问时，Go 程序会输出 <code>Cold start for Bun instance #X took ...</code>，表示触发了冷启动。</li>
+<li>后续短时间内访问，会输出 <code>Reusing warm Bun instance #X.</code>，表示是热启动，响应会更快。</li>
+<li>如果长时间不访问，空闲实例会被回收，再次访问又会触发冷启动。</li>
+</ul>
+<p>这个模拟器清晰地展示了冷启动和热启动在延迟上的差异，以及 Bun 在此场景下的价值。</p>
+<h2 id="四、总结"><a href="#四、总结" class="headerlink" title="四、总结"></a>四、总结</h2><p>Bun.js 凭借其卓越的冷启动性能和对 Web 标准 API 的良好支持，成为了边缘函数和 Serverless 场景下的有力竞争者。通过利用 JavaScriptCore 引擎的快速启动特性、Zig 语言的底层优化以及一体化的工具链设计，Bun 显著降低了 Serverless 函数的响应延迟，提高了资源利用效率。</p>
+<p>对于开发者而言，这意味着可以构建更接近用户、响应更快的应用程序，同时享受到简化和加速的开发体验。虽然 Bun 仍处于发展阶段，并且在生产环境中的兼容性和稳定性仍需持续验证，但其在冷启动和边缘计算领域的表现，无疑预示着 JavaScript 运行时技术的新方向和巨大潜力。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/28f993be5cfe/">https://blog.tbf1211.xx.kg/28f993be5cfe/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/Serverless/">Serverless</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-26.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go Jaeger 深度解析：分布式追踪实践</div></div><div class="info-2"><div class="info-item-1"> Jaeger 是一个开源的分布式追踪系统，由 Uber Technologies 开发并捐赠给 Cloud Native Computing Foundation (CNCF)。它用于监控和排除基于微服务架构的复杂分布式系统中的故障。通过收集、存储和可视化请求在各个服务之间的调用链，Jaeger 帮助开发者理解请求流、识别性能瓶颈和诊断错误。  核心思想：Jaeger 实现了 OpenTracing API（现已融合到 OpenTelemetry 中），通过在请求流经每个服务时生成和传递独特的追踪上下文 (Trace Context)，并在每个服务中记录操作信息 (Span)，将分散的日志和指标关联起来，形成完整的请求链路视图。   一、为什么需要分布式追踪？在单体应用时代，通过日志和 APM (Application Performance Monitoring) 工具可以相对容易地定位问题。然而，随着服务架构向微服务演进，一个用户请求可能涉及数十甚至上百个独立服务的协同处理。这带来了新的挑战：  请求链路复杂性：难以追踪一个请求从前端到后端，再穿越多个微服务的完整路径。 性...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2565d3c3db01/" title="Go语言embed包详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-12</div><div class="info-item-2">Go语言embed包详解</div></div><div class="info-2"><div class="info-item-1"> Go 标准库从 Go 1.16 版本开始引入了 embed 1 包。这个包提供了一种简单、声明式的方式，允许开发者将静态文件（如 HTML 模板、CSS、JavaScript、图片、配置文件等）直接嵌入到 Go 可执行文件中。这意味着你可以通过一个独立的二进制文件分发所有应用程序所需的资源，而无需额外管理外部文件，极大地简化了部署和分发过程。  核心思想：将应用程序的外部资源（静态文件）编译进最终的二进制文件，实现“单一二进制文件”的发布和部署，消除外部文件依赖带来的复杂性。   一、为什么需要 embed 包？在 embed 包之前，Go 语言应用程序处理静态资源通常有以下几种方式：  外部文件：将静态文件与可执行文件放在一起分发。这会带来：  部署复杂性：需要确保文件结构正确，并处理文件丢失或路径错误的问题。 文件篡改风险：外部文件容易被修改，可能影响程序的行为或安全性。 分发不便：每次更新都需要同步可执行文件和所有相关资源文件。   go:embed 第三方库：许多第三方库（如 go-bindata, packr）实现了文件嵌入功能。这些库虽然有效，但通常需要一些额外的构...</div></div></div></a><a class="pagination-related" href="/f200f6bfe5fa/" title="Golang 特殊注释 (Special Comments) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-15</div><div class="info-item-2">Golang 特殊注释 (Special Comments) 详解</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，除了我们日常用于解释代码逻辑的普通注释 // 和 /* */ 之外，还存在一些具有特殊含义的注释。这些特殊注释通常以 //go: 或 // + 开头，它们并不是为程序员阅读而生，而是作为指令直接与 Go 工具链（编译器、链接器、go generate 等）交互，用于控制编译行为、生成代码、导入 C 代码，或者提供额外的信息。  核心思想：特殊注释是 Go 工具链的“命令”，用于扩展 Go 语言的能力，例如嵌入文件、生成代码、与 C 语言交互或进行性能优化。   一、Go 特殊注释的分类与作用Go 的特殊注释大致可以分为几类：  编译器指令 (Build Constraints)：控制哪些文件或代码块在特定条件下编译。 代码生成指令 (go generate)：标记需要执行特定外部工具来生成代码的位置。 cgo 指令：用于 Go 和 C&#x2F;C++ 代码之间的互操作。 embed 指令：将静态文件嵌入到 Go 二进制文件中 (Go 1.16+)。 运行时或工具指令：用于性能分析、内存管理等内部或高级用途。  接下来的章节将详细介绍这些特殊注释。 二、//g...</div></div></div></a><a class="pagination-related" href="/7cdd9f5b33c9/" title="前端项目工程化详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-17</div><div class="info-item-2">前端项目工程化详解</div></div><div class="info-2"><div class="info-item-1"> 随着前端应用的复杂度日益增加，单纯依靠人工管理和协作已经无法满足高效、高质量开发的需求。前端工程化应运而生，它旨在通过将软件工程的思想和方法引入前端开发，构建一套系统化、标准化、自动化、体系化的解决方案，以提高开发效率、保障代码质量、降低维护成本。  前端工程化的核心思想是：以自动化取代人力，以工具取代重复劳动，以规范约束散漫。   一、什么是前端工程化？前端工程化是构建、管理和维护前端项目的实践和工具集。它涵盖了从项目初始化、开发、构建、测试到部署的整个生命周期，目标是提升团队协作效率、统一代码风格、保证项目质量、优化产物性能以及实现快速迭代。 它不仅仅是使用几个构建工具，更是一种体系化的思维方式和工作流。 二、为什么需要前端工程化？在没有工程化的时代，前端开发面临诸多挑战：  开发效率低下：手动重复任务（如文件合并、压缩），环境搭建复杂。 代码质量参差不齐：缺乏统一的代码规范和质量检查机制，导致 Bug 增多，难以维护。 团队协作困难：不同成员的代码风格差异大，冲突频繁，交接成本高。 项目性能不佳：缺乏自动化优化手段（如图片压缩、按需加载），页面加载慢。 部署上线复杂：手动...</div></div></div></a><a class="pagination-related" href="/18a421861554/" title="Golang 项目的 Makefile 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-17</div><div class="info-item-2">Golang 项目的 Makefile 详解</div></div><div class="info-2"><div class="info-item-1"> Makefile 是一种自动化构建工具，它通过定义文件之间的依赖关系和生成这些文件的命令，帮助开发者管理和自动化项目中的各种任务。尽管 Golang 自身提供了强大的内置工具链 (go build, go test, go run 等)，Makefile 在 Go 项目中依然扮演着重要角色，尤其是在需要协调多个任务、管理复杂构建流程、实现跨平台编译、集成外部工具或自动化部署脚本的场景下。  核心思想：将一系列 go 命令、Shell 脚本以及其他工具的调用封装成可复用的、有依赖关系的任务，实现一键式项目管理和自动化。   一、为什么 Go 项目需要 Makefile？Go 语言的工具链设计得非常出色，go build 能够自动处理依赖，go test 能够运行测试，go run 可以直接运行源代码。那么，为什么我们还需要 Makefile 呢？  任务编排与自动化： 一个 Go 项目通常不仅仅是编译代码。它可能涉及代码格式化 (go fmt)、静态分析 (go vet, golangci-lint)、代码生成 (go generate)、测试、构建 Docker 镜像、部署、清...</div></div></div></a><a class="pagination-related" href="/92d90a6caba1/" title="Python 项目管理工具 Poetry 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-10</div><div class="info-item-2">Python 项目管理工具 Poetry 详解</div></div><div class="info-2"><div class="info-item-1"> Poetry 是一款现代化的 Python 项目管理和打包工具。它将依赖管理、虚拟环境管理、打包和发布功能集成在一个直观的命令行界面中。Poetry 的核心理念是提供一个统一的、声明式的项目配置方式，以 pyproject.toml 文件 (遵循 PEP 518 和 PEP 621) 作为所有项目元数据和依赖的唯一真实来源。  核心思想：Poetry 旨在通过一个工具，简化 Python 项目从创建到发布的全生命周期管理，确保环境隔离、依赖可重现性和便捷的打包发布流程。   一、为什么需要 Poetry？传统的 Python 项目管理方式通常涉及多个工具和手动步骤，带来了诸多痛点：  pip 和 requirements.txt 的局限性： requirements.txt 仅记录直接依赖，不处理传递性依赖，容易导致环境不一致。 缺乏强大的依赖解析能力，解决包版本冲突困难。 没有统一的元数据管理，项目信息分散在 setup.py、README.md 等文件中。   虚拟环境管理不便： 需要手动创建 venv 或 virtualenv，并手动激活、切换。 项目与虚拟环境的关联不够...</div></div></div></a><a class="pagination-related" href="/62acbead38d8/" title="Python 打包工具 uv 详解：下一代包管理器与构建器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-12</div><div class="info-item-2">Python 打包工具 uv 详解：下一代包管理器与构建器</div></div><div class="info-2"><div class="info-item-1"> UV 是由 Astral (Ruff 的创建者) 公司开发的一款极速的 Python 包安装器、解析器和虚拟环境管理器。它被设计为 pip、pip-tools 和 virtualenv 的直接替代品，旨在解决 Python 现有包管理工具的速度瓶颈和用户体验问题。UV 完全用 Rust 编写，专注于提供闪电般的性能、一致的行为和可靠的依赖解析，同时兼容 pip 和 virtualenv 的现有工作流。  核心思想：UV 利用 Rust 的高性能和并发能力，提供超快的依赖解析、虚拟环境创建和包安装体验，旨在通过一个统一的、命令与 pip 相似的工具，成为 Python 包管理的新一代标准。   一、为什么需要 UV？Python 的包管理生态系统虽然成熟，但在速度和用户体验方面一直存在痛点：  pip 的速度瓶颈： pip 在解析大型或复杂项目的依赖图时可能会非常缓慢，尤其是在 requirements.txt 中包含大量次级依赖时。 每次安装都需要重新下载已有的包，缺乏高效的缓存机制。   virtualenv &#x2F; venv 的性能： 创建和管理虚拟环境的速度通常不够...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">353</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">207</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">74</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Bun-js-%E6%A6%82%E8%BF%B0%E4%B8%8E%E6%80%A7%E8%83%BD%E5%9F%BA%E7%9F%B3"><span class="toc-text">一、Bun.js 概述与性能基石</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E4%BB%80%E4%B9%88%E6%98%AF-Bun-js%EF%BC%9F"><span class="toc-text">1.1 什么是 Bun.js？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-Bun-%E7%9A%84%E6%8A%80%E6%9C%AF%E6%A0%88%E4%B8%8E%E6%80%A7%E8%83%BD%E4%BC%98%E5%8A%BF"><span class="toc-text">1.2 Bun 的技术栈与性能优势</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%86%B7%E5%90%AF%E5%8A%A8-Cold-Start-%E8%AF%A6%E8%A7%A3%E4%B8%8E-Bun-%E7%9A%84%E4%BC%98%E5%8C%96"><span class="toc-text">二、冷启动 (Cold Start) 详解与 Bun 的优化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E4%BB%80%E4%B9%88%E6%98%AF%E5%86%B7%E5%90%AF%E5%8A%A8%EF%BC%9F"><span class="toc-text">2.1 什么是冷启动？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Bun-%E5%A6%82%E4%BD%95%E4%BC%98%E5%8C%96%E5%86%B7%E5%90%AF%E5%8A%A8%EF%BC%9F"><span class="toc-text">2.2 Bun 如何优化冷启动？</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-1-JavaScriptCore-%E5%BC%95%E6%93%8E%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">2.2.1 JavaScriptCore 引擎的优势</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-2-%E5%86%85%E9%83%A8%E4%BC%98%E5%8C%96"><span class="toc-text">2.2.2 内部优化</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-3-%E5%8C%85%E7%AE%A1%E7%90%86%E5%99%A8%E7%9A%84%E4%BC%98%E5%8C%96-Bun-lockb"><span class="toc-text">2.2.3 包管理器的优化 (Bun.lockb)</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AF%B9%E8%BE%B9%E7%BC%98%E5%87%BD%E6%95%B0-Edge-Functions-%E7%9A%84%E6%94%AF%E6%8C%81%E4%B8%8E%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">三、对边缘函数 (Edge Functions) 的支持与适用性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E4%BB%80%E4%B9%88%E6%98%AF%E8%BE%B9%E7%BC%98%E5%87%BD%E6%95%B0%EF%BC%9F"><span class="toc-text">3.1 什么是边缘函数？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Bun-%E5%9C%A8%E8%BE%B9%E7%BC%98%E5%87%BD%E6%95%B0%E5%9C%BA%E6%99%AF%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">3.2 Bun 在边缘函数场景的优势</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-Bun-%E8%BF%90%E8%A1%8C%E8%BE%B9%E7%BC%98%E5%87%BD%E6%95%B0%E7%9A%84%E7%A4%BA%E4%BE%8B-%E6%A6%82%E5%BF%B5%E6%80%A7"><span class="toc-text">3.3 Bun 运行边缘函数的示例 (概念性)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">四、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Bun.js 深度解析：冷启动与边缘函数优化"/></a><div class="content"><a class="title" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化">Bun.js 深度解析：冷启动与边缘函数优化</a><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go Jaeger 深度解析：分布式追踪实践"/></a><div class="content"><a class="title" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践">Go Jaeger 深度解析：分布式追踪实践</a><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1ae20d2726d8/" title="MiniRTC 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MiniRTC 详解"/></a><div class="content"><a class="title" href="/1ae20d2726d8/" title="MiniRTC 详解">MiniRTC 详解</a><time datetime="2025-11-28T22:24:00.000Z" title="发表于 2025-11-29 06:24:00">2025-11-29</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/be24ef88e59a/" title="WebRTC 技术详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebRTC 技术详解"/></a><div class="content"><a class="title" href="/be24ef88e59a/" title="WebRTC 技术详解">WebRTC 技术详解</a><time datetime="2025-11-27T22:24:00.000Z" title="发表于 2025-11-28 06:24:00">2025-11-28</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-26.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
