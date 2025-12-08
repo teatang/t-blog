@@ -4,6 +4,7 @@ date: 2025-11-24 06:24:00
 tags:
   - 2025
   - Golang
+  - GC
   - 程序设计
 categories:
   - Golang
