@@ -57,7 +57,7 @@ Docker Compose 解决了单机多容器应用的编排问题，但现代分布�
 
 Docker Swarm 集群由一个或多个管理节点和零个或多个工作节点组成。
 
-```mermaid
+{% mermaid %}
 graph TD
     subgraph Swarm Cluster
         Manager1[Manager Node 1] <-->|RAFT| Manager2[Manager Node 2]
@@ -85,7 +85,7 @@ graph TD
         Manager1 -- Maintains Desired State --> ClusterState[Cluster State]
         Manager1 <-->|API| WorkerNodes
 
-        subgraph Routing Mesh (Ingress Network)
+        subgraph "Routing Mesh (Ingress Network)"
             direction LR
             R1[Manager Node 1 IP:Port] --> LB[Load Balancer]
             R2[Worker Node 1 IP:Port] --> LB
@@ -96,13 +96,7 @@ graph TD
             LB --> ServiceB_Container2
         end
     end
-
-    style Manager1 fill:#f9f,stroke:#333,stroke-width:2px
-    style Manager2 fill:#f9f,stroke:#333,stroke-width:2px
-    style Worker1 fill:#ccf,stroke:#333,stroke-width:2px
-    style Worker2 fill:#ccf,stroke:#333,stroke-width:2px
-    style Worker3 fill:#ccf,stroke:#333,stroke-width:2px
-```
+{% endmermaid %}
 
 *   **管理节点 (Manager Node)**：
     *   作为 Swarm 的大脑，决策容器的调度和编排。

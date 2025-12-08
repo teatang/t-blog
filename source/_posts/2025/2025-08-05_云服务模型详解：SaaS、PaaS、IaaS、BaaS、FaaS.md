@@ -43,14 +43,6 @@ graph LR
     subgraph "On-Premise (自建)"
         direction LR
         OP_App(应用) --- OP_Data(数据) --- OP_Runtime(运行时) --- OP_OS(操作系统) --- OP_Virtual(虚拟化) --- OP_Servers(服务器) --- OP_Storage(存储) --- OP_Network(网络)
-        style OP_App fill:#E0E0E0,stroke:#333
-        style OP_Data fill:#E0E0E0,stroke:#333
-        style OP_Runtime fill:#E0E0E0,stroke:#333
-        style OP_OS fill:#E0E0E0,stroke:#333
-        style OP_Virtual fill:#E0E0E0,stroke:#333
-        style OP_Servers fill:#E0E0E0,stroke:#333
-        style OP_Storage fill:#E0E0E0,stroke:#333
-        style OP_Network fill:#E0E0E0,stroke:#333
         subgraph 你的全责
             OP_All[所有]
         end
@@ -60,22 +52,16 @@ graph LR
     subgraph "IaaS (基础设施即服务)"
         direction LR
         IaaS_User(你的应用,数据,运行时,操作系统) --> IaaS_Vendor(虚拟化,服务器,存储,网络)
-        style IaaS_User fill:#FFCCBC,stroke:#FF5722
-        style IaaS_Vendor fill:#C8E6C9,stroke:#4CAF50
     end
 
     subgraph "PaaS (平台即服务)"
         direction LR
         PaaS_User(你的应用,数据) --> PaaS_Vendor(运行时,操作系统,虚拟化,服务器,存储,网络)
-        style PaaS_User fill:#FFF9C4,stroke:#FFEB3B
-        style PaaS_Vendor fill:#C8E6C9,stroke:#4CAF50
     end
 
     subgraph "SaaS (软件即服务)"
         direction LR
         SaaS_User(配置,用户管理) --> SaaS_Vendor(应用,数据,运行时,操作系统,虚拟化,服务器,存储,网络)
-        style SaaS_User fill:#E0F2F7,stroke:#2196F3
-        style SaaS_Vendor fill:#C8E6C9,stroke:#4CAF50
     end
 {% endmermaid %}
 

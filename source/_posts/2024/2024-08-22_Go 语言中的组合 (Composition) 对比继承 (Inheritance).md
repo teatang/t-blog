@@ -258,10 +258,6 @@ graph TD
         A_Animal[动物] -->|is-a| B_Dog[狗]
         A_Animal -->|is-a| C_Cat[猫]
         B_Dog -->|is-a| D_Poodle[贵宾犬]
-        style A_Animal fill:#f9f,stroke:#333,stroke-width:2px
-        style B_Dog fill:#bbf,stroke:#333,stroke-width:2px
-        style C_Cat fill:#bbf,stroke:#333,stroke-width:2px
-        style D_Poodle fill:#ccf,stroke:#333,stroke-width:2px
     end
 
     subgraph "Go 语言 (组合 + 接口)"
@@ -270,12 +266,6 @@ graph TD
         E_Car ---|implements| H_Driver[驾驶接口]
         I_Boat[船] --- J_Motor[马达]
         I_Boat ---|implements| H_Driver[驾驶接口]
-        style E_Car fill:#f9f,stroke:#333,stroke-width:2px
-        style F_Engine fill:#bbf,stroke:#333,stroke-width:2px
-        style G_Wheel fill:#bbf,stroke:#333,stroke-width:2px
-        style H_Driver fill:#afa,stroke:#333,stroke-width:2px
-        style I_Boat fill:#f9f,stroke:#333,stroke-width:2px
-        style J_Motor fill:#bbf,stroke:#333,stroke-width:2px
     end
 {% endmermaid %}
 

@@ -71,11 +71,6 @@ graph TD
     A --> GPIO_Pin
     GPIO_Pin -- 连接 --> Button(按钮)
     Button -- 连接 --> GND(GND)
-
-    style VCC fill:#fff,stroke:#333,stroke-width:2px;
-    style GND fill:#fff,stroke:#333,stroke-width:2px;
-    style Button fill:#f9f,stroke:#333;
-    style GPIO_Pin fill:#ccf,stroke:#333;
 {% endmermaid %}
 *图：带上拉电阻的按钮接法。当按钮未按下时，GPIO 引脚通过上拉电阻读到高电平；当按钮按下时，GPIO 引脚被短接到地，读到低电平。*
 
@@ -116,10 +111,6 @@ graph TD
     GPIO_Pin -- 连接 --> R(限流电阻)
     R -- 连接 --> LED(LED)
     LED -- 连接 --> GND(GND)
-
-    style GPIO_Pin fill:#ccf,stroke:#333;
-    style LED fill:#f9f,stroke:#333;
-    style GND fill:#fff,stroke:#333,stroke-width:2px;
 {% endmermaid %}
 *图：GPIO 推挽输出驱动 LED。GPIO 输出高电平 LED 亮，输出低电平 LED 灭 (取决于 LED 正负接法)。*
 

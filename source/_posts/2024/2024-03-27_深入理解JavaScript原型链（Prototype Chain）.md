@@ -118,13 +118,6 @@ graph TD
     C -- prototype --> D
     D -- [[Prototype]] / __proto__ --> E
     E -- [[Prototype]] / __proto__ --> F
-
-    style A fill:#f9f,stroke:#333,stroke-width:2px;
-    style B fill:#f9f,stroke:#333,stroke-width:2px;
-    style C fill:#9cf,stroke:#333,stroke-width:2px;
-    style D fill:#fc9,stroke:#333,stroke-width:2px;
-    style E fill:#ccf,stroke:#333,stroke-width:2px;
-    style F fill:#ccc,stroke:#333,stroke-width:2px;
 {% endmermaid %}
 
 ## 二、原型链的工作机制
@@ -274,12 +267,6 @@ graph TD
     B -- [[Prototype]] / __proto__ --> C[Animal.prototype]
     C -- [[Prototype]] / __proto__ --> D[Object.prototype]
     D -- [[Prototype]] / __proto__ --> E[null]
-
-    style A fill:#f9f,stroke:#333,stroke-width:2px;
-    style B fill:#fc9,stroke:#333,stroke-width:2px;
-    style C fill:#9cf,stroke:#333,stroke-width:2px;
-    style D fill:#ccf,stroke:#333,stroke-width:2px;
-    style E fill:#ccc,stroke:#333,stroke-width:2px;
 {% endmermaid %}
 
 ## 五、原型链的优缺点

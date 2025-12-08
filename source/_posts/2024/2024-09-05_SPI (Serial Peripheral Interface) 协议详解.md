@@ -150,17 +150,6 @@ graph TD
   
     MOSI_Data_Setup ---> MOSI_Data_Hold
     MISO_Data_Setup ---> MISO_Data_Hold
-  
-    style CS_Active_Period fill:#f0f9ff,stroke:#006600,stroke-dasharray: 5 5;
-    style CS_Inactive_Period fill:#f0f9ff,stroke:#006600,stroke-dasharray: 5 5;
-    style SCLK_Idle_Low fill:#f0f9ff,stroke:#FF0000,stroke-dasharray: 5 5;
-    style SCLK_High_Half fill:#f0f9ff,stroke:#FF0000,stroke-dasharray: 5 5;
-    style SCLK_Cycle_End fill:#f0f9ff,stroke:#FF0000,stroke-dasharray: 5 5;
-    style MOSI_Data_Setup fill:#f0f9ff,stroke:#0000FF,stroke-dasharray: 5 5;
-    style MOSI_Data_Hold fill:#f0f9ff,stroke:#0000FF,stroke-dasharray: 5 5;
-    style MISO_Data_Setup fill:#f0f9ff,stroke:#FF9900,stroke-dasharray: 5 5;
-    style MISO_Data_Hold fill:#f0f9ff,stroke:#FF9900,stroke-dasharray: 5 5;
-
 {% endmermaid %}
 *(注：Mermaid 对复杂波形图支持有限，此处仅为简化示意。实际波形会展示数据位与时钟边沿的对应关系。)*
 

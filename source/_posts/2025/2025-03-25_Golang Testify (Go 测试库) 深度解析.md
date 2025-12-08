@@ -53,9 +53,6 @@ graph TD
     D -- 失败立即中断 --> H[严格的断言]
     E -- 模拟接口行为 --> I[依赖隔离]
     F -- 组织测试/生命周期 --> J[可维护的测试套件]
-
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
 {% endmermaid %}
 
 ## 三、Testify 快速入门与安装
