@@ -1,0 +1,636 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>LangChain Chains 深度详解与应用实践 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="LangChain 是一个强大的框架，旨在帮助开发者使用大语言模型（LLM）构建端到端的应用程序。在其众多核心模块中，Chains (链) 是最基础也是最重要的概念之一。它允许开发者将多个组件（如 LLM、提示模板、解析器、其他链）以逻辑顺序连接起来，形成一个完整的、可执行的流程，从而实现复杂的任务。  核心思想：Chains 的核心思想是将一系列操作（比如准备提示、调用 LLM、处理输出）串联">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LangChain Chains 深度详解与应用实践">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/aacac0039d65/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="LangChain 是一个强大的框架，旨在帮助开发者使用大语言模型（LLM）构建端到端的应用程序。在其众多核心模块中，Chains (链) 是最基础也是最重要的概念之一。它允许开发者将多个组件（如 LLM、提示模板、解析器、其他链）以逻辑顺序连接起来，形成一个完整的、可执行的流程，从而实现复杂的任务。  核心思想：Chains 的核心思想是将一系列操作（比如准备提示、调用 LLM、处理输出）串联">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg">
+<meta property="article:published_time" content="2025-10-29T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-09T10:11:24.636Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="LangChain">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "LangChain Chains 深度详解与应用实践",
+  "url": "https://blog.tbf1211.xx.kg/aacac0039d65/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg",
+  "datePublished": "2025-10-29T22:24:00.000Z",
+  "dateModified": "2025-12-09T10:11:24.636Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/aacac0039d65/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'LangChain Chains 深度详解与应用实践',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">367</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">211</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">75</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-09.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">LangChain Chains 深度详解与应用实践</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">LangChain Chains 深度详解与应用实践</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-10-29T22:24:00.000Z" title="发表于 2025-10-30 06:24:00">2025-10-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/">AI</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/%E5%BC%80%E5%8F%91%E6%A1%86%E6%9E%B6/">开发框架</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.8k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/aacac0039d65/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>LangChain</strong> 是一个强大的框架，旨在帮助开发者使用大语言模型（LLM）构建端到端的应用程序。在其众多核心模块中，<strong>Chains (链)</strong> 是最基础也是最重要的概念之一。它允许开发者将多个组件（如 LLM、提示模板、解析器、其他链）以逻辑顺序连接起来，形成一个完整的、可执行的流程，从而实现复杂的任务。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>Chains 的核心思想是将一系列操作（比如准备提示、调用 LLM、处理输出）串联起来，形成一个连贯的工作流。这使得开发者能够构建超越单一 LLM 调用的复杂应用程序，实现模块化、可组合和可扩展的 AI 应用。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-Chains？"><a href="#一、为什么需要-Chains？" class="headerlink" title="一、为什么需要 Chains？"></a>一、为什么需要 Chains？</h2><p>大语言模型 (LLM) 固然强大，但直接调用 LLM 的 API 往往只能解决单一的、相对简单的问题。在实际应用中，我们面临的任务通常更加复杂：</p>
+<ul>
+<li><strong>多步骤任务</strong>：一个任务可能需要多次调用 LLM，每次调用基于上一次的输出。</li>
+<li><strong>输入预处理</strong>：可能需要根据用户输入动态地生成 LLM 提示。</li>
+<li><strong>输出后处理</strong>：LLM 的原始输出可能需要结构化、格式化或进一步处理才能使用。</li>
+<li><strong>数据检索</strong>：LLM 可能需要结合外部数据源（如数据库、文档）才能给出准确答案。</li>
+<li><strong>工具使用</strong>：LLM 可能需要调用外部工具（如计算器、API）来完成任务。</li>
+</ul>
+<p>如果将所有这些逻辑都写在一个函数中，代码会变得臃肿、难以维护。Chains 提供了一个结构化的方式来编排这些复杂的流程，使得我们可以将任务分解为更小的、可管理的组件，并通过 Chain 将它们连接起来。</p>
+<h2 id="二、Chains-的核心概念"><a href="#二、Chains-的核心概念" class="headerlink" title="二、Chains 的核心概念"></a>二、Chains 的核心概念</h2><p>在 LangChain 中，<code>Chain</code> 是一个抽象基类，代表一个通用的链式结构。所有具体的 Chain 类都继承自它。一个 Chain 的基本特征是它接受输入，执行一些逻辑，然后返回输出。</p>
+<h3 id="2-1-Chain-的输入与输出"><a href="#2-1-Chain-的输入与输出" class="headerlink" title="2.1 Chain 的输入与输出"></a>2.1 Chain 的输入与输出</h3><p>所有 Chain 都遵循一个统一的接口：</p>
+<ul>
+<li><strong>输入</strong>：接受一个或多个键值对作为输入。</li>
+<li><strong>处理</strong>：执行内部逻辑。</li>
+<li><strong>输出</strong>：返回一个或多个键值对作为输出。</li>
+</ul>
+<p>这使得不同的 Chain 可以方便地串联起来：一个 Chain 的输出可以作为下一个 Chain 的输入。</p>
+<h3 id="2-2-常见的-Chain-类型"><a href="#2-2-常见的-Chain-类型" class="headerlink" title="2.2 常见的 Chain 类型"></a>2.2 常见的 Chain 类型</h3><p>LangChain 提供了多种开箱即用的 Chain 类型，用于处理不同的任务和集成不同的组件。以下是一些最常见和重要的类型：</p>
+<ol>
+<li><strong>LLMChain (最基础的 Chain)</strong></li>
+<li><strong>Sequential Chains (顺序链)</strong></li>
+<li><strong>Router Chains (路由链)</strong></li>
+<li><strong>Retrieval Chains (检索链)</strong></li>
+<li><strong>StuffDocumentsChain, MapReduceDocumentsChain, RefineDocumentsChain, MapReRankDocumentsChain (文档处理链)</strong></li>
+<li><strong>Question Answering Chains (问答链)</strong></li>
+<li><strong>Summary Chains (摘要链)</strong></li>
+</ol>
+<p>我们将重点介绍一些核心的 Chain 类型及其使用技巧。</p>
+<h2 id="三、核心-Chains-详解与应用技巧"><a href="#三、核心-Chains-详解与应用技巧" class="headerlink" title="三、核心 Chains 详解与应用技巧"></a>三、核心 Chains 详解与应用技巧</h2><h3 id="3-1-LLMChain：基础构建块"><a href="#3-1-LLMChain：基础构建块" class="headerlink" title="3.1 LLMChain：基础构建块"></a>3.1 LLMChain：基础构建块</h3><p><code>LLMChain</code> 是最基础的 Chain，它将 <code>PromptTemplate</code>、<code>LLM</code> 和可选的 <code>OutputParser</code> 组合在一起。</p>
+<p><strong>工作流程：</strong><br>输入 -&gt; 提示模板（格式化输入） -&gt; LLM（生成响应） -&gt; 输出解析器（结构化响应） -&gt; 输出</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[输入] --&gt; B(PromptTemplate);
+    B --&gt; C(LLM);
+    C --&gt; D(OutputParser);
+    D --&gt; E[输出];
+  </pre></div>
+
+<p><strong>应用技巧：</strong></p>
+<ul>
+<li><strong>清晰的提示工程</strong>：<code>PromptTemplate</code> 是 LLMChain 的核心。精心设计的提示可以显著提高 LLM 的性能。使用变量来使提示动态化。</li>
+<li><strong>结构化输出</strong>：使用 <code>OutputParser</code>（如 <code>PydanticOutputParser</code>、<code>StructuredOutputParser</code>）来强制 LLM 输出特定格式（如 JSON），这对于后续处理至关重要。</li>
+</ul>
+<p><strong>代码示例：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain.llms <span class="keyword">import</span> OpenAI</span><br><span class="line"><span class="keyword">from</span> langchain.prompts <span class="keyword">import</span> PromptTemplate</span><br><span class="line"><span class="keyword">from</span> langchain.chains <span class="keyword">import</span> LLMChain</span><br><span class="line"><span class="keyword">from</span> langchain.output_parsers <span class="keyword">import</span> PydanticOutputParser</span><br><span class="line"><span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel, Field</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置OpenAI API Key</span></span><br><span class="line"><span class="comment"># os.environ[&quot;OPENAI_API_KEY&quot;] = &quot;YOUR_OPENAI_API_KEY&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1. 定义输出结构 (Pydantic Model)</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Joke</span>(<span class="title class_ inherited__">BaseModel</span>):</span><br><span class="line">    setup: <span class="built_in">str</span> = Field(description=<span class="string">&quot;The setup of the joke&quot;</span>)</span><br><span class="line">    punchline: <span class="built_in">str</span> = Field(description=<span class="string">&quot;The punchline of the joke&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 创建一个输出解析器实例</span></span><br><span class="line">parser = PydanticOutputParser(pydantic_object=Joke)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 定义提示模板，并包含输出格式指令</span></span><br><span class="line">prompt = PromptTemplate(</span><br><span class="line">    template=<span class="string">&quot;讲一个关于&#123;topic&#125;的笑话。\n&#123;format_instructions&#125;\n&quot;</span>,</span><br><span class="line">    input_variables=[<span class="string">&quot;topic&quot;</span>],</span><br><span class="line">    partial_variables=&#123;<span class="string">&quot;format_instructions&quot;</span>: parser.get_format_instructions()&#125;,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4. 初始化 LLM</span></span><br><span class="line">llm = OpenAI(temperature=<span class="number">0.7</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 5. 创建 LLMChain</span></span><br><span class="line">joke_chain = LLMChain(llm=llm, prompt=prompt, output_parser=parser, verbose=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 6. 运行 Chain</span></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    joke = joke_chain.run(<span class="string">&quot;程序员&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;\n--- 笑话 ---&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;设定: <span class="subst">&#123;joke.setup&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;包袱: <span class="subst">&#123;joke.punchline&#125;</span>&quot;</span>)</span><br><span class="line"><span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;发生错误: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 实际运行时，请确保 OPENAI_API_KEY 已设置，并替换为您的实际 API Key。</span></span><br><span class="line"><span class="comment"># 由于OpenAI API可能需要付费，本示例仅为演示代码结构。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-Sequential-Chains-顺序链-：多步骤任务编排"><a href="#3-2-Sequential-Chains-顺序链-：多步骤任务编排" class="headerlink" title="3.2 Sequential Chains (顺序链)：多步骤任务编排"></a>3.2 Sequential Chains (顺序链)：多步骤任务编排</h3><p><code>SequentialChains</code> 允许您将多个 Chain 串联起来，一个 Chain 的输出作为下一个 Chain 的输入。</p>
+<ul>
+<li><strong>SimpleSequentialChain</strong>：每个 Chain 只有一个输入和输出。</li>
+<li><strong>SequentialChain</strong>：更通用，允许每个 Chain 有多个输入和输出，并可以指定如何将输出映射到下一个 Chain 的输入。</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[初始输入] --&gt; B(Chain 1);
+    B --&gt; C(Chain 2);
+    C --&gt; D(Chain 3);
+    D --&gt; E[最终输出];
+  </pre></div>
+
+<p><strong>应用技巧：</strong></p>
+<ul>
+<li><strong>分解复杂任务</strong>：将一个复杂任务分解为一系列独立的、可管理的子任务，每个子任务对应一个 Chain。</li>
+<li><strong>数据传递清晰</strong>：在 <code>SequentialChain</code> 中，明确定义 <code>input_variables</code> 和 <code>output_variables</code>，确保数据在不同 Chain 之间正确传递。</li>
+</ul>
+<p><strong>代码示例：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain.llms <span class="keyword">import</span> OpenAI</span><br><span class="line"><span class="keyword">from</span> langchain.prompts <span class="keyword">import</span> PromptTemplate</span><br><span class="line"><span class="keyword">from</span> langchain.chains <span class="keyword">import</span> LLMChain, SimpleSequentialChain</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line"><span class="comment"># os.environ[&quot;OPENAI_API_KEY&quot;] = &quot;YOUR_OPENAI_API_KEY&quot;</span></span><br><span class="line"></span><br><span class="line">llm = OpenAI(temperature=<span class="number">0.0</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Chain 1: 生成一个关于产品的名称</span></span><br><span class="line">prompt1 = PromptTemplate(</span><br><span class="line">    input_variables=[<span class="string">&quot;product&quot;</span>],</span><br><span class="line">    template=<span class="string">&quot;给我一个关于&#123;product&#125;的创意名称。&quot;</span>,</span><br><span class="line">)</span><br><span class="line">chain1 = LLMChain(llm=llm, prompt=prompt1)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Chain 2: 撰写产品名称的口号</span></span><br><span class="line">prompt2 = PromptTemplate(</span><br><span class="line">    input_variables=[<span class="string">&quot;product_name&quot;</span>],</span><br><span class="line">    template=<span class="string">&quot;为以下产品名称写一个简短且吸引人的口号: &#123;product_name&#125;&quot;</span>,</span><br><span class="line">)</span><br><span class="line">chain2 = LLMChain(llm=llm, prompt=prompt2)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 组合成 SimpleSequentialChain</span></span><br><span class="line">overall_chain = SimpleSequentialChain(chains=[chain1, chain2], verbose=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 运行 Chain</span></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    result = overall_chain.run(<span class="string">&quot;一款新的智能手机，带有超级摄像头&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;\n--- 最终输出 ---&quot;</span>)</span><br><span class="line">    <span class="built_in">print</span>(result)</span><br><span class="line"><span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;发生错误: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-Router-Chains-路由链-：根据输入动态选择路径"><a href="#3-3-Router-Chains-路由链-：根据输入动态选择路径" class="headerlink" title="3.3 Router Chains (路由链)：根据输入动态选择路径"></a>3.3 Router Chains (路由链)：根据输入动态选择路径</h3><p><code>RouterChain</code> 允许您根据用户输入的内容，动态地将请求路由到不同的“目标链”（Destination Chain）。这对于构建能够处理多种类型请求的通用 AI 助手非常有用。</p>
+<p><strong>工作流程：</strong><br>输入 -&gt; 路由器 (LLM 决定哪个目标) -&gt; 目标链 1 &#x2F; 目标链 2 &#x2F; … -&gt; 输出</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[输入] --&gt; B(Router Chain);
+    B --&gt; C1(目标 Chain 1);
+    B --&gt; C2(目标 Chain 2);
+    B --&gt; C3(目标 Chain 3);
+    C1 --&gt; D[输出];
+    C2 --&gt; D;
+    C3 --&gt; D;
+  </pre></div>
+
+<p><strong>应用技巧：</strong></p>
+<ul>
+<li><strong>多功能助手</strong>：构建一个可以回答事实问题、生成创意文本、执行代码等多种任务的单个入口点。</li>
+<li><strong>领域专家切换</strong>：根据用户问题切换到不同的专业知识链。</li>
+<li><strong>详细的路由提示</strong>：路由器的提示模板非常重要，需要清晰地指导 LLM 如何选择目标链，并提供每个目标链的功能描述。</li>
+</ul>
+<p><strong>代码示例 (概念性，略复杂，需要多个目标链)：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain.llms <span class="keyword">import</span> OpenAI</span><br><span class="line"><span class="keyword">from</span> langchain.prompts <span class="keyword">import</span> PromptTemplate</span><br><span class="line"><span class="keyword">from</span> langchain.chains <span class="keyword">import</span> LLMChain</span><br><span class="line"><span class="keyword">from</span> langchain.chains.router <span class="keyword">import</span> MultiPromptChain</span><br><span class="line"><span class="keyword">from</span> langchain.chains.router.llm_router <span class="keyword">import</span> LLMRouterChain, RouterOutputParser</span><br><span class="line"><span class="keyword">from</span> langchain.pydantic_v1 <span class="keyword">import</span> BaseModel, Field</span><br><span class="line"><span class="keyword">from</span> langchain.prompts <span class="keyword">import</span> PromptTemplate, ChatPromptTemplate</span><br><span class="line"><span class="keyword">from</span> langchain.output_parsers <span class="keyword">import</span> PydanticOutputParser</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line"><span class="comment"># os.environ[&quot;OPENAI_API_KEY&quot;] = &quot;YOUR_OPENAI_API_KEY&quot;</span></span><br><span class="line"></span><br><span class="line">llm = OpenAI(temperature=<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义不同的目标链的提示模板</span></span><br><span class="line">physics_template = <span class="string">&quot;&quot;&quot;你是一位经验丰富的物理学教授。</span></span><br><span class="line"><span class="string">回答以下关于物理学的问题:</span></span><br><span class="line"><span class="string">&#123;input&#125;</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">math_template = <span class="string">&quot;&quot;&quot;你是一位专业的数学家。</span></span><br><span class="line"><span class="string">解决以下数学问题，并给出详细的步骤:</span></span><br><span class="line"><span class="string">&#123;input&#125;</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">general_template = <span class="string">&quot;&quot;&quot;你是一位友好的通用助手。</span></span><br><span class="line"><span class="string">回答以下问题:</span></span><br><span class="line"><span class="string">&#123;input&#125;</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建目标 LLMChain</span></span><br><span class="line">physics_chain = LLMChain(llm=llm, prompt=PromptTemplate(template=physics_template, input_variables=[<span class="string">&quot;input&quot;</span>]))</span><br><span class="line">math_chain = LLMChain(llm=llm, prompt=PromptTemplate(template=math_template, input_variables=[<span class="string">&quot;input&quot;</span>]))</span><br><span class="line">general_chain = LLMChain(llm=llm, prompt=PromptTemplate(template=general_template, input_variables=[<span class="string">&quot;input&quot;</span>]))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义路由器的输出结构</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">RouteQuery</span>(<span class="title class_ inherited__">BaseModel</span>):</span><br><span class="line">    destination: <span class="built_in">str</span> = Field(description=<span class="string">&quot;The name of the destination chain to use, or &#x27;DEFAULT&#x27; if none apply.&quot;</span>)</span><br><span class="line">    next_inputs: <span class="built_in">str</span> = Field(description=<span class="string">&quot;The input to send to the destination chain.&quot;</span>)</span><br><span class="line"></span><br><span class="line">parser = PydanticOutputParser(pydantic_object=RouteQuery)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义路由器的提示模板</span></span><br><span class="line">router_prompt_template = <span class="string">&quot;&quot;&quot;根据用户输入的类型，将其路由到最合适的专家链。</span></span><br><span class="line"><span class="string">如果输入是关于物理学，路由到 &#x27;physics&#x27;。</span></span><br><span class="line"><span class="string">如果输入是关于数学，路由到 &#x27;math&#x27;。</span></span><br><span class="line"><span class="string">否则，路由到 &#x27;DEFAULT&#x27;。</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">请使用以下格式进行响应：</span></span><br><span class="line"><span class="string">&#123;format_instructions&#125;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">用户输入: &#123;input&#125;</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line">router_prompt = PromptTemplate(</span><br><span class="line">    template=router_prompt_template,</span><br><span class="line">    input_variables=[<span class="string">&quot;input&quot;</span>],</span><br><span class="line">    partial_variables=&#123;<span class="string">&quot;format_instructions&quot;</span>: parser.get_format_instructions()&#125;,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建路由 Chain</span></span><br><span class="line">router_chain = LLMRouterChain.from_llm(llm, router_prompt, output_parser=parser, verbose=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 组合所有的链到 MultiPromptChain</span></span><br><span class="line">overall_chain = MultiPromptChain(</span><br><span class="line">    router_chain=router_chain,</span><br><span class="line">    destination_chains=&#123;</span><br><span class="line">        <span class="string">&quot;physics&quot;</span>: physics_chain,</span><br><span class="line">        <span class="string">&quot;math&quot;</span>: math_chain,</span><br><span class="line">        <span class="string">&quot;DEFAULT&quot;</span>: general_chain,</span><br><span class="line">    &#125;,</span><br><span class="line">    default_chain=general_chain,</span><br><span class="line">    verbose=<span class="literal">True</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 运行 Chain</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- 测试路由 Chain ---&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;物理问题:&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(overall_chain.run(<span class="string">&quot;解释牛顿第三定律。&quot;</span>))</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n数学问题:&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(overall_chain.run(<span class="string">&quot;计算 123 乘以 456。&quot;</span>))</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n通用问题:&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(overall_chain.run(<span class="string">&quot;今天天气怎么样？&quot;</span>))</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-Retrieval-Chains-检索链-：RAG-架构的核心"><a href="#3-4-Retrieval-Chains-检索链-：RAG-架构的核心" class="headerlink" title="3.4 Retrieval Chains (检索链)：RAG 架构的核心"></a>3.4 Retrieval Chains (检索链)：RAG 架构的核心</h3><p><code>RetrievalChain</code> 是实现 <strong>检索增强生成 (Retrieval Augmented Generation, RAG)</strong> 架构的关键。它结合了向量数据库的检索能力和 LLM 的生成能力，让 LLM 能够基于最新的、相关的外部信息进行回答，从而克服 LLM 知识时效性和幻觉问题。</p>
+<p><strong>工作流程：</strong><br>用户问题 -&gt; 检索器 (从向量数据库等检索相关文档) -&gt; (文档 + 问题) -&gt; LLM (生成基于文档的答案) -&gt; 输出</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[用户问题] --&gt; B(检索器 - Retriever);
+    B --&gt; C(相关文档);
+    C -- 结合用户问题 --&gt; D(LLM);
+    D --&gt; E[增强回答];
+  </pre></div>
+
+<p><strong>应用技巧：</strong></p>
+<ul>
+<li><strong>高质量的检索器</strong>：选择合适的向量数据库和 embedding 模型，确保检索到的文档与用户问题高度相关。</li>
+<li><strong>适当的文档分割 (Chunking)</strong>：文档分割的大小会影响检索效果。太小可能丢失上下文，太大可能引入不相关信息。</li>
+<li><strong>上下文窗口管理</strong>：确保检索到的文档加上用户问题不会超出 LLM 的上下文窗口限制。</li>
+</ul>
+<p><strong>代码示例 (RAG 链的简化版，需要安装 <code>chromadb</code> 和 <code>tiktoken</code>)：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> langchain.llms <span class="keyword">import</span> OpenAI</span><br><span class="line"><span class="keyword">from</span> langchain.prompts <span class="keyword">import</span> ChatPromptTemplate</span><br><span class="line"><span class="keyword">from</span> langchain.vectorstores <span class="keyword">import</span> Chroma</span><br><span class="line"><span class="keyword">from</span> langchain.embeddings <span class="keyword">import</span> OpenAIEmbeddings</span><br><span class="line"><span class="keyword">from</span> langchain.schema <span class="keyword">import</span> Document</span><br><span class="line"><span class="keyword">from</span> langchain.chains <span class="keyword">import</span> RetrievalQA</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line"><span class="comment"># os.environ[&quot;OPENAI_API_KEY&quot;] = &quot;YOUR_OPENAI_API_KEY&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1. 准备文档和向量数据库（模拟）</span></span><br><span class="line">docs = [</span><br><span class="line">    Document(page_content=<span class="string">&quot;苹果公司由史蒂夫·乔布斯、史蒂夫·沃兹尼亚克和罗纳德·韦恩于1976年4月1日创立。&quot;</span>),</span><br><span class="line">    Document(page_content=<span class="string">&quot;苹果公司最著名的产品包括iPhone、iPad和Mac系列电脑。&quot;</span>),</span><br><span class="line">    Document(page_content=<span class="string">&quot;2023年，苹果发布了iPhone 15系列和Apple Vision Pro。&quot;</span>),</span><br><span class="line">    Document(page_content=<span class="string">&quot;特斯拉由马丁·艾伯哈德和马克·塔彭宁于2003年创立，埃隆·马斯克后来成为其CEO。&quot;</span>),</span><br><span class="line">    Document(page_content=<span class="string">&quot;特斯拉以其电动汽车和能源解决方案而闻名，如Model S、Model 3。&quot;</span>)</span><br><span class="line">]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建嵌入模型</span></span><br><span class="line">embeddings = OpenAIEmbeddings()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建一个临时的向量存储</span></span><br><span class="line">vectorstore = Chroma.from_documents(docs, embeddings, persist_directory=<span class="string">&quot;./chroma_db&quot;</span>)</span><br><span class="line">vectorstore.persist() <span class="comment"># 持久化到磁盘</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 初始化 LLM</span></span><br><span class="line">llm = OpenAI(temperature=<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 创建检索器</span></span><br><span class="line">retriever = vectorstore.as_retriever()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4. 构建 RetrievalQA Chain</span></span><br><span class="line"><span class="comment"># 默认的 RetrievalQA Chain 已经封装了检索和QA逻辑</span></span><br><span class="line">qa_chain = RetrievalQA.from_chain_type(</span><br><span class="line">    llm=llm,</span><br><span class="line">    chain_type=<span class="string">&quot;stuff&quot;</span>,  <span class="comment"># &quot;stuff&quot; 表示将所有检索到的文档塞入提示中</span></span><br><span class="line">    retriever=retriever,</span><br><span class="line">    verbose=<span class="literal">True</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 5. 运行 Chain</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- RAG 查询 ---&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;查询: 谁创立了苹果公司？&quot;</span>)</span><br><span class="line">response = qa_chain.run(<span class="string">&quot;谁创立了苹果公司？&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;回答: <span class="subst">&#123;response&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n查询: 特斯拉的CEO是谁？&quot;</span>)</span><br><span class="line">response = qa_chain.run(<span class="string">&quot;特斯拉的CEO是谁？&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;回答: <span class="subst">&#123;response&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n查询: 苹果最新发布了什么？&quot;</span>)</span><br><span class="line">response = qa_chain.run(<span class="string">&quot;苹果最新发布了什么？&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;回答: <span class="subst">&#123;response&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-5-文档处理链-Document-Chains-：处理大量文本"><a href="#3-5-文档处理链-Document-Chains-：处理大量文本" class="headerlink" title="3.5 文档处理链 (Document Chains)：处理大量文本"></a>3.5 文档处理链 (Document Chains)：处理大量文本</h3><p>LangChain 提供了一系列专门用于处理大量文档的 Chain，它们通常与 <code>RetrievalChain</code> 或其他需要处理多文档输入的场景结合使用。</p>
+<ul>
+<li><strong>StuffDocumentsChain</strong>：将所有文档拼接成一个大字符串，塞入 LLM 的提示。最简单，但受限于上下文窗口。</li>
+<li><strong>MapReduceDocumentsChain</strong>：<ol>
+<li><strong>Map 阶段</strong>：对每个文档独立运行一个 LLM Chain（如摘要）。</li>
+<li><strong>Reduce 阶段</strong>：将所有 Map 阶段的输出汇总，再运行一个 LLM Chain 进行最终处理（如总结所有摘要）。<br>适用于处理超大文档集。</li>
+</ol>
+</li>
+<li><strong>RefineDocumentsChain</strong>：<ol>
+<li>对第一个文档进行处理。</li>
+<li>然后迭代剩余文档，每次将当前文档和之前文档的处理结果一起输入 LLM，逐步“提炼”最终结果。<br>适用于需要逐步细化或更新答案的场景。</li>
+</ol>
+</li>
+<li><strong>MapReRankDocumentsChain</strong>：<ol>
+<li>对每个文档独立运行一个 LLM Chain，除了生成答案外，还为每个答案提供一个“分数”或“相关性排名”。</li>
+<li>根据分数选择最佳答案。<br>适用于在多个文档中找到最佳答案的场景。</li>
+</ol>
+</li>
+</ul>
+<p><strong>应用技巧：</strong></p>
+<ul>
+<li><strong>选择合适的 Chain 类型</strong>：根据文档数量、LLM 上下文窗口限制和任务需求来选择。<ul>
+<li>小文档集：<code>StuffDocumentsChain</code>。</li>
+<li>大文档集且每个文档可独立处理：<code>MapReduceDocumentsChain</code>。</li>
+<li>需要逐步累积或提炼答案：<code>RefineDocumentsChain</code>。</li>
+<li>需要从多个文档中选出最佳答案：<code>MapReRankDocumentsChain</code>。</li>
+</ul>
+</li>
+<li><strong>优化 Map 和 Reduce 提示</strong>：对于 <code>MapReduce</code> 和 <code>Refine</code>，每个阶段的提示工程都至关重要。</li>
+</ul>
+<h2 id="四、Chain-的组合与自定义"><a href="#四、Chain-的组合与自定义" class="headerlink" title="四、Chain 的组合与自定义"></a>四、Chain 的组合与自定义</h2><p>LangChain 的强大之处在于其模块化和可组合性。您可以：</p>
+<ul>
+<li><strong>嵌套 Chains</strong>：一个 Chain 可以作为另一个 Chain 的子组件。</li>
+<li><strong>自定义 Chain</strong>：如果内置 Chain 无法满足需求，可以继承 <code>Chain</code> 基类或现有 Chain 来创建自己的定制 Chain。</li>
+</ul>
+<h3 id="4-1-Chain-的调试与可视化"><a href="#4-1-Chain-的调试与可视化" class="headerlink" title="4.1 Chain 的调试与可视化"></a>4.1 Chain 的调试与可视化</h3><ul>
+<li><strong><code>verbose=True</code></strong>：在创建 Chain 时设置 <code>verbose=True</code>，可以在运行时打印详细的中间步骤，这对于调试非常有用。</li>
+<li><strong>LangSmith</strong>：LangChain 提供了 LangSmith 平台，这是一个强大的开发者平台，用于跟踪、监控和调试 LLM 应用程序。它可以可视化 Chain 的运行过程，包括每次 LLM 调用、工具使用等，极大地简化了复杂 Chain 的调试。</li>
+</ul>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>LangChain 的 Chains 是构建复杂 LLM 应用程序的基石。它们提供了一种结构化、模块化的方式来编排 LLM 调用、数据处理、外部工具集成等多个步骤。<br>通过熟练掌握 <code>LLMChain</code>、<code>SequentialChains</code>、<code>RouterChains</code> 和 <code>RetrievalChains</code>，并结合自定义过滤器、解析器和调试工具，开发者可以构建出强大、灵活、可扩展的 AI 应用，充分发挥大语言模型的潜力。在未来的 LLM 应用开发中，Chains 将继续扮演核心角色。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/aacac0039d65/">https://blog.tbf1211.xx.kg/aacac0039d65/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/AI/">AI</a><a class="post-meta__tags" href="/tags/LLM/">LLM</a><a class="post-meta__tags" href="/tags/LangChain/">LangChain</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-09.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/a92b9122509b/" title="Ubuntu UFW (Uncomplicated Firewall) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Ubuntu UFW (Uncomplicated Firewall) 详解</div></div><div class="info-2"><div class="info-item-1"> UFW (Uncomplicated Firewall) 是 Ubuntu Linux 及其衍生发行版中一个简化且易于使用的防火墙配置工具。它作为 iptables 的前端，提供了一个用户友好的命令行界面，让普通用户和系统管理员能够更轻松地管理 Linux 内核的 Netfilter 防火墙规则。UFW 的目标是“不复杂”，即简化防火墙的管理，使其不再令人生畏。  核心思想： UFW 提供了一种高级抽象，将复杂的 iptables 命令封装成少数直观的指令，使得用户无需深入理解 iptables 规则链即可实现基本的防火墙配置。   一、为什么选择 UFW？Linux 系统内置了强大的 Netfilter 框架和 iptables 工具，但 iptables 的语法复杂，规则众多，对于初学者来说学习曲线陡峭。UFW 旨在解决以下问题：  简化防火墙管理：  易于上手：通过简单的命令即可配置常见的防火墙规则，无需掌握复杂的 iptables 语法。 减少错误：简化后的命令减少了因语法错误导致配置失误的风险。   增强系统安全性：  默认拒绝策略：UFW 默认采用“默认拒绝所有传入...</div></div></div></a><a class="pagination-related" href="/e9adc93372f4/" title="LangChain Expression Language (LCEL) 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">LangChain Expression Language (LCEL) 深度详解</div></div><div class="info-2"><div class="info-item-1"> LangChain Expression Language (LCEL) 是 LangChain 框架中一种强大、灵活且声明式的编程范式，用于构建和编排复杂的链 (Chains) 和代理 (Agents)。它提供了一种简洁、易读且高性能的方式来组合 LangChain 的各种组件（如提示模板、大语言模型、输出解析器、检索器、自定义函数等），从而构建出端到端的 LLM 应用程序。  核心思想：LCEL 的核心在于提供一个统一的 Runnable 接口和管道操作符 (|)，允许开发者以类似 Unix 管道的方式将不同的组件连接起来。这种声明式组合方式不仅提高了代码的可读性和可维护性，还带来了自动化的并行处理、流式传输、异步支持、类型安全以及与 LangSmith 等调试工具的深度集成等诸多优势。   一、为什么选择 LCEL？在 LCEL 出现之前，LangChain 主要通过传统的 Chain 类来构建应用程序。虽然这些 Chain 也有效，但 LCEL 解决了它们的一些局限性，并带来了显著的改进：  更简洁的语法和可读性：LCEL 使用管道操作符 (|)，使得链式调用直观，像数...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/c1c3c8b5b003/" title="LangChain Model I&#x2F;O 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-13</div><div class="info-item-2">LangChain Model I&#x2F;O 详解</div></div><div class="info-2"><div class="info-item-1"> LangChain Model I&#x2F;O 是 LangChain 框架的核心组成部分之一，它提供了一套标准化的接口和工具，用于与各种大型语言模型 (LLMs) 和聊天模型 (Chat Models) 进行交互，并对其输入和输出进行有效的管理和结构化。这是构建任何基于 LLM 的应用程序的基础。  核心思想：将与 LLM 的“对话”分解为可管理、可组合的组件：输入 (Prompt Templates)、模型调用 (LLM&#x2F;Chat Models) 和输出处理 (Output Parsers)。   一、为什么 Model I&#x2F;O 至关重要？在没有 LangChain Model I&#x2F;O 的情况下，直接与 LLM 交互通常意味着：  手动拼接 Prompt: 需要手动构建复杂的字符串，其中包含指令、上下文、示例和用户输入。这既繁琐又容易出错。 硬编码模型调用: 每次更换模型或供应商时，都需要修改底层代码。 非结构化的输出: LLM 的原始输出通常是自由文本，需要编写复杂的字符串解析逻辑来提取所需信息。 缺乏可复用性: 不同应用场景下的 Prom...</div></div></div></a><a class="pagination-related" href="/3201b8057954/" title="LangChain 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-12</div><div class="info-item-2">LangChain 详解</div></div><div class="info-2"><div class="info-item-1"> LangChain 是一个用于开发由大型语言模型 (LLM) 驱动的应用程序的开源框架。它提供了一套工具、组件和接口，旨在简化 LLM 应用的开发流程，包括将 LLM 与外部数据源、计算逻辑和业务流程相结合，从而构建更复杂、更强大、更具上下文感知能力的应用程序。  核心思想：将 LLM 的能力扩展到超越单一提示的范围，通过链式组合不同的组件（如 LLM、提示模板、解析器、工具、内存等），构建具有推理、记忆和外部交互能力的复杂智能体 (Agent)。   一、为什么需要 LangChain？大型语言模型（LLM），如 GPT 系列、Llama 系列等，具有强大的文本理解和生成能力。然而，在实际应用中，直接使用 LLM API 存在一些挑战：  上下文限制 (Context Window Limitations)：LLM 有输入令牌限制，无法处理过长的文本。 知识截止 (Knowledge Cutoff)：LLM 的知识基于训练数据，无法获取实时或私有数据。 幻觉 (Hallucination)：LLM 可能生成不准确或虚构的信息。 缺乏记忆：LLM 默认是无状态的，无法记住之前的...</div></div></div></a><a class="pagination-related" href="/e9adc93372f4/" title="LangChain Expression Language (LCEL) 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-29</div><div class="info-item-2">LangChain Expression Language (LCEL) 深度详解</div></div><div class="info-2"><div class="info-item-1"> LangChain Expression Language (LCEL) 是 LangChain 框架中一种强大、灵活且声明式的编程范式，用于构建和编排复杂的链 (Chains) 和代理 (Agents)。它提供了一种简洁、易读且高性能的方式来组合 LangChain 的各种组件（如提示模板、大语言模型、输出解析器、检索器、自定义函数等），从而构建出端到端的 LLM 应用程序。  核心思想：LCEL 的核心在于提供一个统一的 Runnable 接口和管道操作符 (|)，允许开发者以类似 Unix 管道的方式将不同的组件连接起来。这种声明式组合方式不仅提高了代码的可读性和可维护性，还带来了自动化的并行处理、流式传输、异步支持、类型安全以及与 LangSmith 等调试工具的深度集成等诸多优势。   一、为什么选择 LCEL？在 LCEL 出现之前，LangChain 主要通过传统的 Chain 类来构建应用程序。虽然这些 Chain 也有效，但 LCEL 解决了它们的一些局限性，并带来了显著的改进：  更简洁的语法和可读性：LCEL 使用管道操作符 (|)，使得链式调用直观，像数...</div></div></div></a><a class="pagination-related" href="/21e140c78f80/" title="大型语言模型如何理解人类文字：从Token到语义表征"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-16</div><div class="info-item-2">大型语言模型如何理解人类文字：从Token到语义表征</div></div><div class="info-2"><div class="info-item-1"> 大型语言模型 (Large Language Models, LLMs) 在处理和生成人类语言方面展现出了前所未有的能力，这引发了一个核心问题：它们是如何“理解”人类文字的？这种理解并非传统意义上的认知或意识，而是通过对海量文本数据中统计模式和语义关联的深度学习，构建出高度复杂的语言表征。  核心思想：LLMs 将人类语言转化为高维数学向量，并通过 Transformer 架构中的注意力机制，捕捉词语、句子乃至篇章间的复杂关联，从而在统计层面模拟人类对语言的理解和生成。   一、基础构建模块：从文本到向量LLMs 的“理解”始于将人类可读的文字转化为机器可处理的数值形式。这一过程主要依赖于分词 (Tokenization) 和词嵌入 (Word Embeddings)。 1.1 分词 (Tokenization)分词是将连续的文本序列切分成有意义的最小单位——Token 的过程。Token 可以是一个词、一个子词 (subword) 甚至一个字符。  词级别分词 (Word-level Tokenization)：以空格或标点符号为界，将文本切分为词。简单直观，但词汇量庞大，且...</div></div></div></a><a class="pagination-related" href="/33aeea5bfccf/" title="大语言模型参数详解：规模、类型与意义"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-22</div><div class="info-item-2">大语言模型参数详解：规模、类型与意义</div></div><div class="info-2"><div class="info-item-1"> 参数 (Parameters) 是大型语言模型 (Large Language Models, LLMs) 的核心组成部分，它们是模型在训练过程中从海量数据中学习到的数值权重和偏置。这些参数共同构成了模型的“知识”和“理解”能力。参数的规模，尤其是数量，是衡量一个 LLM 大小的关键指标，并直接影响其性能、能力边界以及所需的计算资源。  核心思想：LLMs 的“智能”并非来自于明确的编程规则，而是通过在海量数据上优化数亿甚至数万亿个可学习参数而涌现。这些参数以分布式形式存储了语言的语法、语义、事实知识和世界常识。   一、什么是大语言模型参数？在神经网络的上下文中，参数是指模型在训练过程中需要学习和调整的所有权重 (weights) 和偏置 (biases)。它们是连接神经元之间强度的数值表示，决定了模型的输入如何被转换、处理并最终生成输出。  权重 (Weights)：定义了输入特征（或前一层神经元的输出）对当前神经元输出的贡献程度。一个较大的权重意味着该输入特征对结果有更强的影响。 偏置 (Biases)：是一种加性项，允许激活函数在不依赖任何输入的情况下被激活。它相当于调...</div></div></div></a><a class="pagination-related" href="/1bd89b02cd88/" title="大型语言模型中的Token详解：数据、处理与意义"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-20</div><div class="info-item-2">大型语言模型中的Token详解：数据、处理与意义</div></div><div class="info-2"><div class="info-item-1"> Token 是大型语言模型 (Large Language Models, LLMs) 处理文本的基本单位。它不是传统意义上的“词”，而是模型将人类可读的文字序列（如句子、段落）切分、编码并最终用于学习和生成文本的离散符号表示。理解 Token 的概念对于深入了解 LLMs 的工作原理、能力边界以及成本核算至关重要。  核心思想：LLMs 不直接处理原始文本，而是将其分解为一系列经过特殊编码的 Token。这些 Token 构成了模型输入和输出的最小单元，并直接影响模型的性能、效率和成本。   一、什么是 Token？在自然语言处理 (NLP) 领域，尤其是在 LLMs 中，Token 是指模型进行训练和推理时所使用的文本片段。它可能是：  一个完整的词 (Word)：例如 “cat”, “run”。 一个词的一部分 (Subword)：例如 “un”, “believe”, “able” 组合成 “unbelievable”。 一个标点符号 (Punctuation)：例如 “.”, “,”, “!”。 一个特殊符号或控制字符 (Special Token)：例如 [CLS]...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">367</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">211</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">75</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Chains%EF%BC%9F"><span class="toc-text">一、为什么需要 Chains？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Chains-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Chains 的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Chain-%E7%9A%84%E8%BE%93%E5%85%A5%E4%B8%8E%E8%BE%93%E5%87%BA"><span class="toc-text">2.1 Chain 的输入与输出</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%B8%B8%E8%A7%81%E7%9A%84-Chain-%E7%B1%BB%E5%9E%8B"><span class="toc-text">2.2 常见的 Chain 类型</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%A0%B8%E5%BF%83-Chains-%E8%AF%A6%E8%A7%A3%E4%B8%8E%E5%BA%94%E7%94%A8%E6%8A%80%E5%B7%A7"><span class="toc-text">三、核心 Chains 详解与应用技巧</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-LLMChain%EF%BC%9A%E5%9F%BA%E7%A1%80%E6%9E%84%E5%BB%BA%E5%9D%97"><span class="toc-text">3.1 LLMChain：基础构建块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Sequential-Chains-%E9%A1%BA%E5%BA%8F%E9%93%BE-%EF%BC%9A%E5%A4%9A%E6%AD%A5%E9%AA%A4%E4%BB%BB%E5%8A%A1%E7%BC%96%E6%8E%92"><span class="toc-text">3.2 Sequential Chains (顺序链)：多步骤任务编排</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-Router-Chains-%E8%B7%AF%E7%94%B1%E9%93%BE-%EF%BC%9A%E6%A0%B9%E6%8D%AE%E8%BE%93%E5%85%A5%E5%8A%A8%E6%80%81%E9%80%89%E6%8B%A9%E8%B7%AF%E5%BE%84"><span class="toc-text">3.3 Router Chains (路由链)：根据输入动态选择路径</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-Retrieval-Chains-%E6%A3%80%E7%B4%A2%E9%93%BE-%EF%BC%9ARAG-%E6%9E%B6%E6%9E%84%E7%9A%84%E6%A0%B8%E5%BF%83"><span class="toc-text">3.4 Retrieval Chains (检索链)：RAG 架构的核心</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E6%96%87%E6%A1%A3%E5%A4%84%E7%90%86%E9%93%BE-Document-Chains-%EF%BC%9A%E5%A4%84%E7%90%86%E5%A4%A7%E9%87%8F%E6%96%87%E6%9C%AC"><span class="toc-text">3.5 文档处理链 (Document Chains)：处理大量文本</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Chain-%E7%9A%84%E7%BB%84%E5%90%88%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89"><span class="toc-text">四、Chain 的组合与自定义</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-Chain-%E7%9A%84%E8%B0%83%E8%AF%95%E4%B8%8E%E5%8F%AF%E8%A7%86%E5%8C%96"><span class="toc-text">4.1 Chain 的调试与可视化</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Bun.js 深度解析：冷启动与边缘函数优化"/></a><div class="content"><a class="title" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化">Bun.js 深度解析：冷启动与边缘函数优化</a><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go Jaeger 深度解析：分布式追踪实践"/></a><div class="content"><a class="title" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践">Go Jaeger 深度解析：分布式追踪实践</a><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1ae20d2726d8/" title="MiniRTC 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MiniRTC 详解"/></a><div class="content"><a class="title" href="/1ae20d2726d8/" title="MiniRTC 详解">MiniRTC 详解</a><time datetime="2025-11-28T22:24:00.000Z" title="发表于 2025-11-29 06:24:00">2025-11-29</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/be24ef88e59a/" title="WebRTC 技术详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebRTC 技术详解"/></a><div class="content"><a class="title" href="/be24ef88e59a/" title="WebRTC 技术详解">WebRTC 技术详解</a><time datetime="2025-11-27T22:24:00.000Z" title="发表于 2025-11-28 06:24:00">2025-11-28</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-09.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.4/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            pagePV.textContent = data.pageviews.value
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors && typeof data.visitors.value !== 'undefined') {
+            siteUV.textContent = data.visitors.value
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews && typeof data.pageviews.value !== 'undefined') {
+            sitePV.textContent = data.pageviews.value
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.2"></script></div></div></body></html>
