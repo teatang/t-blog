@@ -1,0 +1,752 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>微调大模型 (Finetuning LLMs) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="微调 (Finetuning) 是人工智能领域，特别是大语言模型 (LLM) 领域中的一项关键技术。它指的是在预训练好的大型模型基础上，使用特定任务或领域的数据集进一步训练模型的过程。通过微调，我们可以将一个通用的、在海量数据上学习到基础语言理解和生成能力的大模型，高效地适配到具体的场景需求，从而显著提升模型在该特定任务上的性能、准确性和可靠性。  核心思想：微调的核心在于利用通用大模型强大的“">
+<meta property="og:type" content="article">
+<meta property="og:title" content="微调大模型 (Finetuning LLMs) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/8be247b5e9ae/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="微调 (Finetuning) 是人工智能领域，特别是大语言模型 (LLM) 领域中的一项关键技术。它指的是在预训练好的大型模型基础上，使用特定任务或领域的数据集进一步训练模型的过程。通过微调，我们可以将一个通用的、在海量数据上学习到基础语言理解和生成能力的大模型，高效地适配到具体的场景需求，从而显著提升模型在该特定任务上的性能、准确性和可靠性。  核心思想：微调的核心在于利用通用大模型强大的“">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-15.jpg">
+<meta property="article:published_time" content="2025-05-19T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-11T10:09:01.580Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="LLM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-15.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "微调大模型 (Finetuning LLMs) 详解",
+  "url": "https://blog.tbf1211.xx.kg/8be247b5e9ae/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-15.jpg",
+  "datePublished": "2025-05-19T22:24:00.000Z",
+  "dateModified": "2025-12-11T10:09:01.580Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/8be247b5e9ae/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '微调大模型 (Finetuning LLMs) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">377</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">211</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">75</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-15.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">微调大模型 (Finetuning LLMs) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">微调大模型 (Finetuning LLMs) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-05-19T22:24:00.000Z" title="发表于 2025-05-20 06:24:00">2025-05-20</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/">AI</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/LLM/">LLM</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">5.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>19分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/8be247b5e9ae/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>微调 (Finetuning)</strong> 是人工智能领域，特别是大语言模型 (LLM) 领域中的一项关键技术。它指的是在预训练好的大型模型基础上，使用特定任务或领域的数据集进一步训练模型的过程。通过微调，我们可以将一个通用的、在海量数据上学习到基础语言理解和生成能力的大模型，高效地适配到具体的场景需求，从而显著提升模型在该特定任务上的性能、准确性和可靠性。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>微调的核心在于利用通用大模型强大的“基础能力”，并通过小规模、高质量的领域数据进行“二次开发”，使其专业化。对于LLM而言，参数高效微调 (PEFT) 极大降低了微调的资源门槛，使其在实践中变得可行且高效。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要微调大模型？"><a href="#一、为什么需要微调大模型？" class="headerlink" title="一、为什么需要微调大模型？"></a>一、为什么需要微调大模型？</h2><p>通用大语言模型（如 GPT-系列、Llama、Mistral 等）在预训练阶段学习了海量的文本数据，拥有强大的泛化能力、语言理解能力和常识。然而，它们在直接应用于特定任务或领域时仍存在局限性：</p>
+<ol>
+<li><strong>知识截止日期 (Knowledge Cut-off)</strong>：预训练数据通常有截止日期，模型无法获取最新信息。</li>
+<li><strong>幻觉 (Hallucination)</strong>：模型可能会生成看似合理但实际上错误或捏造的信息。</li>
+<li><strong>领域特异性不足</strong>：在特定行业（如医疗、法律、金融）或公司内部语料中，通用模型可能缺乏深度专业知识。</li>
+<li><strong>风格和语气不匹配</strong>：模型输出的风格可能不符合特定应用或品牌的期望。</li>
+<li><strong>特定任务性能不足</strong>：对于摘要、问答、情感分析等特定下游任务，通用模型的效果可能不如在任务数据上微调过的模型。</li>
+<li><strong>推理成本和延迟</strong>：有时，微调后的较小模型在特定任务上能够达到与更大通用模型相近甚至更好的性能，且推理成本更低，延迟更短。</li>
+<li><strong>私有数据应用</strong>：企业希望利用其私有、敏感数据训练模型，但不想将数据发送给外部API提供商（Data Privacy）。</li>
+</ol>
+<p>微调正是解决这些问题的有效途径。</p>
+<h2 id="二、微调大模型的核心概念"><a href="#二、微调大模型的核心概念" class="headerlink" title="二、微调大模型的核心概念"></a>二、微调大模型的核心概念</h2><h3 id="2-1-预训练-Pre-training"><a href="#2-1-预训练-Pre-training" class="headerlink" title="2.1 预训练 (Pre-training)"></a>2.1 预训练 (Pre-training)</h3><p><strong>定义</strong>：在海量、多样化的无标注文本数据上（例如：维基百科、书籍、网页、代码等），通过自监督学习（如：预测下一个词、填充缺失词）训练一个非常大的神经网络模型。在此阶段，模型学习语言的语法、语义、事实知识和常识。这是构建大模型的基础。</p>
+<p><strong>特点</strong>：</p>
+<ul>
+<li>数据量巨大 (万亿 Tokens)。</li>
+<li>模型参数量巨大 (数十亿到万亿)。</li>
+<li>计算资源需求极高。</li>
+<li>目标是学习通用的语言表征。</li>
+</ul>
+<h3 id="2-2-微调-Finetuning"><a href="#2-2-微调-Finetuning" class="headerlink" title="2.2 微调 (Finetuning)"></a>2.2 微调 (Finetuning)</h3><p><strong>定义</strong>：在预训练模型的基础上，使用相对较小但与特定任务或领域高度相关的有标注数据，通过有监督学习进一步训练模型。在此阶段，模型调整其权重，以更好地适应新数据的分布和任务目标。</p>
+<p><strong>特点</strong>：</p>
+<ul>
+<li>使用预训练模型的权重作为初始化。</li>
+<li>数据量相对较小 (数千到数百万样本)。</li>
+<li>计算资源需求远低于预训练。</li>
+<li>目标是优化特定任务的性能。</li>
+</ul>
+<h3 id="2-3-微调的类型"><a href="#2-3-微调的类型" class="headerlink" title="2.3 微调的类型"></a>2.3 微调的类型</h3><h4 id="2-3-1-全量微调-Full-Finetuning"><a href="#2-3-1-全量微调-Full-Finetuning" class="headerlink" title="2.3.1 全量微调 (Full Finetuning)"></a>2.3.1 全量微调 (Full Finetuning)</h4><p><strong>定义</strong>：在微调过程中，更新模型的所有参数。</p>
+<p><strong>特点</strong>：</p>
+<ul>
+<li><strong>优点</strong>：理论上能达到最佳性能，模型可以完全适应新数据。</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>计算资源需求高</strong>：需要大量的 GPU 显存和计算能力，因为要更新所有数十亿甚至数千亿的参数。</li>
+<li><strong>存储开销大</strong>：为每个任务都需要保存一个完整的模型副本。</li>
+<li><strong>灾难性遗忘 (Catastrophic Forgetting)</strong>：模型可能会在学习新任务时遗忘在预训练阶段学到的通用知识。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-3-2-参数高效微调-Parameter-Efficient-Finetuning-PEFT"><a href="#2-3-2-参数高效微调-Parameter-Efficient-Finetuning-PEFT" class="headerlink" title="2.3.2 参数高效微调 (Parameter-Efficient Finetuning, PEFT)"></a>2.3.2 参数高效微调 (Parameter-Efficient Finetuning, PEFT)</h4><p><strong>定义</strong>：一种旨在减少微调过程中需要更新的参数数量的技术集合。它通过冻结大部分预训练模型的参数，只训练少量新增或修改的参数来达到同样或接近全量微调的效果。</p>
+<p><strong>特点</strong>：</p>
+<ul>
+<li><strong>优点</strong>：<ul>
+<li><strong>显著降低计算资源</strong>：特别是显存需求，使得在消费级 GPU 上微调LLM成为可能。</li>
+<li><strong>大幅减少存储开销</strong>：只需要保存少量额外参数，可以与基础模型动态合并。</li>
+<li><strong>减轻灾难性遗忘</strong>：冻结大部分参数有助于保留预训练的通用知识。</li>
+<li><strong>部署灵活</strong>：可以将微调后的少量参数（适配器）加载到基础模型上，实现快速切换。</li>
+</ul>
+</li>
+<li><strong>常见方法</strong>：<ul>
+<li><strong>LoRA (Low-Rank Adaptation)</strong>: 这是目前最流行和高效的PEFT方法之一。</li>
+<li><strong>QLoRA (Quantized LoRA)</strong>: 在LoRA的基础上，对基座模型进行量化，进一步节省显存。</li>
+<li>Prompt Tuning&#x2F;P-Tuning: 通过学习可调的连续提示向量来引导模型，而不改变模型参数。</li>
+<li>Adapter Tuning: 在预训练模型的每一层中插入小的适配器模块进行训练。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-4-数据集-Dataset"><a href="#2-4-数据集-Dataset" class="headerlink" title="2.4 数据集 (Dataset)"></a>2.4 数据集 (Dataset)</h3><p><strong>定义</strong>：用于微调的有标注数据集合。对于 LLM，通常是成对的（<code>prompt</code>, <code>completion</code>）或（<code>instruction</code>, <code>input</code>, <code>output</code>）形式。</p>
+<p><strong>质量要求</strong>：</p>
+<ul>
+<li><strong>高质量</strong>：数据应准确、一致，避免错误信息。</li>
+<li><strong>相关性</strong>：数据应与目标任务或领域高度相关。</li>
+<li><strong>多样性</strong>：数据应涵盖任务的不同方面，提高模型的泛化能力。</li>
+<li><strong>数量</strong>：虽然远少于预训练数据，但足够多的高质量数据仍然是关键。</li>
+</ul>
+<h2 id="三、微调的流程与技术细节"><a href="#三、微调的流程与技术细节" class="headerlink" title="三、微调的流程与技术细节"></a>三、微调的流程与技术细节</h2><h3 id="3-1-数据准备"><a href="#3-1-数据准备" class="headerlink" title="3.1 数据准备"></a>3.1 数据准备</h3><ol>
+<li><strong>数据收集与清洗</strong>：从特定领域的数据源（如内部文档、对话记录、专业文章）收集数据，并去除噪声、重复项、个人敏感信息等。</li>
+<li><strong>数据标注&#x2F;格式化</strong>：将收集到的数据转化为模型可理解的格式。最常见的是Instruction Tuning (指令微调) 格式，例如：<ul>
+<li><strong>Prompt-Completion 格式</strong>：<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">  <span class="punctuation">&#123;</span><span class="attr">&quot;prompt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;请总结以下文章：...&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;completion&quot;</span><span class="punctuation">:</span> <span class="string">&quot;总结内容&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="punctuation">&#123;</span><span class="attr">&quot;prompt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;将这段英文翻译成中文：...&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;completion&quot;</span><span class="punctuation">:</span> <span class="string">&quot;翻译结果&quot;</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>Instruction-Input-Output 格式</strong>：<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">  <span class="punctuation">&#123;</span><span class="attr">&quot;instruction&quot;</span><span class="punctuation">:</span> <span class="string">&quot;总结下面的文本。&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;input&quot;</span><span class="punctuation">:</span> <span class="string">&quot;文本内容...&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;output&quot;</span><span class="punctuation">:</span> <span class="string">&quot;总结内容&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="punctuation">&#123;</span><span class="attr">&quot;instruction&quot;</span><span class="punctuation">:</span> <span class="string">&quot;将以下句子翻译成中文。&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;input&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Hello, world!&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;output&quot;</span><span class="punctuation">:</span> <span class="string">&quot;你好，世界！&quot;</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>Chat 格式 (多轮对话)</strong>：<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">  <span class="punctuation">&#123;</span><span class="attr">&quot;messages&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="punctuation">&#123;</span><span class="attr">&quot;role&quot;</span><span class="punctuation">:</span> <span class="string">&quot;system&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;content&quot;</span><span class="punctuation">:</span> <span class="string">&quot;你是一个智能客服。&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">                <span class="punctuation">&#123;</span><span class="attr">&quot;role&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;content&quot;</span><span class="punctuation">:</span> <span class="string">&quot;我的订单号是多少？&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">                <span class="punctuation">&#123;</span><span class="attr">&quot;role&quot;</span><span class="punctuation">:</span> <span class="string">&quot;assistant&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;content&quot;</span><span class="punctuation">:</span> <span class="string">&quot;请提供您的注册手机号。&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">]</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="comment">// ...</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ol>
+<h3 id="3-2-模型选择"><a href="#3-2-模型选择" class="headerlink" title="3.2 模型选择"></a>3.2 模型选择</h3><ol>
+<li><strong>基础模型 (Base Model)</strong>：选择一个合适的预训练 LLM，如 Llama 3、Mistral、Qwen 等。通常选择参数量适中、社区支持良好、许可证友好的模型。</li>
+<li><strong>微调策略</strong>：<ul>
+<li><strong>全量微调</strong>：拥有充足计算资源，且需要最大程度地适应新数据。</li>
+<li><strong>PEFT (LoRA&#x2F;QLoRA)</strong>：资源受限，但仍希望达到高性能，且需要维护多个任务的模型版本。</li>
+</ul>
+</li>
+</ol>
+<h3 id="3-3-训练配置"><a href="#3-3-训练配置" class="headerlink" title="3.3 训练配置"></a>3.3 训练配置</h3><ol>
+<li><strong>超参数 (Hyperparameters)</strong>：<ul>
+<li><strong>学习率 (Learning Rate)</strong>：通常比预训练时小，例如 $1 \times 10^{-5}$ 或 $5 \times 10^{-5}$。</li>
+<li><strong>优化器 (Optimizer)</strong>：AdamW 是常用选择。</li>
+<li><strong>批次大小 (Batch Size)</strong>：根据 GPU 显存限制调整。</li>
+<li><strong>训练 Epochs</strong>：通常 1-5 个 Epoch 即可。</li>
+</ul>
+</li>
+<li><strong>PEFT 特定参数 (针对 LoRA)</strong>：<ul>
+<li><code>r</code> (LoRA rank)：低秩矩阵的秩，通常 8, 16, 32, 64。<code>r</code> 越大，可训练参数越多，但可能性能更好。</li>
+<li><code>lora_alpha</code>：LoRA 层的缩放因子，通常是 <code>2*r</code> 或 <code>16</code>, <code>32</code>。</li>
+<li><code>target_modules</code>：指定哪些层应用 LoRA，通常是 attention 层的 QKV 矩阵。</li>
+<li><code>lora_dropout</code>：LoRA 层的 dropout 比率。</li>
+</ul>
+</li>
+<li><strong>硬件要求</strong>：取决于模型大小和微调策略。PEFT 显著降低了显存需求，使得可以在单张 24GB 或 48GB GPU 卡上微调 7B-13B 参数的模型。</li>
+</ol>
+<h3 id="3-4-训练与评估"><a href="#3-4-训练与评估" class="headerlink" title="3.4 训练与评估"></a>3.4 训练与评估</h3><ol>
+<li><strong>训练循环</strong>：将格式化后的数据输入模型，通过反向传播更新权重。</li>
+<li><strong>验证集 (Validation Set)</strong>：在训练过程中定期在独立的验证集上评估模型性能，用于监控过拟合和超参数调整。</li>
+<li><strong>早停 (Early Stopping)</strong>：当验证集上的性能不再提升时，提前停止训练，以防止过拟合。</li>
+<li><strong>评估指标 (Evaluation Metrics)</strong>：<ul>
+<li><strong>Perplexity (困惑度)</strong>：衡量语言模型的文本生成质量。</li>
+<li><strong>任务特定指标</strong>：如摘要任务的 ROUGE、翻译任务的 BLEU、问答任务的 F1-score、情感分析的准确率等。</li>
+<li><strong>人工评估</strong>：对于开放式生成任务，人工评估输出的质量、相关性、遵循指令情况至关重要。</li>
+</ul>
+</li>
+</ol>
+<h3 id="3-5-模型部署"><a href="#3-5-模型部署" class="headerlink" title="3.5 模型部署"></a>3.5 模型部署</h3><ol>
+<li><strong>合并 LoRA 权重</strong>：对于 PEFT 微调的模型，需要将训练好的 LoRA 权重合并回原始的基础模型中，生成一个合并后的全量模型（或存储为适配器以便运行时加载）。</li>
+<li><strong>量化 (Quantization)</strong>：为进一步降低推理时的显存和计算要求，可以将模型量化为 8 比特、4 比特甚至更低精度。</li>
+<li><strong>服务化 (Inference Server)</strong>：将微调后的模型部署到如 vLLM、TGI、DeepSpeed Inference 等高性能推理框架上，提供 API 服务。</li>
+</ol>
+<h2 id="四、PEFT：参数高效微调详述"><a href="#四、PEFT：参数高效微调详述" class="headerlink" title="四、PEFT：参数高效微调详述"></a>四、PEFT：参数高效微调详述</h2><h3 id="4-1-LoRA-Low-Rank-Adaptation"><a href="#4-1-LoRA-Low-Rank-Adaptation" class="headerlink" title="4.1 LoRA (Low-Rank Adaptation)"></a>4.1 LoRA (Low-Rank Adaptation)</h3><p><strong>原理</strong>：LoRA 的核心思想是冻结预训练模型的所有参数，然后在每个 Transformer 层的权重矩阵旁边添加一对低秩矩阵（A 和 B）。在微调过程中，只训练这对低秩矩阵，而预训练模型的权重保持不变。</p>
+<p>假设原始的预训练权重矩阵是 <code>W0</code> (维度 $d \times k$)。LoRA 在微调时训练两个更小的矩阵 <code>A</code> (维度 $d \times r$) 和 <code>B</code> (维度 $r \times k$)，其中 $r$ (秩) 远小于 $min(d, k)$。微调后的权重更新可以表示为 $W_0 + BA$，这里 $(BA)$ 才是实际的更新矩阵。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    subgraph Original Weights
+        W0[W0: d x k]
+    end
+
+    subgraph LoRA Adaptation
+        A[A: d x r] --&gt; BA[BA: d x k]
+        B[B: r x k] -- (multiply) --&gt; BA
+    end
+
+    W0 -- (add) --&gt; W_prime[W&#39; &#x3D; W0 + BA]
+
+  </pre></div>
+
+<p><strong>优点</strong>：</p>
+<ul>
+<li><strong>极低的资源消耗</strong>：只训练少量参数，显存需求大幅降低。</li>
+<li><strong>快速训练</strong>：由于参数少，训练速度加快。</li>
+<li><strong>多任务支持</strong>：可以为不同的任务训练不同的 LoRA 适配器，并在推理时动态加载，而无需保存多个完整的模型副本。</li>
+<li><strong>减轻灾难性遗忘</strong>：冻结大部分预训练权重，有助于保留模型的基础能力。</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>虽然通常表现很好，但在某些非常复杂的任务或要求极端精度的情况下，可能略逊于全量微调。</li>
+</ul>
+<h3 id="4-2-QLoRA-Quantized-LoRA"><a href="#4-2-QLoRA-Quantized-LoRA" class="headerlink" title="4.2 QLoRA (Quantized LoRA)"></a>4.2 QLoRA (Quantized LoRA)</h3><p><strong>原理</strong>：QLoRA 是 LoRA 的一个扩展，它通过将基座预训练模型量化为 4 比特来进一步节省显存（通常是 8 比特或更多）。在微调过程中，基座模型的 4 比特权重保持冻结，但通过称为“双量化 (Double Quantization)”的技术来有效管理量化误差，然后只训练低秩 LoRA 适配器。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li><strong>更高的显存效率</strong>：可以在消费级 GPU 上微调更大的模型（例如，在 24GB VRAM 上微调 70B 模型）。</li>
+<li><strong>性能接近 LoRA</strong>：虽然基座模型被量化，但由于 LoRA 适配器的微调和“双量化”等技术，性能损失通常很小。</li>
+</ul>
+<h2 id="五、Python-Hugging-Face-TRL-实践-LoRA-微调示例"><a href="#五、Python-Hugging-Face-TRL-实践-LoRA-微调示例" class="headerlink" title="五、Python Hugging Face TRL 实践 (LoRA 微调示例)"></a>五、Python Hugging Face TRL 实践 (LoRA 微调示例)</h2><p>Hugging Face 的 <code>transformers</code> 库提供了大量预训练模型，<code>peft</code> 库专注于 PEFT 方法，而 <code>trl</code> (Transformer Reinforcement Learning) 库则封装了方便的 <code>SFTTrainer</code> 进行指令微调。</p>
+<p><strong>准备工作：</strong></p>
+<ol>
+<li><strong>安装所需库</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip install transformers peft accelerate bitsandbytes datasets trl sentencepiece</span><br></pre></td></tr></table></figure></li>
+<li><strong>设置 API 密钥 (如果使用私有模型或需要身份验证)</strong>：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">HUGGING_FACE_HUB_TOKEN=<span class="string">&quot;hf_YOUR_TOKEN&quot;</span> <span class="comment"># 如果要访问私有模型或上传模型</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<p><strong>Python 代码示例：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainingArguments</span><br><span class="line"><span class="keyword">from</span> peft <span class="keyword">import</span> LoraConfig, get_peft_model, prepare_model_for_kbit_training</span><br><span class="line"><span class="keyword">from</span> datasets <span class="keyword">import</span> load_dataset</span><br><span class="line"><span class="keyword">from</span> trl <span class="keyword">import</span> SFTTrainer, DataCollatorForCompletionOnlyLM</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 1. 配置模型和LoRA参数 ---</span></span><br><span class="line"><span class="comment"># 基座模型名称</span></span><br><span class="line">model_name = <span class="string">&quot;mistralai/Mistral-7B-v0.1&quot;</span> <span class="comment"># 示例模型，可以换成Llama-2-7b等</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># QLoRA 配置</span></span><br><span class="line"><span class="comment"># 量化基座模型为4bit</span></span><br><span class="line">bnb_config = BitsAndBytesConfig(</span><br><span class="line">    load_in_4bit=<span class="literal">True</span>,</span><br><span class="line">    bnb_4bit_quant_type=<span class="string">&quot;nf4&quot;</span>, <span class="comment"># NormalFloat 4bit</span></span><br><span class="line">    bnb_4bit_compute_dtype=torch.bfloat16, <span class="comment"># 计算使用bfloat16</span></span><br><span class="line">    bnb_4bit_use_double_quant=<span class="literal">True</span>, <span class="comment"># 使用双量化</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># LoRA 配置</span></span><br><span class="line">lora_config = LoraConfig(</span><br><span class="line">    r=<span class="number">16</span>, <span class="comment"># LoRA 秩，通常 8, 16, 32, 64</span></span><br><span class="line">    lora_alpha=<span class="number">32</span>, <span class="comment"># LoRA 缩放因子</span></span><br><span class="line">    target_modules=[<span class="string">&quot;q_proj&quot;</span>, <span class="string">&quot;k_proj&quot;</span>, <span class="string">&quot;v_proj&quot;</span>, <span class="string">&quot;o_proj&quot;</span>], <span class="comment"># 在注意力层的Q,K,V,O矩阵上应用LoRA</span></span><br><span class="line">    lora_dropout=<span class="number">0.05</span>, <span class="comment"># LoRA dropout</span></span><br><span class="line">    bias=<span class="string">&quot;none&quot;</span>, <span class="comment"># 不对偏置项应用LoRA</span></span><br><span class="line">    task_type=<span class="string">&quot;CAUSAL_LM&quot;</span>, <span class="comment"># 任务类型为因果语言模型</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 2. 加载模型和分词器 ---</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Loading model: <span class="subst">&#123;model_name&#125;</span>...&quot;</span>)</span><br><span class="line">model = AutoModelForCausalLM.from_pretrained(</span><br><span class="line">    model_name,</span><br><span class="line">    quantization_config=bnb_config,</span><br><span class="line">    device_map=<span class="string">&quot;auto&quot;</span>, <span class="comment"># 自动选择设备（GPU）</span></span><br><span class="line">    torch_dtype=torch.bfloat16, <span class="comment"># 模型Dtype</span></span><br><span class="line">)</span><br><span class="line">model.config.use_cache = <span class="literal">False</span> <span class="comment"># 在训练时禁用cache</span></span><br><span class="line">model.config.pretraining_tp = <span class="number">1</span> <span class="comment"># 禁用张量并行，因为不是分布式预训练</span></span><br><span class="line"></span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=<span class="literal">True</span>)</span><br><span class="line">tokenizer.pad_token = tokenizer.eos_token <span class="comment"># 设置padding token为EOS token</span></span><br><span class="line">tokenizer.padding_side = <span class="string">&quot;right&quot;</span> <span class="comment"># Padding在右侧</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 3. 准备模型进行kbit训练 (LoRA前置步骤) ---</span></span><br><span class="line"><span class="comment"># 这一步将冻结所有非LoRA参数，并把可训练参数转换为bfloat16</span></span><br><span class="line">model = prepare_model_for_kbit_training(model)</span><br><span class="line">model = get_peft_model(model, lora_config)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;LoRA 模型结构:&quot;</span>)</span><br><span class="line">model.print_trainable_parameters() <span class="comment"># 打印可训练参数量和占比</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 4. 准备数据集 ---</span></span><br><span class="line"><span class="comment"># 这里使用一个简单的指令微调数据集示例</span></span><br><span class="line"><span class="comment"># 实际生产中会使用 load_dataset(&quot;your_dataset_org/your_dataset_name&quot;)</span></span><br><span class="line"><span class="comment"># 或者自己构建Datasets对象</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">create_dummy_dataset</span>():</span><br><span class="line">    data = [</span><br><span class="line">        &#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;请总结以下文本：\n人工智能是计算机科学的一个分支，它试图使机器像人类一样思考和行动。&quot;</span>, <span class="string">&quot;output&quot;</span>: <span class="string">&quot;人工智能是让机器模仿人类思维和行为的计算机科学分支。&quot;</span>&#125;,</span><br><span class="line">        &#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;将 &#x27;Hello, how are you?&#x27; 翻译成中文。&quot;</span>, <span class="string">&quot;output&quot;</span>: <span class="string">&quot;你好，近来可好？&quot;</span>&#125;,</span><br><span class="line">        &#123;<span class="string">&quot;input&quot;</span>: <span class="string">&quot;请给我讲一个关于太空探险的短故事。&quot;</span>, <span class="string">&quot;output&quot;</span>: <span class="string">&quot;在一个遥远的星系，一艘名为“星尘号”的飞船...\n（此处省略故事内容）&quot;</span>&#125;,</span><br><span class="line">    ]</span><br><span class="line">    <span class="keyword">from</span> datasets <span class="keyword">import</span> Dataset</span><br><span class="line">    <span class="keyword">return</span> Dataset.from_list(data)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 将指令和输出格式化为模型训练的文本</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">formatting_prompts_func</span>(<span class="params">examples</span>):</span><br><span class="line">    output_texts = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(examples[<span class="string">&#x27;input&#x27;</span>])):</span><br><span class="line">        text = <span class="string">f&quot;&lt;s&gt;[INST] <span class="subst">&#123;examples[<span class="string">&#x27;input&#x27;</span>][i]&#125;</span> [/INST]\n<span class="subst">&#123;examples[<span class="string">&#x27;output&#x27;</span>][i]&#125;</span>&lt;/s&gt;&quot;</span></span><br><span class="line">        output_texts.append(text)</span><br><span class="line">    <span class="keyword">return</span> &#123;<span class="string">&quot;text&quot;</span>: output_texts&#125;</span><br><span class="line"></span><br><span class="line">train_dataset = create_dummy_dataset()</span><br><span class="line"><span class="comment"># 如果数据集已经有 &#x27;text&#x27; 列，可以直接使用。否则，需要格式化</span></span><br><span class="line">train_dataset = train_dataset.<span class="built_in">map</span>(formatting_prompts_func, batched=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义response_template，用于SFTTrainer中计算completion tokens的loss</span></span><br><span class="line"><span class="comment"># 这里假定模型输出的答案前面有特定的标记，例如 [/INST]\n</span></span><br><span class="line">response_template = <span class="string">&quot;[/INST]\n&quot;</span></span><br><span class="line">data_collator = DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=<span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 5. 配置训练参数 ---</span></span><br><span class="line">output_dir = <span class="string">&quot;./results&quot;</span></span><br><span class="line">per_device_train_batch_size = <span class="number">4</span> <span class="comment"># 根据GPU显存调整</span></span><br><span class="line">gradient_accumulation_steps = <span class="number">2</span> <span class="comment"># 梯度累积步数，等效于更大的batch size</span></span><br><span class="line">num_train_epochs = <span class="number">3</span> </span><br><span class="line">learning_rate = <span class="number">2e-4</span></span><br><span class="line">fp16 = <span class="literal">False</span> <span class="comment"># QLoRA使用bfloat16，如果GPU不支持bfloat16，可能需要设置为True并使用fp16</span></span><br><span class="line">bf16 = <span class="literal">True</span> <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">and</span> torch.cuda.get_device_capability()[<span class="number">0</span>] &gt;= <span class="number">8</span> <span class="keyword">else</span> <span class="literal">False</span> <span class="comment"># 自动检测bfloat16支持</span></span><br><span class="line"></span><br><span class="line">training_arguments = TrainingArguments(</span><br><span class="line">    output_dir=output_dir,</span><br><span class="line">    per_device_train_batch_size=per_device_train_batch_size,</span><br><span class="line">    gradient_accumulation_steps=gradient_accumulation_steps,</span><br><span class="line">    dataloader_num_workers= os.cpu_count() // <span class="number">2</span>, <span class="comment"># 通常设置为CPU核心数的一半</span></span><br><span class="line">    num_train_epochs=num_train_epochs,</span><br><span class="line">    learning_rate=learning_rate,</span><br><span class="line">    logging_steps=<span class="number">10</span>, <span class="comment"># 每10步打印日志</span></span><br><span class="line">    save_strategy=<span class="string">&quot;epoch&quot;</span>, <span class="comment"># 每个epoch保存一次模型</span></span><br><span class="line">    evaluation_strategy=<span class="string">&quot;no&quot;</span>, <span class="comment"># 简单示例，不进行评估</span></span><br><span class="line">    fp16=fp16, <span class="comment"># 半精度浮点数</span></span><br><span class="line">    bf16=bf16, <span class="comment"># BFloat16 浮点数</span></span><br><span class="line">    max_grad_norm=<span class="number">0.3</span>, <span class="comment"># 最大梯度范数，防止梯度爆炸</span></span><br><span class="line">    warmup_ratio=<span class="number">0.03</span>, <span class="comment"># 预热比例</span></span><br><span class="line">    lr_scheduler_type=<span class="string">&quot;constant&quot;</span>, <span class="comment"># 学习率调度器类型</span></span><br><span class="line">    optim=<span class="string">&quot;paged_adamw_8bit&quot;</span>, <span class="comment"># 优化器，QLoRA 推荐 paged_adamw_8bit</span></span><br><span class="line">    load_best_model_at_end=<span class="literal">False</span>, <span class="comment"># 不从最佳模型加载</span></span><br><span class="line">    report_to=<span class="string">&quot;none&quot;</span>, <span class="comment"># 不上报到wandb等</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 6. 初始化 SFTTrainer 并开始训练 ---</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;Initializing SFTTrainer...&quot;</span>)</span><br><span class="line">trainer = SFTTrainer(</span><br><span class="line">    model=model,</span><br><span class="line">    train_dataset=train_dataset,</span><br><span class="line">    peft_config=lora_config,</span><br><span class="line">    dataset_text_field=<span class="string">&quot;text&quot;</span>, <span class="comment"># 数据集中用于训练的文本列名</span></span><br><span class="line">    tokenizer=tokenizer,</span><br><span class="line">    args=training_arguments,</span><br><span class="line">    max_seq_length=<span class="number">512</span>, <span class="comment"># 最大序列长度</span></span><br><span class="line">    data_collator=data_collator, <span class="comment"># 使用自定义的data collator</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;Starting training...&quot;</span>)</span><br><span class="line">trainer.train()</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 7. 保存 LoRA 适配器权重 ---</span></span><br><span class="line">trainer.save_model(os.path.join(output_dir, <span class="string">&quot;finetuned_lora_model&quot;</span>))</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;LoRA adapter saved successfully.&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 8. (可选) 加载并测试模型 ---</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\nLoading adapter for inference...&quot;</span>)</span><br><span class="line"><span class="keyword">from</span> peft <span class="keyword">import</span> PeftModel</span><br><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> pipeline</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重新加载基座模型 (不带量化，或带相同的量化，取决于推理环境)</span></span><br><span class="line"><span class="comment"># For simplicity, let&#x27;s load in 4bit again for the inference part</span></span><br><span class="line">base_model = AutoModelForCausalLM.from_pretrained(</span><br><span class="line">    model_name,</span><br><span class="line">    quantization_config=bnb_config,</span><br><span class="line">    device_map=<span class="string">&quot;auto&quot;</span>,</span><br><span class="line">    torch_dtype=torch.bfloat16,</span><br><span class="line">)</span><br><span class="line">tokenizer = AutoTokenizer.from_pretrained(model_name)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 加载并合并 LoRA 适配器</span></span><br><span class="line">merged_model = PeftModel.from_pretrained(base_model, os.path.join(output_dir, <span class="string">&quot;finetuned_lora_model&quot;</span>))</span><br><span class="line"><span class="comment"># 如果需要完全合并权重到基座模型，可以使用 merge_and_unload()</span></span><br><span class="line"><span class="comment"># 但在 QLoRA 中，基座模型是量化的，通常不直接合并成完全新的全精度模型文件，</span></span><br><span class="line"><span class="comment"># 而是运行时加载适配器。</span></span><br><span class="line"><span class="comment"># fused_model = merged_model.merge_and_unload() # 注意：只有当基座模型没有进行 kbit 量化时才能完全合并成新的模型文件</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用 pipeline 进行推理</span></span><br><span class="line">pipe = pipeline(</span><br><span class="line">    task=<span class="string">&quot;text-generation&quot;</span>,</span><br><span class="line">    model=merged_model, <span class="comment"># 使用加载了LoRA的PEFT模型</span></span><br><span class="line">    tokenizer=tokenizer,</span><br><span class="line">    max_new_tokens=<span class="number">200</span>,</span><br><span class="line">    torch_dtype=torch.bfloat16,</span><br><span class="line">    device_map=<span class="string">&quot;auto&quot;</span>,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 测试微调效果</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\nTesting finetuned model:&quot;</span>)</span><br><span class="line">test_input = <span class="string">&quot;请总结以下文本：\n微调大模型能够让模型更好地适应特定任务和数据，提高效率和准确性。&quot;</span></span><br><span class="line"><span class="comment"># 注意：推理时也需要遵循训练时的提示格式</span></span><br><span class="line">formatted_test_input = <span class="string">f&quot;&lt;s&gt;[INST] <span class="subst">&#123;test_input&#125;</span> [/INST]\n&quot;</span></span><br><span class="line"></span><br><span class="line">result = pipe(formatted_test_input)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;原始输入: <span class="subst">&#123;test_input&#125;</span>&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;模型输出的一部分: <span class="subst">&#123;result[<span class="number">0</span>][<span class="string">&#x27;generated_text&#x27;</span>]&#125;</span>&quot;</span>) <span class="comment"># 可能会包含重复的prompt，需后处理</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>代码解析要点:</strong></p>
+<ol>
+<li><strong><code>BitsAndBytesConfig</code></strong>: 配置 4-bit 量化，这是 QLoRA 的核心。它指定了量化类型、计算数据类型和双量化。</li>
+<li><strong><code>LoraConfig</code></strong>: 定义 LoRA 适配器的参数，如秩 <code>r</code>、缩放因子 <code>lora_alpha</code>，以及哪些模型层需要应用 LoRA。</li>
+<li><strong>模型加载与准备</strong>: <code>AutoModelForCausalLM.from_pretrained</code> 加载基座模型并应用量化。<code>prepare_model_for_kbit_training</code> 和 <code>get_peft_model</code> 将模型转换为 LoRA 训练模式。</li>
+<li><strong>数据集</strong>: <code>load_dataset</code> 用于加载数据集。<code>formatting_prompts_func</code> 将原始数据转换为 <code>&lt;s&gt;[INST] instruction [/INST]\noutput&lt;/s&gt;</code> 这种常见的指令微调格式。这个格式对 LLM 的行为影响很大，务必与模型训练时期望的格式一致。</li>
+<li><strong><code>DataCollatorForCompletionOnlyLM</code></strong>: <code>trl</code> 库提供的这个数据收集器非常有用，它确保只有模型生成的“completion”部分计算损失，而“prompt”部分在训练时被 Mask 掉，从而更有效地训练模型响应。</li>
+<li><strong><code>TrainingArguments</code></strong>: 设置标准的 PyTorch 训练参数。注意优化器 <code>paged_adamw_8bit</code> 是 QLoRA 推荐的。</li>
+<li><strong><code>SFTTrainer</code></strong>: <code>trl</code> 提供了简化指令微调的 Trainer，它封装了许多底层细节，使得微调更加方便。</li>
+<li><strong>保存与加载</strong>: 训练完成后，<code>trainer.save_model</code> 只保存 LoRA 适配器的权重。在推理时，需要先加载原始基座模型，然后通过 <code>PeftModel.from_pretrained</code> 加载 LoRA 适配器并附加到基座模型上。</li>
+</ol>
+<h2 id="六、微调的挑战与考量"><a href="#六、微调的挑战与考量" class="headerlink" title="六、微调的挑战与考量"></a>六、微调的挑战与考量</h2><h3 id="6-1-数据质量与数量"><a href="#6-1-数据质量与数量" class="headerlink" title="6.1 数据质量与数量"></a>6.1 数据质量与数量</h3><ul>
+<li><strong>数据是王道</strong>：即使是最好的模型，如果数据质量差，微调效果也会大打折扣。</li>
+<li><strong>指令遵循</strong>：确保指令和输出的格式一致且清晰，模型才能学会如何响应。</li>
+<li><strong>数据清洗和去重</strong>：清除噪声、错误和重复数据，避免模型学习到不良模式。</li>
+<li><strong>平衡性</strong>：数据集中不同类型的样本或类别应保持适当的平衡，避免模型偏向某个类别。</li>
+</ul>
+<h3 id="6-2-灾难性遗忘-Catastrophic-Forgetting"><a href="#6-2-灾难性遗忘-Catastrophic-Forgetting" class="headerlink" title="6.2 灾难性遗忘 (Catastrophic Forgetting)"></a>6.2 灾难性遗忘 (Catastrophic Forgetting)</h3><ul>
+<li><strong>风险</strong>：全量微调时，模型在学习新任务的同时可能会遗忘其在预训练阶段学到的通用知识。</li>
+<li><strong>缓解</strong>：PEFT 方法（如 LoRA）通过冻结大部分参数来显著减轻此问题。在微调数据中适当地混合少量通用数据（如多样化的对话或通用问答）也有助于保持模型的通用能力。</li>
+</ul>
+<h3 id="6-3-超参数调优"><a href="#6-3-超参数调优" class="headerlink" title="6.3 超参数调优"></a>6.3 超参数调优</h3><ul>
+<li>学习率、批次大小、LoRA秩等超参数对微调结果影响显著。需要通过实验和验证集来找到最佳组合。</li>
+<li>通常 LLM 微调的学习率比预训练时低得多。</li>
+</ul>
+<h3 id="6-4-计算资源"><a href="#6-4-计算资源" class="headerlink" title="6.4 计算资源"></a>6.4 计算资源</h3><ul>
+<li>虽然 PEFT 极大降低了资源需求，但对于大型模型（如 70B 参数），即使是 QLoRA 也可能需要多张高性能 GPU。</li>
+<li>根据模型大小和批量大小选择合适的 GPU。</li>
+</ul>
+<h3 id="6-5-安全与偏见"><a href="#6-5-安全与偏见" class="headerlink" title="6.5 安全与偏见"></a>6.5 安全与偏见</h3><ul>
+<li>微调数据中的偏见或有害内容可能会被模型学习并放大。对微调数据进行严格的审核至关重要。</li>
+<li>微调可能会引入新的安全漏洞，例如模型更容易受到 prompt 注入攻击。</li>
+</ul>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>微调大语言模型是释放其在特定应用中潜力的关键环节。从全量微调到参数高效微调 (PEFT)，特别是 LoRA 和 QLoRA 的出现，极大地降低了微调的门槛，使得开发者可以在有限的资源下构建强大的领域专用 LLM。</p>
+<p>通过精心准备高质量的指令数据，选择合适的基座模型和微调策略（如 QLoRA），并利用 Hugging Face <code>transformers</code> 、 <code>peft</code> 和 <code>trl</code> 等工具，开发者能够高效地将通用大模型转化为满足业务需求的强大工具。然而，微调并非没有挑战，数据质量、超参数调优、计算资源以及潜在的灾难性遗忘和安全问题都需要在实践中加以细致管理。理解这些核心概念和实践方法，将有助于您成功驾驭大模型微调，构建出更智能、更专业的 AI 应用。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/8be247b5e9ae/">https://blog.tbf1211.xx.kg/8be247b5e9ae/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/AI/">AI</a><a class="post-meta__tags" href="/tags/LLM/">LLM</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-15.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/d1dbcd98dd73/" title="LazyGit使用解析：你的Git命令行效率神器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">LazyGit使用解析：你的Git命令行效率神器</div></div><div class="info-2"><div class="info-item-1"> 本文将带你深入了解 LazyGit，一个简单直观的终端 UI Git 客户端。如果你厌倦了反复输入 Git 命令，又觉得 GUI 客户端不够灵活，那么 LazyGit 可能会成为你的新宠。它将终端的强大与 GUI 的便捷完美结合，让你的 Git 工作流变得前所未有的高效和愉悦。  对于开发者而言，Git 无疑是日常工作中不可或缺的工具。然而，即使是最熟练的 Git 用户，也可能被一些重复、繁琐的命令行操作所困扰，例如 git add ., git status, git commit -m &quot;...&quot;, git log --oneline 等等。虽然有各种图形化 Git 客户端，但它们往往意味着脱离终端环境，或多或少牺牲了速度和灵活性。LazyGit 正是为了解决这一痛点而生的——它提供了一个文本用户界面 (TUI)，让你在终端中就能以图形化的方式快速、直观地执行 Git 操作，大幅提升工作效率。   一、为什么选择 LazyGit？LazyGit 并不是简单的 Git 命令别名集合，它提供了一个交互式的视图，将 git status, git branch...</div></div></div></a><a class="pagination-related" href="/62acbead38d8/" title="Python 打包工具 uv 详解：下一代包管理器与构建器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Python 打包工具 uv 详解：下一代包管理器与构建器</div></div><div class="info-2"><div class="info-item-1"> UV 是由 Astral (Ruff 的创建者) 公司开发的一款极速的 Python 包安装器、解析器和虚拟环境管理器。它被设计为 pip、pip-tools 和 virtualenv 的直接替代品，旨在解决 Python 现有包管理工具的速度瓶颈和用户体验问题。UV 完全用 Rust 编写，专注于提供闪电般的性能、一致的行为和可靠的依赖解析，同时兼容 pip 和 virtualenv 的现有工作流。  核心思想：UV 利用 Rust 的高性能和并发能力，提供超快的依赖解析、虚拟环境创建和包安装体验，旨在通过一个统一的、命令与 pip 相似的工具，成为 Python 包管理的新一代标准。   一、为什么需要 UV？Python 的包管理生态系统虽然成熟，但在速度和用户体验方面一直存在痛点：  pip 的速度瓶颈： pip 在解析大型或复杂项目的依赖图时可能会非常缓慢，尤其是在 requirements.txt 中包含大量次级依赖时。 每次安装都需要重新下载已有的包，缺乏高效的缓存机制。   virtualenv &#x2F; venv 的性能： 创建和管理虚拟环境的速度通常不够...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/21e140c78f80/" title="大型语言模型如何理解人类文字：从Token到语义表征"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-16</div><div class="info-item-2">大型语言模型如何理解人类文字：从Token到语义表征</div></div><div class="info-2"><div class="info-item-1"> 大型语言模型 (Large Language Models, LLMs) 在处理和生成人类语言方面展现出了前所未有的能力，这引发了一个核心问题：它们是如何“理解”人类文字的？这种理解并非传统意义上的认知或意识，而是通过对海量文本数据中统计模式和语义关联的深度学习，构建出高度复杂的语言表征。  核心思想：LLMs 将人类语言转化为高维数学向量，并通过 Transformer 架构中的注意力机制，捕捉词语、句子乃至篇章间的复杂关联，从而在统计层面模拟人类对语言的理解和生成。   一、基础构建模块：从文本到向量LLMs 的“理解”始于将人类可读的文字转化为机器可处理的数值形式。这一过程主要依赖于分词 (Tokenization) 和词嵌入 (Word Embeddings)。 1.1 分词 (Tokenization)分词是将连续的文本序列切分成有意义的最小单位——Token 的过程。Token 可以是一个词、一个子词 (subword) 甚至一个字符。  词级别分词 (Word-level Tokenization)：以空格或标点符号为界，将文本切分为词。简单直观，但词汇量庞大，且...</div></div></div></a><a class="pagination-related" href="/82498674876b/" title="RAG（检索增强生成）技术详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-01</div><div class="info-item-2">RAG（检索增强生成）技术详解</div></div><div class="info-2"><div class="info-item-1"> RAG (Retrieval Augmented Generation)，即检索增强生成，是一种结合了检索系统与大型语言模型 (LLM) 的人工智能技术。它旨在提高 LLM 在回答问题、生成文本时的准确性、及时性和事实可靠性，尤其是在处理特定领域知识、最新信息或内部数据时。RAG 通过在生成答案之前，从外部知识库中检索相关信息，并将这些信息作为上下文提供给 LLM，从而“增强”其生成能力。  核心思想：克服大语言模型在知识时效性、幻觉和领域特异性方面的局限性。它通过动态地从权威数据源检索相关、准确的事实依据，并以此为基础指导 LLM 进行生成，使得 LLM 的输出更加准确、可追溯且富含最新信息。    一、为什么需要 RAG？大语言模型的局限性大语言模型（LLMs）在处理自然语言任务方面展现出惊人的能力，但它们也存在一些固有的局限性，RAG 正是为了解决这些问题而生：  知识时效性与更新难题 (Knowledge Staleness)  LLM 的知识来源于其训练数据，这些数据在模型发布后就成为了静态的。它们无法获取最新的事件、实时数据或新形成的知识。 每次需要更新知识时，都可...</div></div></div></a><a class="pagination-related" href="/1bd89b02cd88/" title="大型语言模型中的Token详解：数据、处理与意义"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-20</div><div class="info-item-2">大型语言模型中的Token详解：数据、处理与意义</div></div><div class="info-2"><div class="info-item-1"> Token 是大型语言模型 (Large Language Models, LLMs) 处理文本的基本单位。它不是传统意义上的“词”，而是模型将人类可读的文字序列（如句子、段落）切分、编码并最终用于学习和生成文本的离散符号表示。理解 Token 的概念对于深入了解 LLMs 的工作原理、能力边界以及成本核算至关重要。  核心思想：LLMs 不直接处理原始文本，而是将其分解为一系列经过特殊编码的 Token。这些 Token 构成了模型输入和输出的最小单元，并直接影响模型的性能、效率和成本。   一、什么是 Token？在自然语言处理 (NLP) 领域，尤其是在 LLMs 中，Token 是指模型进行训练和推理时所使用的文本片段。它可能是：  一个完整的词 (Word)：例如 “cat”, “run”。 一个词的一部分 (Subword)：例如 “un”, “believe”, “able” 组合成 “unbelievable”。 一个标点符号 (Punctuation)：例如 “.”, “,”, “!”。 一个特殊符号或控制字符 (Special Token)：例如 [CLS]...</div></div></div></a><a class="pagination-related" href="/c1c3c8b5b003/" title="LangChain Model I&#x2F;O 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-13</div><div class="info-item-2">LangChain Model I&#x2F;O 详解</div></div><div class="info-2"><div class="info-item-1"> LangChain Model I&#x2F;O 是 LangChain 框架的核心组成部分之一，它提供了一套标准化的接口和工具，用于与各种大型语言模型 (LLMs) 和聊天模型 (Chat Models) 进行交互，并对其输入和输出进行有效的管理和结构化。这是构建任何基于 LLM 的应用程序的基础。  核心思想：将与 LLM 的“对话”分解为可管理、可组合的组件：输入 (Prompt Templates)、模型调用 (LLM&#x2F;Chat Models) 和输出处理 (Output Parsers)。   一、为什么 Model I&#x2F;O 至关重要？在没有 LangChain Model I&#x2F;O 的情况下，直接与 LLM 交互通常意味着：  手动拼接 Prompt: 需要手动构建复杂的字符串，其中包含指令、上下文、示例和用户输入。这既繁琐又容易出错。 硬编码模型调用: 每次更换模型或供应商时，都需要修改底层代码。 非结构化的输出: LLM 的原始输出通常是自由文本，需要编写复杂的字符串解析逻辑来提取所需信息。 缺乏可复用性: 不同应用场景下的 Prom...</div></div></div></a><a class="pagination-related" href="/9ceda85c30d6/" title="向量嵌入 (Vector Embeddings) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-05</div><div class="info-item-2">向量嵌入 (Vector Embeddings) 详解</div></div><div class="info-2"><div class="info-item-1"> 向量嵌入 (Vector Embeddings) 是人工智能和机器学习领域的一个核心概念，它指的是将复杂的数据对象（如文本、图像、音频、图形节点、用户行为等）映射到高维实数向量空间中的一种技术。在这个向量空间中，语义或功能上相似的数据对象会映射到彼此接近的向量点。  通过向量嵌入，我们可以将非结构化数据转化为机器可理解和处理的数值形式，并且能够通过计算向量之间的距离来量化数据对象之间的相似性。它是许多现代AI应用（如推荐系统、搜索引擎、自然语言处理、图像识别等）的基石。   一、为什么需要向量嵌入？传统上，机器处理数据的方式通常是基于符号匹配或离散的分类。然而，这种方式在处理复杂、非结构化数据时面临诸多局限：  语义鸿沟 (Semantic Gap)：计算机无法直接理解词语、句子、图像甚至用户偏好背后的“含义”。例如，“汽车”和“车辆”在语义上相近，但在符号匹配中是不同的字符串。 高维稀疏性 (High-Dimensional Sparsity)：传统的 One-Hot 编码等方法会产生维度极高且稀疏的向量，这不仅浪费存储和计算资源，而且无法捕捉词语之间的关系。 计算复杂性：直...</div></div></div></a><a class="pagination-related" href="/33aeea5bfccf/" title="大语言模型参数详解：规模、类型与意义"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-22</div><div class="info-item-2">大语言模型参数详解：规模、类型与意义</div></div><div class="info-2"><div class="info-item-1"> 参数 (Parameters) 是大型语言模型 (Large Language Models, LLMs) 的核心组成部分，它们是模型在训练过程中从海量数据中学习到的数值权重和偏置。这些参数共同构成了模型的“知识”和“理解”能力。参数的规模，尤其是数量，是衡量一个 LLM 大小的关键指标，并直接影响其性能、能力边界以及所需的计算资源。  核心思想：LLMs 的“智能”并非来自于明确的编程规则，而是通过在海量数据上优化数亿甚至数万亿个可学习参数而涌现。这些参数以分布式形式存储了语言的语法、语义、事实知识和世界常识。   一、什么是大语言模型参数？在神经网络的上下文中，参数是指模型在训练过程中需要学习和调整的所有权重 (weights) 和偏置 (biases)。它们是连接神经元之间强度的数值表示，决定了模型的输入如何被转换、处理并最终生成输出。  权重 (Weights)：定义了输入特征（或前一层神经元的输出）对当前神经元输出的贡献程度。一个较大的权重意味着该输入特征对结果有更强的影响。 偏置 (Biases)：是一种加性项，允许激活函数在不依赖任何输入的情况下被激活。它相当于调...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">377</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">211</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">75</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%BE%AE%E8%B0%83%E5%A4%A7%E6%A8%A1%E5%9E%8B%EF%BC%9F"><span class="toc-text">一、为什么需要微调大模型？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%BE%AE%E8%B0%83%E5%A4%A7%E6%A8%A1%E5%9E%8B%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、微调大模型的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E9%A2%84%E8%AE%AD%E7%BB%83-Pre-training"><span class="toc-text">2.1 预训练 (Pre-training)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%BE%AE%E8%B0%83-Finetuning"><span class="toc-text">2.2 微调 (Finetuning)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%BE%AE%E8%B0%83%E7%9A%84%E7%B1%BB%E5%9E%8B"><span class="toc-text">2.3 微调的类型</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-3-1-%E5%85%A8%E9%87%8F%E5%BE%AE%E8%B0%83-Full-Finetuning"><span class="toc-text">2.3.1 全量微调 (Full Finetuning)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-3-2-%E5%8F%82%E6%95%B0%E9%AB%98%E6%95%88%E5%BE%AE%E8%B0%83-Parameter-Efficient-Finetuning-PEFT"><span class="toc-text">2.3.2 参数高效微调 (Parameter-Efficient Finetuning, PEFT)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E6%95%B0%E6%8D%AE%E9%9B%86-Dataset"><span class="toc-text">2.4 数据集 (Dataset)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%BE%AE%E8%B0%83%E7%9A%84%E6%B5%81%E7%A8%8B%E4%B8%8E%E6%8A%80%E6%9C%AF%E7%BB%86%E8%8A%82"><span class="toc-text">三、微调的流程与技术细节</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%95%B0%E6%8D%AE%E5%87%86%E5%A4%87"><span class="toc-text">3.1 数据准备</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%A8%A1%E5%9E%8B%E9%80%89%E6%8B%A9"><span class="toc-text">3.2 模型选择</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">3.3 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E8%AE%AD%E7%BB%83%E4%B8%8E%E8%AF%84%E4%BC%B0"><span class="toc-text">3.4 训练与评估</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2"><span class="toc-text">3.5 模型部署</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81PEFT%EF%BC%9A%E5%8F%82%E6%95%B0%E9%AB%98%E6%95%88%E5%BE%AE%E8%B0%83%E8%AF%A6%E8%BF%B0"><span class="toc-text">四、PEFT：参数高效微调详述</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-LoRA-Low-Rank-Adaptation"><span class="toc-text">4.1 LoRA (Low-Rank Adaptation)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-QLoRA-Quantized-LoRA"><span class="toc-text">4.2 QLoRA (Quantized LoRA)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Python-Hugging-Face-TRL-%E5%AE%9E%E8%B7%B5-LoRA-%E5%BE%AE%E8%B0%83%E7%A4%BA%E4%BE%8B"><span class="toc-text">五、Python Hugging Face TRL 实践 (LoRA 微调示例)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%BE%AE%E8%B0%83%E7%9A%84%E6%8C%91%E6%88%98%E4%B8%8E%E8%80%83%E9%87%8F"><span class="toc-text">六、微调的挑战与考量</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E6%95%B0%E6%8D%AE%E8%B4%A8%E9%87%8F%E4%B8%8E%E6%95%B0%E9%87%8F"><span class="toc-text">6.1 数据质量与数量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%81%BE%E9%9A%BE%E6%80%A7%E9%81%97%E5%BF%98-Catastrophic-Forgetting"><span class="toc-text">6.2 灾难性遗忘 (Catastrophic Forgetting)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E8%B6%85%E5%8F%82%E6%95%B0%E8%B0%83%E4%BC%98"><span class="toc-text">6.3 超参数调优</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-%E8%AE%A1%E7%AE%97%E8%B5%84%E6%BA%90"><span class="toc-text">6.4 计算资源</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-5-%E5%AE%89%E5%85%A8%E4%B8%8E%E5%81%8F%E8%A7%81"><span class="toc-text">6.5 安全与偏见</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/bfcc84247c6a/" title="智能体 (Agent) 详解：深入 LangChain 开发实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="智能体 (Agent) 详解：深入 LangChain 开发实践"/></a><div class="content"><a class="title" href="/bfcc84247c6a/" title="智能体 (Agent) 详解：深入 LangChain 开发实践">智能体 (Agent) 详解：深入 LangChain 开发实践</a><time datetime="2025-12-10T22:24:00.000Z" title="发表于 2025-12-11 06:24:00">2025-12-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Bun.js 深度解析：冷启动与边缘函数优化"/></a><div class="content"><a class="title" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化">Bun.js 深度解析：冷启动与边缘函数优化</a><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go Jaeger 深度解析：分布式追踪实践"/></a><div class="content"><a class="title" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践">Go Jaeger 深度解析：分布式追踪实践</a><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1ae20d2726d8/" title="MiniRTC 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MiniRTC 详解"/></a><div class="content"><a class="title" href="/1ae20d2726d8/" title="MiniRTC 详解">MiniRTC 详解</a><time datetime="2025-11-28T22:24:00.000Z" title="发表于 2025-11-29 06:24:00">2025-11-29</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-15.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const loadMathjax = () => {
+    if (!window.MathJax) {
+      window.MathJax = {
+        loader: {
+          load: [
+            // Four font extension packages (optional)
+            //- '[tex]/bbm',
+            //- '[tex]/bboldx',
+            //- '[tex]/dsfont',
+            '[tex]/mhchem'
+          ],
+          paths: {
+            'mathjax-newcm': '[mathjax]/../@mathjax/mathjax-newcm-font',
+
+            //- // Four font extension packages (optional)
+            //- 'mathjax-bbm-extension': '[mathjax]/../@mathjax/mathjax-bbm-font-extension',
+            //- 'mathjax-bboldx-extension': '[mathjax]/../@mathjax/mathjax-bboldx-font-extension',
+            //- 'mathjax-dsfont-extension': '[mathjax]/../@mathjax/mathjax-dsfont-font-extension',
+            'mathjax-mhchem-extension': '[mathjax]/../@mathjax/mathjax-mhchem-font-extension'
+          }
+        },
+        output: {
+          font: 'mathjax-newcm',
+        },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+          packages: {
+            '[+]': [
+              'mhchem'
+            ]
+          }
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          enableMenu: true,
+          menuOptions: {
+            settings: {
+              enrich: false  // Turn off Braille and voice narration text automatic generation
+            }
+          },
+          renderActions: {
+            findScript: [10, doc => {
+              for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+                const display = !!node.type.match(/; *mode=display/)
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+                const text = document.createTextNode('')
+                node.parentNode.replaceChild(text, node)
+                math.start = {node: text, delim: '', n: 0}
+                math.end = {node: text, delim: '', n: 0}
+                doc.math.push(math)
+              }
+            }, '']
+          }
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.startup.document.state(0)
+      MathJax.texReset()
+      MathJax.typesetPromise()
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}&path=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews) {
+            pagePV.textContent = typeof data.pageviews.value !== 'undefined' ? data.pageviews.value : data.pageviews
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors) {
+            siteUV.textContent = typeof data.visitors.value !== 'undefined' ? data.visitors.value : data.visitors
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews) {
+            sitePV.textContent = typeof data.pageviews.value !== 'undefined' ? data.pageviews.value : data.pageviews
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
