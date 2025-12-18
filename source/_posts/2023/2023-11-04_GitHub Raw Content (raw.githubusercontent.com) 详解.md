@@ -2,7 +2,7 @@
 title: GitHub Raw Content (raw.githubusercontent.com) 详解
 date: 2023-11-04 06:24:00
 tags:
-  - 2025
+  - 2023
   - GitHub
   - CI/CD
 categories:
