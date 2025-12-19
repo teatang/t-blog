@@ -1,0 +1,591 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="虚拟线程 (Virtual Threads) 是 Java 平台在 JDK 21 中正式引入 的一项革命性并发特性（作为 Project Loom 1 的主要成果）。它旨在显著简化高吞吐量并发应用的开发和维护，通过提供轻量级的、由 JVM 管理的线程，解决传统平台线程在高并发场景下的性能瓶颈和资源消耗问题。  核心思想：虚拟线程让开发者能够继续沿用更直观的“一请求一线程 (thread-per-">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/0a6eb114d7c3/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="虚拟线程 (Virtual Threads) 是 Java 平台在 JDK 21 中正式引入 的一项革命性并发特性（作为 Project Loom 1 的主要成果）。它旨在显著简化高吞吐量并发应用的开发和维护，通过提供轻量级的、由 JVM 管理的线程，解决传统平台线程在高并发场景下的性能瓶颈和资源消耗问题。  核心思想：虚拟线程让开发者能够继续沿用更直观的“一请求一线程 (thread-per-">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-32.jpg">
+<meta property="article:published_time" content="2024-12-21T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-19T09:47:29.100Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="编码规范">
+<meta property="article:tag" content="程序设计">
+<meta property="article:tag" content="并发编程">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-32.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果",
+  "url": "https://blog.tbf1211.xx.kg/0a6eb114d7c3/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-32.jpg",
+  "datePublished": "2024-12-21T22:24:00.000Z",
+  "dateModified": "2025-12-19T09:47:29.100Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/0a6eb114d7c3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">403</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">214</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-32.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-12-21T22:24:00.000Z" title="发表于 2024-12-22 06:24:00">2024-12-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Java/">Java</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Java/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/0a6eb114d7c3/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>虚拟线程 (Virtual Threads)</strong> 是 Java 平台在 <strong>JDK 21 中正式引入</strong> 的一项革命性并发特性（作为 Project Loom <a target="_blank" rel="noopener external nofollow noreferrer" href="https://openjdk.org/projects/loom/"><sup>1</sup></a> 的主要成果）。它旨在显著简化高吞吐量并发应用的开发和维护，通过提供轻量级的、由 JVM 管理的线程，解决传统平台线程在高并发场景下的性能瓶颈和资源消耗问题。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想</strong>：虚拟线程让开发者能够继续沿用更直观的“<strong>一请求一线程 (thread-per-request)</strong>”的编程模型，同时获得接近异步编程的扩展能力。它将阻塞 I&#x2F;O 操作的开销从昂贵的操作系统线程转移到了 JVM 层面，从而在不改变代码风格的情况下，极大提升了服务器应用的并发吞吐量。</p>
+</div>
+<hr>
+<h2 id="一、为什么需要虚拟线程？-传统并发的痛点"><a href="#一、为什么需要虚拟线程？-传统并发的痛点" class="headerlink" title="一、为什么需要虚拟线程？(传统并发的痛点)"></a>一、为什么需要虚拟线程？(传统并发的痛点)</h2><p>在 Java 历史上，处理并发主要依赖于传统的 <strong>平台线程 (Platform Threads)</strong>，也就是我们通常所说的 <code>java.lang.Thread</code> 类实例。这些线程直接映射到操作系统 (OS) 线程。</p>
+<p>传统平台线程在高并发场景下存在以下痛点：</p>
+<ol>
+<li><strong>资源开销大</strong>：每个平台线程都需要操作系统分配独立的栈空间（通常 1MB 或更多），以及维护其上下文信息。大量线程会导致严重的内存占用。</li>
+<li><strong>上下文切换开销高</strong>：当大量线程并发运行时，OS 需要频繁地进行线程上下文切换，这会消耗大量的 CPU 资源，降低程序执行效率。</li>
+<li><strong>阻塞I&#x2F;O问题</strong>：许多企业应用的核心逻辑都涉及同步阻塞 I&#x2F;O（如数据库查询、网络调用、文件读写）。在一个“一请求一线程”的模型中，当一个平台线程执行阻塞 I&#x2F;O 操作时，它会被 OS 挂起，且在整个阻塞期间无法被用于处理其他请求。这意味着为了处理 N 个同时发出阻塞 I&#x2F;O 请求的客户端，需要 N 个平台线程，这很快就会耗尽系统资源。<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph LR
+    subgraph &quot;Server Application (Platform Threads)&quot;
+        Request1[Req 1] -- Creates --&gt; PThread1[Platform Thread 1]
+        Request2[Req 2] -- Creates --&gt; PThread2[Platform Thread 2]
+        Request3[Req 3] -- Creates --&gt; PThread3[Platform Thread 3]
+        RequestN[Req N] -- Creates --&gt; PThreadN[Platform Thread N]
+        PThread1 -- Blocks on --&gt; DB_IO[Database I&#x2F;O]
+        PThread2 -- Blocks on --&gt; Network_IO[Network I&#x2F;O]
+        PThread3 -- Blocks on --&gt; File_IO[File I&#x2F;O]
+        PThreadN -- Blocks on --&gt; External_Service[External Service Call]
+    end
+    DB_IO &amp; Network_IO &amp; File_IO &amp; External_Service --&gt; IO_Latency[I&#x2F;O Latency]
+    PThread1 &amp; PThread2 &amp; PThread3 &amp; PThreadN -- All Active --&gt; OSResourceExhaustion[OS 资源耗尽: 内存、CPU、线程数限制]
+  </pre></div></li>
+<li><strong>编程模型复杂</strong>：为了避免上述问题，开发者不得不转向复杂的异步编程模型（如 Reactor 模式、Reactive Streams），这通常需要使用回调函数、Future、响应式框架（如 Reactor, RxJava），极大地增加了代码的复杂性和调试难度。</li>
+</ol>
+<p>虚拟线程的目标就是解决这些问题，让 Java 开发者能够以更简单、更高效的方式编写高并发代码。</p>
+<h2 id="二、虚拟线程的核心概念"><a href="#二、虚拟线程的核心概念" class="headerlink" title="二、虚拟线程的核心概念"></a>二、虚拟线程的核心概念</h2><h3 id="2-1-平台线程-Platform-Threads-vs-虚拟线程-Virtual-Threads"><a href="#2-1-平台线程-Platform-Threads-vs-虚拟线程-Virtual-Threads" class="headerlink" title="2.1 平台线程 (Platform Threads) vs 虚拟线程 (Virtual Threads)"></a>2.1 平台线程 (Platform Threads) vs 虚拟线程 (Virtual Threads)</h3><ul>
+<li><strong>平台线程 (Platform Thread)</strong>：传统的 Java 线程，也称为“重量级线程”。它是一个 OS 线程的薄包装，<code>start()</code> 方法会向操作系统请求创建一个新线程。OS 负责其调度和管理。数量受限于 OS 的资源，通常几千个是上限。</li>
+<li><strong>虚拟线程 (Virtual Thread)</strong>：一种由 JVM 管理的“轻量级线程”，不直接映射到 OS 线程。它是一个 <code>java.lang.Thread</code> 实例，但其生命周期由 JVM 管理，调度由 JVM 完成，而不是 OS。虚拟线程可以创建数百万个，因为它们的内存开销（通常只有几百字节）和 CPU 开销都非常小。</li>
+</ul>
+<h3 id="2-2-载体线程-Carrier-Threads"><a href="#2-2-载体线程-Carrier-Threads" class="headerlink" title="2.2 载体线程 (Carrier Threads)"></a>2.2 载体线程 (Carrier Threads)</h3><p>虚拟线程并非凭空存在，它们必须依附于少量的、由 JVM 管理的 <strong>平台线程</strong> 来运行。这些平台线程被称为 <strong>载体线程 (Carrier Threads)</strong>。</p>
+<ul>
+<li>当一个虚拟线程执行计算密集型任务时，它会“<strong>挂载 (mount)</strong>”到一个载体线程上运行。</li>
+<li>当虚拟线程遇到阻塞 I&#x2F;O 操作时，它会“<strong>卸载 (unmount)</strong>”自己，将载体线程释放回线程池（通常是 <code>ForkJoinPool</code>），让该载体线程可以去执行其他虚拟线程。</li>
+<li>当阻塞 I&#x2F;O 操作完成时，虚拟线程会被重新“挂载”到可用的载体线程上继续执行。</li>
+</ul>
+<p>这个过程对应用程序完全透明。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph LR
+    Client1[Client Request 1] -- New --&gt; VThread1[Virtual Thread 1]
+    Client2[Client Request 2] -- New --&gt; VThread2[Virtual Thread 2]
+    Client3[Client Request 3] -- New --&gt; VThread3[Virtual Thread 3]
+    Client4[Client Request 4] -- New --&gt; VThread4[Virtual Thread 4]
+    Client5[Client Request 5] -- New --&gt; VThread5[Virtual Thread 5]
+    Client6[Client Request 6] -- New --&gt; VThread6[Virtual Thread 6]
+    Client7[Client Request 7] -- New --&gt; VThread7[Virtual Thread 7]
+    Client8[Client Request 8] -- New --&gt; VThread8[Virtual Thread 8]
+    ClientN[...Client Request N] -- New --&gt; VThreadN[...Virtual Thread N]
+
+    subgraph &quot;JVM Virtual Thread Scheduler (ForkJoinPool)&quot;
+        CThread1[&quot;Carrier Thread 1 (OS Thread)&quot;]
+        CThread2[&quot;Carrier Thread 2 (OS Thread)&quot;]
+        CThread3[&quot;Carrier Thread 3 (OS Thread)&quot;]
+        CThreadM[&quot;...Carrier Thread M (OS Thread)&quot;]
+    end
+
+    VThread1 -- Mounts on --&gt; CThread1
+    VThread2 -- Mounts on --&gt; CThread1
+    VThread3 -- Mounts on --&gt; CThread2
+    VThread4 -- Mounts on --&gt; CThread2
+    VThread5 -- Blocks on I&#x2F;O --&gt; IO_Op[I&#x2F;O Operation]
+    IO_Op -- Releases CThread --&gt; CThread3
+    VThread6 -- Mounts on --&gt; CThread3
+    VThread7 -- Mounts on --&gt; CThread3
+    VThread8 -- Blocks on I&#x2F;O --&gt; IO_Op2[I&#x2F;O Operation]
+    IO_Op2 -- Releases CThread --&gt; CThreadM
+    VThreadN -- Is Scheduled On --&gt; CThreadM
+  </pre></div>
+<p>上图中，多个虚拟线程被调度器分派到少数几个载体线程上运行。当虚拟线程 <code>VThread5</code> 遇到阻塞 I&#x2F;O 时，它会从载体线程上卸载，载体线程 <code>CThread2</code> 被释放，可以去服务其他虚拟线程。当 <code>VThread5</code> 的 I&#x2F;O 完成后，它会被调度器重新挂载到任意一个可用的载体线程上继续执行。</p>
+<h3 id="2-3-工作窃取-Work-Stealing"><a href="#2-3-工作窃取-Work-Stealing" class="headerlink" title="2.3 工作窃取 (Work Stealing)"></a>2.3 工作窃取 (Work Stealing)</h3><p>虚拟线程的调度器通常使用 <strong>工作窃取</strong> 算法。<code>ForkJoinPool</code> 是一个常见的实现。</p>
+<ul>
+<li>每个载体线程都有一个任务队列。</li>
+<li>当一个载体线程任务不多时，它会从其他载体线程的队列中“窃取”任务来执行，从而保持所有载体线程的忙碌，实现负载均衡。</li>
+</ul>
+<h2 id="三、虚拟线程的特性与优势"><a href="#三、虚拟线程的特性与优势" class="headerlink" title="三、虚拟线程的特性与优势"></a>三、虚拟线程的特性与优势</h2><ol>
+<li><strong>极度轻量</strong>：创建成本极低，一个虚拟线程的内存占用通常只有几百字节（而不是平台线程的 1-2MB 栈空间）。这意味着可以轻松创建数百万个虚拟线程。</li>
+<li><strong>由 JVM 调度</strong>：不同于平台线程由 OS 调度，虚拟线程的调度完全由 JVM 负责，上下文切换开销远低于 OS 级的上下文切换。</li>
+<li><strong>阻塞不阻塞载体线程</strong>：这是最核心的特性。当虚拟线程执行一个阻塞操作（如等待 I&#x2F;O）时，它不会阻塞底层的载体线程。JVM 会将该虚拟线程“卸载”下来，让载体线程去执行其他就绪的虚拟线程。当阻塞操作完成后，该虚拟线程会重新被“挂载”到某个载体线程上继续执行。</li>
+<li><strong>编程模型向后兼容</strong>：虚拟线程是 <code>java.lang.Thread</code> 的一个实现，因此现有依赖 <code>Thread</code> API 的代码无需修改即可运行在虚拟线程上。开发者可以沿用熟悉的同步阻塞编程风格，但获得高并发能力。</li>
+<li><strong>高吞吐量</strong>：显著提升了高并发 I&#x2F;O 密集型应用的吞吐量，因为它消除了传统线程池中“线程忙于等待”的问题。</li>
+</ol>
+<h2 id="四、如何使用虚拟线程-Java-API"><a href="#四、如何使用虚拟线程-Java-API" class="headerlink" title="四、如何使用虚拟线程 (Java API)"></a>四、如何使用虚拟线程 (Java API)</h2><p>从 JDK 21 开始，虚拟线程的 API 已经稳定。创建和使用虚拟线程非常简单。</p>
+<h3 id="4-1-创建单个虚拟线程"><a href="#4-1-创建单个虚拟线程" class="headerlink" title="4.1 创建单个虚拟线程"></a>4.1 创建单个虚拟线程</h3><p>使用 <code>Thread.ofVirtual()</code> 工厂方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">VirtualThreadBasic</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">Runnable</span> <span class="variable">runnable</span> <span class="operator">=</span> () -&gt; &#123;</span><br><span class="line">            System.out.println(Thread.currentThread().getName() + <span class="string">&quot; started.&quot;</span>);</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="comment">// 模拟一个阻塞I/O操作，但不会阻塞底层载体线程</span></span><br><span class="line">                Thread.sleep(<span class="number">1000</span>);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                Thread.currentThread().interrupt();</span><br><span class="line">            &#125;</span><br><span class="line">            System.out.println(Thread.currentThread().getName() + <span class="string">&quot; finished.&quot;</span>);</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 创建并启动一个虚拟线程</span></span><br><span class="line">        <span class="type">Thread</span> <span class="variable">virtualThread</span> <span class="operator">=</span> Thread.ofVirtual().name(<span class="string">&quot;my-virtual-thread&quot;</span>).start(runnable);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">&quot;Main thread continues...&quot;</span>);</span><br><span class="line">        virtualThread.join(); <span class="comment">// 等待虚拟线程完成</span></span><br><span class="line">        System.out.println(<span class="string">&quot;Main thread finished.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-使用-ExecutorService-管理虚拟线程"><a href="#4-2-使用-ExecutorService-管理虚拟线程" class="headerlink" title="4.2 使用 ExecutorService 管理虚拟线程"></a>4.2 使用 <code>ExecutorService</code> 管理虚拟线程</h3><p>为了更好地管理大量虚拟线程，可以使用 <code>Executors.newVirtualThreadPerTaskExecutor()</code>，它会为每个提交的任务创建一个新的虚拟线程。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.ExecutorService;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.Executors;</span><br><span class="line"><span class="keyword">import</span> java.util.stream.IntStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">VirtualThreadExecutor</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="comment">// 创建一个ExecutorService，为每个任务创建一个虚拟线程</span></span><br><span class="line">        <span class="keyword">try</span> (<span class="type">ExecutorService</span> <span class="variable">executor</span> <span class="operator">=</span> Executors.newVirtualThreadPerTaskExecutor()) &#123;</span><br><span class="line">            IntStream.range(<span class="number">0</span>, <span class="number">10_000</span>).forEach(i -&gt; &#123;</span><br><span class="line">                executor.submit(() -&gt; &#123;</span><br><span class="line">                    System.out.println(Thread.currentThread().getName() + <span class="string">&quot; processing task &quot;</span> + i);</span><br><span class="line">                    <span class="keyword">try</span> &#123;</span><br><span class="line">                        Thread.sleep(<span class="number">10</span>); <span class="comment">// 模拟耗时操作，会触发虚拟线程卸载</span></span><br><span class="line">                    &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                        Thread.currentThread().interrupt();</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// System.out.println(Thread.currentThread().getName() + &quot; finished task &quot; + i);</span></span><br><span class="line">                &#125;);</span><br><span class="line">            &#125;);</span><br><span class="line">            <span class="comment">// executor.shutdown(); // ExecutorService 会在try-with-resources块结束时自动关闭</span></span><br><span class="line">            <span class="comment">// executor.awaitTermination(1, java.util.concurrent.TimeUnit.MINUTES);</span></span><br><span class="line">            System.out.println(<span class="string">&quot;All 10,000 tasks submitted.&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        Thread.sleep(<span class="number">5000</span>); <span class="comment">// give some time for tasks to finish</span></span><br><span class="line">        System.out.println(<span class="string">&quot;Main thread finished.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行上述代码，你将看到 JVM 可以在极短的时间内创建并调度上万个虚拟线程，并且每个虚拟线程的名称带有 <code>ForkJoinPool-X-worker-Y</code>，表明它们运行在 <code>ForkJoinPool</code> 的载体线程上。</p>
+<h3 id="4-3-StructuredTaskScope-结构化并发，作为补充"><a href="#4-3-StructuredTaskScope-结构化并发，作为补充" class="headerlink" title="4.3 StructuredTaskScope (结构化并发，作为补充)"></a>4.3 <code>StructuredTaskScope</code> (结构化并发，作为补充)</h3><p><code>StructuredTaskScope</code> 是 Project Loom 的另一个重要成果，与虚拟线程结合使用，可以更好地管理一组相关的并发任务。它允许你在一个代码块内启动多个子任务，并在所有子任务完成或失败时统一处理。这有助于更容易地编写正确且可维护的并发代码，避免资源泄露和任务遗漏。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.Future;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.StructuredTaskScope;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.TimeUnit;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.TimeoutException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">StructuredConcurrencyExample</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">record</span> <span class="title class_">UserData</span><span class="params">(String name, <span class="type">int</span> age)</span> &#123;&#125;</span><br><span class="line">    <span class="keyword">record</span> <span class="title class_">ProductInfo</span><span class="params">(String productName, <span class="type">double</span> price)</span> &#123;&#125;</span><br><span class="line">    <span class="keyword">record</span> <span class="title class_">OrderDetails</span><span class="params">(UserData user, ProductInfo product)</span> &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> UserData <span class="title function_">fetchUserData</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Fetching user data...&quot;</span>);</span><br><span class="line">        Thread.sleep(<span class="number">100</span>); <span class="comment">// Simulate network call</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">UserData</span>(<span class="string">&quot;Alice&quot;</span>, <span class="number">30</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> ProductInfo <span class="title function_">fetchProductInfo</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Fetching product info...&quot;</span>);</span><br><span class="line">        Thread.sleep(<span class="number">150</span>); <span class="comment">// Simulate database call</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ProductInfo</span>(<span class="string">&quot;Laptop&quot;</span>, <span class="number">1200.0</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException, java.util.concurrent.ExecutionException, TimeoutException &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Initiating order processing...&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> (<span class="type">var</span> <span class="variable">scope</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StructuredTaskScope</span>.ShutdownOnFailure()) &#123;</span><br><span class="line">            Future&lt;UserData&gt; userFuture = scope.fork(StructuredConcurrencyExample::fetchUserData);</span><br><span class="line">            Future&lt;ProductInfo&gt; productFuture = scope.fork(StructuredConcurrencyExample::fetchProductInfo);</span><br><span class="line"></span><br><span class="line">            scope.join(); <span class="comment">// Wait for all subtasks to complete or for one to fail</span></span><br><span class="line">            scope.throwIfFailed(); <span class="comment">// Propagate any failure as an exception</span></span><br><span class="line"></span><br><span class="line">            <span class="type">UserData</span> <span class="variable">user</span> <span class="operator">=</span> userFuture.resultNow();</span><br><span class="line">            <span class="type">ProductInfo</span> <span class="variable">product</span> <span class="operator">=</span> productFuture.resultNow();</span><br><span class="line"></span><br><span class="line">            <span class="type">OrderDetails</span> <span class="variable">order</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">OrderDetails</span>(user, product);</span><br><span class="line">            System.out.println(<span class="string">&quot;Order processed: &quot;</span> + order);</span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(<span class="string">&quot;Order processing complete.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>StructuredTaskScope</code> 确保了子任务的生命周期与父任务绑定，提高了并发代码的可靠性。</p>
+<h2 id="五、限制与注意事项"><a href="#五、限制与注意事项" class="headerlink" title="五、限制与注意事项"></a>五、限制与注意事项</h2><ol>
+<li><strong>CPU 密集型任务</strong>：虚拟线程主要解决 I&#x2F;O 密集型任务的瓶颈。对于 CPU 密集型任务，虚拟线程会持续占用载体线程进行计算，无法卸载。因此，过度使用虚拟线程进行 CPU 密集型计算不会带来性能优势，反而可能因调度开销而略微降低性能。CPU 密集型任务仍应在固定数量的平台线程池中运行。</li>
+<li><strong>本地代码 (JNI)</strong>：如果虚拟线程调用了本地代码 (Native Code via JNI)，底层载体线程可能会被“固定 (pin)”住，无法卸载。这会将虚拟线程转换为平台线程的行为，失去轻量优势。</li>
+<li><strong>Monitor&#x2F;synchronized 块</strong>：某些 <code>synchronized</code> 块或 <code>ReentrantLock</code> 可能会导致虚拟线程被“固定”在载体线程上，阻止其卸载。应优先考虑使用 <code>java.util.concurrent.locks.Lock</code> 等高级并发工具，或者确保 <code>synchronized</code> 块内部不包含阻塞 I&#x2F;O 操作。</li>
+<li><strong><code>ThreadLocal</code> 变量</strong>：虽然虚拟线程可以使用 <code>ThreadLocal</code>，但由于虚拟线程数量可能非常巨大，每个 <code>ThreadLocal</code> 实例都将占用虚拟线程的少量内存。如果 <code>ThreadLocal</code> 存储了大量数据或被过度使用，可能会造成内存压力。考虑使用 <code>InheritableThreadLocal</code> 或 <code>ScopedValue</code> (JDK 21 预览功能) 作为替代。</li>
+<li><strong>监控和调试</strong>：因为虚拟线程是 JVM 内部概念，传统的 OS 级工具（如 <code>top</code>, <code>htop</code>）无法直接显示虚拟线程。Java 提供了新的工具和 JVM 指标来监控虚拟线程。</li>
+</ol>
+<h2 id="六、虚拟线程与异步编程-Reactive-编程"><a href="#六、虚拟线程与异步编程-Reactive-编程" class="headerlink" title="六、虚拟线程与异步编程 &#x2F; Reactive 编程"></a>六、虚拟线程与异步编程 &#x2F; Reactive 编程</h2><p>虚拟线程的引入，并不意味着异步或响应式编程会消失，而是提供了一种更简单的替代方案，尤其适用于那些本质上是阻塞 I&#x2F;O 密集型，但又希望保持传统同步编程风格的应用。</p>
+<ul>
+<li><strong>什么时候选择虚拟线程</strong>：当你希望以传统同步阻塞的代码风格编写高并发 I&#x2F;O 密集型服务时。它能大幅提升吞吐量，且无需改变现有代码范式。</li>
+<li><strong>什么时候选择响应式编程</strong>：当你的应用需要非常细粒度的异步流控制、复杂的背压管理、或者与响应式生态系统（如 Reactive Streams, R2DBC 等）深度集成时。响应式编程在处理数据流和事件驱动方面依然强大。</li>
+</ul>
+<p>虚拟线程通常能满足大多数 Web 服务的并发需求，并且极大地降低了学习曲线和代码复杂性。对于追求极致性能和响应式数据流处理的领域，响应式编程仍然有其优势。两者是互补的，而非互斥。</p>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>Java 虚拟线程的引入是 Java 平台在并发领域的一次重大革新。它使得开发者能够以传统的同步阻塞编程模型，构建出具有极高并发吞吐量的 I&#x2F;O 密集型应用，从而解决长期以来困扰 Java 应用的“一请求一线程”模型在高并发场景下的资源瓶颈和上下文切换开销问题。</p>
+<p>虚拟线程降低了开发高并发应用的门槛，使得代码更易于理解、编写和维护。随着其在 JDK 21 中正式发布，我们可以预见它将在微服务、Web 服务和任何 I&#x2F;O 密集型 Java 应用中得到广泛应用，显著推动 Java 应用程序的性能和可伸缩性。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/0a6eb114d7c3/">https://blog.tbf1211.xx.kg/0a6eb114d7c3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E7%BC%96%E7%A0%81%E8%A7%84%E8%8C%83/">编码规范</a><a class="post-meta__tags" href="/tags/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a><a class="post-meta__tags" href="/tags/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/">并发编程</a><a class="post-meta__tags" href="/tags/Java/">Java</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-32.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2565d3c3db01/" title="Go语言embed包详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Go语言embed包详解</div></div><div class="info-2"><div class="info-item-1"> Go 标准库从 Go 1.16 版本开始引入了 embed 1 包。这个包提供了一种简单、声明式的方式，允许开发者将静态文件（如 HTML 模板、CSS、JavaScript、图片、配置文件等）直接嵌入到 Go 可执行文件中。这意味着你可以通过一个独立的二进制文件分发所有应用程序所需的资源，而无需额外管理外部文件，极大地简化了部署和分发过程。  核心思想：将应用程序的外部资源（静态文件）编译进最终的二进制文件，实现“单一二进制文件”的发布和部署，消除外部文件依赖带来的复杂性。   一、为什么需要 embed 包？在 embed 包之前，Go 语言应用程序处理静态资源通常有以下几种方式：  外部文件：将静态文件与可执行文件放在一起分发。这会带来：  部署复杂性：需要确保文件结构正确，并处理文件丢失或路径错误的问题。 文件篡改风险：外部文件容易被修改，可能影响程序的行为或安全性。 分发不便：每次更新都需要同步可执行文件和所有相关资源文件。   go:embed 第三方库：许多第三方库（如 go-bindata, packr）实现了文件嵌入功能。这些库虽然有效，但通常需要一些额外的构...</div></div></div></a><a class="pagination-related" href="/549d8932b3c5/" title="CSS 函数详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">CSS 函数详解</div></div><div class="info-2"><div class="info-item-1"> 在 CSS 中，函数允许我们在样式表中执行计算、变换、引用值或生成特定效果，而不仅仅是使用静态的颜色或数值。它们为 CSS 带来了更强大的动态性和灵活性，使得响应式设计、复杂布局和动画效果的实现变得更加简洁和高效。理解和掌握 CSS 函数是成为高级前端开发者的关键一步。  核心思想：CSS 函数是内置的或用户定义的指令，用于在样式表中执行计算、转换、引用值或生成特定效果，从而增加 CSS 的动态性和灵活性。它们可以接受参数，并返回一个 CSS 值，是实现复杂样式和响应式设计的强大工具。   一、CSS 函数的分类CSS 函数可以大致分为以下几类：  数学函数 (Mathematical Functions)：用于执行算术运算，如 calc()。 转换函数 (Transform Functions)：用于对元素进行 2D 或 3D 转换，如 translate(), rotate(), scale()。 颜色函数 (Color Functions)：用于定义或操作颜色，如 rgb(), hsl(), rgba(), hsla(), color-mix()。 渐变函数 (Gradi...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/90492206afee/" title="Java BIO、NIO、AIO 对比详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-08-14</div><div class="info-item-2">Java BIO、NIO、AIO 对比详解</div></div><div class="info-2"><div class="info-item-1"> Java I&#x2F;O (Input&#x2F;Output) 是应用程序与外部设备之间进行数据传输的桥梁。随着并发编程和高性能网络应用的需求日益增长，Java 提供了多种 I&#x2F;O 模型，以适应不同的使用场景。其中，最核心的三种模型是 BIO (Blocking I&#x2F;O)、NIO (Non-blocking I&#x2F;O) 和 AIO (Asynchronous I&#x2F;O)，它们在处理数据流和网络通信方面有着显著的区别。  核心思想：理解 BIO、NIO 和 AIO 的根本差异在于它们对 I&#x2F;O 操作的阻塞特性、线程管理方式 以及 事件通知机制 的处理。这直接影响着应用在并发、吞吐量和资源利用率方面的表现。   一、同步与异步，阻塞与非阻塞在深入探讨 BIO、NIO、AIO 之前，我们首先明确两个基本概念：  同步 (Synchronous) vs 异步 (Asynchronous)：  同步：发起一个 I&#x2F;O 操作后，调用者需要等待操作完成才能继续执行后续任务。 异步：发起一个 I&#x2F;O 操作后，调用者可以立即返...</div></div></div></a><a class="pagination-related" href="/a1d408b2ddbe/" title="Python多进程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-15</div><div class="info-item-2">Python多进程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的线程（或进程）同步问题。在 Python 中，可以使用 multiprocessing 模块实现多进程版的生产者-消费者模式，以充分利用多核 CPU 资源。  核心思想：利用共享队列作为缓冲，实现生产者与消费者解耦，并通过互斥锁和条件变量（或自带的线程安全队列）进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式概述模式构成：  生产者 (Producer)：负责生成数据，并将其放入共享的缓冲区（队列）中。 消费者 (Consumer)：负责从共享的缓冲区（队列）中取出数据进行处理。 缓冲区 (Buffer &#x2F; Queue)：一个共享的数据结构，通常是一个队列，用于存储生产者生产的数据和消费者消费的数据。它充当了生产者和消费者之间的桥梁。  解决的问题：  解耦：生产者和消费者可以独立运行，互不干扰，提高系统的灵活性。 并发：允许多个生产者和多个消费者同时存在，提高处理效率。 削峰填谷：当生产速度快于消费速度时，缓冲区可以存储多余的数据，防止数...</div></div></div></a><a class="pagination-related" href="/832eaf04ac40/" title="Python多线程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-21</div><div class="info-item-2">Python多线程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的同步问题。在 Python 中，由于全局解释器锁 (GIL) 的存在，多线程在 CPU 密集型任务上并不能真正并行，但在 I&#x2F;O 密集型任务上，多线程仍然可以有效地提高程序的效率和响应速度。本篇将详细介绍如何使用 Python 的 threading 模块和 queue 模块实现多线程版的生产者-消费者模式。  核心思想：利用线程安全的共享队列作为缓冲，实现生产者与消费者解耦，并通过队列自带的互斥锁和条件变量进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式与多线程概述1.1 生产者-消费者模式参考 Python 多进程生产者-消费者模式详解 中的概述，其核心构成和解决的问题在多线程场景下是相同的：  生产者 (Producer)：生成数据并放入队列。 消费者 (Consumer)：从队列取出数据并处理。 缓冲区 (Queue)：共享的、线程安全的数据容器。  1.2 Python 多线程与 GIL threading 模块：Python 标...</div></div></div></a><a class="pagination-related" href="/13fd43244420/" title="Java 编码规范详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-13</div><div class="info-item-2">Java 编码规范详解</div></div><div class="info-2"><div class="info-item-1"> Java 编码规范 是指在编写 Java 代码时，为了提高代码的可读性 (Readability)、可维护性 (Maintainability)、可扩展性 (Extensibility) 和团队协作效率而制定的一系列约定和规则。遵循统一的编码规范能够使代码风格保持一致，降低新人上手难度，减少潜在错误，并提升软件开发的整体质量。  核心思想：代码不仅仅是实现功能的工具，更是团队成员之间沟通的载体。一致的、规范的代码风格能够显著减少理解成本和维护成本。   一、为什么需要编码规范？编码规范的重要性体现在以下几个方面：  提高可读性：统一的风格使得代码逻辑更易于理解，无论代码由谁编写。 提高可维护性：规范的代码结构和注释有助于快速定位问题、理解功能并进行修改。 促进团队协作：在多开发人员参与的项目中，统一的规范能确保代码库风格一致，减少合并冲突和返工。 减少错误：清晰的命名和结构可以避免一些常见的编程错误。 提升代码质量：规范往往也包含了最佳实践，有助于编写出更健壮、更高效的代码。 代码审查效率：在代码审查时，审查者可以更专注于业务逻辑和潜在缺陷，而不是纠结于代码风格。  二、通用原...</div></div></div></a><a class="pagination-related" href="/be930ce35928/" title="Java 常用设计模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-06-30</div><div class="info-item-2">Java 常用设计模式详解</div></div><div class="info-2"><div class="info-item-1"> 设计模式 (Design Patterns) 是在软件工程中，针对特定问题场景提出的一套经过验证的、可复用的解决方案。它们是从实践中总结出来的，是软件开发过程中的最佳实践。学习和应用设计模式，可以帮助开发者构建出结构清晰、可维护、可扩展、复用性强的软件系统，同时也能促进团队成员之间的沟通。  核心思想：设计模式的目标是提升软件的灵活性 (Flexibility)、可重用性 (Reusability) 和可扩展性 (Extensibility)，同时降低维护成本 (Maintainability)。它们不是代码，而是解决特定问题的思想和方法。   一、设计模式的分类根据 GoF (Gang of Four，《设计模式：可复用面向对象软件的基础》的四位作者) 的经典分类，设计模式主要分为三类：  创建型模式 (Creational Patterns)： 关注对象的创建机制，目标是解耦对象的创建与使用，从而提供更大的灵活性。 包括：单例 (Singleton)、工厂方法 (Factory Method)、抽象工厂 (Abstract Factory)、建造者 (Builder)、原型...</div></div></div></a><a class="pagination-related" href="/dad74ce3245f/" title="Golang 指针接收者与值接收者深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-22</div><div class="info-item-2">Golang 指针接收者与值接收者深度解析</div></div><div class="info-2"><div class="info-item-1"> 在 Golang 中，为结构体或其他类型定义方法时，我们可以选择使用值接收者 (Value Receiver) 或指针接收者 (Pointer Receiver)。这两种接收者类型对方法的行为、性能以及类型是否能满足特定接口有着重要的影响。理解它们之间的区别和适用场景是 Go 语言编程中的一个核心概念。  核心思想：选择值接收者还是指针接收者，主要取决于方法是否需要修改接收者的数据，以及在方法调用时是想操作接收者的副本还是原始数据。   一、方法的定义与接收者在 Go 语言中，方法是绑定到特定类型上的函数。方法的定义形式如下： 123func (receiver Type) MethodName(parameters) (results) &#123;    // 方法体&#125; 其中 receiver Type 就是接收者，它可以是一个值类型（T）或一个指针类型（*T）。 二、值接收者 (Value Receiver)当方法使用值接收者时，它操作的是接收者值的一个副本。 2.1 语法123func (t MyStruct) MyMethod() &#123;    // ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">403</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">214</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B%EF%BC%9F-%E4%BC%A0%E7%BB%9F%E5%B9%B6%E5%8F%91%E7%9A%84%E7%97%9B%E7%82%B9"><span class="toc-text">一、为什么需要虚拟线程？(传统并发的痛点)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、虚拟线程的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%B9%B3%E5%8F%B0%E7%BA%BF%E7%A8%8B-Platform-Threads-vs-%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B-Virtual-Threads"><span class="toc-text">2.1 平台线程 (Platform Threads) vs 虚拟线程 (Virtual Threads)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E8%BD%BD%E4%BD%93%E7%BA%BF%E7%A8%8B-Carrier-Threads"><span class="toc-text">2.2 载体线程 (Carrier Threads)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%B7%A5%E4%BD%9C%E7%AA%83%E5%8F%96-Work-Stealing"><span class="toc-text">2.3 工作窃取 (Work Stealing)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B%E7%9A%84%E7%89%B9%E6%80%A7%E4%B8%8E%E4%BC%98%E5%8A%BF"><span class="toc-text">三、虚拟线程的特性与优势</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B-Java-API"><span class="toc-text">四、如何使用虚拟线程 (Java API)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%88%9B%E5%BB%BA%E5%8D%95%E4%B8%AA%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B"><span class="toc-text">4.1 创建单个虚拟线程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E4%BD%BF%E7%94%A8-ExecutorService-%E7%AE%A1%E7%90%86%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B"><span class="toc-text">4.2 使用 ExecutorService 管理虚拟线程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-StructuredTaskScope-%E7%BB%93%E6%9E%84%E5%8C%96%E5%B9%B6%E5%8F%91%EF%BC%8C%E4%BD%9C%E4%B8%BA%E8%A1%A5%E5%85%85"><span class="toc-text">4.3 StructuredTaskScope (结构化并发，作为补充)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%99%90%E5%88%B6%E4%B8%8E%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">五、限制与注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B%E4%B8%8E%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B-Reactive-%E7%BC%96%E7%A8%8B"><span class="toc-text">六、虚拟线程与异步编程 &#x2F; Reactive 编程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bfcc84247c6a/" title="智能体 (Agent) 详解：深入 LangChain 开发实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="智能体 (Agent) 详解：深入 LangChain 开发实践"/></a><div class="content"><a class="title" href="/bfcc84247c6a/" title="智能体 (Agent) 详解：深入 LangChain 开发实践">智能体 (Agent) 详解：深入 LangChain 开发实践</a><time datetime="2025-12-10T22:24:00.000Z" title="发表于 2025-12-11 06:24:00">2025-12-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Bun.js 深度解析：冷启动与边缘函数优化"/></a><div class="content"><a class="title" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化">Bun.js 深度解析：冷启动与边缘函数优化</a><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go Jaeger 深度解析：分布式追踪实践"/></a><div class="content"><a class="title" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践">Go Jaeger 深度解析：分布式追踪实践</a><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-32.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}&path=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews) {
+            pagePV.textContent = typeof data.pageviews.value !== 'undefined' ? data.pageviews.value : data.pageviews
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors) {
+            siteUV.textContent = typeof data.visitors.value !== 'undefined' ? data.visitors.value : data.visitors
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews) {
+            sitePV.textContent = typeof data.pageviews.value !== 'undefined' ? data.pageviews.value : data.pageviews
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
