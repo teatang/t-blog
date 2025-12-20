@@ -1,0 +1,620 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Java 内存泄漏详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Java 内存泄漏 (Memory Leak) 是指程序中已不再需要使用的对象，仍然被“根对象”链所引用，导致垃圾回收器无法对其进行回收，从而占用宝贵的堆内存。随着程序的运行，内存泄漏会不断累积，最终可能导致应用程序运行缓慢、响应迟钝，直至抛出 OutOfMemoryError (OOM) 错误而崩溃。  核心思想：内存泄漏的本质是“应该被回收但未被回收的对象”。理解 Java 垃圾回收机制和对">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java 内存泄漏详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/1d1a23609f01/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Java 内存泄漏 (Memory Leak) 是指程序中已不再需要使用的对象，仍然被“根对象”链所引用，导致垃圾回收器无法对其进行回收，从而占用宝贵的堆内存。随着程序的运行，内存泄漏会不断累积，最终可能导致应用程序运行缓慢、响应迟钝，直至抛出 OutOfMemoryError (OOM) 错误而崩溃。  核心思想：内存泄漏的本质是“应该被回收但未被回收的对象”。理解 Java 垃圾回收机制和对">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg">
+<meta property="article:published_time" content="2024-10-12T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-20T13:04:06.828Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="GC">
+<meta property="article:tag" content="程序设计">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="JVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Java 内存泄漏详解",
+  "url": "https://blog.tbf1211.xx.kg/1d1a23609f01/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg",
+  "datePublished": "2024-10-12T22:24:00.000Z",
+  "dateModified": "2025-12-20T13:04:06.828Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/1d1a23609f01/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Java 内存泄漏详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">411</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">217</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-13.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Java 内存泄漏详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Java 内存泄漏详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-10-12T22:24:00.000Z" title="发表于 2024-10-13 06:24:00">2024-10-13</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Java/">Java</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Java/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.8k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span><span class="post-meta-separator">|</span><span id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="umamiPV" data-path="/1d1a23609f01/"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Java 内存泄漏 (Memory Leak)</strong> 是指程序中已不再需要使用的对象，仍然被“根对象”链所引用，导致垃圾回收器无法对其进行回收，从而占用宝贵的堆内存。随着程序的运行，内存泄漏会不断累积，最终可能导致应用程序运行缓慢、响应迟钝，直至抛出 <code>OutOfMemoryError</code> (OOM) 错误而崩溃。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>内存泄漏的本质是“应该被回收但未被回收的对象”。理解 Java 垃圾回收机制和对象生命周期是诊断和避免内存泄漏的关键。</strong></p>
+</div>
+
+<hr>
+<h2 id="一、什么是内存泄漏？"><a href="#一、什么是内存泄漏？" class="headerlink" title="一、什么是内存泄漏？"></a>一、什么是内存泄漏？</h2><p>在 Java 中，我们通常不直接管理内存，而是依赖 JVM 的垃圾回收器 (GC) 自动回收不再使用的对象。一个对象是否“不再需要”，GC 通过<strong>可达性分析算法</strong>来判断：如果从 GC Roots 无法到达某个对象，则认为该对象是“垃圾”，可以被回收。</p>
+<p><strong>内存泄漏的定义</strong>：当一个对象实际上已经不再需要（即业务逻辑上它已经“死亡”），但从 GC Roots 到它仍然存在一条<strong>强引用链 (Strong Reference Chain)</strong>，导致 GC 无法回收它所占用的内存。</p>
+<p>这种情况下，JVM 误认为该对象仍然“存活”，从而阻止了它的回收。随着时间的推移，这些“泄露”的对象会不断堆积，消耗大量内存，最终可能耗尽 JVM 堆内存，导致 <code>OutOfMemoryError</code>。</p>
+<p><strong>内存泄漏的后果</strong>：</p>
+<ul>
+<li><strong>性能下降</strong>：GC 需要花费更多时间来扫描和清理堆，导致应用程序响应变慢。</li>
+<li><strong>系统不稳定</strong>：内存耗尽导致 OOM，程序崩溃。</li>
+<li><strong>用户体验差</strong>：卡顿、响应延迟。</li>
+</ul>
+<h2 id="二、常见的-Java-内存泄漏场景"><a href="#二、常见的-Java-内存泄漏场景" class="headerlink" title="二、常见的 Java 内存泄漏场景"></a>二、常见的 Java 内存泄漏场景</h2><p>了解常见的内存泄漏场景有助于我们在编码时规避这些问题，并在排查时有迹可循。</p>
+<h3 id="2-1-静态集合类引用对象"><a href="#2-1-静态集合类引用对象" class="headerlink" title="2.1 静态集合类引用对象"></a>2.1 静态集合类引用对象</h3><p>静态变量的生命周期与应用程序相同，直到应用程序结束。如果一个静态集合类 (如 <code>HashMap</code>, <code>ArrayList</code>) 持有大量对象的引用，即使这些对象在业务逻辑上已经不再需要，它们也不会被 GC 回收。</p>
+<p><strong>场景</strong>：缓存系统、事件监听器注册。</p>
+<p><strong>示例</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">StaticCollectionLeak</span> &#123;</span><br><span class="line">    <span class="comment">// 静态 List 引用着大量不再需要的对象</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> List&lt;LargeObject&gt; cache = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">LargeObject</span> &#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="type">byte</span>[] data = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="number">1024</span> * <span class="number">1024</span>]; <span class="comment">// 1MB</span></span><br><span class="line">        <span class="comment">// ... 其他属性</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addAndForget</span><span class="params">(LargeObject obj)</span> &#123;</span><br><span class="line">        cache.add(obj); <span class="comment">// 对象被添加到静态 List</span></span><br><span class="line">        <span class="comment">// ... 业务逻辑执行完毕，obj 在当前方法作用域外应该被回收，但它仍被 cache 引用</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">StaticCollectionLeak</span> <span class="variable">leak</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StaticCollectionLeak</span>();</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            leak.addAndForget(<span class="keyword">new</span> <span class="title class_">LargeObject</span>());</span><br><span class="line">            System.out.println(<span class="string">&quot;Added &quot;</span> + (i + <span class="number">1</span>) + <span class="string">&quot; objects. Cache size: &quot;</span> + cache.size());</span><br><span class="line">            <span class="comment">// 如果不清理，cache 会越来越大，最终导致 OOM</span></span><br><span class="line">            <span class="comment">// Thread.sleep(100); // 模拟业务运行</span></span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(<span class="string">&quot;Program finished. Cache still holds &quot;</span> + cache.size() + <span class="string">&quot; objects.&quot;</span>);</span><br><span class="line">        <span class="comment">// cache.clear(); // 需要手动清理</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>对于缓存，使用<strong>弱引用 (WeakReference)</strong> 或<strong>软引用 (SoftReference)</strong>，或者使用 <code>WeakHashMap</code>。</li>
+<li>定期清理不再需要的元素。</li>
+<li>对于事件监听器，确保在不再需要时取消注册。</li>
+</ul>
+<h3 id="2-2-内部类和匿名内部类持有外部类引用"><a href="#2-2-内部类和匿名内部类持有外部类引用" class="headerlink" title="2.2 内部类和匿名内部类持有外部类引用"></a>2.2 内部类和匿名内部类持有外部类引用</h3><p>非静态内部类和匿名内部类会隐式持有其外部类的引用。如果内部类实例的生命周期比外部类长，那么即使外部类应该被回收，也会因为内部类的引用而无法回收。</p>
+<p><strong>场景</strong>：Android 开发中 <code>Handler</code> 引起的内存泄漏、线程池任务持有外部类引用。</p>
+<p><strong>示例</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.Executors;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ScheduledExecutorService;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.TimeUnit;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">InnerClassLeak</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">largeData</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">String</span>(<span class="keyword">new</span> <span class="title class_">char</span>[<span class="number">1024</span> * <span class="number">1024</span> * <span class="number">10</span>]); <span class="comment">// 10MB 大对象</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">startTask</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="comment">// 创建一个匿名内部类 Runnable 任务</span></span><br><span class="line">        <span class="comment">// 这个 Runnable 实例会隐式持有 OuterClassLeak 实例的引用 (this)</span></span><br><span class="line">        <span class="type">ScheduledExecutorService</span> <span class="variable">scheduler</span> <span class="operator">=</span> Executors.newScheduledThreadPool(<span class="number">1</span>);</span><br><span class="line">        scheduler.scheduleAtFixedRate(<span class="keyword">new</span> <span class="title class_">Runnable</span>() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">                <span class="comment">// 即使只是访问外部类的成员，也会导致外部类实例被引用</span></span><br><span class="line">                System.out.println(<span class="string">&quot;Task running. Data length: &quot;</span> + largeData.length());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, <span class="number">1</span>, <span class="number">1</span>, TimeUnit.SECONDS);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// scheduler.shutdown(); // 如果不关闭调度器，任务会一直运行</span></span><br><span class="line">        <span class="comment">// 外部类实例在方法结束后，本应被回收，但因为它被 Runnable 引用，而 Runnable 又被 scheduler 引用，所以外部类实例无法回收。</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">InnerClassLeak</span>().startTask();</span><br><span class="line">        System.out.println(<span class="string">&quot;Outer class instance is &#x27;finished&#x27; from main method&#x27;s perspective.&quot;</span>);</span><br><span class="line">        Thread.sleep(<span class="number">5000</span>); <span class="comment">// 等待一段时间，观察内存使用</span></span><br><span class="line">        <span class="comment">// 这里的 OuterClassLeak 实例应该被回收，但由于匿名内部类 Runnable 持有其引用，导致无法回收。</span></span><br><span class="line">        <span class="comment">// 如果 scheduler 一直运行，那么这个 OuterClassLeak 实例及其 10MB largeData 也会一直存活。</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>使用<strong>静态内部类</strong>，如果需要访问外部类成员，通过构造函数显式传递弱引用或必要的参数。</li>
+<li>在适当的时机手动解除内部类对外部类的引用（例如，取消注册监听器、停止线程）。</li>
+</ul>
+<h3 id="2-3-自定义-ClassLoader-加载的类未被卸载"><a href="#2-3-自定义-ClassLoader-加载的类未被卸载" class="headerlink" title="2.3 自定义 ClassLoader 加载的类未被卸载"></a>2.3 自定义 ClassLoader 加载的类未被卸载</h3><p>当使用自定义 <code>ClassLoader</code> 加载了类和资源后，如果 <code>ClassLoader</code> 实例本身及其加载的类没有被正确卸载，它们所持有的对象和类信息（在方法区&#x2F;元空间）将无法被回收。这在热部署、插件化应用中较为常见。</p>
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>确保 <code>ClassLoader</code> 及其加载的所有类在不再需要时能够被 GC 回收。</li>
+<li>避免在父 <code>ClassLoader</code> 加载的类中引用子 <code>ClassLoader</code> 加载的类。</li>
+</ul>
+<h3 id="2-4-资源未关闭"><a href="#2-4-资源未关闭" class="headerlink" title="2.4 资源未关闭"></a>2.4 资源未关闭</h3><p>各种流 (I&#x2F;O Streams)、数据库连接 (Connections)、文件句柄 (File Handles) 等资源，如果在 finally 块中没有正确关闭，或者忘记关闭，可能导致资源泄漏，虽然不直接是堆内存泄漏，但它们通常会关联着内存对象，并且可能导致其他系统资源耗尽。</p>
+<p><strong>示例</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.io.FileInputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ResourceLeak</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">readFile</span><span class="params">(String filePath)</span> &#123;</span><br><span class="line">        <span class="type">FileInputStream</span> <span class="variable">fis</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            fis = <span class="keyword">new</span> <span class="title class_">FileInputStream</span>(filePath);</span><br><span class="line">            <span class="comment">// ... 读取文件内容</span></span><br><span class="line">            System.out.println(<span class="string">&quot;File read successfully.&quot;</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="comment">// 没有关闭 fis，如果这里发生异常，或者忘记关闭，资源就不会被释放</span></span><br><span class="line">            <span class="comment">// if (fis != null) &#123;</span></span><br><span class="line">            <span class="comment">//     try &#123;</span></span><br><span class="line">            <span class="comment">//         fis.close();</span></span><br><span class="line">            <span class="comment">//     &#125; catch (IOException e) &#123;</span></span><br><span class="line">            <span class="comment">//         e.printStackTrace();</span></span><br><span class="line">            <span class="comment">//     &#125;</span></span><br><span class="line">            <span class="comment">// &#125;</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="comment">// 创建一个临时文件</span></span><br><span class="line">        <span class="comment">// 创建一个临时文件</span></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            java.nio.file.Files.write(java.nio.file.Paths.get(<span class="string">&quot;temp.txt&quot;</span>), <span class="string">&quot;Hello, Leak!&quot;</span>.getBytes());</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">ResourceLeak</span> <span class="variable">leak</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ResourceLeak</span>();</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++) &#123;</span><br><span class="line">            leak.readFile(<span class="string">&quot;temp.txt&quot;</span>);</span><br><span class="line">            <span class="comment">// 如果不关闭文件流，可能导致文件句柄耗尽</span></span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(<span class="string">&quot;Done reading files.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>始终使用 <code>try-with-resources</code> 语句 (Java 7+)，它可以自动关闭实现了 <code>AutoCloseable</code> 接口的资源。</li>
+<li>在 <code>finally</code> 块中手动关闭资源，并处理关闭过程可能抛出的异常。</li>
+</ul>
+<h3 id="2-5-String-字符串常量池问题-substring-导致-JDK-6-及以前"><a href="#2-5-String-字符串常量池问题-substring-导致-JDK-6-及以前" class="headerlink" title="2.5 String 字符串常量池问题 (substring() 导致) (JDK 6 及以前)"></a>2.5 <code>String</code> 字符串常量池问题 (<code>substring()</code> 导致) (JDK 6 及以前)</h3><p>在 JDK 6 及以前，<code>String.substring()</code> 方法会共享原字符串的底层字符数组。如果原字符串很大，但 <code>substring()</code> 只截取了一小部分，那么这个大的字符数组仍然会因为被小字符串引用而无法回收，造成内存浪费。</p>
+<p><strong>示例 (JDK 6 及以前的原理)</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// String bigString = new String(new char[1024 * 1024]); // 1MB</span></span><br><span class="line"><span class="comment">// String subString = bigString.substring(0, 10);</span></span><br><span class="line"><span class="comment">// bigString 的底层 char 数组仍然被 subString 引用，无法被 GC</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li><strong>JDK 7 及以后</strong>：<code>substring()</code> 方法已经被优化，它会创建一个新的字符数组，不再共享原字符串的底层数组，因此此问题已解决。</li>
+<li>如果确实需要截取字符串，并且担心旧版本 JDK 的问题，可以手动创建一个新的 <code>String</code> 对象：<code>new String(subString)</code>。</li>
+</ul>
+<h3 id="2-6-ThreadLocal-导致的内存泄漏"><a href="#2-6-ThreadLocal-导致的内存泄漏" class="headerlink" title="2.6 ThreadLocal 导致的内存泄漏"></a>2.6 <code>ThreadLocal</code> 导致的内存泄漏</h3><p><code>ThreadLocal</code> 变量在每个线程中都有独立的副本。<code>ThreadLocalMap</code> 是一个 <code>Entry</code> 数组，<code>Entry</code> 继承自 <code>WeakReference</code>，它的 <code>key</code> 是 <code>ThreadLocal</code> 对象的弱引用，<code>value</code> 是实际存储的对象（强引用）。</p>
+<p>当 <code>ThreadLocal</code> 对象本身（作为 <code>key</code>）在外部没有其他强引用时，GC 发生后 <code>ThreadLocal</code> 对象会被回收，但 <code>ThreadLocalMap</code> 中对应的 <code>Entry</code> 仍然存在，其 <code>value</code>（存储的对象）可能因为强引用而无法被回收，导致内存泄漏。</p>
+<p><strong>示例</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.util.concurrent.ExecutorService;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.Executors;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ThreadLocalLeak</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ThreadLocal&lt;LargeObject&gt; threadLocal = <span class="keyword">new</span> <span class="title class_">ThreadLocal</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">LargeObject</span> &#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="type">byte</span>[] data = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="number">1024</span> * <span class="number">1024</span>]; <span class="comment">// 1MB</span></span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setAndForget</span><span class="params">()</span> &#123;</span><br><span class="line">        threadLocal.set(<span class="keyword">new</span> <span class="title class_">LargeObject</span>()); <span class="comment">// 设置一个大对象到当前线程的 ThreadLocal</span></span><br><span class="line">        <span class="comment">// 假定方法结束后，threadLocal 对象本身在外部可能不再被强引用</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">ExecutorService</span> <span class="variable">executor</span> <span class="operator">=</span> Executors.newFixedThreadPool(<span class="number">2</span>);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">5</span>; i++) &#123;</span><br><span class="line">            executor.execute(() -&gt; &#123;</span><br><span class="line">                <span class="keyword">new</span> <span class="title class_">ThreadLocalLeak</span>().setAndForget();</span><br><span class="line">                System.out.println(Thread.currentThread().getName() + <span class="string">&quot; set LargeObject.&quot;</span>);</span><br><span class="line">                <span class="comment">// 模拟业务操作</span></span><br><span class="line">                <span class="comment">// threadLocal.remove(); // 如果不调用 remove()，LargeObject 将一直存活</span></span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Thread.sleep(<span class="number">1000</span>); <span class="comment">// 等待任务执行</span></span><br><span class="line">        executor.shutdown();</span><br><span class="line">        executor.awaitTermination(<span class="number">1</span>, TimeUnit.MINUTES);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 如果线程池中的线程被复用，但是每次执行完任务后没有调用 threadLocal.remove()</span></span><br><span class="line">        <span class="comment">// 那么每个线程的 ThreadLocalMap 中会堆积 LargeObject 实例，导致内存泄漏。</span></span><br><span class="line">        <span class="comment">// 因为线程池中的线程通常生命周期很长。</span></span><br><span class="line">        System.out.println(<span class="string">&quot;Executor shutdown.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li><strong>在 <code>finally</code> 块中始终调用 <code>ThreadLocal.remove()</code></strong>，这是最推荐的做法，以确保在线程结束或任务完成后，清理掉 <code>ThreadLocal</code> 关联的资源。</li>
+<li>理解 <code>ThreadLocalMap</code> 的弱引用机制，它只能自动回收 <code>ThreadLocal</code> 键，但 <code>value</code> 的强引用需要手动 <code>remove()</code>。</li>
+</ul>
+<h2 id="三、如何检测和诊断内存泄漏"><a href="#三、如何检测和诊断内存泄漏" class="headerlink" title="三、如何检测和诊断内存泄漏"></a>三、如何检测和诊断内存泄漏</h2><p>诊断内存泄漏是一个复杂但至关重要的过程，主要依赖于 JVM 提供的工具。</p>
+<h3 id="3-1-监控-JVM-内存使用"><a href="#3-1-监控-JVM-内存使用" class="headerlink" title="3.1 监控 JVM 内存使用"></a>3.1 监控 JVM 内存使用</h3><ul>
+<li><strong>JVisualVM</strong>：JDK 自带的图形化工具，可以实时监控 JVM 的堆内存使用、GC 活动、线程状态等。通过观察堆内存曲线是否持续上涨且不回落，初步判断是否存在内存泄漏。</li>
+<li><strong>JConsole</strong>：与 JVisualVM 类似，也是 JDK 自带的监控工具。</li>
+<li><strong>Arthas</strong>：阿里巴巴开源的 Java 诊断工具，提供 <code>dashboard</code> 实时监控内存、<code>heapdump</code> 堆转储等功能。</li>
+</ul>
+<h3 id="3-2-生成和分析堆转储文件-Heap-Dump"><a href="#3-2-生成和分析堆转储文件-Heap-Dump" class="headerlink" title="3.2 生成和分析堆转储文件 (Heap Dump)"></a>3.2 生成和分析堆转储文件 (Heap Dump)</h3><p>当怀疑存在内存泄漏时，最有效的手段是生成堆转储文件 (通常是 <code>.hprof</code> 格式)，然后使用专业工具进行分析。</p>
+<ol>
+<li><p><strong>生成 Heap Dump</strong>：</p>
+<ul>
+<li><strong>自动生成</strong>：启动 JVM 时添加参数 <code>-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/path/to/dump.hprof</code>，当 OOM 发生时自动生成。</li>
+<li><strong>手动生成</strong>：<ul>
+<li>使用 <code>jmap</code> 命令：<code>jmap -dump:format=b,file=/path/to/dump.hprof &lt;pid&gt;</code>。</li>
+<li>使用 JVisualVM 或 JConsole 工具，在连接到目标 JVM 后，可以手动触发 Heap Dump。</li>
+<li>使用 Arthas 命令：<code>heapdump /path/to/dump.hprof</code>。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>分析 Heap Dump</strong>：</p>
+<ul>
+<li><strong>Eclipse Memory Analyzer (MAT)</strong>：最常用的 Heap Dump 分析工具。<ul>
+<li><strong>主要功能</strong>：<ul>
+<li><strong>内存泄漏嫌疑报告 (Leak Suspects Report)</strong>：自动分析并给出潜在的内存泄漏点。</li>
+<li><strong>支配树 (Dominator Tree)</strong>：显示哪些对象支配了其他对象的内存。</li>
+<li><strong>路径到 GC Roots (Path to GC Roots)</strong>：找出哪些引用链阻止了对象的回收。这是定位内存泄漏的关键。</li>
+<li><strong>直方图 (Histogram)</strong>：列出内存中所有类的实例数量和总大小。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>JVisualVM</strong>：也自带了简单的 Heap Dump 分析功能。</li>
+</ul>
+</li>
+</ol>
+<p><strong>MAT 分析流程简述</strong>：</p>
+<ol>
+<li>打开 MAT，加载 <code>.hprof</code> 文件。</li>
+<li>查看 <strong>Leak Suspects</strong> 报告，尝试理解它提供的潜在泄漏点。</li>
+<li>如果自动报告不够明确，可以从 <strong>Histogram</strong> 开始，按大小排序，找到占用内存最大的那些类。</li>
+<li>右键点击可疑类，选择 <code>Path to GC Roots</code> -&gt; <code>exclude weak/soft references</code> (排除弱&#x2F;软引用，因为这些引用不会阻止 GC)。</li>
+<li>分析得到的引用链，找出为什么这些对象没有被回收。通常泄漏点就在这条引用链的某个强引用上。</li>
+</ol>
+<h3 id="3-3-结合代码审查"><a href="#3-3-结合代码审查" class="headerlink" title="3.3 结合代码审查"></a>3.3 结合代码审查</h3><p>结合 Heap Dump 分析结果，回溯到源代码中，查找导致引用链无法断开的具体代码逻辑。这通常涉及到：</p>
+<ul>
+<li>检查静态集合是否被正确清理。</li>
+<li>检查内部类、匿名内部类是否持有不当的外部类引用。</li>
+<li>检查资源是否被正确关闭。</li>
+<li>检查 <code>ThreadLocal</code> 是否在任务结束时被移除。</li>
+</ul>
+<h2 id="四、如何避免内存泄漏"><a href="#四、如何避免内存泄漏" class="headerlink" title="四、如何避免内存泄漏"></a>四、如何避免内存泄漏</h2><p>预防胜于治疗。在编码阶段就注意避免内存泄漏，是最佳实践。</p>
+<ol>
+<li><strong>及时清理静态集合</strong>：对于用作缓存或存储的静态集合，确保在对象不再需要时，手动将其从集合中移除，或者使用 <code>WeakHashMap</code>&#x2F;<code>WeakReference</code>&#x2F;<code>SoftReference</code> 等。</li>
+<li><strong>避免内部类不当引用外部类</strong>：<ul>
+<li>尽可能使用静态内部类。</li>
+<li>如果非静态内部类或匿名内部类必须持有外部类引用，确保其生命周期不会超过外部类。如果内部类生命周期长，考虑通过构造函数传递外部类的 <code>WeakReference</code>。</li>
+</ul>
+</li>
+<li><strong>正确关闭资源</strong>：使用 <code>try-with-resources</code> 语句 (Java 7+)，或在 <code>finally</code> 块中确保所有 <code>AutoCloseable</code> 资源被关闭。</li>
+<li><strong>正确使用 <code>ThreadLocal</code></strong>：始终在 <code>finally</code> 块中调用 <code>ThreadLocal.remove()</code> 来清理线程局部变量。尤其是在线程池环境中，线程会被复用，如果忘记清理，会导致泄漏。</li>
+<li><strong>解除事件监听器注册</strong>：在组件销毁或不再需要时，解除对事件监听器的注册，防止被事件源持有引用。</li>
+<li><strong>合理使用缓存</strong>：使用带有过期策略或最大容量限制的缓存，如 Guava Cache、Caffeine。</li>
+<li><strong>警惕长生命周期的对象引用短生命周期的对象</strong>：确保长生命周期的对象不会无限制地持有短生命周期对象的强引用。</li>
+<li><strong>代码审查与测试</strong>：在开发过程中进行代码审查，并编写单元测试和集成测试来模拟长时间运行的场景，观察内存使用情况。</li>
+</ol>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>Java 内存泄漏是并发编程和长期运行应用程序中常见的性能陷阱。它的根本原因在于<strong>不必要的强引用阻止了垃圾回收器对已“死亡”对象的回收</strong>。理解 JVM 的垃圾回收机制、对象生命周期以及强&#x2F;软&#x2F;弱&#x2F;虚引用的区别，是预防和诊断内存泄漏的基础。通过遵循最佳实践（如及时清理集合、正确关闭资源、规范使用 <code>ThreadLocal</code> 和内部类），并善用 JVisualVM、MAT 等分析工具，我们可以有效地识别、定位并解决内存泄漏问题，从而构建出更健壮、更高效的 Java 应用程序。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/1d1a23609f01/">https://blog.tbf1211.xx.kg/1d1a23609f01/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/GC/">GC</a><a class="post-meta__tags" href="/tags/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a><a class="post-meta__tags" href="/tags/Java/">Java</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/JVM/">JVM</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-13.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/f7642a181610/" title="CDN (内容分发网络) 服务详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">CDN (内容分发网络) 服务详解</div></div><div class="info-2"><div class="info-item-1"> CDN (Content Delivery Network)，即内容分发网络，是一种构建在现有网络基础之上的智能虚拟网络。它通过将站点内容发布到离用户最近的全球边缘节点，使用户在请求内容时，能够从距离自己最近的服务器获取数据，从而显著加速内容传输、减轻源站负载、提高用户体验和保障服务可用性。  核心思想：将内容缓存到离用户近的地方，让用户就近获取，缩短物理距离，从而缩短加载时间。   一、为什么需要 CDN？在没有 CDN 的情况下，用户访问网站的所有请求都会直接发送到源服务器。这存在几个问题：  访问速度慢：当用户与源服务器之间地理距离较远时，数据传输路径长，网络延迟高，导致页面加载缓慢，尤其是对于图片、视频等大文件。 网络拥堵：跨国或跨洲际网络传输容易受到骨干网带宽限制和拥堵的影响。 源站负载高：所有用户的请求都直接冲击源服务器，在高并发场景下可能导致源服务器过载、响应变慢甚至崩溃。 单点故障风险：源服务器一旦出现故障或遭受攻击，整个网站将无法访问。 安全性弱：源站直接暴露在公网，容易成为 DDoS 攻击的目标。  CDN 旨在解决上述问题，提供以下核心价值：  加速访问：...</div></div></div></a><a class="pagination-related" href="/31430f1f9376/" title="Go Modules(go mod)详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go Modules(go mod)详解</div></div><div class="info-2"><div class="info-item-1"> Go Modules (Go Mod) 是 Go 语言自 Go 1.11 版本引入的官方包管理系统，并在 Go 1.13 版本后成为默认的依赖管理工具。它旨在解决之前 Go 生态系统中依赖管理混乱的问题，提供了一种简洁、可靠且支持版本控制的方式来管理 Go 项目的依赖。  核心思想：将项目代码与依赖项的版本管理解耦，不再强制依赖 $GOPATH，每个模块(项目)在自己的目录中独立管理依赖，并通过 go.mod 文件清晰定义所有直接和间接依赖及其精确版本。   一、为什么需要 Go Modules？在 Go Modules 出现之前，Go 语言的依赖管理主要围绕 $GOPATH 环境变量展开。这种方式存在一些显著问题：  全局 $GOPATH 污染：所有项目都共享 $GOPATH 下的依赖，不同项目对同一个依赖可能需要不同版本，导致版本冲突或需要技巧性地管理 $GOPATH。 非确定性构建：没有明确的依赖版本锁定机制，go get 命令总是获取依赖的最新版本，可能导致构建结果不一致。 对 $GOPATH 的严格依赖：项目必须放置在 $GOPATH/src 目录下，对项目结构造成限...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/8af9f3feb76a/" title="JVM 详解与调优"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-29</div><div class="info-item-2">JVM 详解与调优</div></div><div class="info-2"><div class="info-item-1"> Java 虚拟机 (JVM - Java Virtual Machine) 是 Java 程序运行的基石，它是一个抽象的计算机器，负责将 Java 字节码 (.class 文件) 翻译成机器指令并执行。JVM 屏蔽了底层操作系统的差异，实现了 Java 的“一次编译，到处运行” (Write Once, Run Anywhere) 的跨平台特性。深入理解 JVM 的架构、内存管理和垃圾回收机制，对于编写高性能、稳定可靠的 Java 应用程序至关重要，也是进行系统调优的基础。  核心思想：JVM 是 Java 程序的运行时环境，通过管理内存、执行字节码和进行垃圾回收，实现跨平台运行。JVM 调优的核心在于理解内存区域、垃圾回收器行为，并根据应用特性选择合适的参数，以平衡吞吐量、延迟和内存消耗。    一、JVM 架构概述JVM 架构主要由以下几个核心组件构成：      graph TD     A[Class Loader Subsystem - &lt;br&gt;类加载子系统] --&gt; B[Runtime Data Areas - &lt;br&gt;运行时数据区] ...</div></div></div></a><a class="pagination-related" href="/0a6eb114d7c3/" title="Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-22</div><div class="info-item-2">Java 虚拟线程 (Virtual Threads) 详解 - Project Loom 的成果</div></div><div class="info-2"><div class="info-item-1"> 虚拟线程 (Virtual Threads) 是 Java 平台在 JDK 21 中正式引入 的一项革命性并发特性（作为 Project Loom 1 的主要成果）。它旨在显著简化高吞吐量并发应用的开发和维护，通过提供轻量级的、由 JVM 管理的线程，解决传统平台线程在高并发场景下的性能瓶颈和资源消耗问题。  核心思想：虚拟线程让开发者能够继续沿用更直观的“一请求一线程 (thread-per-request)”的编程模型，同时获得接近异步编程的扩展能力。它将阻塞 I&#x2F;O 操作的开销从昂贵的操作系统线程转移到了 JVM 层面，从而在不改变代码风格的情况下，极大提升了服务器应用的并发吞吐量。   一、为什么需要虚拟线程？(传统并发的痛点)在 Java 历史上，处理并发主要依赖于传统的 平台线程 (Platform Threads)，也就是我们通常所说的 java.lang.Thread 类实例。这些线程直接映射到操作系统 (OS) 线程。 传统平台线程在高并发场景下存在以下痛点：  资源开销大：每个平台线程都需要操作系统分配独立的栈空间（通常 1MB 或更多），以及维护...</div></div></div></a><a class="pagination-related" href="/ad010eef8c35/" title="Java 多线程编程详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-08-29</div><div class="info-item-2">Java 多线程编程详解</div></div><div class="info-2"><div class="info-item-1"> Java 多线程编程 是指在一个 Java 应用程序中同时执行多个独立的任务（或代码路径）。线程是操作系统调度的最小执行单元，而多线程编程允许程序更有效地利用 CPU 资源，提高程序的响应性和吞吐量，尤其是在现代多核处理器环境中。  核心思想：将一个程序分解为多个独立的执行流，并发地运行以提高效率和响应性。这要求开发者妥善处理线程间的协作与资源竞争，以避免数据不一致、死锁等问题。    一、为什么需要多线程编程？在单线程环境中，程序任务按顺序执行。如果一个任务耗时较长（例如 I&#x2F;O 操作、复杂计算），整个程序就会“卡住”，直到该任务完成。多线程编程旨在解决这些问题：  提高程序响应性：在图形用户界面 (GUI) 应用程序中，可以将耗时操作放在后台线程执行，主线程（UI 线程）保持响应，提升用户体验。 提高系统吞吐量：在服务器端应用中，可以同时处理多个客户端请求，从而提高服务器的处理能力。 充分利用多核 CPU 资源：现代处理器普遍拥有多核。多线程允许程序将计算任务分解为可并行执行的部分，从而利用所有可用的 CPU 核心，显著缩短总执行时间。 简化编程模型：对于某些复杂...</div></div></div></a><a class="pagination-related" href="/144a2982746e/" title="Golang 内存泄漏深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-27</div><div class="info-item-2">Golang 内存泄漏深度解析</div></div><div class="info-2"><div class="info-item-1"> 内存泄漏 (Memory Leak) 是指程序在运行过程中，无法释放不再使用的内存资源，导致系统内存不断被占用，最终可能耗尽内存并引发程序崩溃或性能显著下降。尽管 Go 语言拥有垃圾回收 (Garbage Collector, GC) 机制，旨在自动化内存管理，但内存泄漏在 Go 程序中仍然可能发生。与 C&#x2F;C++ 中因 malloc 而未 free 导致的直接内存泄露不同，Go 中的内存泄漏通常是逻辑性泄漏，即 GC 无法回收的内存，因为它仍然被程序中的某个可达对象引用。  核心思想：在 Go 语言中，内存泄漏的根本原因是垃圾回收器认为某块内存仍然被“引用”或“可达”，即使这段内存实际上已经不再需要。这通常发生在长生命周期的对象无意中持有了对短生命周期对象的引用，或 goroutine 未能正确退出。   一、Go 语言的内存管理基础理解 Go 中的内存泄漏，首先需要回顾其内存管理的基本机制。 1.1 堆 (Heap) 与栈 (Stack) 栈 (Stack)：用于存储函数调用栈帧、局部变量和函数参数。栈内存由编译器自动管理，函数调用结束时，其对应的栈帧会被销毁，内...</div></div></div></a><a class="pagination-related" href="/1fcf53df8ed0/" title="Python推导式详解：列表、字典、集合与生成器推导式"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-02</div><div class="info-item-2">Python推导式详解：列表、字典、集合与生成器推导式</div></div><div class="info-2"><div class="info-item-1"> Python 推导式 (Comprehensions) 是一种简洁、优雅的语法糖 (Syntactic Sugar)，它允许我们以一行代码的形式创建列表、字典、集合和生成器。推导式是 Python 语言的一大特色，它能够显著提高代码的可读性和执行效率，是 Pythonic 编程风格的重要组成部分。  核心思想：推导式提供了一种声明式的方式来生成序列，通过将 for 循环和 if 条件语句内联到数据结构（列表、字典、集合）的创建中，从而避免了冗长的传统循环结构，使代码更加紧凑和富有表达力。   一、为什么使用推导式？在没有推导式之前，我们需要使用传统的 for 循环来创建新的列表、字典或集合。例如，创建一个包含平方数的列表： 传统 for 循环： 1234squares = []for i in range(10):    squares.append(i * i)print(squares) # Output: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]  使用列表推导式 (List Comprehension)，同样的操作可以简化为一行： 12s...</div></div></div></a><a class="pagination-related" href="/10866559bfd1/" title="Go 语言中的组合 (Composition) 与接口 (Interfaces) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-20</div><div class="info-item-2">Go 语言中的组合 (Composition) 与接口 (Interfaces) 详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言在设计之初就摒弃了传统面向对象编程 (OOP) 语言中的类继承机制。相反，它提供了一套独特且强大的机制来实现代码复用、扩展性和多态性：组合 (Composition) 通过结构体嵌入 (Struct Embedding)，以及多态通过接口 (Interfaces)。理解并熟练运用这两者，是编写地道 (idiomatic) 和高效 Go 代码的关键。  核心思想：Go 语言通过组合构建“has-a”关系来复用代码和数据结构，通过接口定义“behaves-like-a”关系来实现多态和松耦合。   一、Go 语言的设计哲学：组合优于继承传统 OOP 语言中的继承机制，尽管在代码复用和构建类型层次方面有所优势，但也常常导致紧耦合、僵化的类结构和“脆弱的基类问题”。Go 语言的设计者意识到了这些局限性，并选择了一条不同的道路：  避免继承的复杂性：Go 没有类，也没有继承，从而避免了多重继承带来的菱形问题和复杂的类层次结构。 强调行为而非类型：通过接口，Go 更关注“一个对象能做什么”，而不是“一个对象是什么类型”。 鼓励松耦合：组合和接口共同促进了组件之间的解耦，使得系统更...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">411</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">217</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%EF%BC%9F"><span class="toc-text">一、什么是内存泄漏？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%B8%B8%E8%A7%81%E7%9A%84-Java-%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E5%9C%BA%E6%99%AF"><span class="toc-text">二、常见的 Java 内存泄漏场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E9%9D%99%E6%80%81%E9%9B%86%E5%90%88%E7%B1%BB%E5%BC%95%E7%94%A8%E5%AF%B9%E8%B1%A1"><span class="toc-text">2.1 静态集合类引用对象</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%86%85%E9%83%A8%E7%B1%BB%E5%92%8C%E5%8C%BF%E5%90%8D%E5%86%85%E9%83%A8%E7%B1%BB%E6%8C%81%E6%9C%89%E5%A4%96%E9%83%A8%E7%B1%BB%E5%BC%95%E7%94%A8"><span class="toc-text">2.2 内部类和匿名内部类持有外部类引用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E8%87%AA%E5%AE%9A%E4%B9%89-ClassLoader-%E5%8A%A0%E8%BD%BD%E7%9A%84%E7%B1%BB%E6%9C%AA%E8%A2%AB%E5%8D%B8%E8%BD%BD"><span class="toc-text">2.3 自定义 ClassLoader 加载的类未被卸载</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E8%B5%84%E6%BA%90%E6%9C%AA%E5%85%B3%E9%97%AD"><span class="toc-text">2.4 资源未关闭</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-String-%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%B8%B8%E9%87%8F%E6%B1%A0%E9%97%AE%E9%A2%98-substring-%E5%AF%BC%E8%87%B4-JDK-6-%E5%8F%8A%E4%BB%A5%E5%89%8D"><span class="toc-text">2.5 String 字符串常量池问题 (substring() 导致) (JDK 6 及以前)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-ThreadLocal-%E5%AF%BC%E8%87%B4%E7%9A%84%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F"><span class="toc-text">2.6 ThreadLocal 导致的内存泄漏</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%A6%82%E4%BD%95%E6%A3%80%E6%B5%8B%E5%92%8C%E8%AF%8A%E6%96%AD%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F"><span class="toc-text">三、如何检测和诊断内存泄漏</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E7%9B%91%E6%8E%A7-JVM-%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8"><span class="toc-text">3.1 监控 JVM 内存使用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E7%94%9F%E6%88%90%E5%92%8C%E5%88%86%E6%9E%90%E5%A0%86%E8%BD%AC%E5%82%A8%E6%96%87%E4%BB%B6-Heap-Dump"><span class="toc-text">3.2 生成和分析堆转储文件 (Heap Dump)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E7%BB%93%E5%90%88%E4%BB%A3%E7%A0%81%E5%AE%A1%E6%9F%A5"><span class="toc-text">3.3 结合代码审查</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%A6%82%E4%BD%95%E9%81%BF%E5%85%8D%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F"><span class="toc-text">四、如何避免内存泄漏</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bfcc84247c6a/" title="智能体 (Agent) 详解：深入 LangChain 开发实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="智能体 (Agent) 详解：深入 LangChain 开发实践"/></a><div class="content"><a class="title" href="/bfcc84247c6a/" title="智能体 (Agent) 详解：深入 LangChain 开发实践">智能体 (Agent) 详解：深入 LangChain 开发实践</a><time datetime="2025-12-10T22:24:00.000Z" title="发表于 2025-12-11 06:24:00">2025-12-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Bun.js 深度解析：冷启动与边缘函数优化"/></a><div class="content"><a class="title" href="/28f993be5cfe/" title="Bun.js 深度解析：冷启动与边缘函数优化">Bun.js 深度解析：冷启动与边缘函数优化</a><time datetime="2025-12-07T22:24:00.000Z" title="发表于 2025-12-08 06:24:00">2025-12-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Go Jaeger 深度解析：分布式追踪实践"/></a><div class="content"><a class="title" href="/bcbe0f78ef1d/" title="Go Jaeger 深度解析：分布式追踪实践">Go Jaeger 深度解析：分布式追踪实践</a><time datetime="2025-12-04T22:24:00.000Z" title="发表于 2025-12-05 06:24:00">2025-12-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/15920229f914/" title="Supabase 深度解析"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Supabase 深度解析"/></a><div class="content"><a class="title" href="/15920229f914/" title="Supabase 深度解析">Supabase 深度解析</a><time datetime="2025-12-02T22:24:00.000Z" title="发表于 2025-12-03 06:24:00">2025-12-03</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-13.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script>(() => {
+  const option = null
+  const config = {"site_uv":true,"site_pv":true,"page_pv":true,"token":"qTvz1SkmPDt785fgh6BpiA5qiFFIVUwxj8Ft+rPW+cdN59v1hXjwRgSmy0+ji9m+oLlcxvo2NfDSMa6epVl3NTlsN3ejCIwWeP8Y51aEJ0Sbem4UexGmJLspB7AkOBId2SdtT6QWEBlGmFIIQgchQ2zAKYxTmc/kpBED5aLSr+3uvmQ9/G7FJQeVFpveDkK0xM1hu36xq4a6/FSeROxtoEp5zabzTWiYTlLsQzIl/NlELnCq3nxK+oo/vl3UQo/oM/rae/gJX/MaVKsgIUCd2ABJogNkx2KTenBIBpbPki5FzOgPh6/z4GPa4HvhNO51DDVG1SEQZooqEYmt/gnybLBWFbN+7liZWw=="}
+
+  const runTrack = () => {
+    if (typeof umami !== 'undefined' && typeof umami.track === 'function') {
+      umami.track(props => ({ ...props, url: window.location.pathname, title: GLOBAL_CONFIG_SITE.title }))
+    } else {
+      console.warn('Umami Analytics: umami.track is not available')
+    }
+  }
+
+  const loadUmamiJS = () => {
+    btf.getScript('https://umami.012700.xyz/script.js', {
+      'data-website-id': '2a796d6c-6499-42d8-8eb4-d9a2930b0ff3',
+      'data-auto-track': 'false',
+      ...option
+    }).then(() => {
+      runTrack()
+    }).catch(error => {
+      console.error('Umami Analytics: Error loading script', error)
+    })
+  }
+
+  const getData = async (isPost) => {
+    try {
+      const now = Date.now()
+      const keyUrl = isPost ? `&url=${window.location.pathname}&path=${window.location.pathname}` : ''
+      const headerList = { 'Accept': 'application/json' }
+
+      if (true) {
+        headerList['Authorization'] = `Bearer ${config.token}`
+      } else {
+        headerList['x-umami-api-key'] = config.token
+      }
+
+      const res = await fetch(`https://umami.012700.xyz/api/websites/2a796d6c-6499-42d8-8eb4-d9a2930b0ff3/stats?startAt=0000000000&endAt=${now}${keyUrl}`, {
+        method: "GET",
+        headers: headerList
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      return await res.json()
+    } catch (error) {
+      console.error('Umami Analytics: Failed to fetch data', error)
+      throw error
+    }
+  }
+
+  const insertData = async () => {
+    try {
+      if (GLOBAL_CONFIG_SITE.pageType === 'post' && config.page_pv) {
+        const pagePV = document.getElementById('umamiPV')
+        if (pagePV) {
+          const data = await getData(true)
+          if (data && data.pageviews) {
+            pagePV.textContent = typeof data.pageviews.value !== 'undefined' ? data.pageviews.value : data.pageviews
+          } else {
+            console.warn('Umami Analytics: Invalid page view data received')
+          }
+        }
+      }
+
+      if (config.site_uv || config.site_pv) {
+        const data = await getData(false)
+
+        if (config.site_uv) {
+          const siteUV = document.getElementById('umami-site-uv')
+          if (siteUV && data && data.visitors) {
+            siteUV.textContent = typeof data.visitors.value !== 'undefined' ? data.visitors.value : data.visitors
+          } else if (siteUV) {
+            console.warn('Umami Analytics: Invalid site UV data received')
+          }
+        }
+
+        if (config.site_pv) {
+          const sitePV = document.getElementById('umami-site-pv')
+          if (sitePV && data && data.pageviews) {
+            sitePV.textContent = typeof data.pageviews.value !== 'undefined' ? data.pageviews.value : data.pageviews
+          } else if (sitePV) {
+            console.warn('Umami Analytics: Invalid site PV data received')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Umami Analytics: Failed to insert data', error)
+    }
+  }
+
+  btf.addGlobalFn('pjaxComplete', runTrack, 'umami_analytics_run_track')
+  btf.addGlobalFn('pjaxComplete', insertData, 'umami_analytics_insert')
+
+
+  loadUmamiJS()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', insertData)
+  } else {
+    setTimeout(insertData, 100)
+  }
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
