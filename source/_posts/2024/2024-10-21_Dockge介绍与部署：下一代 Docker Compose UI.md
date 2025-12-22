@@ -9,197 +9,214 @@ categories:
   - Docker
 ---
 
-> 如果你经常使用 Docker Compose 来管理容器应用，并且厌倦了命令行界面，或者觉得 Portainer 过于庞大复杂，那么 **Dockge** 可能会成为你的新宠。Dockge 是一个轻量级、直观且专注于 Docker Compose 的 Web UI 工具，它旨在简化 Docker Compose 项目的创建、编辑、部署和管理，让你能够更高效地维护你的容器化服务。
+> **Dockge** 是一个现代化、用户友好的 **Docker Compose 管理 Web UI**，旨在简化 Docker Compose 栈的部署、管理和监控。它提供了一个直观的图形界面，让用户能够通过浏览器轻松地创建、编辑、部署、启动、停止和监控他们的 `docker-compose.yml` 文件所定义的容器服务。Dockge 特别适用于需要方便地管理多个 Compose 栈，或不习惯命令行操作的场景。
 
 {% note info %}
-“好的工具让复杂的事情变得简单，Dockge 就是让 Docker Compose 更友好的工具。”
+核心思想：**将 Docker Compose 的命令行操作图形化，提供实时反馈和集中管理能力。**
 {% endnote %}
+
 ------
 
-## 一、Dockge 是什么？
+## 一、为什么需要 Dockge？
 
-Dockge 是一个开源的 Docker Compose 管理工具，它提供了一个简洁的 Web 界面，让你可以：
+Docker Compose 是管理多容器 Docker 应用程序的强大工具，但其操作主要依赖命令行。对于不熟悉 CLI 的用户，或需要同时管理大量 Compose 栈的场景，命令行操作可能显得繁琐且效率低下。Dockge 旨在解决这些痛点：
 
-*   **可视化管理 Docker Compose 项目**：轻松查看所有 Docker Compose 堆栈（Stack）的状态。
-*   **在线编辑 `docker-compose.yml` 文件**：直接在浏览器中编辑并保存更改，无需 SSH 到服务器。
-*   **一键部署和管理堆栈**：启动、停止、重启、删除整个 Docker Compose 堆栈。
-*   **查看容器日志**：实时查看容器的输出日志。
-*   **管理容器卷**：查看和操作容器创建的卷。
-*   **简单易用**：专注于 Docker Compose 核心功能，没有过多的额外负担。
+1.  **图形化操作**：提供直观的 Web 界面，替代复杂的命令行输入。
+2.  **实时日志与状态**：方便用户查看容器的实时日志和运行状态。
+3.  **集中管理**：在一个界面中管理所有 `docker-compose.yml` 文件定义的栈。
+4.  **文件编辑**：直接在浏览器中编辑和保存 `docker-compose.yml` 文件。
+5.  **易于部署**：自身也是一个 Docker 容器，通过简单的 `docker-compose.yml` 即可快速部署。
+6.  **安全重构**：提供一个“安全网”，允许用户在修改 Compose 文件后，先查看差异再应用更改。
 
-**核心特点：**
+## 二、Dockge 的核心功能
 
-*   **轻量级**：安装和运行资源占用极低。
-*   **易上手**：界面直观，功能聚焦。
-*   **命令行友好**：底层依然是调用 Docker Compose 命令，所有操作都能通过 UI 完成，但也允许你在需要时介入命令行。
-*   **安全**：支持多用户管理和权限控制（计划中或高级配置）。
-*   **Docker 原生**：直接与 Docker 后台通信。
+Dockge 提供了一系列功能来增强 Docker Compose 的使用体验：
 
-## 二、为什么选择 Dockge？
+*   **栈管理**：
+    *   **创建/部署新栈**：通过界面上传或直接编写 `docker-compose.yml` 文件来创建新栈。
+    *   **启动/停止/重启/删除栈**：对整个 Compose 栈进行生命周期管理。
+    *   **查看栈状态**：清晰展示每个服务和容器的运行状态。
+*   **文件编辑器**：
+    *   内置支持 YAML 语法高亮的编辑器，方便直接在浏览器中修改 `docker-compose.yml` 文件。
+    *   支持版本控制（通过 Git 集成）和更改预览。
+*   **容器日志**：
+    *   实时流式传输每个容器的日志输出。
+    *   支持日志搜索和筛选。
+*   **容器操作**：
+    *   执行单个容器的启动、停止、重启。
+    *   连接到容器的终端 (Terminal)。
+*   **文件浏览器**：
+    *   在 Web UI 中浏览和管理栈目录下的文件。
+*   **模板/App Store**：
+    *   提供预定义的 Compose 栈模板，方便快速部署常用服务（如 Portainer、数据库、Web 服务器等）。
+*   **系统信息**：
+    *   显示 Docker 主机的基本信息、资源使用情况等。
 
-*   **厌倦了 SSH 和 Vim？**：如果你的服务器上没有 VIM 或 Nano 等顺手的编辑器，或者你不喜欢在命令行中编辑 YAML 文件，Dockge 提供了一个方便的浏览器内编辑器。
-*   **追求轻量化**：Portainer 固然强大，但对于只关注 Docker Compose 的用户来说，可能显得过于复杂和臃肿。Dockge 更专注于此，提供更精简的体验。
-*   **团队协作**：方便团队成员共同管理 Docker Compose 项目，无需每个人都熟悉 SSH 和命令行操作。
-*   **简化自动化**：结合 GitHub Actions 或其他 CI/CD 工具，可以实现无人值守的部署更新。
-*   **个人服务器管理**：对于个人 Homelab 或小型服务器用户，Dockge 是一个极佳的控制面板。
+## 三、Dockge 的工作原理
 
-## 三、部署 Dockge
+Dockge 本质上是一个运行在 Docker 容器中的 Web 应用程序。它通过挂载 Docker Unix Socket (`/var/run/docker.sock`) 来与宿主机上的 Docker Daemon 进行通信。
 
-Dockge 推荐使用 Docker Compose 自身来部署。
+{% mermaid %}
+graph TD
+    A[Client Browser] -->|HTTP/HTTPS| B(Dockge Web UI Container)
+    B -->|"Docker API (via <br>/var/run/docker.sock)"| C(Docker Daemon on Host)
+    C --> D(Managed Docker <br>Containers/Stacks on Host)
+{% endmermaid %}
 
-### 1. 先决条件
+**关键概念定义：**
 
-*   一台运行 **Linux** 的服务器（支持 Docker Desktop for Windows/macOS，但通常用于服务器）
-*   已安装 **Docker** 和 **Docker Compose** (或 Docker CLI 的 `compose` 插件)。
-    *   可以通过 `docker --version` 和 `docker compose version` (或 `docker-compose --version`) 检查。
+*   **Docker Daemon**：Docker 的核心组件，负责构建、运行和管理 Docker 容器。
+*   **Docker Compose**：用于定义和运行多容器 Docker 应用程序的工具。它使用 YAML 文件来配置应用程序的服务、网络和卷。
+*   **Docker Unix Socket (`/var/run/docker.sock`)**：Docker Daemon 提供的一个本地 API 接口，允许其他应用程序通过这个 socket 与 Daemon 进行通信，执行 Docker 命令。Dockge 通过访问这个 socket 来管理 Docker 容器。
 
-### 2. 部署步骤
+## 四、安装 Dockge
 
-#### 步骤 1：创建 Dockge 的数据目录
+Dockge 推荐通过 Docker Compose 自身进行部署。以下是标准的安装步骤。
 
-首先，创建一个目录来存储 Dockge 的配置数据和 `docker-compose.yml` 文件。这个目录我们将称之为 `stacks` 目录。
+### 4.1 准备工作
 
-通过 SSH 连接到你的服务器：
+1.  确保您的系统已安装 Docker 和 Docker Compose。
+2.  创建一个目录来存放 Dockge 的 `docker-compose.yml` 文件和相关配置。例如：
+    ```bash
+    mkdir -p ~/dockge
+    cd ~/dockge
+    ```
 
-```bash
-mkdir -p /opt/stacks
-```
+### 4.2 创建 `docker-compose.yml` 文件
 
-#### 步骤 2：创建 Docker Compose 文件
-
-进入刚刚创建的目录，并创建一个 `docker-compose.yml` 文件来部署 Dockge 本身。
-
-```bash
-cd /opt/stacks
-nano docker-compose.yml # 或者其他你喜欢的编辑器，如 vi
-```
-
-将以下内容粘贴到 `docker-compose.yml` 文件中：
+在 `~/dockge` 目录下创建 `docker-compose.yml` 文件，内容如下：
 
 ```yaml
+# ~/dockge/docker-compose.yml
 version: "3.8"
 services:
   dockge:
-    image: louislam/dockge:1 # 使用最新的 Dockge 镜像
+    image: louislam/dockge:latest
     container_name: dockge
     restart: unless-stopped
     ports:
-      - 5001:5001 # Dockge web UI 默认运行在 5001 端口
+      - 5001:5001 # Dockge Web UI 端口
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # 必须挂载 Docker Vsock, 允许 Dockge 与 Docker Daemon 通信
-      - ./data:/app/data                          # Dockge 自身的数据存储 (包括登录信息等)
-      - /opt/stacks:/opt/stacks                   # 你的 Docker Compose 项目（堆栈）存放目录。此目录将被 Dockge 管理。
+      - /var/run/docker.sock:/var/run/docker.sock # 允许 Dockge 与 Docker Daemon 通信
+      - ./data:/app/data # Dockge 自身的数据存储 (配置, 日志等)
+      - ~/stacks:/opt/stacks # 存放所有你的 docker-compose.yml 文件的目录
     environment:
-      # PUID = 1000 and PGID = 100 usually for default user.
-      # Check your ID (id <your_username>) and modify if necessary.
-      # - PUID=1000 # 容器内用户ID，通常是 default user，可能需要根据自己系统的用户ID调整
-      # - PGID=100  # 容器内用户组ID，通常是 users group，可能需要根据自己系统的用户组ID调整
-      - TZ=Asia/Shanghai # 设置时区
-      - DOCKGE_STACKS_DIR=/opt/stacks
+      # Dockge 的环境变量 (可选)
+      - DOCKGE_PASSWORD=your_secure_password # 设置你的 Dockge 登录密码
+      # - DOCKGE_USERNAME=admin # 默认用户名为 admin
+      # - DOCKGE_PORT=5001 # 默认端口
 ```
 
-**重要说明：**
+**解释：**
 
-*   `image: louislam/dockge:latest`：确保你拉取的是最新的 Dockge 镜像。
-*   `ports: - 5001:5001`：将容器的 5001 端口映射到主机的 5001 端口。你可以根据需要更改主机端口。
-*   `volumes:`
-    *   `/var/run/docker.sock:/var/run/docker.sock`：**这是 Dockge 能够与 Docker Daemon 通信的关键。** 这是一个特权挂载，请确保你理解其潜在的安全风险。
-    *   `./data:/app/data`：这是 Dockge 存储自身配置和持久化数据的地方。`./data` 会在 `/opt/stacks/data` 中创建。
-    *   `/opt/stacks:/app/stacks`：**这是 Dockge 管理你的所有 Docker Compose 项目的核心目录。** 在此目录下的所有子目录中，如果包含 `docker-compose.yml` 文件，Dockge 都会将其识别为一个堆栈。
-*   `PUID` 和 `PGID`：为了确保 Dockge 容器内的进程拥有正确的权限来读写主机的 `/opt/stacks` 目录。
-    *   你可以通过 SSH 登录服务器后，运行 `id your_username` 命令来查看你当前用户的 `uid` (`PUID`) 和 `gid` (`PGID`)。
-    *   对于大多数 Linux 发行版，默认用户的 `uid=1000`, `gid=1000` (或 `gid=100` for `users` group)。请根据实际情况进行调整。
+*   `image: louislam/dockge:latest`：使用最新的 Dockge 官方镜像。
+*   `container_name: dockge`：指定容器名称。
+*   `ports: - 5001:5001`：将宿主机的 5001 端口映射到容器的 5001 端口，用于访问 Web UI。
+*   `volumes:`：
+    *   `/var/run/docker.sock:/var/run/docker.sock`：**核心配置**，允许 Dockge 容器访问宿主机的 Docker Daemon。
+    *   `./data:/app/data`：将宿主机当前目录下的 `data` 文件夹挂载到容器内部，用于存储 Dockge 自身的配置和数据。
+    *   `~/stacks:/opt/stacks`：将宿主机的 `~/stacks` 目录（你可以替换为任何你希望存放 Compose 文件的目录）挂载到容器内部的 `/opt/stacks`。Dockge 会在这个目录中查找和管理你的 Compose 栈。**请务必替换 `~/stacks` 为你实际的目录路径。**
+*   `environment:`：设置 Dockge 的环境变量，例如 `DOCKGE_PASSWORD` 用于设置登录密码，提高安全性。
 
-保存并关闭文件。
+### 4.3 启动 Dockge
 
-#### 步骤 3：启动 Dockge 容器
-
-在 `/opt/stacks` 目录下，执行以下命令来启动 Dockge：
+在 `~/dockge` 目录下执行以下命令来启动 Dockge 容器：
 
 ```bash
-sudo docker compose up -d
+docker compose up -d
 ```
 
-*   `docker compose up`：根据 `docker-compose.yml` 文件创建并启动服务。（旧版本 Docker 可能需要用 `docker-compose` 命令）
-*   `-d`：表示在后台运行容器。
+`up` 命令会创建并启动服务，`-d` 参数表示在后台运行。
 
-如果一切顺利，Dockge 容器应该已经启动并运行。
+### 4.4 访问 Dockge Web UI
 
-#### 步骤 4：检查容器状态
+安装完成后，打开浏览器，访问 `http://<Your_Server_IP_or_Hostname>:5001`。
+如果你在 `docker-compose.yml` 中设置了 `DOCKGE_PASSWORD`，系统会提示你输入密码登录。
 
-```bash
-sudo docker ps -a | grep dockge
-```
+## 五、使用 Dockge 管理 Docker Compose 栈
 
-你应该看到 `dockge` 容器的状态是 `Up ...`。
+### 5.1 创建你的第一个 Compose 栈
 
-#### 步骤 5：访问 Dockge Web UI
+假设你希望部署一个简单的 Go Web 应用，它暴露在 8080 端口。
 
-打开你的浏览器，访问 `http://你的服务器IP:5001`。
-
-首次访问时，你需要创建一个管理员用户：
-
-1.  输入用户名。
-2.  输入密码。
-3.  点击 `创建`。
-
-登录后，你将看到 Dockge 的主界面。由于我们刚刚将 `/opt/stacks` 目录映射为 Dockge 的 `stacks` 目录，Dockge 应该会自动检测到在你创建 `docker-compose.yml` 文件的当前目录下的一个叫做 `dockge` 的堆栈。
-
-### 3. 多堆栈管理示例
-
-Dockge 的强大之处在于管理多个 Docker Compose 堆栈。
-
-假设你现在想在服务器上部署一个 `Nginx` 服务。
-
-1.  **在 `/opt/stacks` 目录下创建一个新的子目录**（例如 `nginx`）：
+1.  **在宿主机创建栈目录**：在之前配置的 `~/stacks` 目录下创建一个新的子目录，例如 `my-go-app`。
     ```bash
-    mkdir -p /opt/stacks/nginx
-    cd /opt/stacks/nginx
+    mkdir -p ~/stacks/my-go-app
     ```
-2.  **创建 `docker-compose.yml` 文件**：
-    ```bash
-    nano docker-compose.yml
+2.  **准备 Go 应用代码和 Dockerfile**：
+    `~/stacks/my-go-app/main.go`
+    ```go
+    package main
+
+    import (
+    	"fmt"
+    	"log"
+    	"net/http"
+    )
+
+    func handler(w http.ResponseWriter, r *http.Request) {
+    	fmt.Fprintf(w, "Hello from Go App running via Dockge! Path: %s\n", r.URL.Path)
+    }
+
+    func main() {
+    	http.HandleFunc("/", handler)
+    	port := "8080"
+    	log.Printf("Go App listening on port %s", port)
+    	log.Fatal(http.ListenAndServe(":"+port, nil))
+    }
     ```
-    粘贴如下 Nginx 服务的 Docker Compose 配置：
-    ```yaml
-    version: '3.8'
-    services:
-      nginx:
-        image: nginx:latest
-        container_name: my-nginx
-        restart: unless-stopped
-        ports:
-          - "80:80"        # 映射主机80端口到容器80端口
-          - "443:443"      # 映射主机443端口到容器443端口
-        volumes:
-          - ./nginx.conf:/etc/nginx/nginx.conf:ro # 挂载自定义Nginx配置
-          - ./html:/usr/share/nginx/html:ro       # 挂载静态网页文件
-        environment:
-          - PUID=1000
-          - PGID=100
-          - TZ=Asia/Shanghai
+    `~/stacks/my-go-app/Dockerfile`
+    ```dockerfile
+    FROM golang:1.21-alpine
+    WORKDIR /app
+    COPY . .
+    RUN go mod init example.com/my-go-app || true # Initialize go module, ignore error if already exists
+    RUN go mod tidy
+    RUN go build -o /my-go-app
+    EXPOSE 8080
+    CMD ["/my-go-app"]
     ```
-    保存并关闭文件。
+3.  **在 Dockge 中创建 `docker-compose.yml`**：
+    *   在 Dockge UI 中，点击左侧导航栏的 **"Stacks"**。
+    *   点击右上角的 **"New Stack"** 或选择你刚刚创建的 `my-go-app` 目录。
+    *   在文件编辑器中输入以下 `docker-compose.yml` 内容：
+        ```yaml
+        # ~/stacks/my-go-app/docker-compose.yml
+        version: '3.8'
+        services:
+          go-web-app:
+            build: . # Dockerfile 位于当前目录 (my-go-app)
+            ports:
+              - "8081:8080" # 将宿主机的 8081 端口映射到容器的 8080 端口
+            volumes:
+              - ./main.go:/app/main.go # 如果需要热重载或其他文件同步，可以这样挂载
+              - ./Dockerfile:/app/Dockerfile
+            restart: unless-stopped
+            environment:
+              - APP_PORT=8080
+        ```
+    *   点击 **"Save"** 保存文件。
 
-3.  **在 Dockge UI 中刷新**：
-    返回 Dockge 的 Web 界面，你会在左侧的导航栏或主界面的堆栈列表中看到多一个名为 `nginx` 的堆栈。
-    *   点击 `nginx` 堆栈，你可以查看其详情。
-    *   点击绿色的 `Up` 按钮，Dockge 就会拉取 Nginx 镜像并启动容器。
+### 5.2 部署和管理栈
 
-通过这种方式，你可以在一个集中的界面管理你的各种服务，每个服务都拥有独立的 `docker-compose.yml` 文件。
+1.  **部署**：在文件编辑器保存后，点击界面上的 **"Up"** 按钮，Dockge 会执行 `docker compose up -d` 操作，构建镜像并启动服务。你可以实时看到构建和启动日志。
+2.  **查看日志**：在栈详情页面，你可以看到 `go-web-app` 服务的实时日志。
+3.  **访问应用**：部署成功后，你可以通过 `http://<Your_Server_IP_or_Hostname>:8081` 访问你的 Go Web 应用。
+4.  **停止/重启/删除**：界面上会有相应的按钮，方便你对整个栈或单个服务进行操作。
 
-## 四、Dockge 界面功能速览
+## 六、Dockge 与其他 Docker Web UIs 的比较 (简要)
 
-*   **Stacks (堆栈)**：列出所有检测到的 Docker Compose 项目。可以一键启动、停止、重启、删除（包括强制删除）。
-*   **Edit (编辑)**：直接在浏览器中打开 `docker-compose.yml` 文件进行编辑，支持语法高亮和基本的错误检查。编辑后会提示你保存并应用更改。
-*   **Logs (日志)**：查看堆栈中所有容器的实时日志。
-*   **Settings (设置)**：配置 Dockge 本身的一些行为，例如用户管理（未来功能）、主题等。
-*   **更新 Dockge**：在 Dockge UI 内部，你通常可以找到一个按钮来更新 Dockge 自身到最新版本。
+*   **Portainer**：功能更强大，提供了更细粒度的容器、镜像、网络、卷等管理功能，支持 Swarm、Kubernetes 等编排工具，但其主要焦点是 Docker 本身，Compose 管理相对次要。Portainer 适合需要全面 Docker 管理的企业级或复杂环境。
+*   **Dockge**：专注于 Docker Compose 栈的管理，界面简洁直观，实时日志和文件编辑是亮点。它更轻量，学习成本低，非常适合个人开发者、小型团队或仅需要管理 Compose 服务的场景。
 
-## 五、总结与展望
+Dockge 的优势在于其**专注性和简洁性**，它不是一个大而全的 Docker 管理工具，而是致力于把 Docker Compose 管理做到极致，提供流畅的用户体验。
 
-Dockge 是一个非常有前景的 Docker Compose Web UI 工具。它专注于核心功能，提供了简洁直观的用户体验，非常适合那些希望通过图形界面来管理 Docker Compose 堆栈的个人开发者或小型团队。
+## 七、安全性考虑
 
-如果你正在寻找一个轻量级、功能强大且易于使用的 Docker Compose 管理工具，那么 Dockge 绝对值得一试。它能帮你告别繁琐的命令行操作，让 Docker 容器的部署和管理变得更加轻松愉悦。
+*   **访问控制**：务必设置 `DOCKGE_PASSWORD` 环境变量，为 Dockge UI 添加访问密码，防止未经授权的访问。
+*   **网络安全**：如果将 Dockge 暴露到公共网络，请确保使用 HTTPS 进行加密传输，并考虑通过反向代理（如 Nginx, Caddy）来管理访问。
+*   **权限最小化**：Dockge 需要访问 Docker Socket，这意味着它拥有与 Docker Daemon 几乎相同的权限。请确保只有受信任的用户才能访问 Dockge。不要将 Dockge 暴露给不可信的环境。
 
-开始使用 Dockge 吧，让你的容器管理效率更上一层楼！
+## 八、总结
+
+Dockge 为 Docker Compose 用户提供了一个现代化、高效且易于使用的图形界面，极大地简化了多容器应用的部署和管理。通过其直观的栈管理、实时日志、内置文件编辑器以及模板支持，Dockge 成为了个人开发者和小型团队管理其 Docker Compose 服务的理想选择。它不仅提升了开发效率，也降低了 Docker Compose 的使用门槛，让更多用户能够享受到容器化带来的便利。

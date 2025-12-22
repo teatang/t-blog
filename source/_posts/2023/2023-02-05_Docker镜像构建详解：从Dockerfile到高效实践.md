@@ -33,14 +33,14 @@ Docker 镜像构建是一个**分层 (Layered)** 且**基于指令 (Instruction-
     *   Docker 利用写时复制机制来优化存储空间。当容器需要修改只读镜像层中的文件时，该文件首先会被复制到容器的可写层中，然后再进行修改。原始文件在只读层中保持不变。
     *   这使得镜像能够高效地共享，并且容器的启动速度很快。
 
-```mermaid
+{% mermaid %}
 graph TD
-    A[基础镜像层 (FROM)] --> B[RUN 指令 1]
+    A["基础镜像层 (FROM)"] --> B[RUN 指令 1]
     B --> C[COPY 指令]
     C --> D[RUN 指令 2]
-    D --> E[CMD/ENTRYPOINT (执行时创建容器层)]
-    E -- 容器启动 --> F[可写容器层 (Container Layer)]
-```
+    D --> E["CMD/ENTRYPOINT <br>(执行时创建容器层)"]
+    E -- 容器启动 --> F["可写容器层 <br>(Container Layer)"]
+{% endmermaid %}
 
 ## 二、`docker build` 命令详解
 
