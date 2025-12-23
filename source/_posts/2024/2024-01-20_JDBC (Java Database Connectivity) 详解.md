@@ -38,8 +38,8 @@ JDBC 的目标就是解决这些问题，提供一个**“一次编写，处处�
 {% mermaid %}
 graph TD
     A[Java Application] -->|JDBC API Calls| B[JDBC Driver Manager]
-    B -->|加载并管理| C["JDBC Driver (Vendor Specific)"]
-    C -->|通过网络协议| D["Database (MySQL, Oracle, PostgreSQL, etc.)"]
+    B -->|加载并管理| C["JDBC Driver <br>(Vendor Specific)"]
+    C -->|通过网络协议| D["Database (MySQL, <br>Oracle, PostgreSQL, etc.)"]
 {% endmermaid %}
 
 ## 二、JDBC 核心组件与接口
