@@ -1,0 +1,487 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>CFFI (C Foreign Function Interface for Python) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="CFFI (C Foreign Function Interface) 是一个用于 Python 的外部包，它提供了一种在 Python 代码中与几乎任何 C 代码进行交互的强大机制。它允许 Python 程序直接调用 C 库中的函数，并访问 C 语言的数据结构，从而实现高性能计算、利用现有 C 库或将 Python 代码暴露给 C&#x2F;C++ 应用程序等目的。  CFFI 旨在简化 Py">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CFFI (C Foreign Function Interface for Python) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/0c48c5fa5942/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="CFFI (C Foreign Function Interface) 是一个用于 Python 的外部包，它提供了一种在 Python 代码中与几乎任何 C 代码进行交互的强大机制。它允许 Python 程序直接调用 C 库中的函数，并访问 C 语言的数据结构，从而实现高性能计算、利用现有 C 库或将 Python 代码暴露给 C&#x2F;C++ 应用程序等目的。  CFFI 旨在简化 Py">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg">
+<meta property="article:published_time" content="2025-12-23T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-24T07:56:13.749Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="程序设计">
+<meta property="article:tag" content="2025">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "CFFI (C Foreign Function Interface for Python) 详解",
+  "url": "https://blog.tbf1211.xx.kg/0c48c5fa5942/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg",
+  "datePublished": "2025-12-23T22:24:00.000Z",
+  "dateModified": "2025-12-24T07:56:13.749Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/0c48c5fa5942/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'CFFI (C Foreign Function Interface for Python) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">431</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">222</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-13.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">CFFI (C Foreign Function Interface for Python) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">CFFI (C Foreign Function Interface for Python) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/">Python</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>CFFI (C Foreign Function Interface)</strong> 是一个用于 Python 的外部包，它提供了一种在 Python 代码中与几乎任何 C 代码进行交互的强大机制。它允许 Python 程序直接调用 C 库中的函数，并访问 C 语言的数据结构，从而实现高性能计算、利用现有 C 库或将 Python 代码暴露给 C&#x2F;C++ 应用程序等目的。</p>
+</blockquote>
+<div class="note info flat"><p>CFFI 旨在简化 Python 与 C 语言的集成，提供比标准库 <code>ctypes</code> 模块更丰富、更流畅的接口，且在许多情况下不需要 C 编译器即可工作。</p>
+</div>
+
+<h2 id="一、为什么需要-CFFI？"><a href="#一、为什么需要-CFFI？" class="headerlink" title="一、为什么需要 CFFI？"></a>一、为什么需要 CFFI？</h2><p>Python 语言以其简洁性和高效开发著称，但在某些场景下，由于其解释执行的特性，可能无法满足对极致性能的要求。此外，许多高性能或底层系统库都是用 C 或 C++ 编写的。为了解决这些问题，我们需要一种机制让 Python 代码能够调用这些 C&#x2F;C++ 库。</p>
+<p>传统的 Python 与 C 交互方式包括：</p>
+<ol>
+<li><strong>编写 C 扩展模块 (C Extension Modules)</strong>：这是最全面、性能最高的集成方式，但开发复杂，需要深入理解 Python&#x2F;C API，并且每次修改 C 代码都需要重新编译。</li>
+<li><strong><code>ctypes</code> 模块</strong>：Python 标准库中提供的 C 外部函数接口。它允许在运行时加载共享库并调用其中的函数，而无需编写任何 C 代码。然而，<code>ctypes</code> 在某些方面被认为“笨重”且冗长，尤其在处理复杂 C 结构体和指针时。</li>
+<li><strong>Cython</strong>：一种 Python 的超集，可以编译成 C 代码，然后再编译成 Python 扩展模块。Cython 提供了类似于 Python 的语法来编写 C 扩展，并且支持与 C 库的高效交互。然而，它引入了一种新的语言（尽管与 Python 高度相似）。</li>
+</ol>
+<p><strong>CFFI 旨在提供一个更现代、更灵活的替代方案，融合了 <code>ctypes</code> 的简便性（无需额外编译 C 扩展）和 Cython 的高效性（在 API 模式下）</strong>。</p>
+<h2 id="二、CFFI-的核心概念与工作模式"><a href="#二、CFFI-的核心概念与工作模式" class="headerlink" title="二、CFFI 的核心概念与工作模式"></a>二、CFFI 的核心概念与工作模式</h2><p>CFFI 工作的核心是声明 C 函数原型和数据结构。用户需要提供类似 C 语言的声明，通常可以直接从 C 头文件或文档中复制粘贴，然后 CFFI 会自动 marshaling（数据编组）Python 数据到 C 类型并将其从 C 类型转换回 Python。</p>
+<h3 id="2-1-声明-C-接口-cdef"><a href="#2-1-声明-C-接口-cdef" class="headerlink" title="2.1 声明 C 接口 (cdef)"></a>2.1 声明 C 接口 (cdef)</h3><p><code>ffibuilder.cdef()</code> 方法用于向 CFFI 声明你希望使用的 C 函数原型、类型、常量和全局变量。</p>
+<p><strong>示例：</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> cffi <span class="keyword">import</span> FFI</span><br><span class="line"></span><br><span class="line">ffibuilder = FFI()</span><br><span class="line"></span><br><span class="line">ffibuilder.cdef(<span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    // 声明一个 C 函数原型</span></span><br><span class="line"><span class="string">    int puts(const char* s);</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    // 声明一个 C 结构体</span></span><br><span class="line"><span class="string">    typedef struct &#123;</span></span><br><span class="line"><span class="string">        int x;</span></span><br><span class="line"><span class="string">        int y;</span></span><br><span class="line"><span class="string">    &#125; Point;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    // 声明一个操作 Point 结构体的函数</span></span><br><span class="line"><span class="string">    void move_point(Point *p, int dx, int dy);</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-两种主要模式：ABI-对比-API"><a href="#2-2-两种主要模式：ABI-对比-API" class="headerlink" title="2.2 两种主要模式：ABI 对比 API"></a>2.2 两种主要模式：ABI 对比 API</h3><p>CFFI 可以在两种主要的操作模式下工作：<strong>ABI (Application Binary Interface) 模式</strong> 和 <strong>API (Application Programming Interface) 模式</strong>。这两种模式又可以结合“in-line”或“out-of-line”准备&#x2F;编译方式。</p>
+<h4 id="2-2-1-API-Application-Programming-Interface-模式"><a href="#2-2-1-API-Application-Programming-Interface-模式" class="headerlink" title="2.2.1 API (Application Programming Interface) 模式"></a>2.2.1 API (Application Programming Interface) 模式</h4><ul>
+<li><strong>定义</strong>：API 定义了软件组件之间在<strong>源代码级别</strong>如何交互。它是开发者使用的函数、协议和工具集合，是一个源代码层面的契约。</li>
+<li><strong>CFFI 中的 API 模式</strong>：在此模式下，CFFI 利用 C 编译器在构建时生成一个真正的 C 扩展模块 (.so&#x2F;.dll&#x2F;.dylib)。这提供更强的类型检查、更高的性能以及对复杂 C 特性（如某些宏）更好的支持。</li>
+<li><strong>优点</strong>：更快、更健壮，编译器可以在构建时捕获更多错误。</li>
+<li><strong>缺点</strong>：需要系统上安装 C 编译器（如 GCC 或 Clang）。</li>
+<li><strong>适用场景</strong>：推荐用于生产环境，当可以接受编译步骤时。</li>
+</ul>
+<h4 id="2-2-2-ABI-Application-Binary-Interface-模式"><a href="#2-2-2-ABI-Application-Binary-Interface-模式" class="headerlink" title="2.2.2 ABI (Application Binary Interface) 模式"></a>2.2.2 ABI (Application Binary Interface) 模式</h4><ul>
+<li><strong>定义</strong>：ABI 定义了软件组件之间在<strong>二进制级别</strong>如何交互，包括函数调用约定、数据结构内存布局（如类型大小和对齐）、符号命名和可见性等低级细节。ABI 是编译器、链接器和 CPU 赖以工作的基础，是二进制层面的契约，确保不同编译单元之间在运行时兼容。</li>
+<li><strong>CFFI 中的 ABI 模式</strong>：CFFI 直接访问已编译库的二进制级别。它在运行时动态加载共享库，并通过分析其导出的符号来调用函数。此模式不需要 C 编译器。</li>
+<li><strong>优点</strong>：无需 C 编译器，更容易上手、部署。</li>
+<li><strong>缺点</strong>：类型检查不如 API 模式严格，如果 C 声明与实际的二进制接口存在细微不匹配，更容易导致运行时崩溃。性能通常低于 API 模式。</li>
+<li><strong>适用场景</strong>：适用于快速原型开发、测试，或当目标系统无法安装 C 编译器时。</li>
+</ul>
+<h4 id="2-2-3-in-line-与-out-of-line-模式"><a href="#2-2-3-in-line-与-out-of-line-模式" class="headerlink" title="2.2.3 in-line 与 out-of-line 模式"></a>2.2.3 in-line 与 out-of-line 模式</h4><p>在 ABI 或 API 模式下，CFFI 可以通过“in-line”或“out-of-line”方式进行准备。</p>
+<ul>
+<li><strong>In-line 模式</strong>：所有设置在每次 Python 代码导入时完成。这意味着 <code>cdef()</code> 和 <code>ffi.dlopen()</code> （在 ABI 模式下）或 <code>ffibuilder.set_source()</code> &#x2F; <code>ffibuilder.compile()</code> （在 API 模式下）都在运行时执行。适用于小型、简单的接口或快速测试。</li>
+<li><strong>Out-of-line 模式</strong>：有一个单独的预处理或编译步骤，会生成一个可导入的 Python 模块。主程序随后直接导入这个已生成的模块。这可以显著减少导入时间，并允许在构建时进行更详细的检查。<ul>
+<li><strong>推荐方式</strong>：通常，out-of-line API 模式是推荐的，因为它兼具性能和健壮性。</li>
+</ul>
+</li>
+</ul>
+<h2 id="三、CFFI-使用示例-Python"><a href="#三、CFFI-使用示例-Python" class="headerlink" title="三、CFFI 使用示例 (Python)"></a>三、CFFI 使用示例 (Python)</h2><p>我们将通过一个简单的 C 库示例来展示 CFFI 的使用。</p>
+<p>首先，创建一个 C 源文件 <code>my_library.c</code> 和一个头文件 <code>my_library.h</code>：</p>
+<p><strong>my_library.h:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifndef</span> MY_LIBRARY_H</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MY_LIBRARY_H</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 一个简单的函数，将两个整数相加</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">add_integers</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 一个结构体</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">double</span> value;</span><br><span class="line">    <span class="type">char</span> name[<span class="number">20</span>];</span><br><span class="line">&#125; MyStruct;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 一个操作结构体的函数</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">modify_struct</span><span class="params">(MyStruct *s, <span class="type">double</span> new_value, <span class="type">const</span> <span class="type">char</span>* new_name)</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// MY_LIBRARY_H</span></span></span><br></pre></td></tr></table></figure>
+
+<p><strong>my_library.c:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;my_library.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span> <span class="comment">// for printing in C</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">add_integers</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> a + b;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">modify_struct</span><span class="params">(MyStruct *s, <span class="type">double</span> new_value, <span class="type">const</span> <span class="type">char</span>* new_name)</span> &#123;</span><br><span class="line">    s-&gt;value = new_value;</span><br><span class="line">    <span class="built_in">strncpy</span>(s-&gt;name, new_name, <span class="keyword">sizeof</span>(s-&gt;name) - <span class="number">1</span>);</span><br><span class="line">    s-&gt;name[<span class="keyword">sizeof</span>(s-&gt;name) - <span class="number">1</span>] = <span class="string">&#x27;\0&#x27;</span>; <span class="comment">// 确保字符串以 null 结尾</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;C side: MyStruct modified to value=%.2f, name=%s\n&quot;</span>, s-&gt;value, s-&gt;name);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译 C 代码以生成共享库（例如 <code>libmy_library.so</code> 在 Linux 上）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -shared -o libmy_library.so my_library.c</span><br></pre></td></tr></table></figure>
+<p>在 Windows 上可能是 <code>my_library.dll</code>，在 macOS 上可能是 <code>libmy_library.dylib</code>。</p>
+<h3 id="3-1-Out-of-line-API-模式示例"><a href="#3-1-Out-of-line-API-模式示例" class="headerlink" title="3.1 Out-of-line API 模式示例"></a>3.1 Out-of-line API 模式示例</h3><p>这种模式需要一个单独的构建脚本。</p>
+<p><strong>build_ffi.py:</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> cffi <span class="keyword">import</span> FFI</span><br><span class="line"></span><br><span class="line">ffibuilder = FFI()</span><br><span class="line"></span><br><span class="line"><span class="comment"># Step 1: 声明 C 接口 (cdef)</span></span><br><span class="line"><span class="comment"># 复制粘贴 C 头文件中的相关声明</span></span><br><span class="line">ffibuilder.cdef(<span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    int add_integers(int a, int b);</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    typedef struct &#123;</span></span><br><span class="line"><span class="string">        double value;</span></span><br><span class="line"><span class="string">        char name[20];</span></span><br><span class="line"><span class="string">    &#125; MyStruct;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    void modify_struct(MyStruct *s, double new_value, const char* new_name);</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Step 2: 指定 C 源代码和链接信息 (set_source)</span></span><br><span class="line"><span class="comment"># 第一个参数是生成的 Python 模块的名称，第二个参数是 C 源代码字符串</span></span><br><span class="line"><span class="comment"># 或者，如本例，可以直接包含头文件</span></span><br><span class="line">ffibuilder.set_source(</span><br><span class="line">    <span class="string">&quot;_my_library_ffi&quot;</span>,  <span class="comment"># 这是生成的Python模块的名称</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    #include &quot;my_library.h&quot; // 包含你自己的 C 头文件</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>,</span><br><span class="line">    libraries=[<span class="string">&#x27;my_library&#x27;</span>],  <span class="comment"># 链接到 libmy_library.so (或 .dll/.dylib)</span></span><br><span class="line">    library_dirs=[<span class="string">&#x27;.&#x27;</span>], <span class="comment"># 指定库文件所在的目录</span></span><br><span class="line">    <span class="comment"># 如果你的 C 代码在当前目录，确保这里指向正确</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    ffibuilder.<span class="built_in">compile</span>(verbose=<span class="literal">True</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;CFFI 模块编译完成。&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>运行构建脚本：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python build_ffi.py</span><br></pre></td></tr></table></figure>
+<p>这会生成一个名为 <code>_my_library_ffi.c</code> 的 C 源文件和一个编译后的 Python 扩展模块（例如 <code>_my_library_ffi.cpython-3x-amd64-linux-gnu.so</code>）。</p>
+<p><strong>使用生成的模块 (main_app.py):</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> _my_library_ffi <span class="keyword">import</span> ffi, lib</span><br><span class="line"></span><br><span class="line"><span class="comment"># 调用 C 函数</span></span><br><span class="line">result = lib.add_integers(<span class="number">10</span>, <span class="number">20</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;C 函数 add_integers(10, 20) 的结果: <span class="subst">&#123;result&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建并操作 C 结构体</span></span><br><span class="line">my_struct_ptr = ffi.new(<span class="string">&quot;MyStruct *&quot;</span>) <span class="comment"># 创建一个 MyStruct 结构体的指针</span></span><br><span class="line">my_struct_ptr.value = <span class="number">100.5</span></span><br><span class="line">ffi.strlcpy(my_struct_ptr.name, <span class="string">b&quot;Initial Name&quot;</span>, <span class="built_in">len</span>(my_struct_ptr.name)) <span class="comment"># 注意字节字符串</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Python side (before modify): value=<span class="subst">&#123;my_struct_ptr.value&#125;</span>, name=<span class="subst">&#123;ffi.string(my_struct_ptr.name).decode()&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">lib.modify_struct(my_struct_ptr, <span class="number">200.75</span>, <span class="string">b&quot;New Data&quot;</span>) <span class="comment"># 传递字节字符串给 C</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Python side (after modify): value=<span class="subst">&#123;my_struct_ptr.value&#125;</span>, name=<span class="subst">&#123;ffi.string(my_struct_ptr.name).decode()&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 尝试创建并初始化结构体</span></span><br><span class="line">new_struct = ffi.new(<span class="string">&quot;MyStruct&quot;</span>, &#123;<span class="string">&#x27;value&#x27;</span>: <span class="number">3.14</span>, <span class="string">&#x27;name&#x27;</span>: <span class="string">b&quot;Pi Value&quot;</span>&#125;)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Python side (new struct): value=<span class="subst">&#123;new_struct.value&#125;</span>, name=<span class="subst">&#123;ffi.string(new_struct.name).decode()&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-In-line-ABI-模式示例"><a href="#3-2-In-line-ABI-模式示例" class="headerlink" title="3.2 In-line ABI 模式示例"></a>3.2 In-line ABI 模式示例</h3><p>此模式不需要 C 编译器在运行时构建模块，直接加载共享库。</p>
+<p><strong>abi_example.py:</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> cffi <span class="keyword">import</span> FFI</span><br><span class="line"></span><br><span class="line">ffi = FFI()</span><br><span class="line"></span><br><span class="line"><span class="comment"># Step 1: 声明 C 接口 (cdef)</span></span><br><span class="line">ffi.cdef(<span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    int add_integers(int a, int b);</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    typedef struct &#123;</span></span><br><span class="line"><span class="string">        double value;</span></span><br><span class="line"><span class="string">        char name[20];</span></span><br><span class="line"><span class="string">    &#125; MyStruct;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    void modify_struct(MyStruct *s, double new_value, const char* new_name);</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Step 2: 加载共享库 (dlopen)</span></span><br><span class="line"><span class="comment"># 在 Windows 上可能是 &quot;my_library.dll&quot;，在 macOS 上可能是 &quot;libmy_library.dylib&quot;</span></span><br><span class="line">lib = ffi.dlopen(<span class="string">&quot;./libmy_library.so&quot;</span>) <span class="comment"># 假设库在当前目录</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 调用 C 函数</span></span><br><span class="line">result = lib.add_integers(<span class="number">5</span>, <span class="number">7</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;C 函数 add_integers(5, 7) 的结果: <span class="subst">&#123;result&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建并操作 C 结构体</span></span><br><span class="line">my_struct_ptr = ffi.new(<span class="string">&quot;MyStruct *&quot;</span>)</span><br><span class="line">my_struct_ptr.value = <span class="number">50.0</span></span><br><span class="line">ffi.strlcpy(my_struct_ptr.name, <span class="string">b&quot;ABI Test&quot;</span>, <span class="built_in">len</span>(my_struct_ptr.name))</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Python side (before modify): value=<span class="subst">&#123;my_struct_ptr.value&#125;</span>, name=<span class="subst">&#123;ffi.string(my_struct_ptr.name).decode()&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">lib.modify_struct(my_struct_ptr, <span class="number">123.45</span>, <span class="string">b&quot;Updated ABI&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Python side (after modify): value=<span class="subst">&#123;my_struct_ptr.value&#125;</span>, name=<span class="subst">&#123;ffi.string(my_struct_ptr.name).decode()&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+<p>运行 <code>abi_example.py</code> 即可。</p>
+<h3 id="3-3-Go-语言与-C-交互-cgo-简介"><a href="#3-3-Go-语言与-C-交互-cgo-简介" class="headerlink" title="3.3 Go 语言与 C 交互 (cgo) 简介"></a>3.3 Go 语言与 C 交互 (cgo) 简介</h3><p>虽然 CFFI 是 Python 特有的，但为了对比，可以简单提及其他语言与 C 交互的方式。Go 语言通过 <code>cgo</code> 工具提供与 C 代码的互操作性。</p>
+<p><strong>Go 调用 C 函数示例：</strong></p>
+<p><strong>my_c_lib.h:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifndef</span> MY_C_LIB_H</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MY_C_LIB_H</span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">multiply_integers</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+<p><strong>my_c_lib.c:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;my_c_lib.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">multiply_integers</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> a * b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>golang_app.go:</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">#cgo CFLAGS: -I.</span></span><br><span class="line"><span class="comment">#cgo LDFLAGS: -L. -lmy_c_lib</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#include &quot;my_c_lib.h&quot;</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;C&quot;</span></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	a := <span class="number">5</span></span><br><span class="line">	b := <span class="number">10</span></span><br><span class="line">	<span class="comment">// 调用 C 函数</span></span><br><span class="line">	result := C.multiply_integers(C.<span class="type">int</span>(a), C.<span class="type">int</span>(b))</span><br><span class="line">	fmt.Printf(<span class="string">&quot;C 函数 multiply_integers(%d, %d) 的结果: %d\n&quot;</span>, a, b, result)</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>编译 Go 程序需要指定链接 C 库：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go build golang_app.go</span><br></pre></td></tr></table></figure>
+<p>这需要 <code>libmy_c_lib.so</code> (或 .dll&#x2F;.dylib) 存在于链接器路径中。</p>
+<h2 id="四、CFFI-的优缺点与适用场景"><a href="#四、CFFI-的优缺点与适用场景" class="headerlink" title="四、CFFI 的优缺点与适用场景"></a>四、CFFI 的优缺点与适用场景</h2><h3 id="4-1-优点"><a href="#4-1-优点" class="headerlink" title="4.1 优点"></a>4.1 优点</h3><ol>
+<li><strong>更强的 C 语义支持</strong>：与 <code>ctypes</code> 相比，CFFI 更接近 C 语法，可以直接粘贴 C 头文件的内容，处理复杂的 C 数据类型和指针更为直观。</li>
+<li><strong>性能优势</strong>：在 API 模式下，CFFI 可以生成编译后的 C 扩展模块，提供接近 C 语言的执行速度。</li>
+<li><strong>支持 PyPy</strong>：CFFI 旨在与 PyPy (一个带 JIT 编译器的 Python 实现) 良好协作，可以利用 PyPy 的 JIT 优化。</li>
+<li><strong>无缝集成</strong>：可以方便地将 Python 代码暴露给 C&#x2F;C++ 应用程序，用于创建插件或嵌入 Python 功能。</li>
+<li><strong>减少手动包装</strong>：对于拥有大量函数签名的 C 库，CFFI 可以通过 <code>cdef</code> 声明的方式自动生成大部分编组代码，避免为每个函数手动编写 Python 包装函数。</li>
+</ol>
+<h3 id="4-2-缺点"><a href="#4-2-缺点" class="headerlink" title="4.2 缺点"></a>4.2 缺点</h3><ol>
+<li><strong>外部依赖</strong>：<code>cffi</code> 是一个第三方包，需要额外安装。</li>
+<li><strong>C++ 支持有限</strong>：CFFI 主要设计用于与 C 语言交互，对 C++ 的支持有限，例如 C++ 的名称重整（name mangling）机制可能导致问题。</li>
+<li><strong>宏处理限制</strong>：<code>cdef</code> 无法直接解析 C 头文件中的所有预处理器指令（如 <code>#ifdef</code> 或 <code>#include</code>），特别是复杂的宏定义可能需要手动转换或处理。</li>
+<li><strong>调试挑战</strong>：与任何 FFI 机制一样，Python 和 C&#x2F;C++ 之间的边界可能会引入调试复杂性。C 语言中的内存错误（如缓冲区溢出、use-after-free）可能通过 FFI 边界传播到 Python 侧，导致 Python 解释器崩溃。</li>
+<li><strong>类型定义限制</strong>：CFFI 在处理某些 <code>typedef</code> 定义时可能不够灵活，有时需要手动复制和调整。</li>
+</ol>
+<h3 id="4-3-适用场景"><a href="#4-3-适用场景" class="headerlink" title="4.3 适用场景"></a>4.3 适用场景</h3><ul>
+<li><strong>高性能计算任务</strong>：Python 程序的性能瓶颈部分由 C 库实现。</li>
+<li><strong>利用现有 C 库</strong>：Python 项目需要调用没有原生 Python 绑定的 C 库。</li>
+<li><strong>嵌入 Python 解释器</strong>：将 Python 脚本能力集成到已有的 C&#x2F;C++ 应用程序中，例如作为插件系统。</li>
+<li><strong>系统级编程</strong>：需要直接与操作系统底层 API 或硬件进行交互。</li>
+<li><strong>前后端分离项目中的 C&#x2F;C++ 模块集成</strong>：如果后端由 Python 提供，但某些核心逻辑基于 C&#x2F;C++，CFFI 可作为桥梁。</li>
+</ul>
+<h2 id="五、安全性考虑"><a href="#五、安全性考虑" class="headerlink" title="五、安全性考虑"></a>五、安全性考虑</h2><p>如同所有外部函数接口 (FFI) 一样，使用 CFFI 需要考虑以下安全因素：</p>
+<ol>
+<li><strong>内存安全</strong>：C&#x2F;C++ 代码中的内存管理错误（如缓冲区溢出、无效指针解引用、use-after-free）可能会在 FFI 边界引发漏洞，导致程序崩溃、数据损坏甚至RCE (远程代码执行)。 验证 C 代码的内存安全性至关重要。</li>
+<li><strong>不安全的 C 代码</strong>：如果调用的 C 库本身存在安全漏洞，通过 CFFI 调用它会将这些漏洞暴露给 Python 应用程序。</li>
+<li><strong>输入验证</strong>：从 Python 传递给 C 函数的所有输入都应在 Python 侧进行严格验证，以防止 C 代码接收到恶意或格式错误的数据。</li>
+<li><strong>指针操作</strong>：直接操作 C 指针虽然强大但也伴随着风险。错误的指针算术或解引用可能导致内存访问越界。</li>
+<li><strong>共享库加载</strong>：动态加载共享库时，应确保库的来源可靠，防止加载恶意库。</li>
+</ol>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>CFFI 是 Python 生态系统中一个宝贵的工具，它以一种相对直接和高效的方式弥合了 Python 与 C 语言之间的鸿沟。通过提供类似于 C 语言的声明机制和灵活的操作模式，CFFI 使开发者能够轻松地利用高性能的 C 库、将 Python 代码嵌入到 C&#x2F;C++ 应用程序中，或优化 Python 程序的关键性能部分。然而，与任何底层互操作性技术一样，CFFI 的使用也伴随着 C 语言固有的内存管理和安全性挑战。开发者在使用 CFFI 时，必须深入理解其工作原理，并遵循严谨的编码实践，以确保应用的稳定性和安全性。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/0c48c5fa5942/">https://blog.tbf1211.xx.kg/0c48c5fa5942/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-13.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">行为驱动开发 (BDD) 详解</div></div><div class="info-2"><div class="info-item-1"> 行为驱动开发 (Behavior-Driven Development, BDD) 是一种敏捷软件开发方法，它通过增强团队成员（包括业务分析师、开发者和测试人员）之间的协作，以及使用通用、可理解的语言来描述系统行为，从而促进软件质量。BDD 强调将业务需求转化为具体的、可执行的、可验证的行为规范 (Behavioral Specifications)，并以此驱动开发过程。  核心思想：以业务领域语言描述系统的预期行为，并以此作为共同理解、开发和测试的依据。 它将业务需求、开发和测试融为一体。    一、BDD 简介与核心原则BDD 由 Dan North 在 2003 年提出，是对测试驱动开发 (TDD) 的一种扩展和改进。TDD 关注“代码如何工作”，而 BDD 则更进一步，关注“系统应该如何行为”，并将这种行为描述成对业务有意义的语言。 1.1 BDD 的定义BDD 是一种通过协作和对话来定义和验证系统行为的软件开发方法。 它将业务目标、设计和实现联系起来，确保所开发的软件真正满足业务需求。BDD 的核心在于，将测试用例从技术语言转变为业务领域语言，使得所有利益相关者都能理...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/cac9fddb0534/" title="Python 3 各版本新特性详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-19</div><div class="info-item-2">Python 3 各版本新特性详解</div></div><div class="info-2"><div class="info-item-1"> Python 3.x 系列 自 2008 年首次发布以来，一直在持续发展和完善。每个小版本（如 3.6, 3.7, 3.8 等）都会引入一系列新的语言特性、标准库改进、性能优化以及重要的 bug 修复。理解这些新特性对于 Python 开发者来说至关重要，它能帮助我们编写更高效、更简洁、更现代的代码。  核心思想： Python 3 的版本迭代聚焦于提升开发效率、代码可读性、执行性能以及引入现代编程范式，同时保持语言的易用性。   一、Python 3.0 - 3.3：从 2.x 到 3.x 的演变Python 3.0 是一个里程碑式的版本，它引入了许多不兼容的改变，旨在解决 Python 2.x 的设计缺陷并为未来发展铺平道路。 1.1 Python 3.0 (2008-12-03) 字符串和字节分离：str 类型现在是 Unicode 字符串，bytes 类型是原始字节序列。这是最重要的改变，解决了 Python 2.x 中 Unicode 处理的混乱。 print 成为函数：print 语句被 print() 函数取代。 Python 2.x: print &quot;H...</div></div></div></a><a class="pagination-related" href="/580fc3fffe90/" title="Python 内存泄漏深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-20</div><div class="info-item-2">Python 内存泄漏深度解析</div></div><div class="info-2"><div class="info-item-1"> 内存泄漏 (Memory Leak) 在 Python 中通常指的是，程序中存在不再使用的对象，但由于某些原因，垃圾回收器 (Garbage Collector, GC) 无法识别它们是“无用”的，从而无法将其从内存中释放。这导致程序占用的内存随着时间推移不断增加，最终可能耗尽系统资源，引发程序崩溃或性能严重下降。与 C&#x2F;C++ 等需要手动管理内存的语言不同，Python 拥有自动内存管理机制，但由于其设计特性，仍然可能出现各种形式的内存泄漏。  核心思想：Python 内存泄漏的根本原因是，尽管对象在逻辑上不再需要，但垃圾回收器因为其仍然被“可达”而无法回收。这通常发生在对象之间形成了无法被引用计数处理的循环引用，或者长期存活的对象意外地持有了对短期对象的引用。   一、Python 的内存管理基础理解 Python 中的内存泄漏，首先需要了解其内存管理机制。Python 主要通过两种机制来管理内存： 1.1 引用计数 (Reference Counting)这是 Python 最主要的内存回收机制。每个 Python 对象都有一个引用计数器，记录着有多少个变量或对...</div></div></div></a><a class="pagination-related" href="/f6307a80c973/" title="Python 防止循环依赖 (Circular Dependencies) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-08-07</div><div class="info-item-2">Python 防止循环依赖 (Circular Dependencies) 详解</div></div><div class="info-2"><div class="info-item-1"> 循环依赖 (Circular Dependency) 指的是两个或多个模块（在 Python 中通常是文件或包）之间相互直接或间接地导入对方。例如，moduleA.py 导入了 moduleB.py，而 moduleB.py 也导入了 moduleA.py。与 Golang 等语言在编译时直接报错不同，Python 在运行时才处理导入，因此循环依赖通常不会立即导致语法错误，但会在运行时触发 ImportError 或导致不可预测的行为，使代码难以理解、测试和维护。  核心思想：Python 允许在运行时灵活处理导入，但循环依赖是一个设计缺陷的信号，会导致运行时错误或维护噩梦。解决它的关键在于重构代码以建立单向依赖。   一、为什么循环依赖是一个问题？尽管 Python 不像 Go 那样在编译时严格禁止循环依赖，但它依然是需要极力避免的设计缺陷：  运行时 ImportError:这是最常见的直接问题。当 Python 解释器遇到循环导入时，某个模块在被完全初始化之前可能就被另一个模块尝试导入，导致模块中的对象、函数或类尚未定义而引发 ImportError。 示例：module...</div></div></div></a><a class="pagination-related" href="/272fc5059f14/" title="Python yield 关键字深度详解：迭代器、生成器与协程"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-26</div><div class="info-item-2">Python yield 关键字深度详解：迭代器、生成器与协程</div></div><div class="info-2"><div class="info-item-1"> Python 的 yield 关键字 是构建生成器 (Generators) 和协程 (Coroutines) 的核心。它将一个普通的函数转化成一个可以在多次调用之间“暂停”和“恢复”执行的特殊函数，从而实现惰性计算和并发编程的强大能力。理解 yield 的工作原理对于编写高性能、内存高效和并发的 Python 代码至关重要。  核心思想：yield 使得函数不是一次性计算并返回所有结果，而是在每次被请求时（通过 next() 或 for 循环）“生产”一个结果并暂停，保存其状态，直到下一次被请求时从上次暂停的地方继续执行。这在处理大量数据流或需要非阻塞I&#x2F;O时非常有优势。   一、为什么需要 yield？迭代器与内存效率的痛点在处理序列数据时，我们通常会使用列表 (List)。然而，当数据量变得非常庞大时，将所有数据一次性加载到内存中会带来严重的问题：  内存溢出 (Memory Exhaustion)：如果数据量超过可用内存，程序会崩溃。 性能下降：即使内存足够，一次性处理大量数据也会导致程序启动缓慢，响应延迟。  考虑一个场景：需要处理一个包含数十亿行数据的日志...</div></div></div></a><a class="pagination-related" href="/7419af632339/" title="Golang 空结构体 (struct{}) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-11</div><div class="info-item-2">Golang 空结构体 (struct{}) 详解</div></div><div class="info-2"><div class="info-item-1"> 空结构体 struct&#123;&#125; 是 Go 语言中一种特殊的结构体类型，它不包含任何字段。它的独特之处在于，它的大小为 零字节 (zero size)。这一特性使得空结构体在 Go 语言中具有多种巧妙的应用，尤其是在涉及内存优化和并发编程的场景中。  核心思想：空结构体 struct{} 的零字节大小特性，使其成为表达“存在即意义”或“信号”的最佳选择，它不占用额外内存，避免了不必要的资源开销。   一、空结构体的定义与特性1.1 定义一个空结构体是指不包含任何字段的结构体类型： 1type Empty struct&#123;&#125;  或者直接作为匿名类型使用： 1var e struct&#123;&#125;  1.2 零字节大小这是空结构体的最核心特性。在 Go 语言中，struct&#123;&#125; 类型的值在内存中不占用任何空间。你可以通过 unsafe.Sizeof 函数来验证这一点： 1234567891011package mainimport (	&quot;fmt&quot;	&quot;unsafe&quot;)func mai...</div></div></div></a><a class="pagination-related" href="/51be17189d42/" title="Selenium (浏览器自动化工具) 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-29</div><div class="info-item-2">Selenium (浏览器自动化工具) 深度解析</div></div><div class="info-2"><div class="info-item-1"> Selenium 是一个功能强大的开源工具集，最初设计用于 Web 应用程序的自动化测试，但其能力远不止于此。它允许开发者像真实用户一样，直接控制浏览器执行各种操作，如点击按钮、填写表单、导航页面等。通过模拟用户与网页的交互，Selenium 成为了处理动态加载内容 (JavaScript 渲染)、实现 Web UI 自动化测试和进行高级网络爬取的关键工具。  核心思想：Selenium 通过 WebDriver API 直接与浏览器进行通信，发送指令并接收浏览器执行结果，从而实现对浏览器的完全控制。 这使得它能够处理任何人类用户可以做到的网页交互。   一、为什么需要 Selenium？传统爬虫的局限性传统的网页爬取工具（如 Python 的 requests + BeautifulSoup 或 Scrapy 框架）非常高效，适用于抓取静态 HTML 页面或 API 返回的结构化数据。然而，面对现代 Web 应用的复杂性时，它们会遇到显著的局限性：  JavaScript 渲染内容：许多网站使用 JavaScript 动态加载内容（AJAX 请求、SPA - Single P...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">431</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">222</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-CFFI%EF%BC%9F"><span class="toc-text">一、为什么需要 CFFI？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81CFFI-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%8E%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F"><span class="toc-text">二、CFFI 的核心概念与工作模式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%A3%B0%E6%98%8E-C-%E6%8E%A5%E5%8F%A3-cdef"><span class="toc-text">2.1 声明 C 接口 (cdef)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%B8%A4%E7%A7%8D%E4%B8%BB%E8%A6%81%E6%A8%A1%E5%BC%8F%EF%BC%9AABI-%E5%AF%B9%E6%AF%94-API"><span class="toc-text">2.2 两种主要模式：ABI 对比 API</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-1-API-Application-Programming-Interface-%E6%A8%A1%E5%BC%8F"><span class="toc-text">2.2.1 API (Application Programming Interface) 模式</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-2-ABI-Application-Binary-Interface-%E6%A8%A1%E5%BC%8F"><span class="toc-text">2.2.2 ABI (Application Binary Interface) 模式</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-3-in-line-%E4%B8%8E-out-of-line-%E6%A8%A1%E5%BC%8F"><span class="toc-text">2.2.3 in-line 与 out-of-line 模式</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81CFFI-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B-Python"><span class="toc-text">三、CFFI 使用示例 (Python)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-Out-of-line-API-%E6%A8%A1%E5%BC%8F%E7%A4%BA%E4%BE%8B"><span class="toc-text">3.1 Out-of-line API 模式示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-In-line-ABI-%E6%A8%A1%E5%BC%8F%E7%A4%BA%E4%BE%8B"><span class="toc-text">3.2 In-line ABI 模式示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-Go-%E8%AF%AD%E8%A8%80%E4%B8%8E-C-%E4%BA%A4%E4%BA%92-cgo-%E7%AE%80%E4%BB%8B"><span class="toc-text">3.3 Go 语言与 C 交互 (cgo) 简介</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81CFFI-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9%E4%B8%8E%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">四、CFFI 的优缺点与适用场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E4%BC%98%E7%82%B9"><span class="toc-text">4.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">4.2 缺点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">4.3 适用场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E8%99%91"><span class="toc-text">五、安全性考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"/></a><div class="content"><a class="title" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)">L7 负载均衡详解 (Layer 7 Load Balancing Explained)</a><time datetime="2025-12-14T22:24:00.000Z" title="发表于 2025-12-15 06:24:00">2025-12-15</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-13.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
