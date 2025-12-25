@@ -1,0 +1,582 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>ZooKeeper 详解 (Apache ZooKeeper Explained) | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Apache ZooKeeper 是一个开源的分布式协调服务，用于管理大型分布式系统中的配置信息、命名服务、提供分布式同步以及组服务。它提供了一个高性能、高可用且具有强一致性的文件系统式数据模型，帮助开发者更轻松地构建可靠的分布式应用程序。简单的说，ZooKeeper 就像是分布式系统的“管家”或“协调员”，负责处理分布式应用程序中常见但又难以正确实现的协调任务。  核心思想：提供一个类似于文件">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ZooKeeper 详解 (Apache ZooKeeper Explained)">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/cab4ffe9ff8f/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Apache ZooKeeper 是一个开源的分布式协调服务，用于管理大型分布式系统中的配置信息、命名服务、提供分布式同步以及组服务。它提供了一个高性能、高可用且具有强一致性的文件系统式数据模型，帮助开发者更轻松地构建可靠的分布式应用程序。简单的说，ZooKeeper 就像是分布式系统的“管家”或“协调员”，负责处理分布式应用程序中常见但又难以正确实现的协调任务。  核心思想：提供一个类似于文件">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-23.jpg">
+<meta property="article:published_time" content="2024-09-26T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-25T06:50:50.541Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="云服务">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-23.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "ZooKeeper 详解 (Apache ZooKeeper Explained)",
+  "url": "https://blog.tbf1211.xx.kg/cab4ffe9ff8f/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-23.jpg",
+  "datePublished": "2024-09-26T22:24:00.000Z",
+  "dateModified": "2025-12-25T06:50:50.541Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/cab4ffe9ff8f/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'ZooKeeper 详解 (Apache ZooKeeper Explained)',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">437</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">223</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-23.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">ZooKeeper 详解 (Apache ZooKeeper Explained)</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">ZooKeeper 详解 (Apache ZooKeeper Explained)</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-09-26T22:24:00.000Z" title="发表于 2024-09-27 06:24:00">2024-09-27</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E4%BA%91%E6%9C%8D%E5%8A%A1/">云服务</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>16分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Apache ZooKeeper</strong> 是一个开源的分布式协调服务，用于管理大型分布式系统中的配置信息、命名服务、提供分布式同步以及组服务。它提供了一个<strong>高性能、高可用</strong>且具有<strong>强一致性</strong>的<strong>文件系统</strong>式数据模型，帮助开发者更轻松地构建可靠的分布式应用程序。简单的说，ZooKeeper 就像是分布式系统的“管家”或“协调员”，负责处理分布式应用程序中常见但又难以正确实现的协调任务。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>提供一个类似于文件系统的、高性能的、一致的分布式数据存储，以及一套事件通知机制，用于协调分布式系统中的各个节点。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-ZooKeeper？"><a href="#一、为什么需要-ZooKeeper？" class="headerlink" title="一、为什么需要 ZooKeeper？"></a>一、为什么需要 ZooKeeper？</h2><p>在分布式系统中，由于网络延迟、节点故障、并发访问等复杂性，协调各个节点以达成一致性是一个巨大的挑战。传统上，开发者需要自行实现各种复杂的协议来解决这些问题，这不仅耗时耗力，而且极易出错。ZooKeeper 的出现正是为了解决这些痛点：</p>
+<ol>
+<li><strong>一致性问题</strong>：在分布式环境中，如何保证所有节点对某个共享配置或状态的看法是一致的？ZooKeeper 提供强一致性保证。</li>
+<li><strong>可用性问题</strong>：部分节点故障时，如何确保协调服务仍然可用？ZooKeeper 通过集群部署和 Leader 选举机制实现高可用。</li>
+<li><strong>复杂性降低</strong>：将分布式协调的底层细节封装起来，提供简单易用的 API，让开发者可以专注于业务逻辑，而不是底层协调算法。</li>
+<li><strong>常见分布式原语</strong>：提供实现分布式锁、Leader 选举、配置管理、服务注册与发现、分布式队列等分布式原语的能力。</li>
+<li><strong>避免单点故障</strong>：通过多节点集群部署，即便一个或多个 ZooKeeper 节点失效，整个服务仍然可以正常运行。</li>
+</ol>
+<h2 id="二、ZooKeeper-的核心概念"><a href="#二、ZooKeeper-的核心概念" class="headerlink" title="二、ZooKeeper 的核心概念"></a>二、ZooKeeper 的核心概念</h2><h3 id="2-1-Znode-数据节点"><a href="#2-1-Znode-数据节点" class="headerlink" title="2.1 Znode (数据节点)"></a>2.1 Znode (数据节点)</h3><p>ZooKeeper 维护一个类似文件系统的<strong>树形目录结构</strong>，其中的每个节点称为 Znode。Znode 既可以作为目录，也可以存储数据（通常是小量数据，如配置信息、状态标识等）。</p>
+<p><strong>Znode 的类型：</strong></p>
+<ol>
+<li><strong>持久节点 (Persistent Znode)</strong>：一旦创建，除非手动删除，否则它将一直存在。<ul>
+<li>例如：<code>/configs/server1</code>，存储某个服务器的配置信息。</li>
+</ul>
+</li>
+<li><strong>瞬时节点 (Ephemeral Znode)</strong>：生命周期与创建它的客户端会话绑定。当客户端会话结束时（无论是正常关闭还是由于网络中断），该瞬时节点会被自动删除。<ul>
+<li>例如：<code>/workers/worker_id</code>，用于服务注册和心跳检测。当 worker 进程下线，其瞬时节点自动消失。</li>
+</ul>
+</li>
+<li><strong>持久顺序节点 (Persistent Sequential Znode)</strong>：在持久节点的基础上，ZooKeeper 会给节点名称追加一个单调递增的整数序列。<ul>
+<li>例如：用于分布式队列，每次 create 都会生成 <code>/queue/item-0000000001</code>, <code>/queue/item-0000000002</code>。</li>
+</ul>
+</li>
+<li><strong>瞬时顺序节点 (Ephemeral Sequential Znode)</strong>：在瞬时节点的基础上，ZooKeeper 也会追加一个单调递增的整数序列。<ul>
+<li>例如：用于 Leader 选举，客户端创建一个瞬时顺序节点，序列号最小的成为 Leader。</li>
+</ul>
+</li>
+<li><strong>容器节点 (Container Znode)</strong>：一种特殊的持久节点。如果容器节点没有任何子节点，ZooKeeper 会在一段时间后自动删除该容器节点。这对于管理生命周期短暂的元数据（如 Leader 选举中的父节点）很有用。</li>
+</ol>
+<p><strong>Znode 的数据和元数据：</strong></p>
+<p>每个 Znode 除了存储数据本身，还包含一组元数据，例如：</p>
+<ul>
+<li><code>czxid</code> (Creation zxid)：创建该 Znode 的事务 ID。</li>
+<li><code>mzxid</code> (Modified zxid)：最后一次修改该 Znode 的事务 ID。</li>
+<li><code>ctime</code> (Creation time)：创建该 Znode 的时间。</li>
+<li><code>mtime</code> (Modified time)：最后一次修改该 Znode 的时间。</li>
+<li><code>version</code> (Data version)：数据内容的版本号，每次数据改变都会加 1。</li>
+<li><code>cversion</code> (Children version)：子节点列表的版本号，子节点增删都会加 1。</li>
+<li><code>ephemeralOwner</code>：如果该 Znode 是瞬时节点，记录创建它的会话 ID。</li>
+</ul>
+<h3 id="2-2-Watch-监听器"><a href="#2-2-Watch-监听器" class="headerlink" title="2.2 Watch (监听器)"></a>2.2 Watch (监听器)</h3><p>Watcher 是 ZooKeeper 非常重要的机制，它允许客户端注册监听器来实时获取 Znode 状态的变化。当被监听 Znode 的数据发生改变、其子节点列表发生改变或 Znode 被删除时，ZooKeeper 会向客户端发送通知。</p>
+<ul>
+<li><strong>一次性触发</strong>：Watcher 是一种一次性触发器。当一个 Watch 事件被触发时，该 Watch 就会被移除。如果需要持续监听，客户端需要在收到通知后重新注册 Watch。</li>
+<li><strong>用途</strong>：实现分布式通知、配置动态更新、服务发现等。</li>
+</ul>
+<h3 id="2-3-Session-会话"><a href="#2-3-Session-会话" class="headerlink" title="2.3 Session (会话)"></a>2.3 Session (会话)</h3><p>客户端与 ZooKeeper 集群的每一个连接都被称为一个会话 (Session)。</p>
+<ul>
+<li><strong>Session ID</strong>：每个会话都有一个唯一的 ID。</li>
+<li><strong>Session Timeout</strong>：客户端在建立连接时会协商一个会话超时时间。如果在超时时间内，客户端没有向 ZooKeeper 服务器发送任何心跳信息，ZooKeeper 会认为客户端已断开，会话过期。</li>
+<li><strong>瞬时 Znode 的生命周期</strong>：瞬时节点与会话绑定，会话过期时，其创建的所有瞬时节点将被删除。</li>
+</ul>
+<h3 id="2-4-Quorum-法定人数"><a href="#2-4-Quorum-法定人数" class="headerlink" title="2.4 Quorum (法定人数)"></a>2.4 Quorum (法定人数)</h3><p>ZooKeeper 集群通常由多个服务器组成，以实现高可用性。这些服务器共同构成一个<strong>集合 (Ensemble)</strong>。为了保证数据一致性，ZooKeeper 遵循“法定人数”原则 (Quorum)。</p>
+<ul>
+<li><strong>投票机制</strong>：在进行 Leader 选举或数据修改时，需要集群中超过半数 (Majority) 的服务器投票通过才能生效。</li>
+<li><strong>集群规模</strong>：通常建议部署奇数个服务器，例如 2N+1 台服务器。这样即使有 N 台服务器宕机，集群仍能正常工作。例如，5 台服务器的集群，可以容忍 2 台宕机 (3台存活即满足 Quorum)。</li>
+</ul>
+<h2 id="三、ZooKeeper-的工作原理"><a href="#三、ZooKeeper-的工作原理" class="headerlink" title="三、ZooKeeper 的工作原理"></a>三、ZooKeeper 的工作原理</h2><h3 id="3-1-数据模型与-API"><a href="#3-1-数据模型与-API" class="headerlink" title="3.1 数据模型与 API"></a>3.1 数据模型与 API</h3><p>ZooKeeper 的数据模型是一个层级树状结构，每个 Znode 都有一个路径，类似于文件系统。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">/</span><br><span class="line">├── app1</span><br><span class="line">│   ├── config</span><br><span class="line">│   │   ├── db_url</span><br><span class="line">│   │   └── api_key</span><br><span class="line">│   ├── servers</span><br><span class="line">│   │   ├── server_0000000001 (ephemeral)</span><br><span class="line">│   │   └── server_0000000002 (ephemeral)</span><br><span class="line">│   └── locks</span><br><span class="line">│       └── lock_node_0000000001 (ephemeral sequential)</span><br><span class="line">└── app2</span><br><span class="line">    └── status</span><br></pre></td></tr></table></figure>
+
+<p><strong>Zookeeper 提供的基本操作：</strong></p>
+<ul>
+<li><code>create /path data ACL</code>：创建 Znode。</li>
+<li><code>delete /path version</code>：删除 Znode。</li>
+<li><code>exists /path watch</code>：检查 Znode 是否存在，并可设置 Watch。</li>
+<li><code>getData /path watch</code>：获取 Znode 数据，并可设置 Watch。</li>
+<li><code>setData /path data version</code>：设置 Znode 数据。</li>
+<li><code>getChildren /path watch</code>：获取子节点列表，并可设置 Watch。</li>
+</ul>
+<h3 id="3-2-一致性保证"><a href="#3-2-一致性保证" class="headerlink" title="3.2 一致性保证"></a>3.2 一致性保证</h3><p>ZooKeeper 提供了以下一致性保证，这使其在分布式系统中非常可靠：</p>
+<ol>
+<li><strong>顺序一致性 (Sequential Consistency)</strong>：客户端的更新将严格按照其发送的顺序应用于 ZooKeeper。</li>
+<li><strong>原子性 (Atomicity)</strong>：所有更新要么成功，要么失败，不会出现部分更新的情况。</li>
+<li><strong>单一系统镜像 (Single System Image)</strong>：无论客户端连接到哪个服务器，它看到的 ZooKeeper 数据视图都是相同的。</li>
+<li><strong>可靠性 (Reliability)</strong>：一旦更新被应用，它将持久存在，除非被其他客户端覆盖。</li>
+<li><strong>及时性 (Timeliness)</strong>：客户端视图的数据在一定时间范围内是最新的。客户端在短时间内会看到其最新提交的更新。</li>
+</ol>
+<h3 id="3-3-ZAB-协议-Atomic-Broadcast"><a href="#3-3-ZAB-协议-Atomic-Broadcast" class="headerlink" title="3.3 ZAB 协议 (Atomic Broadcast)"></a>3.3 ZAB 协议 (Atomic Broadcast)</h3><p>ZooKeeper 使用 <strong>ZAB (ZooKeeper Atomic Broadcast)</strong> 协议来确保集群中所有服务器之间的状态同步和数据一致性。ZAB 协议是专门为像 ZooKeeper 这样的分布式协调服务设计的，它在概念上类似于 Paxos 协议，但更侧重于处理 Leader 选举和广播事务。</p>
+<p><strong>ZAB 协议的核心流程：</strong></p>
+<ol>
+<li><strong>Leader 选举 (Leader Election)</strong>：当 ZooKeeper 集群启动或 Leader 故障时，会触发 Leader 选举过程。所有服务器会通过投票，选举出新的 Leader。<ul>
+<li>通常，拥有最新数据（即最大 <code>zxid</code>）的服务器更有可能被选为 Leader。</li>
+<li>选举需要集群中半数以上的服务器同意。</li>
+</ul>
+</li>
+<li><strong>数据同步 (Data Synchronization)</strong>：一旦新的 Leader 被选举出来，它会将自己的数据与所有 Follower 进行同步，确保所有 Follower 拥有与 Leader 完全一致的状态。</li>
+<li><strong>事务广播 (Atomic Broadcast)</strong>：在正常操作期间，所有客户端的写请求都由 Leader 处理。Leader 会将这些写请求封装成事务提议 (Proposal)，并广播给所有 Follower。Follower 接收到提议后会向 Leader 发送确认。当 Leader 收到超过半数 Follower 的确认后，它就会提交该事务，并通知客户端操作成功，同时 Follower 也会提交该事务，更新自身状态。<ul>
+<li>读请求可以由任何 Follower 处理，但为了保证及时性，客户端也可以选择强制从 Leader 读取。</li>
+</ul>
+</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph LR
+    subgraph ZooKeeper Ensemble
+        L[Leader]
+        F1[Follower 1]
+        F2[Follower 2]
+        F3[Follower 3]
+        F4[Follower 4]
+
+        L --- F1
+        L --- F2
+        L --- F3
+        L --- F4
+    end
+
+    C[Client]--&gt;|Write Request|L
+    L--&gt;|Broadcast Proposal|F1
+    L--&gt;|Broadcast Proposal|F2
+    L--&gt;|Broadcast Proposal|F3
+    L--&gt;|Broadcast Proposal|F4
+
+    F1--&gt;|Ack Proposal|L
+    F2--&gt;|Ack Proposal|L
+    F3--&gt;|Ack Proposal|L
+    F4--&gt;|Ack Proposal|L
+
+    L--&gt;|Commit Transaction|F1
+    L--&gt;|Commit Transaction|F2
+    L--&gt;|Commit Transaction|F3
+    L--&gt;|Commit Transaction|F4
+    L--&gt;|Response Ok|C
+
+    C_READ[Client]--&gt;|Read Request|F2
+    F2--&gt;|Read Response|C_READ
+  </pre></div>
+
+<h2 id="四、ZooKeeper-的架构"><a href="#四、ZooKeeper-的架构" class="headerlink" title="四、ZooKeeper 的架构"></a>四、ZooKeeper 的架构</h2><p>ZooKeeper 采用典型的<strong>主从架构 (Leader-Follower)</strong>，由一个或多个服务器组成的集群来提供服务。</p>
+<ul>
+<li><strong>Leader (领导者)</strong>：负责处理所有的<strong>写请求</strong> (事务请求)，并协调数据同步到所有 Follower。同时，Leader 也处理读请求。在任何时候，一个 ZooKeeper 集群中只有一个 Leader。</li>
+<li><strong>Follower (追随者)</strong>：处理客户端的<strong>读请求</strong>。如果 Follower 收到写请求，它会将请求转发给 Leader。Follower 会从 Leader 同步数据，并参与 Leader 选举的投票。</li>
+<li><strong>Observer (观察者)</strong>：可选角色。Observer 也从 Leader 同步数据，并处理读请求。但它们<strong>不参与 Leader 选举的投票</strong>。这样可以在不增加选举复杂度和投票开销的情况下，扩展 ZooKeeper 集群的读能力。</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph LR
+    Client1[客户端]--&gt;|读&#x2F;写请求|ZK1[ZooKeeper 服务器 1]
+    Client2[客户端]--&gt;|读&#x2F;写请求|ZK2[ZooKeeper 服务器 2]
+    Client3[客户端]--&gt;|读&#x2F;写请求|ZK3[ZooKeeper 服务器 3]
+    Client4[客户端]--&gt;|读&#x2F;写请求|ZK4[ZooKeeper 服务器 4]
+
+    ZK1--投票&#x2F;数据同步--&gt;ZK2
+    ZK1--投票&#x2F;数据同步--&gt;ZK3
+    ZK1--数据同步--&gt;ZK4
+
+    subgraph ZooKeeper Ensemble
+        ZK1(Leader)&lt;--所有写请求--&gt;ZK2(Follower)
+        ZK1(Leader)&lt;--所有写请求--&gt;ZK3(Follower)
+        ZK1(Leader)&lt;--所有写请求--&gt;ZK4(Observer)
+    end
+
+    ZK1-.-&gt;ZK2
+    ZK1-.-&gt;ZK3
+    ZK1-.-&gt;ZK4
+  </pre></div>
+
+<h2 id="五、ZooKeeper-的主要应用场景"><a href="#五、ZooKeeper-的主要应用场景" class="headerlink" title="五、ZooKeeper 的主要应用场景"></a>五、ZooKeeper 的主要应用场景</h2><p>ZooKeeper 因其强大的协调能力，在众多分布式系统中被广泛应用：</p>
+<ol>
+<li><strong>命名服务 (Naming Service)</strong>：如同文件系统，存储和管理所有服务节点的名称（Znode 路径），客户端可以通过 Znode 路径查找服务。</li>
+<li><strong>配置管理 (Configuration Management)</strong>：将集群中的配置信息集中存储在 ZooKeeper 上。当配置发生变化时，其他客户端通过 Watch 机制实时获取更改，实现配置的动态更新。</li>
+<li><strong>Leader 选举 (Leader Election)</strong>：许多分布式系统需要一个 Leader 来协调任务或处理特定操作。ZooKeeper 通过创建瞬时顺序节点，选举序列号最小的节点作为 Leader。<ul>
+<li><strong>典型应用</strong>：Kafka (在新版本中，Kafka 已逐渐去 Zookeeper 中心化), HDFS NameNode HA。</li>
+</ul>
+</li>
+<li><strong>分布式锁 (Distributed Lock)</strong>：利用瞬时顺序节点或持久节点，结合 Watch 机制，实现分布式环境下的互斥锁，保证资源在特定时间内只能被一个客户端访问。</li>
+<li><strong>服务注册与发现 (Service Register and Discovery)</strong>：服务提供者将自己的信息（如 IP 地址、端口）注册为瞬时节点到 ZooKeeper。服务消费者通过监听父节点的变化（子节点增删）来动态发现可用的服务实例。<ul>
+<li><strong>典型应用</strong>：Dubbo 框架。</li>
+</ul>
+</li>
+<li><strong>分布式队列 (Distributed Queue)</strong>：利用持久顺序节点构建先进先出 (FIFO) 的队列。</li>
+<li><strong>集群管理 (Cluster Management)</strong>：实时监控集群中各个节点的在线状态和健康状况。当节点上线&#x2F;下线时，通过 Watch 机制通知其他节点。</li>
+<li><strong>故障恢复 (Fault Recovery)</strong>：结合 Leader 选举和健康检查，当 Leader 或其他关键节点宕机时，能够自动选举新的 Leader 或剔除故障节点。</li>
+</ol>
+<h2 id="六、优缺点"><a href="#六、优缺点" class="headerlink" title="六、优缺点"></a>六、优缺点</h2><h3 id="6-1-优点："><a href="#6-1-优点：" class="headerlink" title="6.1 优点："></a>6.1 优点：</h3><ol>
+<li><strong>高可用性</strong>：通过集群部署和 Leader 选举机制，确保服务即使在部分节点故障时也能持续运行。</li>
+<li><strong>强一致性</strong>：所有客户端看到的数据视图是一致的，避免了数据冲突和不一致的问题。</li>
+<li><strong>简单易用的 API</strong>：提供简单直观的文件系统操作和 Watch 机制，方便开发者使用。</li>
+<li><strong>顺序保证</strong>：ZAB 协议保证了事务的全局有序性。</li>
+<li><strong>性能较高</strong>：特别是在读操作密集型场景下，ZooKeeper 性能优异。</li>
+<li><strong>广泛应用</strong>：作为众多分布式框架（如 Kafka、Hadoop、HBase 等）的基石，成熟稳定。</li>
+</ol>
+<h3 id="6-2-缺点："><a href="#6-2-缺点：" class="headerlink" title="6.2 缺点："></a>6.2 缺点：</h3><ol>
+<li><strong>不适合存储大量数据</strong>：Znode 的数据量通常限制在 MB 级别以内，主要用于存储元数据或配置信息，而不是业务数据。</li>
+<li><strong>写性能瓶颈</strong>：所有写操作都必须经过 Leader 处理并同步到 Quorum 大部分节点，这会限制集群的整体写吞吐量。</li>
+<li><strong>部署和运维复杂性</strong>：需要 ZooKeeper 集群的专业知识进行部署、监控和故障排查。</li>
+<li><strong>依赖 Quorum 机制</strong>：如果活着的节点数量不足 Quorum，整个集群将不可用。</li>
+<li><strong>Session 管理</strong>：客户端需要正确处理会话过期、重新连接等情况，否则可能导致问题。</li>
+</ol>
+<h2 id="七、代码示例-Python"><a href="#七、代码示例-Python" class="headerlink" title="七、代码示例 (Python)"></a>七、代码示例 (Python)</h2><p>使用 Python 的 <code>kazoo</code> 库来演示 ZooKeeper 的一些基本操作，如创建 Znode、设置数据、获取数据和设置 Watch。</p>
+<p>首先，确保已经安装了 <code>kazoo</code>：<br><code>pip install kazoo</code></p>
+<p>并需要一个运行中的 ZooKeeper 实例，例如通过 Docker：<br><code>docker run -p 2181:2181 zookeeper</code></p>
+<p><strong>Python 客户端示例 (<code>zk_client_demo.py</code>)</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> logging</span><br><span class="line"><span class="keyword">from</span> kazoo.client <span class="keyword">import</span> KazooClient</span><br><span class="line"><span class="keyword">from</span> kazoo.exceptions <span class="keyword">import</span> NodeExistsError, NoNodeError</span><br><span class="line"></span><br><span class="line"><span class="comment"># 配置日志，便于观察</span></span><br><span class="line">logging.basicConfig()</span><br><span class="line">logging.getLogger(<span class="string">&quot;kazoo&quot;</span>).setLevel(logging.INFO)</span><br><span class="line"></span><br><span class="line">ZK_HOSTS = <span class="string">&#x27;127.0.0.1:2181&#x27;</span> <span class="comment"># ZooKeeper 服务器地址</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">zk_client_operations</span>():</span><br><span class="line">    client = KazooClient(hosts=ZK_HOSTS)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Connecting to ZooKeeper at <span class="subst">&#123;ZK_HOSTS&#125;</span>...&quot;</span>)</span><br><span class="line">        client.start() <span class="comment"># 开始连接</span></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;Connected to ZooKeeper.&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># --- 1. 创建持久节点 ---</span></span><br><span class="line">        path_config = <span class="string">&quot;/my_app/config&quot;</span></span><br><span class="line">        value_config = <span class="string">b&quot;&#123;\&quot;db_host\&quot;: \&quot;mysql.example.com\&quot;, \&quot;port\&quot;: 3306&#125;&quot;</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            client.create(path_config, value=value_config, ephemeral=<span class="literal">False</span>, makepaths=<span class="literal">True</span>)</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;Created persistent znode: <span class="subst">&#123;path_config&#125;</span> with data: <span class="subst">&#123;value_config.decode()&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">except</span> NodeExistsError:</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;Znode <span class="subst">&#123;path_config&#125;</span> already exists.&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># --- 2. 获取节点数据 ---</span></span><br><span class="line">        data, stat = client.get(path_config)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Data for <span class="subst">&#123;path_config&#125;</span>: <span class="subst">&#123;data.decode()&#125;</span>, Version: <span class="subst">&#123;stat.version&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># --- 3. 设置 Watch 监听 Znode 数据变化 ---</span></span><br><span class="line"><span class="meta">        @client.DataWatch(<span class="params">path_config</span>)</span></span><br><span class="line">        <span class="keyword">def</span> <span class="title function_">watch_config_data</span>(<span class="params">data_new, stat_new</span>):</span><br><span class="line">            <span class="keyword">if</span> data_new <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[Watcher] <span class="subst">&#123;path_config&#125;</span> has been deleted!&quot;</span>)</span><br><span class="line">            <span class="keyword">elif</span> stat_new.version == <span class="number">0</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[Watcher] <span class="subst">&#123;path_config&#125;</span> created with data: <span class="subst">&#123;data_new.decode()&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[Watcher] <span class="subst">&#123;path_config&#125;</span> data changed to: <span class="subst">&#123;data_new.decode()&#125;</span>, New Version: <span class="subst">&#123;stat_new.version&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Setting data watch on <span class="subst">&#123;path_config&#125;</span>...&quot;</span>)</span><br><span class="line">        time.sleep(<span class="number">2</span>) <span class="comment"># 给 watcher 注册留点时间</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># --- 4. 修改节点数据 (触发 Watch) ---</span></span><br><span class="line">        new_value_config = <span class="string">b&quot;&#123;\&quot;db_host\&quot;: \&quot;new_mysql.example.com\&quot;, \&quot;port\&quot;: 3307&#125;&quot;</span></span><br><span class="line">        client.<span class="built_in">set</span>(path_config, new_value_config)</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Updated data of <span class="subst">&#123;path_config&#125;</span> to: <span class="subst">&#123;new_value_config.decode()&#125;</span>&quot;</span>)</span><br><span class="line">        time.sleep(<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># --- 5. 创建瞬时顺序节点 (Leader 选举模拟) ---</span></span><br><span class="line">        path_lock_root = <span class="string">&quot;/my_app/leader_election&quot;</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            client.ensure_path(path_lock_root) <span class="comment"># 确保父路径存在</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;Ensured path <span class="subst">&#123;path_lock_root&#125;</span> exists.&quot;</span>)</span><br><span class="line">        <span class="keyword">except</span> NodeExistsError:</span><br><span class="line">            <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 模拟多个客户端创建瞬时顺序节点</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>):</span><br><span class="line">            <span class="comment"># 创建瞬时顺序节点，名称后会追加Zookeeper生成序列号</span></span><br><span class="line">            ephemeral_node_path = client.create(</span><br><span class="line">                path_lock_root + <span class="string">&quot;/candidate-&quot;</span>,</span><br><span class="line">                value=<span class="string">f&quot;client_<span class="subst">&#123;i&#125;</span>&quot;</span>.encode(),</span><br><span class="line">                ephemeral=<span class="literal">True</span>,</span><br><span class="line">                sequence=<span class="literal">True</span></span><br><span class="line">            )</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;Client <span class="subst">&#123;i&#125;</span> created ephemeral sequential znode: <span class="subst">&#123;ephemeral_node_path&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">if</span> i == <span class="number">0</span>:</span><br><span class="line">                <span class="comment"># 第一个创建的通常是 Leader (序列号最小)</span></span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;Client <span class="subst">&#123;i&#125;</span> (Path: <span class="subst">&#123;ephemeral_node_path&#125;</span>) might be the Leader.&quot;</span>)</span><br><span class="line">            time.sleep(<span class="number">0.5</span>)</span><br><span class="line">      </span><br><span class="line">        <span class="comment"># 获取所有子节点，看谁是&quot;Leader&quot;</span></span><br><span class="line">        children = client.get_children(path_lock_root)</span><br><span class="line">        children.sort() <span class="comment"># 排序后，序列号最小的节点在前面</span></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;All candidates for leader election: <span class="subst">&#123;children&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">if</span> children:</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;Current &#x27;Leader&#x27; based on smallest sequence: <span class="subst">&#123;children[<span class="number">0</span>]&#125;</span>&quot;</span>)</span><br><span class="line">      </span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;\nKeeping client alive for 10 seconds to show ephemeral nodes...&quot;</span>)</span><br><span class="line">        time.sleep(<span class="number">10</span>) <span class="comment"># 保持连接，以便瞬时节点存在</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;An error occurred: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">finally</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;Stopping ZooKeeper client...&quot;</span>)</span><br><span class="line">        client.stop() <span class="comment"># 停止连接，此时瞬时节点会被删除</span></span><br><span class="line">        client.close()</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;ZooKeeper client stopped.&quot;</span>)</span><br><span class="line">        <span class="comment"># 如果你再次运行，你会发现瞬时节点因为上次会话关闭而被删除了。</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    zk_client_operations()</span><br></pre></td></tr></table></figure>
+
+<p><strong>运行步骤：</strong></p>
+<ol>
+<li>确保 Docker 中运行着 ZooKeeper 服务（或本地安装并启动）。</li>
+<li>保存上述代码为 <code>zk_client_demo.py</code>。</li>
+<li>运行 <code>python zk_client_demo.py</code>。</li>
+</ol>
+<p>你将看到客户端连接 ZooKeeper，创建持久节点，获取数据，修改数据并触发 Watch，以及模拟 Leader 选举创建瞬时顺序节点的过程。当程序结束时（<code>client.stop()</code> 和 <code>client.close()</code>），那些瞬时节点将被 ZooKeeper 自动删除。</p>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>Apache ZooKeeper 作为分布式系统的核心协调服务，为构建高可用、高性能和一致性的分布式应用程序提供了基础骨架。它通过独特的数据模型（Znode）、强大的事件通知机制（Watcher）以及严谨的 ZAB 协议，解决了分布式系统中诸多复杂的协调难题。无论是 Leader 选举、配置管理、服务注册与发现，还是分布式锁，ZooKeeper 都扮演着至关重要的角色。虽然部署和管理 ZooKeeper 集群需要一定的经验，但它为开发者节省了大量重复造轮子的工作，使得分布式系统的开发变得更加高效和可靠。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/cab4ffe9ff8f/">https://blog.tbf1211.xx.kg/cab4ffe9ff8f/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E4%BA%91%E6%9C%8D%E5%8A%A1/">云服务</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-23.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/527bcf16e9a1/" title="Kafka 详解 (Apache Kafka Explained)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Kafka 详解 (Apache Kafka Explained)</div></div><div class="info-2"><div class="info-item-1"> Apache Kafka 是一个开源的分布式流处理平台。它最初由 LinkedIn 开发并于 2011 年开源，后来成为 Apache 基金会的顶级项目。Kafka 的核心特性是能够以高吞吐量、低延迟的方式处理实时数据流，并支持数据的持久化、发布&#x2F;订阅模式以及容错性。它不仅仅是一个消息队列，更是作为一个分布式提交日志 (Distributed Commit Log)，提供高可靠性、高可伸缩性的数据管道，用于构建实时流应用程序和数据集成。  核心思想：将数据流处理抽象为发布者向主题发送消息，消费者从主题拉取消息，并通过集群提供持久化、可伸缩性和容错性。   一、为什么需要 Kafka？传统的分布式消息队列，如 RabbitMQ，更多地被设计用于点对点通信或处理少量消息。但在大数据和实时流处理场景下，它们往往面临性能瓶颈、数据丢失、扩展性差等问题。Kafka 的出现旨在解决这些挑战：  高吞吐量 (High Throughput)：能够处理每秒百万级的消息，这对于日志收集、用户活动跟踪等大数据场景至关重要。 低延迟 (Low Latency)：消息从生产者发送到消费者之间...</div></div></div></a><a class="pagination-related" href="/4ee045f17d31/" title="Emoji 高频场景分类速查表"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Emoji 高频场景分类速查表</div></div><div class="info-2"><div class="info-item-1"> Emoji（表情符号） 是基于 Unicode 标准的图形字符，已成为现代数字通信中不可或缺的视觉语言。为了帮助用户在日常沟通和特定场景中更高效地找到合适的 Emoji，本速查表将 Emoji 按照高频使用场景进行组织，而非严格遵循 Unicode 的底层分类，旨在提供一个以用户需求为导向的快速参考工具。  重要提示：本列表旨在提供尽可能详尽的高频 Emoji 示例。对于人物、手势等具有多种肤色和性别变体的 Emoji，通常只列出其基础形式或部分代表形式；对于国家或地区旗帜，仅列出部分常见示例。实际显示效果可能因设备、操作系统和字体而异。   一、速查表使用说明与目的在即时通讯、社交媒体、文档编写等场景下，用户往往是基于“我想表达节日气氛”、“我想指代电脑相关”等场景需求来寻找符号。本速查表正是针对这一痛点，将常用的 Emoji 重新组织，以便您能更快速地定位所需符号，从而提高沟通效率和表达准确性。  目的：大幅提升在日常及特定场景下查找和使用 Emoji 的效率。 组织方式：基于实际应用场景和用户需求进行分类。 详尽示例：每个分类均提供了丰富的 Emoji 符号，涵盖其核心概...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/c645d233e96b/" title="Vercel.json详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-11</div><div class="info-item-2">Vercel.json详解</div></div><div class="info-2"><div class="info-item-1"> vercel.json 是 Vercel 平台的核心配置文件，它允许开发者对项目的部署行为、路由规则、Serverless Functions 配置、环境变量、构建过程等进行细粒度的控制。通过 vercel.json，你可以超越 Vercel 的默认零配置行为，根据项目的特定需求定制化部署策略。  核心思想：vercel.json 是一个 JSON 文件，用于声明 Vercel 项目的各种配置，包括路由重写、重定向、HTTP Headers、Serverless Functions 设置、构建步骤和环境变量等，从而实现高级部署功能和优化。   一、vercel.json 的基本结构与作用vercel.json 文件通常位于项目的根目录下。Vercel 在每次部署时会读取这个文件，并根据其中的配置来处理构建、路由和请求。 一个典型的 vercel.json 结构如下： 123456789101112131415&#123;  &quot;version&quot;: 2,  &quot;name&quot;: &quot;my-vercel-project&quot;,  &qu...</div></div></div></a><a class="pagination-related" href="/527bcf16e9a1/" title="Kafka 详解 (Apache Kafka Explained)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-29</div><div class="info-item-2">Kafka 详解 (Apache Kafka Explained)</div></div><div class="info-2"><div class="info-item-1"> Apache Kafka 是一个开源的分布式流处理平台。它最初由 LinkedIn 开发并于 2011 年开源，后来成为 Apache 基金会的顶级项目。Kafka 的核心特性是能够以高吞吐量、低延迟的方式处理实时数据流，并支持数据的持久化、发布&#x2F;订阅模式以及容错性。它不仅仅是一个消息队列，更是作为一个分布式提交日志 (Distributed Commit Log)，提供高可靠性、高可伸缩性的数据管道，用于构建实时流应用程序和数据集成。  核心思想：将数据流处理抽象为发布者向主题发送消息，消费者从主题拉取消息，并通过集群提供持久化、可伸缩性和容错性。   一、为什么需要 Kafka？传统的分布式消息队列，如 RabbitMQ，更多地被设计用于点对点通信或处理少量消息。但在大数据和实时流处理场景下，它们往往面临性能瓶颈、数据丢失、扩展性差等问题。Kafka 的出现旨在解决这些挑战：  高吞吐量 (High Throughput)：能够处理每秒百万级的消息，这对于日志收集、用户活动跟踪等大数据场景至关重要。 低延迟 (Low Latency)：消息从生产者发送到消费者之间...</div></div></div></a><a class="pagination-related" href="/6842deb76626/" title="AWS Lambda与Serverless详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-13</div><div class="info-item-2">AWS Lambda与Serverless详解</div></div><div class="info-2"><div class="info-item-1"> AWS Lambda 是亚马逊网络服务 (Amazon Web Services, AWS) 提供的核心 Serverless 计算服务，也是函数即服务 (Function-as-a-Service, FaaS) 的开创者和领导者。它允许开发者运行代码，而无需配置或管理服务器。开发者只需上传代码，Lambda 会自动处理运行代码所需的一切，包括容量预置、扩展、打补丁和维护。  核心思想：AWS Lambda 是 AWS Serverless 生态的核心，它将代码作为“函数”运行在无服务器环境中，由各种 AWS 事件触发，按需执行，自动伸缩，并按实际使用量计费。   一、AWS Lambda 概览AWS Lambda 于 2014 年推出，彻底改变了云计算的开发和部署模式。它让开发者能够将后端逻辑解耦为一系列独立、短生命周期的函数，从而极大地简化了运维。 1.1 Lambda 的核心概念 函数 (Function)：这是 Lambda 中的基本部署单元，包含你的代码和相关配置（如运行时、内存、超时时间、环境变量）。 事件 (Event)：触发 Lambda 函数执行的任何操作。事...</div></div></div></a><a class="pagination-related" href="/487df70cf615/" title="Vercel Serverless Functions 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-14</div><div class="info-item-2">Vercel Serverless Functions 深度详解</div></div><div class="info-2"><div class="info-item-1"> Vercel Serverless Functions 是 Vercel 平台的核心服务之一，它允许开发者部署并运行后端代码，而无需管理任何服务器基础设施。这些函数是轻量级的、按需执行的计算单元，能够根据流量自动扩缩容，并天然集成到 Vercel 的全球 CDN 和部署工作流中。Vercel Functions 不仅为 Next.js 提供了强大的 API 路由支持，还允许开发者使用多种编程语言（如 Node.js, Python, Go, Ruby 等）构建独立的后端服务。  核心思想：Vercel Serverless Functions 提供了一种高效、自动扩缩容的无状态计算环境，使开发者能够将后端逻辑作为独立的函数部署到 Vercel 的全球边缘网络。其核心优势在于与前端框架的无缝集成、多语言支持、自动管理基础设施，并通过 Git 驱动的部署流程，极大地简化了全栈应用的开发和运维。   一、Vercel Serverless Functions 概览1.1 核心概念 无服务器 (Serverless)：你无需预置或管理任何服务器。Vercel 负责所有基础设施的配置、维...</div></div></div></a><a class="pagination-related" href="/cc0334bd16dd/" title="Vercel介绍"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-03</div><div class="info-item-2">Vercel介绍</div></div><div class="info-2"><div class="info-item-1"> Vercel 是一家领先的前端云 (Frontend Cloud) 平台，专注于为前端开发者提供极速的部署、自动化的CI&#x2F;CD、全球化的内容分发 (CDN) 和 Serverless 功能。它以其与 Next.js 框架的深度集成而闻名，旨在帮助开发者以最快速度将 Web 项目从构思变为全球可用的产品，同时提供卓越的性能和开发者体验。  核心思想：Vercel 是一个将前端部署、构建、Hosting 和 Serverless 后端能力融为一体的平台，特别优化了 Next.js 等现代化框架的开发和部署流程，让开发者能够专注于代码，无需管理基础设施。   一、为什么选择 Vercel？在现代 Web 开发中，前端项目的部署和运维变得越来越复杂：  构建优化：代码打包、压缩、Tree Shaking。 性能优化：CDN 分发、图片优化、SEO 优化。 开发体验：持续集成&#x2F;持续部署 (CI&#x2F;CD)、预览部署、分支管理。 后端需求：API 路由、Server-Side Rendering (SSR)、数据获取等，需要 Serverless 或 Node.j...</div></div></div></a><a class="pagination-related" href="/f5c29582f368/" title="Serverless 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-10</div><div class="info-item-2">Serverless 详解</div></div><div class="info-2"><div class="info-item-1"> Serverless (无服务器) 是一种云计算的执行模型，它允许开发者构建和运行应用程序而无需管理服务器。在这种模型下，云服务提供商负责服务器的调配、维护和扩展，开发者只需关注自己的代码逻辑。Serverless 并不是指“没有服务器”，而是指“开发者不需要关心服务器”。它通常包含两种核心服务模式：函数即服务 (Function-as-a-Service, FaaS) 和 后端即服务 (Backend-as-a-Service, BaaS)。  核心思想：将基础设施管理完全交给云服务商，开发者只需编写代码并部署，按实际使用量付费，实现极致的弹性伸缩和降低运维成本。   一、为什么需要 Serverless？传统的应用部署模型（物理机、虚拟机、容器）都需要开发者或运维团队投入大量精力进行服务器管理：  资源调配：预估并配置合适的 CPU、内存、存储。 操作系统管理：安装、打补丁、更新。 运行时环境：安装语言运行时、库、依赖。 扩展性：根据流量变化手动或自动伸缩服务器集群。 高可用性：设置负载均衡、故障转移机制。 监控与日志：部署监控 agent，收集日志。  这些“非功能性需求...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">437</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">223</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-ZooKeeper%EF%BC%9F"><span class="toc-text">一、为什么需要 ZooKeeper？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81ZooKeeper-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、ZooKeeper 的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Znode-%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9"><span class="toc-text">2.1 Znode (数据节点)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Watch-%E7%9B%91%E5%90%AC%E5%99%A8"><span class="toc-text">2.2 Watch (监听器)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Session-%E4%BC%9A%E8%AF%9D"><span class="toc-text">2.3 Session (会话)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-Quorum-%E6%B3%95%E5%AE%9A%E4%BA%BA%E6%95%B0"><span class="toc-text">2.4 Quorum (法定人数)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81ZooKeeper-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">三、ZooKeeper 的工作原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B%E4%B8%8E-API"><span class="toc-text">3.1 数据模型与 API</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%80%E8%87%B4%E6%80%A7%E4%BF%9D%E8%AF%81"><span class="toc-text">3.2 一致性保证</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-ZAB-%E5%8D%8F%E8%AE%AE-Atomic-Broadcast"><span class="toc-text">3.3 ZAB 协议 (Atomic Broadcast)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81ZooKeeper-%E7%9A%84%E6%9E%B6%E6%9E%84"><span class="toc-text">四、ZooKeeper 的架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81ZooKeeper-%E7%9A%84%E4%B8%BB%E8%A6%81%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">五、ZooKeeper 的主要应用场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">六、优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9%EF%BC%9A"><span class="toc-text">6.1 优点：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9%EF%BC%9A"><span class="toc-text">6.2 缺点：</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B-Python"><span class="toc-text">七、代码示例 (Python)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"/></a><div class="content"><a class="title" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)">L7 负载均衡详解 (Layer 7 Load Balancing Explained)</a><time datetime="2025-12-14T22:24:00.000Z" title="发表于 2025-12-15 06:24:00">2025-12-15</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-23.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

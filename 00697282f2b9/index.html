@@ -1,0 +1,542 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>如何判断用户是否离开了当前页面 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在前端开发中，有时我们需要在用户离开当前页面之前执行一些操作，例如保存用户未保存的数据、发送统计日志、弹出确认提示或清理资源。判断用户是否离开页面是一个常见的需求，但实现起来可能会有一些细微之处。本文将详细探讨几种在不同场景下判断用户离开页面的方法，并讨论它们的优缺点及适用场景。  核心思想：利用浏览器提供的事件监听器 (如 beforeunload, unload, pagehide, vis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何判断用户是否离开了当前页面">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/00697282f2b9/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在前端开发中，有时我们需要在用户离开当前页面之前执行一些操作，例如保存用户未保存的数据、发送统计日志、弹出确认提示或清理资源。判断用户是否离开页面是一个常见的需求，但实现起来可能会有一些细微之处。本文将详细探讨几种在不同场景下判断用户离开页面的方法，并讨论它们的优缺点及适用场景。  核心思想：利用浏览器提供的事件监听器 (如 beforeunload, unload, pagehide, vis">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-10.jpg">
+<meta property="article:published_time" content="2024-07-07T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-25T06:50:50.538Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="JavaScript">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-10.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "如何判断用户是否离开了当前页面",
+  "url": "https://blog.tbf1211.xx.kg/00697282f2b9/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-10.jpg",
+  "datePublished": "2024-07-07T22:24:00.000Z",
+  "dateModified": "2025-12-25T06:50:50.538Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/00697282f2b9/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '如何判断用户是否离开了当前页面',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">437</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">223</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-10.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">如何判断用户是否离开了当前页面</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">如何判断用户是否离开了当前页面</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-07-07T22:24:00.000Z" title="发表于 2024-07-08 06:24:00">2024-07-08</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/JavaScript/">JavaScript</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在前端开发中，有时我们需要在用户离开当前页面之前执行一些操作，例如保存用户未保存的数据、发送统计日志、弹出确认提示或清理资源。判断用户是否离开页面是一个常见的需求，但实现起来可能会有一些细微之处。本文将详细探讨几种在不同场景下判断用户离开页面的方法，并讨论它们的优缺点及适用场景。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>利用浏览器提供的事件监听器 (如 <code>beforeunload</code>, <code>unload</code>, <code>pagehide</code>, <code>visibilitychange</code>) 来监测页面生命周期状态，从而判断用户是刷新、关闭、切换标签页还是导航到其他页面。</strong></p>
+</div>
+<hr>
+<h2 id="一、页面生命周期事件概览"><a href="#一、页面生命周期事件概览" class="headerlink" title="一、页面生命周期事件概览"></a>一、页面生命周期事件概览</h2><p>在浏览器环境中，用户离开页面的行为会触发一系列的页面生命周期事件。理解这些事件是正确判断用户离开页面的基础。</p>
+<table>
+<thead>
+<tr>
+<th align="left">事件名称</th>
+<th align="left">描述</th>
+<th align="left">触发时机</th>
+<th align="left">是否可取消</th>
+<th align="left">主要用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>beforeunload</code></td>
+<td align="left">在页面即将卸载之前触发，可以阻止页面卸载并显示确认弹窗。</td>
+<td align="left">用户尝试关闭、刷新、后退、导航到新页面等。浏览器主动调用 <code>window.onbeforeunload = func</code>。</td>
+<td align="left">是 (返回字符串或 <code>event.returnValue</code>)</td>
+<td align="left">提示用户保存未保存的数据，防止意外离开。</td>
+</tr>
+<tr>
+<td align="left"><code>unload</code></td>
+<td align="left">在文档或其子资源被卸载时触发，页面已不再可见。</td>
+<td align="left">页面即将被完全卸载。</td>
+<td align="left">否</td>
+<td align="left">发送最终的统计数据、清理资源 (同步操作)。</td>
+</tr>
+<tr>
+<td align="left"><code>pagehide</code></td>
+<td align="left">在页面即将隐藏或被缓存时触发。对于 BFCache 友好的页面会先于 <code>unload</code> 触发。</td>
+<td align="left">页面导航、关闭，或被浏览器前进&#x2F;后退缓存 (BFCache)。</td>
+<td align="left">否</td>
+<td align="left">发送最终数据 (推荐异步)，清理资源。</td>
+</tr>
+<tr>
+<td align="left"><code>visibilitychange</code></td>
+<td align="left">当页面的可见状态发生变化时触发 (例如切换到后台标签页或最小化)。</td>
+<td align="left">用户切换标签页、最小化浏览器、切换应用等。</td>
+<td align="left">否</td>
+<td align="left">记录用户专注时间，暂停&#x2F;播放媒体，节省资源。</td>
+</tr>
+<tr>
+<td align="left"><code>blur</code></td>
+<td align="left">当窗口或页面失去焦点时触发。</td>
+<td align="left">用户切换到其他应用、其他标签页，或点击页面外部。</td>
+<td align="left">否</td>
+<td align="left">记录用户离开页面的瞬间（但不一定是卸载）。</td>
+</tr>
+<tr>
+<td align="left"><code>focus</code></td>
+<td align="left">当窗口或页面获得焦点时触发。</td>
+<td align="left">用户切换回当前应用、当前标签页，或点击页面内部。</td>
+<td align="left">否</td>
+<td align="left">与 <code>blur</code> 配合判断用户是否活跃。</td>
+</tr>
+</tbody></table>
+<h2 id="二、使用-beforeunload-事件-推荐用于阻止离开"><a href="#二、使用-beforeunload-事件-推荐用于阻止离开" class="headerlink" title="二、使用 beforeunload 事件 (推荐用于阻止离开)"></a>二、使用 <code>beforeunload</code> 事件 (推荐用于阻止离开)</h2><p><code>beforeunload</code> 事件在页面即将被卸载时触发。它的一个独特之处在于，你可以通过返回一个字符串或者设置 <code>event.returnValue</code> 来<strong>阻止</strong>页面卸载，并向用户显示一个确认弹窗，询问用户是否真的要离开。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// JavaScript 代码</span></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;beforeunload&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// 假设你有未保存的数据</span></span><br><span class="line">    <span class="keyword">const</span> hasUnsavedChanges = <span class="literal">true</span>; <span class="comment">// 替换为你的实际判断逻辑</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (hasUnsavedChanges) &#123;</span><br><span class="line">        <span class="comment">// 大多数现代浏览器会忽略自定义字符串，并显示默认提示。</span></span><br><span class="line">        <span class="comment">// 但为了兼容旧浏览器和最佳实践，仍建议返回字符串。</span></span><br><span class="line">        <span class="keyword">const</span> confirmationMessage = <span class="string">&#x27;您有未保存的更改，确定要离开吗？&#x27;</span>;</span><br><span class="line">        event.<span class="property">returnValue</span> = confirmationMessage; <span class="comment">// 标准方式</span></span><br><span class="line">        <span class="keyword">return</span> confirmationMessage;              <span class="comment">// 某些浏览器兼容</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 如果没有未保存的更改，不返回任何值或返回 undefined</span></span><br><span class="line">    <span class="comment">// 页面会正常卸载</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>优点：</strong></p>
+<ul>
+<li><strong>可阻止页面离开</strong>：这是唯一一个可以在用户离开页面前提供确认提示并阻止操作的事件。</li>
+<li><strong>兼容性好</strong>：现代浏览器和旧版浏览器都支持。</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li><strong>用户体验</strong>：弹窗可能打断用户流程，应谨慎使用。</li>
+<li><strong>安全性</strong>：某些浏览器为了防止恶意网站滥用此功能（例如通过循环弹窗劫持浏览器），会限制或忽略自定义的提示字符串，只显示浏览器内置的统一提示。</li>
+<li><strong>事件触发时机晚</strong>：在页面资源即将被清理时触发，不适合发送大量数据或执行复杂异步操作。</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>表单数据未保存。</li>
+<li>在线编辑器、在线聊天等需要防止用户数据丢失的场景。</li>
+</ul>
+<h2 id="三、使用-unload-事件-不推荐用于发送数据"><a href="#三、使用-unload-事件-不推荐用于发送数据" class="headerlink" title="三、使用 unload 事件 (不推荐用于发送数据)"></a>三、使用 <code>unload</code> 事件 (不推荐用于发送数据)</h2><p><code>unload</code> 事件在页面完全卸载时触发，此时页面内容已不可见。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// JavaScript 代码</span></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;unload&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// 在这里执行清理或日志发送操作</span></span><br><span class="line">    <span class="comment">// 警告：这里的代码必须是同步且执行速度极快，</span></span><br><span class="line">    <span class="comment">// 否则浏览器可能会停止执行或发生意外行为。</span></span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面正在卸载，发送最终统计数据...&#x27;</span>);</span><br><span class="line">    <span class="comment">// 尽量避免异步操作，如 fetch 或 XMLHttpRequest</span></span><br><span class="line">    <span class="comment">// 因为它们可能在页面关闭前无法完成。</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 示例：发送一个同步的 HTTP 请求 (不安全且不推荐)</span></span><br><span class="line">    <span class="comment">// var xhr = new XMLHttpRequest();</span></span><br><span class="line">    <span class="comment">// xhr.open(&#x27;POST&#x27;, &#x27;/log-exit&#x27;, false); // false 表示同步请求</span></span><br><span class="line">    <span class="comment">// xhr.send(&#x27;userId=&#x27; + currentUserId);</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>优点：</strong></p>
+<ul>
+<li>在页面卸载的最后阶段触发，适合进行最后的清理工作。</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li><strong>不可阻止页面离开</strong>。</li>
+<li>在 <code>unload</code> 事件中执行异步操作非常不可靠，因为浏览器可能会在异步操作完成之前就关闭页面。</li>
+<li>事件执行时间非常短，长时间的同步操作可能会导致浏览器卡死或警告。</li>
+<li>可能受<strong>浏览器缓存 (BFCache)</strong> 影响：如果浏览器将页面放入 BFCache，<code>unload</code> 事件可能不会触发。</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>在不关心数据是否发送成功，只做“尽力而为”的最后记录时（例如通过 <code>navigator.sendBeacon</code>）。</li>
+<li>同步清理一些简单的内存资源。</li>
+</ul>
+<h2 id="四、使用-pagehide-和-pageshow-事件-推荐用于-BFCache-友好"><a href="#四、使用-pagehide-和-pageshow-事件-推荐用于-BFCache-友好" class="headerlink" title="四、使用 pagehide 和 pageshow 事件 (推荐用于 BFCache 友好)"></a>四、使用 <code>pagehide</code> 和 <code>pageshow</code> 事件 (推荐用于 BFCache 友好)</h2><p><code>pagehide</code> 和 <code>pageshow</code> 事件专门用于处理浏览器缓存 (BFCache) 的场景。BFCache 是一种浏览器优化技术，可以将页面完全快照并存储在内存中，当用户通过前进&#x2F;后退按钮再次访问该页面时，可以立即从缓存中恢复，大大加快页面加载速度。</p>
+<ul>
+<li><code>pagehide</code>：当用户导航离开页面时触发。如果页面被放入 BFCache，它会在 <code>unload</code> 之前触发。如果页面不被放入 BFCache（直接销毁），它也会触发，并且紧接着会触发 <code>unload</code>。</li>
+<li><code>pageshow</code>：当页面被加载或从 BFCache 中恢复时触发。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pagehide&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// event.persisted 为 true 表示页面进入了 BFCache</span></span><br><span class="line">    <span class="comment">// event.persisted 为 false 表示页面即将被销毁</span></span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">persisted</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面进入了 BFCache，用户可能只是暂时离开了。&#x27;</span>);</span><br><span class="line">        <span class="comment">// 暂停资源，如视频播放、WebSocket连接等，但不销毁</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面即将被销毁，执行最终清理和数据发送。&#x27;</span>);</span><br><span class="line">        <span class="comment">// 使用 sendBeacon 发送日志，它在页面卸载时是可靠的</span></span><br><span class="line">        navigator.<span class="title function_">sendBeacon</span>(<span class="string">&#x27;/log-exit&#x27;</span>, <span class="title class_">JSON</span>.<span class="title function_">stringify</span>(&#123; <span class="attr">userId</span>: <span class="string">&#x27;user123&#x27;</span>, <span class="attr">status</span>: <span class="string">&#x27;exit&#x27;</span> &#125;));</span><br><span class="line">        <span class="comment">// 或者清理一些计时器等</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pageshow&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">persisted</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面从 BFCache 恢复了！&#x27;</span>);</span><br><span class="line">        <span class="comment">// 恢复之前暂停的资源，如视频播放</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面首次加载。&#x27;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong><code>navigator.sendBeacon()</code> 的重要性：</strong></p>
+<p><code>navigator.sendBeacon()</code> 是一个专门用于在页面卸载期间发送少量 HTTP 数据的 API。它以异步且非阻塞的方式发送数据，并且浏览器会保证数据在页面关闭之前发送成功 (即便页面已经卸载)。这比 <code>XMLHttpRequest</code> 的同步请求更安全、更可靠。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 推荐在 pagehide (event.persisted 为 false 时) 或 unload 中使用</span></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pagehide&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!event.<span class="property">persisted</span>) &#123;</span><br><span class="line">        <span class="keyword">const</span> data = &#123;</span><br><span class="line">            <span class="attr">timestamp</span>: <span class="keyword">new</span> <span class="title class_">Date</span>().<span class="title function_">toISOString</span>(),</span><br><span class="line">            <span class="attr">action</span>: <span class="string">&#x27;page_exit&#x27;</span>,</span><br><span class="line">            <span class="attr">url</span>: <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">href</span></span><br><span class="line">        &#125;;</span><br><span class="line">        <span class="comment">// sendBeacon 会在后台尝试发送数据，不影响页面卸载</span></span><br><span class="line">        navigator.<span class="title function_">sendBeacon</span>(<span class="string">&#x27;/api/log-exit&#x27;</span>, <span class="title class_">JSON</span>.<span class="title function_">stringify</span>(data));</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;通过 sendBeacon 发送页面离开日志。&#x27;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>优点：</strong></p>
+<ul>
+<li><code>pagehide</code> 对 BFCache 更友好，可以区分页面是进入缓存还是被销毁。</li>
+<li><code>navigator.sendBeacon()</code> 提供了一种可靠的异步数据发送机制，适用于在页面卸载时发送统计数据或状态。</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>需要考虑 <code>event.persisted</code> 的判断逻辑。</li>
+<li>无法阻止页面离开。</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>发送用户行为统计、日志。</li>
+<li>管理页面资源（如暂停&#x2F;恢复视频、WebSocket 连接）。</li>
+<li>需要对 BFCache 行为进行精细控制的场景。</li>
+</ul>
+<h2 id="五、使用-visibilitychange-事件-推荐用于页面活跃度判断"><a href="#五、使用-visibilitychange-事件-推荐用于页面活跃度判断" class="headerlink" title="五、使用 visibilitychange 事件 (推荐用于页面活跃度判断)"></a>五、使用 <code>visibilitychange</code> 事件 (推荐用于页面活跃度判断)</h2><p><code>visibilitychange</code> 事件在文档可见性状态发生变化时触发。文档的可见状态可以是 <code>visible</code> (页面在前景标签页中)、<code>hidden</code> (页面在后台标签页、被最小化或系统锁屏)，或者 <code>prerender</code> (页面在后台预渲染，用户尚未看到)。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">document</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;visibilitychange&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="variable language_">document</span>.<span class="property">hidden</span>) &#123;</span><br><span class="line">        <span class="comment">// 页面变为不可见（例如切换到其他标签页或最小化）</span></span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面变为不可见。&#x27;</span>);</span><br><span class="line">        <span class="comment">// 暂停视频、停止动画、保存草稿（非关键数据）</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 页面变为可见（例如切换回当前标签页）</span></span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面变为可见。&#x27;</span>);</span><br><span class="line">        <span class="comment">// 恢复视频、重新加载数据、显示通知</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 获取当前可见状态</span></span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;当前可见状态:&#x27;</span>, <span class="variable language_">document</span>.<span class="property">visibilityState</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>优点：</strong></p>
+<ul>
+<li><strong>不涉及页面卸载</strong>：当用户只是切换标签页、最小化应用程序时，<code>visibilitychange</code> 会触发，而 <code>beforeunload</code>&#x2F;<code>unload</code>&#x2F;<code>pagehide</code> 不会。</li>
+<li><strong>高频率触发</strong>：响应用户对页面的注意力变化非常及时。</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>无法判断页面是否真的被关闭或导航。</li>
+<li>无法阻止页面离开。</li>
+</ul>
+<p><strong>适用场景：</strong></p>
+<ul>
+<li>跟踪用户在页面上的专注时间。</li>
+<li>根据页面的可见状态暂停或恢复媒体播放。</li>
+<li>在页面切换到后台时保存草稿。</li>
+<li>在页面切换到后台时停止一些不必要的后台轮询。</li>
+</ul>
+<h2 id="六、一些额外的技巧和注意事项"><a href="#六、一些额外的技巧和注意事项" class="headerlink" title="六、一些额外的技巧和注意事项"></a>六、一些额外的技巧和注意事项</h2><h3 id="6-1-结合-blur-和-focus-事件"><a href="#6-1-结合-blur-和-focus-事件" class="headerlink" title="6.1 结合 blur 和 focus 事件"></a>6.1 结合 <code>blur</code> 和 <code>focus</code> 事件</h3><p><code>blur</code> 和 <code>focus</code> 事件分别在窗口或页面失去焦点和获得焦点时触发。它们提供了一种更细粒度的方式来跟踪用户是否离开了当前浏览器窗口，但不一定是卸载了页面。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;blur&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;窗口失去焦点。&#x27;</span>);</span><br><span class="line">    <span class="comment">// 用户可能切换到另一个应用或另一个浏览器窗口</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;focus&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;窗口获得焦点。&#x27;</span>);</span><br><span class="line">    <span class="comment">// 用户可能切换回当前浏览器窗口，但不一定是当前标签页</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>结合 <code>visibilitychange</code> 可以更精确地判断用户是否离开了当前页面的<strong>标签页</strong>。</p>
+<h3 id="6-2-移动端浏览器兼容性"><a href="#6-2-移动端浏览器兼容性" class="headerlink" title="6.2 移动端浏览器兼容性"></a>6.2 移动端浏览器兼容性</h3><p>在移动端浏览器（尤其是 iOS Safari）上，页面可能会被暂停 (Frozen) 而不是卸载。BFCache 机制尤为常见。因此，<code>pagehide</code> 事件在移动端更为重要。</p>
+<h3 id="6-3-异步操作的挑战"><a href="#6-3-异步操作的挑战" class="headerlink" title="6.3 异步操作的挑战"></a>6.3 异步操作的挑战</h3><p>在页面即将卸载的事件 (如 <code>beforeunload</code>, <code>unload</code>, <code>pagehide</code>) 中，执行异步操作（如 <code>fetch</code>, <code>XMLHttpRequest</code>）是非常危险的，因为浏览器可能在异步操作完成前就强制关闭页面。</p>
+<ul>
+<li><strong>推荐方案</strong>：使用 <code>navigator.sendBeacon()</code> 发送少量统计数据。</li>
+<li><strong>次优方案</strong>：如果必须发送 POST 请求，可以尝试使用同步的 <code>XMLHttpRequest</code>（设置为 <code>false</code>），但这会阻塞页面卸载，可能导致页面卡顿或用户体验差，并且在现代浏览器中可能已经受限或不被推荐，甚至在某些情况下会抛出警告。</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Python Flask 后端示例</span></span><br><span class="line"><span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request</span><br><span class="line"></span><br><span class="line">app = Flask(__name__)</span><br><span class="line"></span><br><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/api/log-exit&#x27;</span>, methods=[<span class="string">&#x27;POST&#x27;</span>]</span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">log_exit</span>():</span><br><span class="line">    data = request.json <span class="comment"># sendBeacon 默认 Content-Type: application/x-www-form-urlencoded</span></span><br><span class="line">                        <span class="comment"># 如果需要解析 JSON，前端 sendBeacon 参数可以是 Blob(JSON.stringify(data), &#123; type: &#x27;application/json&#x27; &#125;)</span></span><br><span class="line">    <span class="keyword">if</span> data:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Received exit log from user: <span class="subst">&#123;data.get(<span class="string">&#x27;user_id&#x27;</span>)&#125;</span> at <span class="subst">&#123;data.get(<span class="string">&#x27;timestamp&#x27;</span>)&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="comment"># 这里可以将日志写入文件或数据库</span></span><br><span class="line">        <span class="keyword">return</span> &#123;<span class="string">&#x27;status&#x27;</span>: <span class="string">&#x27;success&#x27;</span>&#125;, <span class="number">200</span></span><br><span class="line">    <span class="keyword">return</span> &#123;<span class="string">&#x27;status&#x27;</span>: <span class="string">&#x27;error&#x27;</span>&#125;, <span class="number">400</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    app.run(debug=<span class="literal">True</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-4-示例代码-TypeScript"><a href="#6-4-示例代码-TypeScript" class="headerlink" title="6.4 示例代码 (TypeScript)"></a>6.4 示例代码 (TypeScript)</h3><figure class="highlight typescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> <span class="title class_">PageExitReason</span> = <span class="string">&#x27;close_tab&#x27;</span> | <span class="string">&#x27;refresh&#x27;</span> | <span class="string">&#x27;navigate&#x27;</span> | <span class="string">&#x27;bfcache&#x27;</span> | <span class="string">&#x27;unknown&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">interface</span> <span class="title class_">ExitLogData</span> &#123;</span><br><span class="line">    <span class="attr">timestamp</span>: <span class="built_in">string</span>;</span><br><span class="line">    <span class="attr">reason</span>: <span class="title class_">PageExitReason</span>;</span><br><span class="line">    <span class="attr">userId</span>: <span class="built_in">string</span>;</span><br><span class="line">    <span class="attr">url</span>: <span class="built_in">string</span>;</span><br><span class="line">    <span class="attr">unsavedChanges</span>: <span class="built_in">boolean</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">PageTracker</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="attr">hasUnsavedChanges</span>: <span class="built_in">boolean</span> = <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="attr">userId</span>: <span class="built_in">string</span> = <span class="string">&#x27;guest&#x27;</span>; <span class="comment">// Example user ID</span></span><br><span class="line"></span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="title function_">initEventListeners</span>();</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">userId</span> = <span class="variable language_">this</span>.<span class="title function_">getUserIdFromSession</span>(); <span class="comment">// Replace with actual user ID retrieval</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">getUserIdFromSession</span>(): <span class="built_in">string</span> &#123;</span><br><span class="line">        <span class="comment">// In a real application, retrieve user ID from session, cookie, or JWT</span></span><br><span class="line">        <span class="keyword">return</span> <span class="title class_">Math</span>.<span class="title function_">random</span>().<span class="title function_">toString</span>(<span class="number">36</span>).<span class="title function_">substring</span>(<span class="number">7</span>); <span class="comment">// Random ID for demo</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">setUnsavedChanges</span>(<span class="attr">status</span>: <span class="built_in">boolean</span>): <span class="built_in">void</span> &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">hasUnsavedChanges</span> = status;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">initEventListeners</span>(): <span class="built_in">void</span> &#123;</span><br><span class="line">        <span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;beforeunload&#x27;</span>, <span class="variable language_">this</span>.<span class="property">handleBeforeUnload</span>);</span><br><span class="line">        <span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pagehide&#x27;</span>, <span class="variable language_">this</span>.<span class="property">handlePageHide</span>);</span><br><span class="line">        <span class="variable language_">document</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;visibilitychange&#x27;</span>, <span class="variable language_">this</span>.<span class="property">handleVisibilityChange</span>);</span><br><span class="line">        <span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;unload&#x27;</span>, <span class="variable language_">this</span>.<span class="property">handleUnload</span>); <span class="comment">// For older browsers or specific needs, but less reliable.</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> handleBeforeUnload = (<span class="attr">event</span>: <span class="title class_">BeforeUnloadEvent</span>): <span class="built_in">string</span> | <span class="function"><span class="params">undefined</span> =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">hasUnsavedChanges</span>) &#123;</span><br><span class="line">            <span class="keyword">const</span> confirmationMessage = <span class="string">&#x27;您有未保存的更改，确定要离开吗？&#x27;</span>;</span><br><span class="line">            event.<span class="property">returnValue</span> = confirmationMessage;</span><br><span class="line">            <span class="keyword">return</span> confirmationMessage;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">undefined</span>;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> handlePageHide = (<span class="attr">event</span>: <span class="title class_">PageTransitionEvent</span>): <span class="function"><span class="params">void</span> =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="attr">reason</span>: <span class="title class_">PageExitReason</span>;</span><br><span class="line">        <span class="keyword">if</span> (event.<span class="property">persisted</span>) &#123;</span><br><span class="line">            reason = <span class="string">&#x27;bfcache&#x27;</span>;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Page entered BFCache. Pause operations.&#x27;</span>);</span><br><span class="line">            <span class="comment">// Pause any real-time operations, save temporary state</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// Page is definitely being unloaded (closing, navigating away, refresh)</span></span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Page is being unloaded. Send final logs.&#x27;</span>);</span><br><span class="line">            <span class="comment">// Attempt to send exit log using sendBeacon</span></span><br><span class="line">            reason = <span class="variable language_">this</span>.<span class="title function_">detectExitReason</span>(); </span><br><span class="line">            <span class="variable language_">this</span>.<span class="title function_">sendExitLog</span>(reason);</span><br><span class="line">            <span class="comment">// Clean up timers, event listeners that are no longer needed</span></span><br><span class="line">            <span class="variable language_">this</span>.<span class="title function_">cleanupResources</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> handleUnload = (<span class="attr">event</span>: <span class="title class_">Event</span>): <span class="function"><span class="params">void</span> =&gt;</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Unload event triggered. (Fallback or legacy logging)&#x27;</span>);</span><br><span class="line">        <span class="comment">// This is primarily for browsers that don&#x27;t support pagehide well or if sendBeacon fails.</span></span><br><span class="line">        <span class="comment">// Try to send a log, but it&#x27;s highly unreliable for async operations.</span></span><br><span class="line">        <span class="comment">// this.sendExitLog(this.detectExitReason());</span></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> handleVisibilityChange = (): <span class="function"><span class="params">void</span> =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="variable language_">document</span>.<span class="property">hidden</span>) &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Page became hidden. User left tab/minimized browser.&#x27;</span>);</span><br><span class="line">            <span class="comment">// Potentially save draft, pause video, stop API polling</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Page became visible. User returned to tab.&#x27;</span>);</span><br><span class="line">            <span class="comment">// Resume operations, check for updates</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// This is a heuristic and might not be perfectly accurate as there&#x27;s no direct API for this distinction.</span></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">detectExitReason</span>(): <span class="title class_">PageExitReason</span> &#123;</span><br><span class="line">        <span class="comment">// Can be refined with more advanced heuristics or server-side checks.</span></span><br><span class="line">        <span class="comment">// For simplicity, we assume if beforeunload was triggered with unsaved changes, it&#x27;s a &quot;normal&quot; close/nav.</span></span><br><span class="line">        <span class="comment">// Otherwise, it&#x27;s a refresh or direct navigation.</span></span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">this</span>.<span class="property">hasUnsavedChanges</span> ? <span class="string">&#x27;navigate&#x27;</span> : <span class="string">&#x27;refresh&#x27;</span>; </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">sendExitLog</span>(<span class="attr">reason</span>: <span class="title class_">PageExitReason</span>): <span class="built_in">void</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> <span class="attr">logData</span>: <span class="title class_">ExitLogData</span> = &#123;</span><br><span class="line">            <span class="attr">timestamp</span>: <span class="keyword">new</span> <span class="title class_">Date</span>().<span class="title function_">toISOString</span>(),</span><br><span class="line">            <span class="attr">reason</span>: reason,</span><br><span class="line">            <span class="attr">userId</span>: <span class="variable language_">this</span>.<span class="property">userId</span>,</span><br><span class="line">            <span class="attr">url</span>: <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">href</span>,</span><br><span class="line">            <span class="attr">unsavedChanges</span>: <span class="variable language_">this</span>.<span class="property">hasUnsavedChanges</span></span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">const</span> success = navigator.<span class="title function_">sendBeacon</span>(<span class="string">&#x27;/api/log-exit&#x27;</span>, <span class="title class_">JSON</span>.<span class="title function_">stringify</span>(logData));</span><br><span class="line">        <span class="keyword">if</span> (success) &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Exit log sent successfully via sendBeacon.&#x27;</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">warn</span>(<span class="string">&#x27;Failed to queue exit log via sendBeacon. Browser might not support it.&#x27;</span>);</span><br><span class="line">            <span class="comment">// Fallback for older browsers: may use sync XHR, but it&#x27;s not recommended.</span></span><br><span class="line">            <span class="comment">// this.sendSyncXHR(&#x27;/api/log-exit&#x27;, JSON.stringify(logData));</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Example cleanup</span></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">cleanupResources</span>(): <span class="built_in">void</span> &#123;</span><br><span class="line">        <span class="comment">// Clear any timeouts/intervals</span></span><br><span class="line">        <span class="comment">// Disconnect WebSockets</span></span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Resources cleaned up.&#x27;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Usage example</span></span><br><span class="line"><span class="keyword">const</span> pageTracker = <span class="keyword">new</span> <span class="title class_">PageTracker</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Simulate user making changes</span></span><br><span class="line"><span class="built_in">setTimeout</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">    pageTracker.<span class="title function_">setUnsavedChanges</span>(<span class="literal">true</span>);</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Simulating unsaved changes.&#x27;</span>);</span><br><span class="line">&#125;, <span class="number">5000</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Simulate saving changes</span></span><br><span class="line"><span class="built_in">setTimeout</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">    pageTracker.<span class="title function_">setUnsavedChanges</span>(<span class="literal">false</span>);</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Simulating changes saved.&#x27;</span>);</span><br><span class="line">&#125;, <span class="number">10000</span>);</span><br></pre></td></tr></table></figure>
+
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>判断用户是否离开了当前页面涉及到对浏览器页面生命周期事件的深入理解。</p>
+<ul>
+<li>如果需要<strong>阻止用户离开</strong>并弹出确认提示，使用 <code>beforeunload</code>。</li>
+<li>如果需要<strong>在页面卸载时发送数据</strong>或执行清理，优先考虑 <code>pagehide</code> (结合 <code>event.persisted</code>) 和 <code>navigator.sendBeacon()</code>。避免在 <code>unload</code> 中执行复杂的异步操作。</li>
+<li>如果需要<strong>跟踪用户在页面的活跃度</strong>或在页面切换到后台时调整行为，使用 <code>visibilitychange</code>。</li>
+</ul>
+<p>在实际开发中，通常会结合这些事件来构建一个健壮的页面离开检测机制，以确保用户体验、数据完整性和资源管理。同时，要时刻关注浏览器的兼容性和具体实现细节，因为它们可能会随时间而变化。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/00697282f2b9/">https://blog.tbf1211.xx.kg/00697282f2b9/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/JavaScript/">JavaScript</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-10.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/869bcb3ef8c7/" title="Go语言多重赋值(Multiple Assignment)详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Go语言多重赋值(Multiple Assignment)详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言的“多重赋值”（Multiple Assignment）是其语言特性中一个非常简洁且强大的功能。它允许你在一个语句中同时给多个变量赋值。这不仅仅是一种语法糖，更是 Go 语言在设计上强调简洁性和实用性的体现，尤其在错误处理、函数返回多个值等方面发挥着核心作用。  核心思想：Go 语言的多重赋值允许在单条语句中同时为多个变量赋值，其核心机制是先评估右侧所有表达式，然后按顺序赋给左侧变量，常用于函数多返回值（尤其是错误处理）、交换变量、接收通道值等场景。   一、多重赋值的基本语法多重赋值的通用格式如下： 1var1, var2, ..., varN = expr1, expr2, ..., exprN  或者使用短变量声明： 1var1, var2, ..., varN := expr1, expr2, ..., exprN  关键点：  左侧 (LHS)：一系列变量名，用逗号 , 分隔。 右侧 (RHS)：一系列表达式，用逗号 , 分隔。 数量匹配：左侧变量的数量必须与右侧表达式值的数量严格匹配。 类型匹配：每个变量的类型必须与对应表达式的值的类型兼容。 求值顺序：右...</div></div></div></a><a class="pagination-related" href="/e04a0bc3926c/" title="BFCache (Back-Forward Cache) 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">BFCache (Back-Forward Cache) 深度详解</div></div><div class="info-2"><div class="info-item-1"> 在 Web 性能优化领域，用户感知的加载速度至关重要。除了常规的网络和渲染优化外，浏览器还有一种强大的特性可以显著提升用户体验，尤其是在用户进行前进&#x2F;后退导航时的加载速度——这就是 BFCache (Back-Forward Cache)，即“往返缓存”或“后退&#x2F;前进缓存”。BFCache 允许浏览器将整个页面（包括 DOM 状态、JavaScript 堆以及当前页面的状态）存储在内存中，以便用户在通过浏览器后退 (Back) 或前进 (Forward) 按钮导航时，能够瞬间恢复到离开时的状态，而无需重新加载页面。  核心思想：BFCache 是一种浏览器优化策略，它将用户离开的整个页面状态（而非仅仅是资源）存储在内存中，以便用户通过“后退&#x2F;前进”按钮再次访问时能够实现即时页面恢复，极大地提升了导航体验。   一、什么是 BFCache？BFCache 是一种用于瞬时页面加载的浏览器缓存机制，其核心思想是：当用户从一个页面 A 导航到页面 B，如果用户随后点击了浏览器的“后退”按钮返回页面 A，浏览器不会重新发送网络请求、重新解析 DOM、重新执行...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/c8105d5c8d5e/" title="Electron 开发详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-04</div><div class="info-item-2">Electron 开发详解</div></div><div class="info-2"><div class="info-item-1"> Electron (原名 Atom Shell) 是一个由 GitHub 开发的开源框架，它允许你使用 Web 技术 (HTML, CSS, JavaScript) 来构建跨平台的桌面应用程序。通过将 Chromium 渲染引擎和 Node.js 运行时集成到一个单一的项目中，Electron 使得前端开发者只需掌握一套技术栈，就能创建出功能强大、拥有原生外观和感觉的桌面应用，并能够访问操作系统底层功能。  核心思想：借助 Chromium (渲染视图) 和 Node.js (处理操作系统交互) 的能力，Electron 让 Web 技术栈能够构建全功能的跨平台桌面应用。   一、Electron 简介与优势1.1 什么是 Electron？Electron 可以被简单理解为一个微型浏览器套壳，它包含了：  Chromium：提供渲染用户界面的能力，这意味着你可以使用 HTML、CSS 和 JavaScript 来构建应用的 UI。 Node.js：提供访问操作系统底层 API 的能力，例如文件系统、网络、进程管理等。 原生 API 集成：Electron 提供了一套 API，...</div></div></div></a><a class="pagination-related" href="/884dd81c798b/" title="Pinia Colada详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-26</div><div class="info-item-2">Pinia Colada详解</div></div><div class="info-2"><div class="info-item-1"> Pinia Colada 是一个为 Vue 3 和 Pinia 设计的高级数据管理和持久化工具，旨在简化异步数据获取、缓存、以及状态在浏览器存储中的持久化。它将 Pinia 的核心优势与强大的数据管理策略相结合，帮助开发者构建更健壮、响应更快、用户体验更流畅的 Web 应用。  核心思想：Pinia Colada 致力于将数据获取 (Fetching)、数据缓存 (Caching)、数据持久化 (Persistence) 和 后端状态同步 (Synchronization) 等复杂逻辑封装在易于使用的 Pinia Store 抽象之上。它使得处理异步数据像管理本地状态一样简单，同时提供声明式的 API 来控制数据的生命周期。   一、为什么需要 Pinia Colada？在现代 Web 应用中，处理异步数据（如来自 API 的数据）和管理其生命周期是一个常见的挑战。仅仅依靠 Pinia 的 actions 来 fetch 数据，并不能很好地解决以下问题：  数据重复请求：多个组件可能请求相同的数据，导致不必要的网络开销。 请求加载状态管理：手动维护每个请求的 loading 和...</div></div></div></a><a class="pagination-related" href="/294ecfb9f29c/" title="Vue3响应式原理深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-11</div><div class="info-item-2">Vue3响应式原理深度解析</div></div><div class="info-2"><div class="info-item-1"> Vue.js 的核心特性之一是其响应式系统 (Reactivity System)。在 Vue 3 中，响应式系统经历了重大革新，从 Vue 2 基于 Object.defineProperty 的实现全面升级为基于 JavaScript Proxy。这一转变解决了 Vue 2 中存在的诸多限制，如无法检测对象属性的添加&#x2F;删除、无法有效监听数组变动等，并为 Composition API (组合式 API) 提供了坚实的基础。深入理解 Vue 3 的响应式原理，对于编写高效、可维护的 Vue 应用至关重要。  核心思想：Vue 3 的响应式系统借助 Proxy 对象劫持数据对象的读取 (get) 和修改 (set) 操作，并在副作用函数 (Effect Function，如组件渲染函数、计算属性、侦听器) 执行时收集其依赖 (track)。当响应式数据发生变化时，系统会通知所有依赖于该数据的副作用函数重新执行 (trigger)，从而实现数据的自动更新到 UI。    一、响应式系统概述响应式系统是一个能够自动追踪数据变化并作出相应更新的机制。在 Vue 中，当数据变...</div></div></div></a><a class="pagination-related" href="/f3d77a2d04c2/" title="TypeScript高级类型"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-26</div><div class="info-item-2">TypeScript高级类型</div></div><div class="info-2"><div class="info-item-1"> TypeScript 高级类型 提供了强大的工具，允许开发者以更灵活、更精确的方式定义和操作类型。这些高级类型不仅增强了代码的类型安全性，还提升了开发体验，使得复杂的数据结构和业务逻辑能够更清晰地表达和维护。掌握 TypeScript 的这些高级特性，是成为一名高效 TypeScript 开发者的关键。  核心思想：高级类型允许我们基于现有类型进行转换、组合、提取，以及根据不同条件生成新类型，从而构建出更健壮、更具表达力的类型系统。   一、联合类型 (Union Types)联合类型表示一个值可以是多种类型中的任意一种。使用 | 符号连接不同的类型。 1.1 定义与使用1234567891011121314// 定义一个联合类型，表示一个变量可以是 string 或 numbertype StringOrNumber = string | number;let id: StringOrNumber;id = &quot;123&quot;; // OKid = 123;   // OK// id = true; // Error: Type &#x27;boolean&#x2...</div></div></div></a><a class="pagination-related" href="/e2c7dc3a5487/" title="JavaScript Promise.all 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-07</div><div class="info-item-2">JavaScript Promise.all 详解</div></div><div class="info-2"><div class="info-item-1"> Promise.all() 是 JavaScript Promise 对象的一个静态方法，它接收一个 Promise 可迭代对象（如数组）作为输入，并返回一个新的 Promise。这个新的 Promise 在所有输入的 Promise 都成功解决后才解决，并返回一个包含所有解决值的数组，且值的顺序与输入 Promise 的顺序一致。如果输入的 Promise 中有任何一个被拒绝，Promise.all() 返回的 Promise 就会立即被拒绝，其拒绝原因将是第一个被拒绝的 Promise 的拒绝原因。  核心思想：将多个独立的异步操作视为一个整体。只有当所有子任务都成功完成时，整体任务才算成功；只要有一个子任务失败，整体任务就立即失败。   一、基本概念与作用Promise.all() 主要用于处理这样一种场景：你需要同时执行多个异步操作，并且只有当所有这些操作都成功完成时，你才能进行下一步处理。它提供了一种优雅的方式来管理并发的异步任务，并聚合它们的结果。 其主要作用包括：  并行执行异步任务：提高效率，避免串行执行带来的等待时间。 统一结果处理：将多个异步操作的结果合并到...</div></div></div></a><a class="pagination-related" href="/e04a0bc3926c/" title="BFCache (Back-Forward Cache) 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-06</div><div class="info-item-2">BFCache (Back-Forward Cache) 深度详解</div></div><div class="info-2"><div class="info-item-1"> 在 Web 性能优化领域，用户感知的加载速度至关重要。除了常规的网络和渲染优化外，浏览器还有一种强大的特性可以显著提升用户体验，尤其是在用户进行前进&#x2F;后退导航时的加载速度——这就是 BFCache (Back-Forward Cache)，即“往返缓存”或“后退&#x2F;前进缓存”。BFCache 允许浏览器将整个页面（包括 DOM 状态、JavaScript 堆以及当前页面的状态）存储在内存中，以便用户在通过浏览器后退 (Back) 或前进 (Forward) 按钮导航时，能够瞬间恢复到离开时的状态，而无需重新加载页面。  核心思想：BFCache 是一种浏览器优化策略，它将用户离开的整个页面状态（而非仅仅是资源）存储在内存中，以便用户通过“后退&#x2F;前进”按钮再次访问时能够实现即时页面恢复，极大地提升了导航体验。   一、什么是 BFCache？BFCache 是一种用于瞬时页面加载的浏览器缓存机制，其核心思想是：当用户从一个页面 A 导航到页面 B，如果用户随后点击了浏览器的“后退”按钮返回页面 A，浏览器不会重新发送网络请求、重新解析 DOM、重新执行...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">437</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">223</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E9%A1%B5%E9%9D%A2%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E4%BA%8B%E4%BB%B6%E6%A6%82%E8%A7%88"><span class="toc-text">一、页面生命周期事件概览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E4%BD%BF%E7%94%A8-beforeunload-%E4%BA%8B%E4%BB%B6-%E6%8E%A8%E8%8D%90%E7%94%A8%E4%BA%8E%E9%98%BB%E6%AD%A2%E7%A6%BB%E5%BC%80"><span class="toc-text">二、使用 beforeunload 事件 (推荐用于阻止离开)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%BD%BF%E7%94%A8-unload-%E4%BA%8B%E4%BB%B6-%E4%B8%8D%E6%8E%A8%E8%8D%90%E7%94%A8%E4%BA%8E%E5%8F%91%E9%80%81%E6%95%B0%E6%8D%AE"><span class="toc-text">三、使用 unload 事件 (不推荐用于发送数据)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%BD%BF%E7%94%A8-pagehide-%E5%92%8C-pageshow-%E4%BA%8B%E4%BB%B6-%E6%8E%A8%E8%8D%90%E7%94%A8%E4%BA%8E-BFCache-%E5%8F%8B%E5%A5%BD"><span class="toc-text">四、使用 pagehide 和 pageshow 事件 (推荐用于 BFCache 友好)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%BD%BF%E7%94%A8-visibilitychange-%E4%BA%8B%E4%BB%B6-%E6%8E%A8%E8%8D%90%E7%94%A8%E4%BA%8E%E9%A1%B5%E9%9D%A2%E6%B4%BB%E8%B7%83%E5%BA%A6%E5%88%A4%E6%96%AD"><span class="toc-text">五、使用 visibilitychange 事件 (推荐用于页面活跃度判断)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E4%B8%80%E4%BA%9B%E9%A2%9D%E5%A4%96%E7%9A%84%E6%8A%80%E5%B7%A7%E5%92%8C%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">六、一些额外的技巧和注意事项</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E7%BB%93%E5%90%88-blur-%E5%92%8C-focus-%E4%BA%8B%E4%BB%B6"><span class="toc-text">6.1 结合 blur 和 focus 事件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%A7%BB%E5%8A%A8%E7%AB%AF%E6%B5%8F%E8%A7%88%E5%99%A8%E5%85%BC%E5%AE%B9%E6%80%A7"><span class="toc-text">6.2 移动端浏览器兼容性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E5%BC%82%E6%AD%A5%E6%93%8D%E4%BD%9C%E7%9A%84%E6%8C%91%E6%88%98"><span class="toc-text">6.3 异步操作的挑战</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-%E7%A4%BA%E4%BE%8B%E4%BB%A3%E7%A0%81-TypeScript"><span class="toc-text">6.4 示例代码 (TypeScript)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"/></a><div class="content"><a class="title" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)">L7 负载均衡详解 (Layer 7 Load Balancing Explained)</a><time datetime="2025-12-14T22:24:00.000Z" title="发表于 2025-12-15 06:24:00">2025-12-15</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-10.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

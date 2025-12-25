@@ -1,0 +1,535 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>BFCache (Back-Forward Cache) 深度详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在 Web 性能优化领域，用户感知的加载速度至关重要。除了常规的网络和渲染优化外，浏览器还有一种强大的特性可以显著提升用户体验，尤其是在用户进行前进&#x2F;后退导航时的加载速度——这就是 BFCache (Back-Forward Cache)，即“往返缓存”或“后退&#x2F;前进缓存”。BFCache 允许浏览器将整个页面（包括 DOM 状态、JavaScript 堆以及当前页面的状态）">
+<meta property="og:type" content="article">
+<meta property="og:title" content="BFCache (Back-Forward Cache) 深度详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/e04a0bc3926c/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在 Web 性能优化领域，用户感知的加载速度至关重要。除了常规的网络和渲染优化外，浏览器还有一种强大的特性可以显著提升用户体验，尤其是在用户进行前进&#x2F;后退导航时的加载速度——这就是 BFCache (Back-Forward Cache)，即“往返缓存”或“后退&#x2F;前进缓存”。BFCache 允许浏览器将整个页面（包括 DOM 状态、JavaScript 堆以及当前页面的状态）">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg">
+<meta property="article:published_time" content="2024-07-05T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-25T06:50:50.538Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Web技术">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="JavaScript">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "BFCache (Back-Forward Cache) 深度详解",
+  "url": "https://blog.tbf1211.xx.kg/e04a0bc3926c/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg",
+  "datePublished": "2024-07-05T22:24:00.000Z",
+  "dateModified": "2025-12-25T06:50:50.538Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/e04a0bc3926c/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'BFCache (Back-Forward Cache) 深度详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">437</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">223</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-12.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">BFCache (Back-Forward Cache) 深度详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">BFCache (Back-Forward Cache) 深度详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-07-05T22:24:00.000Z" title="发表于 2024-07-06 06:24:00">2024-07-06</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/JavaScript/">JavaScript</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>8分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在 Web 性能优化领域，用户感知的加载速度至关重要。除了常规的网络和渲染优化外，浏览器还有一种强大的特性可以显著提升用户体验，尤其是在用户进行前进&#x2F;后退导航时的加载速度——这就是 <strong>BFCache (Back-Forward Cache)</strong>，即“往返缓存”或“后退&#x2F;前进缓存”。BFCache 允许浏览器将整个页面（包括 DOM 状态、JavaScript 堆以及当前页面的状态）存储在内存中，以便用户在通过浏览器后退 (Back) 或前进 (Forward) 按钮导航时，能够瞬间恢复到离开时的状态，而无需重新加载页面。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>BFCache 是一种浏览器优化策略，它将用户离开的整个页面状态（而非仅仅是资源）存储在内存中，以便用户通过“后退&#x2F;前进”按钮再次访问时能够实现即时页面恢复，极大地提升了导航体验。</strong></p>
+</div>
+<hr>
+<h2 id="一、什么是-BFCache？"><a href="#一、什么是-BFCache？" class="headerlink" title="一、什么是 BFCache？"></a>一、什么是 BFCache？</h2><p>BFCache 是一种用于<strong>瞬时页面加载</strong>的浏览器缓存机制，其核心思想是：当用户从一个页面 <code>A</code> 导航到页面 <code>B</code>，如果用户随后点击了浏览器的“后退”按钮返回页面 <code>A</code>，浏览器不会重新发送网络请求、重新解析 DOM、重新执行 JavaScript，而是直接从内存中恢复页面 <code>A</code> <strong>离开时的完整状态</strong>。同理，从页面 <code>A</code> 导航到页面 <code>B</code> 后，再导航回 <code>A</code>，然后点击“前进”按钮返回 <code>B</code>，BFCache 也会尝试恢复页面 <code>B</code>。</p>
+<p>它缓存的不仅仅是页面的资源（如 HTML、CSS、JavaScript 文件，这属于 HTTP 缓存的范畴），而是整个页面的<strong>运行时状态</strong>，包括：</p>
+<ul>
+<li><strong>DOM 树和 CSS 样式</strong></li>
+<li><strong>JavaScript 堆</strong>：所有全局变量、对象、事件监听器等</li>
+<li><strong>当前滚动位置</strong></li>
+<li><strong>表单输入值</strong></li>
+<li><strong>XHR 请求的完成状态</strong></li>
+<li><strong>Web Workers 和 IndexedDB 连接</strong></li>
+<li><strong>页面在内存中的快照</strong></li>
+</ul>
+<p>因此，使用 BFCache 恢复页面几乎是即时的，因为它跳过了网络请求、解析和渲染等所有传统加载步骤。</p>
+<h2 id="二、BFCache-的工作原理"><a href="#二、BFCache-的工作原理" class="headerlink" title="二、BFCache 的工作原理"></a>二、BFCache 的工作原理</h2><ol>
+<li><strong>用户导航</strong>：当用户从页面 A 导航到页面 B 时（例如点击链接、使用 <code>window.location.href = ...</code>）。</li>
+<li><strong>页面缓存</strong>：浏览器判断页面 A 是否符合 BFCache 的条件。如果符合，它会将页面 A 从渲染进程中“冻结”并移动到 BFCache 存储中。此时，页面 A 的 JavaScript 执行会被暂停，所有的网络连接都会被关闭。</li>
+<li><strong>恢复页面</strong>：当用户点击浏览器“后退”按钮返回页面 A 时，浏览器会检查 BFCache 中是否有页面 A 的缓存。<ul>
+<li><strong>命中 BFCache</strong>：如果有，浏览器会立即从缓存中取出页面 A，并将其恢复到用户离开时的状态。DOMContentLoaded 和 <code>load</code> 事件不会再次触发。取而代之的是 <code>pageshow</code> 事件触发。</li>
+<li><strong>未命中 BFCache</strong>：如果没有（例如页面不符合缓存条件或缓存已被清除），页面 A 将会像首次加载一样，进行完整的网络请求、DOM 解析和渲染过程。</li>
+</ul>
+</li>
+</ol>
+<h2 id="三、相关事件：pageshow-和-pagehide"><a href="#三、相关事件：pageshow-和-pagehide" class="headerlink" title="三、相关事件：pageshow 和 pagehide"></a>三、相关事件：<code>pageshow</code> 和 <code>pagehide</code></h2><p>为了更好地管理页面的 BFCache 行为，浏览器引入了两个专门的事件：</p>
+<ol>
+<li><p><strong><code>pageshow</code> 事件</strong>：</p>
+<ul>
+<li>在页面<strong>首次加载</strong>时触发，早于 <code>load</code> 事件。</li>
+<li>在页面从 <strong>BFCache 中恢复</strong>时触发。</li>
+<li><code>event</code> 对象有一个 <code>persisted</code> 属性：<ul>
+<li><code>event.persisted === true</code>：表示页面是从 BFCache 中恢复的。</li>
+<li><code>event.persisted === false</code>：表示页面是首次加载。</li>
+</ul>
+</li>
+<li><strong>主要用途</strong>：在页面从 BFCache 恢复时，重新激活暂停的 JavaScript 逻辑（如定时器、API 轮询），更新过期的数据。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pageshow&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">persisted</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面从 BFCache 中恢复了！&#x27;</span>);</span><br><span class="line">        <span class="comment">// 在这里检查数据是否需要刷新，恢复动画或定时器</span></span><br><span class="line">        <span class="comment">// 例如，重新启动一个计时器</span></span><br><span class="line">        <span class="comment">// myTimer = setInterval(updateTime, 1000);</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面是首次加载。&#x27;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong><code>pagehide</code> 事件</strong>：</p>
+<ul>
+<li>在页面<strong>即将卸载</strong>时触发 (例如用户导航到新页面，或者关闭标签页)。</li>
+<li>在页面<strong>进入 BFCache</strong> 时触发。</li>
+<li><code>event</code> 对象也有一个 <code>persisted</code> 属性：<ul>
+<li><code>event.persisted === true</code>：表示页面即将进入 BFCache。</li>
+<li><code>event.persisted === false</code>：表示页面即将被销毁 (不会进入 BFCache)。</li>
+</ul>
+</li>
+<li><strong>主要用途</strong>：在页面进入 BFCache 之前，暂停不必要的 JavaScript 逻辑（如停止动画、清除定时器、关闭 WebSocket 连接），以节省资源。在页面即将被销毁时，发送最终的统计数据（推荐使用 <code>navigator.sendBeacon</code>）。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pagehide&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">persisted</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面即将进入 BFCache。暂停资源。&#x27;</span>);</span><br><span class="line">        <span class="comment">// 清除可能在后台继续运行的定时器和事件监听器</span></span><br><span class="line">        <span class="comment">// clearInterval(myTimer);</span></span><br><span class="line">        <span class="comment">// 考虑关闭或暂停 WebSocket 连接</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;页面即将被销毁。发送最终日志或清理资源。&#x27;</span>);</span><br><span class="line">        <span class="comment">// 使用 navigator.sendBeacon 发送用户离开日志</span></span><br><span class="line">        <span class="comment">// navigator.sendBeacon(&#x27;/api/exit_log&#x27;, JSON.stringify(&#123; userId: &#x27;abc&#x27;, exitTime: Date.now() &#125;));</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="四、阻止页面进入-BFCache-的情况"><a href="#四、阻止页面进入-BFCache-的情况" class="headerlink" title="四、阻止页面进入 BFCache 的情况"></a>四、阻止页面进入 BFCache 的情况</h2><p>尽管 BFCache 带来巨大的性能提升，但出于数据一致性、资源管理等考虑，某些情况下页面会被<strong>阻止</strong>进入 BFCache。以下是一些常见的阻止 BFCache 的因素：</p>
+<ol>
+<li><p><strong>使用 <code>unload</code> 事件监听器：</strong></p>
+<ul>
+<li>这是最常见且最主要的罪魁祸首。一旦页面注册了 <code>unload</code> 事件的监听器，浏览器通常会假定页面需要在卸载时执行关键操作，从而阻止其进入 BFCache。即使监听器是空的，也会阻止。</li>
+<li><strong>解决方案</strong>：避免使用 <code>unload</code>。改用 <code>pagehide</code> 事件并检查 <code>event.persisted</code> 来区分页面是进入缓存还是被销毁。如果确实需要发送数据，使用 <code>navigator.sendBeacon</code>。</li>
+</ul>
+</li>
+<li><p><strong>存在未关闭的 WebSocket 或 WebRTC 连接：</strong></p>
+<ul>
+<li>这些实时连接在 BFCache 冻结期间无法维持，浏览器为了避免数据丢失或状态异常，会阻止页面进入 BFCache。</li>
+<li><strong>解决方案</strong>：在 <code>pagehide</code> 事件中（当 <code>event.persisted === true</code> 时）关闭这些连接，并在 <code>pageshow</code> 事件中（当 <code>event.persisted === true</code> 时）重新建立连接。</li>
+</ul>
+</li>
+<li><p><strong>页面包含存在 <code>onbeforeunload</code> 事件监听器的 iframe：</strong></p>
+<ul>
+<li>即使顶层页面没有 <code>onbeforeunload</code>，如果其内部有 iframe 注册了此事件，也会阻止 BFCache。</li>
+</ul>
+</li>
+<li><p><strong>页面包含打开的 IndexedDB 事务或 Web Locks：</strong></p>
+<ul>
+<li>这些资源需要保持活动状态，如果页面被冻结则无法继续，因此会阻止 BFCache。</li>
+<li><strong>解决方案</strong>：在 <code>pagehide</code> 中关闭或提交事务。</li>
+</ul>
+</li>
+<li><p><strong>页面正在进行下载或上传：</strong></p>
+<ul>
+<li>活动中的文件传输会被冻结，为了防止数据损坏或中断，页面不会进入 BFCache。</li>
+</ul>
+</li>
+<li><p><strong>强制设置了 HTTP 请求头 <code>Cache-Control: no-store</code> 或 <code>no-cache</code>：</strong></p>
+<ul>
+<li>虽然这些主要针对 HTTP 缓存，但在某些浏览器中也可能影响 BFCache 行为，指示页面不应被缓存。不过，这在 BFCache 规范中并非是强制阻止因素。</li>
+<li><strong>解决方案</strong>：如果希望使用 BFCache，确保不使用这些 HTTP 头。</li>
+</ul>
+</li>
+<li><p><strong>页面打开了新的窗口或标签页 (通过 <code>window.open</code>)，且该窗口未关闭：</strong></p>
+<ul>
+<li>这种情况下，浏览器可能为了维持父子窗口之间的 JS 上下文联系而阻止缓存父页面。</li>
+</ul>
+</li>
+<li><p><strong>浏览器扩展程序或某些内部状态：</strong></p>
+<ul>
+<li>某些浏览器扩展程序或浏览器本身的内部状态可能会意外阻止 BFCache。</li>
+</ul>
+</li>
+</ol>
+<h2 id="五、如何检测-BFCache-是否生效？"><a href="#五、如何检测-BFCache-是否生效？" class="headerlink" title="五、如何检测 BFCache 是否生效？"></a>五、如何检测 BFCache 是否生效？</h2><ol>
+<li><p><strong>手动测试</strong>：</p>
+<ul>
+<li>打开开发者工具 (F12)。</li>
+<li>在 Network (网络) 面板中勾选 “Disable cache” (禁用缓存) 或 “Disable browser cache” (禁用浏览器缓存)。<strong>注意：这里的“禁用缓存”指的是 HTTP 缓存，不会禁用 BFCache。</strong></li>
+<li>导航到目标页面 <code>A</code>。</li>
+<li>导航到另一个页面 <code>B</code>。</li>
+<li>点击浏览器的“后退”按钮返回页面 <code>A</code>。</li>
+<li>观察 Network 面板。如果页面是瞬间加载，且没有新的网络请求（除了可能的图片、JS 文件等资源），并且 <code>pageshow</code> 事件触发时 <code>event.persisted</code> 为 <code>true</code>，则 BFCache 生效。</li>
+</ul>
+</li>
+<li><p><strong>通过 <code>pageshow</code> 事件中的 <code>event.persisted</code> 属性</strong>：</p>
+<ul>
+<li>这是最直接的 JavaScript 检测方式。监听 <code>pageshow</code> 事件，并检查 <code>event.persisted</code> 的值。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="title function_">addEventListener</span>(<span class="string">&#x27;pageshow&#x27;</span>, <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (event.<span class="property">persisted</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;BFCache 命中！页面已从缓存恢复。&#x27;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;BFCache 未命中或首次加载。&#x27;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>Chrome DevTools 中的 Application (应用) 面板</strong>：</p>
+<ul>
+<li>在 Chrome 开发者工具的 Application (应用) 面板中，选择 Back&#x2F;forward cache (后退&#x2F;前进缓存) 选项。</li>
+<li>导航到你的页面，然后离开。</li>
+<li>当你从其他页面返回时，如果你在 Back&#x2F;forward cache 页面看到了目标页面，并显示 “Page restored from bfcache”，说明 BFCache 生效。如果显示 “Not restored from bfcache”，则会列出阻止 BFCache 的原因。</li>
+<li><strong>此工具非常有用，因为它能明确指出阻止 BFCache 的具体原因。</strong></li>
+</ul>
+</li>
+</ol>
+<h2 id="六、优化-BFCache-兼容性-让你的页面更好地利用-BFCache"><a href="#六、优化-BFCache-兼容性-让你的页面更好地利用-BFCache" class="headerlink" title="六、优化 BFCache 兼容性 (让你的页面更好地利用 BFCache)"></a>六、优化 BFCache 兼容性 (让你的页面更好地利用 BFCache)</h2><ol>
+<li><p><strong>移除或替换 <code>unload</code> 事件监听器</strong>：</p>
+<ul>
+<li>这是最重要的优化项。完全避免使用 <code>window.onunload</code> 或 <code>document.body.onunload</code>。</li>
+<li>将 <code>unload</code> 中的逻辑迁移到 <code>pagehide</code> (配合 <code>event.persisted === false</code> 判断) 或 <code>pageshow</code> (配合 <code>event.persisted === true</code> 判断)。</li>
+<li>发送数据使用 <code>navigator.sendBeacon()</code>。</li>
+</ul>
+</li>
+<li><p><strong>在 <code>pagehide</code> 事件中清理资源</strong>：</p>
+<ul>
+<li>当 <code>event.persisted === true</code> 时，暂停或关闭实时连接 (WebSocket, WebRTC)。</li>
+<li>清除不必要的定时器 (<code>setTimeout</code>, <code>setInterval</code>)、动画帧请求 (<code>requestAnimationFrame</code>)。</li>
+<li>取消或完成进行中的 IndexedDB 事务或 Web Locks。</li>
+<li>移除与第三方 SDK 相关的可能阻止 BFCache 的初始化代码 (如果可能)。</li>
+</ul>
+</li>
+<li><p><strong>避免使用 <code>Cache-Control: no-store</code> 或 <code>no-cache</code> 等 HTTP 头</strong>：</p>
+<ul>
+<li>除非有强烈的安全或实时性要求，否则避免这些头，它们会禁用所有缓存，包括 BFCache。</li>
+</ul>
+</li>
+<li><p><strong>测试和监控</strong>：</p>
+<ul>
+<li>在开发过程中使用 Chrome DevTools 的 Back&#x2F;forward cache 功能进行测试。</li>
+<li>在生产环境中监控 <code>pageshow</code> 事件中的 <code>event.persisted</code> 状态，以了解 BFCache 的命中率。</li>
+</ul>
+</li>
+</ol>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>BFCache 是浏览器提供的一个强大而常常被忽视的性能优化特性。它通过缓存整个页面的运行时状态，能够为用户的后退&#x2F;前进导航带来“零加载时间”的即时体验。要充分利用 BFCache，开发者需要积极避免使用 <code>unload</code> 事件，并在 <code>pagehide</code> 和 <code>pageshow</code> 事件中妥善管理页面的状态和资源。理解 BFCache 的工作原理及其阻止因素，并遵循最佳实践，将显著提升 Web 应用的用户体验。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/e04a0bc3926c/">https://blog.tbf1211.xx.kg/e04a0bc3926c/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Web%E6%8A%80%E6%9C%AF/">Web技术</a><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/JavaScript/">JavaScript</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-12.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/00697282f2b9/" title="如何判断用户是否离开了当前页面"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">如何判断用户是否离开了当前页面</div></div><div class="info-2"><div class="info-item-1"> 在前端开发中，有时我们需要在用户离开当前页面之前执行一些操作，例如保存用户未保存的数据、发送统计日志、弹出确认提示或清理资源。判断用户是否离开页面是一个常见的需求，但实现起来可能会有一些细微之处。本文将详细探讨几种在不同场景下判断用户离开页面的方法，并讨论它们的优缺点及适用场景。  核心思想：利用浏览器提供的事件监听器 (如 beforeunload, unload, pagehide, visibilitychange) 来监测页面生命周期状态，从而判断用户是刷新、关闭、切换标签页还是导航到其他页面。   一、页面生命周期事件概览在浏览器环境中，用户离开页面的行为会触发一系列的页面生命周期事件。理解这些事件是正确判断用户离开页面的基础。    事件名称 描述 触发时机 是否可取消 主要用途    beforeunload 在页面即将卸载之前触发，可以阻止页面卸载并显示确认弹窗。 用户尝试关闭、刷新、后退、导航到新页面等。浏览器主动调用 window.onbeforeunload = func。 是 (返回字符串或 event.returnValue) 提示用户保存未保存的数据...</div></div></div></a><a class="pagination-related" href="/c8105d5c8d5e/" title="Electron 开发详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Electron 开发详解</div></div><div class="info-2"><div class="info-item-1"> Electron (原名 Atom Shell) 是一个由 GitHub 开发的开源框架，它允许你使用 Web 技术 (HTML, CSS, JavaScript) 来构建跨平台的桌面应用程序。通过将 Chromium 渲染引擎和 Node.js 运行时集成到一个单一的项目中，Electron 使得前端开发者只需掌握一套技术栈，就能创建出功能强大、拥有原生外观和感觉的桌面应用，并能够访问操作系统底层功能。  核心思想：借助 Chromium (渲染视图) 和 Node.js (处理操作系统交互) 的能力，Electron 让 Web 技术栈能够构建全功能的跨平台桌面应用。   一、Electron 简介与优势1.1 什么是 Electron？Electron 可以被简单理解为一个微型浏览器套壳，它包含了：  Chromium：提供渲染用户界面的能力，这意味着你可以使用 HTML、CSS 和 JavaScript 来构建应用的 UI。 Node.js：提供访问操作系统底层 API 的能力，例如文件系统、网络、进程管理等。 原生 API 集成：Electron 提供了一套 API，...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/df020cf73515/" title="深入理解 JavaScript Fetch：为什么需要两次 await？"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-11</div><div class="info-item-2">深入理解 JavaScript Fetch：为什么需要两次 await？</div></div><div class="info-2"><div class="info-item-1"> JavaScript 中的 fetch API 提供了一种现代、强大的方式来发送网络请求。然而，初学者在使用 async/await 语法处理 fetch 请求时，经常会遇到一个困惑：为什么需要两次 await 才能获取到实际的数据？本文将深入探讨 fetch API 的设计原理，解释这“两次等待”背后的逻辑。  “Fetch API 的设计哲学：将 HTTP 响应的元数据与实际数据流分离处理。”   一、fetch API 概览fetch API 是 Web API 的一部分，用于替代老旧的 XMLHttpRequest 对象，提供了一个更强大、更灵活的用于获取资源的接口。它基于 Promise，使得异步请求的处理更加简洁。 一个典型的 fetch 请求（不使用 async/await）看起来是这样的： 123456789101112131415fetch(&#x27;https://api.example.com/data&#x27;)  .then(response =&gt; &#123;    // 第一次 then: 处理响应头和状态    if (!respons...</div></div></div></a><a class="pagination-related" href="/c8105d5c8d5e/" title="Electron 开发详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-04</div><div class="info-item-2">Electron 开发详解</div></div><div class="info-2"><div class="info-item-1"> Electron (原名 Atom Shell) 是一个由 GitHub 开发的开源框架，它允许你使用 Web 技术 (HTML, CSS, JavaScript) 来构建跨平台的桌面应用程序。通过将 Chromium 渲染引擎和 Node.js 运行时集成到一个单一的项目中，Electron 使得前端开发者只需掌握一套技术栈，就能创建出功能强大、拥有原生外观和感觉的桌面应用，并能够访问操作系统底层功能。  核心思想：借助 Chromium (渲染视图) 和 Node.js (处理操作系统交互) 的能力，Electron 让 Web 技术栈能够构建全功能的跨平台桌面应用。   一、Electron 简介与优势1.1 什么是 Electron？Electron 可以被简单理解为一个微型浏览器套壳，它包含了：  Chromium：提供渲染用户界面的能力，这意味着你可以使用 HTML、CSS 和 JavaScript 来构建应用的 UI。 Node.js：提供访问操作系统底层 API 的能力，例如文件系统、网络、进程管理等。 原生 API 集成：Electron 提供了一套 API，...</div></div></div></a><a class="pagination-related" href="/00697282f2b9/" title="如何判断用户是否离开了当前页面"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-08</div><div class="info-item-2">如何判断用户是否离开了当前页面</div></div><div class="info-2"><div class="info-item-1"> 在前端开发中，有时我们需要在用户离开当前页面之前执行一些操作，例如保存用户未保存的数据、发送统计日志、弹出确认提示或清理资源。判断用户是否离开页面是一个常见的需求，但实现起来可能会有一些细微之处。本文将详细探讨几种在不同场景下判断用户离开页面的方法，并讨论它们的优缺点及适用场景。  核心思想：利用浏览器提供的事件监听器 (如 beforeunload, unload, pagehide, visibilitychange) 来监测页面生命周期状态，从而判断用户是刷新、关闭、切换标签页还是导航到其他页面。   一、页面生命周期事件概览在浏览器环境中，用户离开页面的行为会触发一系列的页面生命周期事件。理解这些事件是正确判断用户离开页面的基础。    事件名称 描述 触发时机 是否可取消 主要用途    beforeunload 在页面即将卸载之前触发，可以阻止页面卸载并显示确认弹窗。 用户尝试关闭、刷新、后退、导航到新页面等。浏览器主动调用 window.onbeforeunload = func。 是 (返回字符串或 event.returnValue) 提示用户保存未保存的数据...</div></div></div></a><a class="pagination-related" href="/e2c7dc3a5487/" title="JavaScript Promise.all 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-07</div><div class="info-item-2">JavaScript Promise.all 详解</div></div><div class="info-2"><div class="info-item-1"> Promise.all() 是 JavaScript Promise 对象的一个静态方法，它接收一个 Promise 可迭代对象（如数组）作为输入，并返回一个新的 Promise。这个新的 Promise 在所有输入的 Promise 都成功解决后才解决，并返回一个包含所有解决值的数组，且值的顺序与输入 Promise 的顺序一致。如果输入的 Promise 中有任何一个被拒绝，Promise.all() 返回的 Promise 就会立即被拒绝，其拒绝原因将是第一个被拒绝的 Promise 的拒绝原因。  核心思想：将多个独立的异步操作视为一个整体。只有当所有子任务都成功完成时，整体任务才算成功；只要有一个子任务失败，整体任务就立即失败。   一、基本概念与作用Promise.all() 主要用于处理这样一种场景：你需要同时执行多个异步操作，并且只有当所有这些操作都成功完成时，你才能进行下一步处理。它提供了一种优雅的方式来管理并发的异步任务，并聚合它们的结果。 其主要作用包括：  并行执行异步任务：提高效率，避免串行执行带来的等待时间。 统一结果处理：将多个异步操作的结果合并到...</div></div></div></a><a class="pagination-related" href="/d95444379272/" title="Pinia详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-10</div><div class="info-item-2">Pinia详解</div></div><div class="info-2"><div class="info-item-1"> Pinia 是一个直观、类型安全、轻量级的 Vue.js 状态管理库，专为 Vue 3 设计，但也支持 Vue 2。它是 Vuex 5 的非官方继任者，旨在提供更简洁、更灵活、更易于理解和使用的状态管理体验，同时完美支持 TypeScript。Pinia 不仅提供了 Vuex 的所有功能，还通过优化其 API 设计和提供更好的类型推断，解决了 Vuex 在大规模应用中遇到的一些痛点。  核心思想：Pinia 将状态分割成独立的“Store”，每个 Store 都是一个模块化的、自包含的状态管理单元，拥有自己的 state、getters、actions。这种设计使得状态管理更加模块化、可维护，并能够按需加载。   一、为什么选择 Pinia？在 Vue 3 中，Pinia 已经成为官方推荐的状态管理库，替代了Vuex。它带来的主要优势包括： 1.1 更好的 TypeScript 支持 类型安全：Pinia 从设计之初就考虑了 TypeScript。所有的 Store 定义、state、getters、actions 都有良好的类型推断，无需手动编写复杂的类型声明。 代码补全：在...</div></div></div></a><a class="pagination-related" href="/865012842955/" title="JavaScript特殊运算符的使用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-24</div><div class="info-item-2">JavaScript特殊运算符的使用</div></div><div class="info-2"><div class="info-item-1"> JavaScript 语言不断演进，引入了许多新的运算符来提升开发效率、代码可读性和健壮性。本文将重点深入解析一些在现代 JavaScript 开发中非常实用且常见的特殊运算符，包括展开&#x2F;剩余运算符 (...)、逻辑赋值运算符 (||=, &amp;&amp;=, ??=)、可选链运算符 (?.) 和空值合并运算符 (??)。理解这些运算符的细微差别和最佳实践，是编写高质量 JavaScript 代码的关键。  核心思想：这些特殊运算符旨在提供更简洁、更安全的语法来处理数据集合、对象属性访问、条件赋值和默认值设定，从而显著简化常见编程模式。   一、Spread Syntax (...) - 展开&#x2F;剩余运算符... 符号在 JavaScript 中是一个多功能操作符，其具体行为取决于它出现的上下文。它主要扮演展开运算符 (Spread Operator) 和剩余运算符 (Rest Parameters) 两种角色。 1.1 展开运算符 (Spread Operator)当 ... 用于可迭代对象（如数组、字符串、Set、Map）时，它会将这些对象的元素“展开...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">437</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">223</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF-BFCache%EF%BC%9F"><span class="toc-text">一、什么是 BFCache？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81BFCache-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">二、BFCache 的工作原理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E7%9B%B8%E5%85%B3%E4%BA%8B%E4%BB%B6%EF%BC%9Apageshow-%E5%92%8C-pagehide"><span class="toc-text">三、相关事件：pageshow 和 pagehide</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%98%BB%E6%AD%A2%E9%A1%B5%E9%9D%A2%E8%BF%9B%E5%85%A5-BFCache-%E7%9A%84%E6%83%85%E5%86%B5"><span class="toc-text">四、阻止页面进入 BFCache 的情况</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%A6%82%E4%BD%95%E6%A3%80%E6%B5%8B-BFCache-%E6%98%AF%E5%90%A6%E7%94%9F%E6%95%88%EF%BC%9F"><span class="toc-text">五、如何检测 BFCache 是否生效？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E4%BC%98%E5%8C%96-BFCache-%E5%85%BC%E5%AE%B9%E6%80%A7-%E8%AE%A9%E4%BD%A0%E7%9A%84%E9%A1%B5%E9%9D%A2%E6%9B%B4%E5%A5%BD%E5%9C%B0%E5%88%A9%E7%94%A8-BFCache"><span class="toc-text">六、优化 BFCache 兼容性 (让你的页面更好地利用 BFCache)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"/></a><div class="content"><a class="title" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)">L7 负载均衡详解 (Layer 7 Load Balancing Explained)</a><time datetime="2025-12-14T22:24:00.000Z" title="发表于 2025-12-15 06:24:00">2025-12-15</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-12.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
