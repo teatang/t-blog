@@ -11,416 +11,255 @@ categories:
   - 桌面开发
 ---
 
-> Wails 是一个允许您使用 Go 和 Web 技术构建桌面应用程序的框架。它结合了 Go 语言的强大后端能力与现代 Web 界面的灵活性，帮助开发者快捷地创建轻量级、原生感强的跨平台桌面应用。
+> **Wails** 是一个 Go 语言编写的框架，用于使用 Go 语言的强大后端能力和熟悉的 Web 前端技术（HTML、CSS、JavaScript/TypeScript、以及任何前端框架如 React、Vue、Angular、Svelte 等）构建轻量级、高性能、原生的跨平台桌面应用程序。它与 Tauri 类似，都是 Electron 的替代品，但 Wails 的核心优势在于其后端是 Go 语言，这对于 Go 开发者来说更具亲和力。
 
 {% note info %}
-传统的桌面应用开发通常需要学习特定的 GUI 框架（如 Qt, Electron, WPF/WinForms 等），这对于 Web 开发者来说学习曲线陡峭。Electron 虽然解决了 Web 技术栈的问题，但其应用体积庞大、内存占用高，且集成了 Node.js 运行时，额外增加了依赖。Wails 则提供了一种优雅的解决方案：它使用原生 WebView 渲染界面，后端逻辑全部由 Go 语言编写，实现了轻量级、高性能和原生体验的桌面应用。
+核心思想：**将现代 Web 前端技术与 Go 语言编写的原生后端无缝结合，通过操作系统的 WebView 渲染 UI，实现高性能、低资源消耗且易于 Go 开发者上手的桌面应用开发。**
 {% endnote %}
+
 ------
 
-## 一、Wails 简介与核心优势
+## 一、为什么选择 Wails？
 
-Wails 的核心理念是：**用 Go 语言编写应用后端（业务逻辑），用 Web 前端技术（HTML, CSS, JavaScript）构建应用界面（UI）**。它将 Go 程序和基于 Webview 的前端巧妙地结合在一起，实现两者之间的双向通信。
+与 Electron 相比，Wails 提供了一系列优势，特别吸引 Go 语言开发者：
 
-**Wails 的核心优势：**
+1.  **极小的捆包体积**：Wails 应用同样不捆绑 Chromium 或 Node.js 运行时。它利用操作系统自带的 WebView 控件（如 Windows 上的 WebView2/EdgeHTML、macOS 上的 WKWebView、Linux 上的 WebKitGTK/WebView2），使得最终应用体积非常小，通常只有几MB。
+2.  **低内存占用**：由于使用系统 WebView，内存占用大幅降低，更接近原生应用。
+3.  **高性能 Go 后端**：开发者可以使用 Go 语言编写应用程序的后端逻辑，利用 Go 的高性能、并发能力和丰富的标准库。这对于需要处理大量数据、网络通信或复杂业务逻辑的应用尤其有利。
+4.  **Go 语言亲和性**：对于已经熟悉 Go 语言的开发者，Wails 提供了非常自然的开发体验，无需学习 Rust（像 Tauri 那样）或 Node.js（像 Electron 那样）来编写后端。
+5.  **跨平台**：一套 Go 和 Web 代码库可以构建 Windows、macOS 和 Linux 平台上的应用。
+6.  **Web 技术栈**：前端开发者可以继续使用熟悉的 HTML、CSS、JavaScript 和各种前端框架。
 
-1.  **原生 Webview 渲染**：不捆绑 Chromium 运行时（像 Electron 那样），而是利用操作系统提供的原生 Webview 控件（如 Windows 上的 WebView2/EdgeHTML, macOS 上的 WebKit, Linux 上的 WebKitGTK/WebView2 ）。
-    *   **体积小巧**：最终应用程序包大小显著小于 Electron 应用。
-    *   **内存占用低**：原生 Webview 通常比嵌入式 Chromium 更节省内存。
-    *   **原生体验**：UI 渲染性能接近原生，集成了系统级功能。
-2.  **高性能 Go 后端**：所有业务逻辑都在 Go 运行时中执行，充分利用 Go 语言的并发优势和高性能特性。
-3.  **双向通信**：Go 后端可以直接调用前端 JavaScript 函数，前端 JavaScript 也可以直接调用 Go 后端方法，实现无缝交互。
-4.  **跨平台**：一次编写，多处运行，支持 Windows、macOS 和 Linux。
-5.  **易于集成前端框架**：支持 Vue, React, Angular, Svelte 等任何前端框架。
-6.  **编译为单个可执行文件**：部署简单，无需额外依赖 (除了原生 Webview，通常系统自带或易于安装)。
+## 二、Wails 的核心架构与概念
 
-## 二、Wails 工作原理
+Wails 的架构设计与 Tauri 有相似之处，但核心后端语言是 Go：
 
-Wails 的工作原理可以概括为以下几点：
+{% mermaid %}
+graph LR
+    A["用户界面 (UI)HTML/CSS/JS <br>(React, Vue等)"] --> B["Wails Runtime Bridge (Go)"]
+    B --> C["Go 后端 (Backend) 业务逻辑, <br>系统API, 文件系统, 网络等"]
+    C --> D[操作系统原生物件<br>窗口, 菜单, 通知]
+    C --> E[系统级能力文件读写, <br>网络请求, 数据库操作]
+    F["操作系统 WebView 控件<br>(Windows: WebView2, <br>macOS: WKWebView, <br>Linux: WebKitGTK)"] --> A
+  
+    subgraph Wails 应用
+        A -- 渲染 --> F
+        A -- 调用 --> B
+        B -- 驱动 --> C
+        C -- 控制 --> D
+        C -- 访问 --> E
+    end
+{% endmermaid %}
 
-1.  **Webview 嵌入**：Wails 创建一个 Go 语言进程，并在该进程中启动一个原生 Webview 控件。这个 Webview 控件负责渲染你的前端 Web 代码（HTML, CSS, JavaScript）。
-2.  **文件服务**：在应用程序启动时，Wails 会将你编译后的前端项目打包或作为静态资源嵌入到 Go 可执行文件中。Go 后端会运行一个小型文件服务器，将这些前端资源提供给 Webview 控件。
-3.  **JavaScript 绑定**：Wails 在 Webview 的 JavaScript 全局对象上注入了一个 `window.wails` 对象（或其他名称），该对象包含了与 Go 后端通信的方法。
-4.  **Go 方法注册**：Go 后端通过 Wails SDK 注册需要暴露给前端调用的 Go 方法。
-5.  **通信桥接**：
-    *   **JS 调用 Go**：当前端 JavaScript 调用 `window.wails.Call("YourGoMethod", ...args)` 时，Wails 会将该调用请求序列化，通过内部的通信桥接（通常是基于 Webview 的原生通信机制，如 `dom.bind` 等）传递给 Go 后端。Go 后端解析请求，执行对应的 Go 方法，并将结果返回给前端 JS。
-    *   **Go 调用 JS**：Go 后端可以通过 Wails 的运行时 API `runtime.EventsEmit` 或 `runtime.Callback` 直接向前端发送事件或调用 JS 函数。
-6.  **最小化依赖**：Go 应用编译成单一可执行文件，减少了外部依赖。唯一需要的系统依赖是对应平台的 WebView 运行时。
+### 2.1 WebView (前端渲染)
 
-## 三、开发环境准备
+*   **定义**：与 Tauri 类似，Wails 也利用操作系统提供的原生 Web 内容渲染组件来显示前端 UI。
+*   **优势**：捆包体积小、内存占用低、外观与系统更协调。
+*   **跨平台差异**：
+    *   **Windows**：WebView2 (基于 Edge Chromium)，如果不可用则回退到 EdgeHTML (IE 的 MSHTML 引擎)。
+    *   **macOS**：WKWebView (基于 Safari 的 WebKit)。
+    *   **Linux**：通常使用 WebKitGTK 或 WebView2。
+*   **与 Web 交互**：前端 Web 代码运行在 WebView 中，通过 Wails 提供的 Runtime 桥接器与 Go 后端进行通信。
 
-### 3.1 安装 Go 语言
+### 2.2 Go 后端 (业务逻辑)
 
-确保你的系统已安装 Go 1.18 或更高版本。
+*   **定义**：Wails 的核心后端逻辑由 Go 语言编写，负责处理文件系统操作、网络请求、调用操作系统原生 API、应用生命周期管理、系统托盘、菜单、通知以及所有业务逻辑。
+*   **优势**：
+    *   **性能**：Go 提供了出色的性能，尤其适合高并发和 I/O 密集型任务。
+    *   **并发模型**：Goroutines 和 Channels 使得编写并发代码非常简单高效。
+    *   **丰富的生态**：Go 拥有强大的标准库和成熟的第三方库生态系统。
+    *   **单文件可执行程序**：Go 应用程序可以被编译成单一的静态链接可执行文件，便于分发。
+*   **API 接口**：Wails 提供了一套 Go API 和结构体，用于在后端实现业务逻辑，并通过 JSON-RPC 风格的机制暴露给前端。
 
+### 2.3 Runtime 桥接 (IPC)
+
+*   **定义**：Wails 框架在前端 JavaScript 和后端 Go 之间建立了一个高效的通信桥梁。
+*   **工作原理**：
+    *   **前端调用后端 (Go 方法)**：前端 JavaScript 通过 `window.go.main.<YourStruct>.<YourMethod>()` 这样的 API 来调用 Go 后端注册的结构体方法。这些 Go 方法会被自动暴露给前端。Wails 会自动进行参数和返回值的序列化/反序列化（JSON）。
+    *   **后端发送事件到前端 (Event)**：Go 后端可以通过 `runtime.EventsEmit(ctx, "eventName", data)` 向前端发送自定义事件，JavaScript 可以在前端使用 `runtime.EventsOn("eventName", callback)` 监听这些事件。
+*   **数据绑定**：Wails 的数据绑定功能允许前端直接调用 Go 方法并获取返回值，或者订阅 Go 发出的事件，实现前后端数据的实时同步和交互。
+
+### 2.4 Wails CLI (Command Line Interface)
+
+*   **定义**：Wails CLI 是一个强大的命令行工具，用于创建、开发、构建 Wails 项目。
+*   **功能**：
+    *   `wails init`：初始化 Wails 项目，可以选择前端框架模板。
+    *   `wails dev`：开发模式运行应用，支持热重载。
+    *   `wails build`：构建生产环境的应用，生成安装包（`.exe`, `.app`, `.deb` 等）。
+    *   `wails generate`：生成绑定代码等。
+
+### 2.5 配置文件 (`wails.json`)
+
+*   **定义**：Wails 项目的核心配置文件，定义了应用的元数据、构建选项、桌面原生特性等。
+*   **关键配置项**：
+    *   `name`：应用名称。
+    *   `shortname`：短名称。
+    *   `description`：应用描述。
+    *   `frontend`：前端构建命令、分发目录等。
+    *   `wails`：
+        *   `app`：配置应用窗口属性（标题、大小、是否可调整大小等）、图标、菜单等。
+        *   `webview`：WebView 特有的配置。
+        *   `build`：Go 模块路径、编译标志等。
+
+## 三、Wails 的开发流程
+
+### 3.1 准备环境
+
+1.  **Go 语言环境**：安装 Go SDK (Go 1.18+)。
+2.  **Node.js 和 npm/yarn**：用于前端项目管理。
+3.  **系统 WebView 依赖**：
+    *   **Windows**：需要安装 WebView2 Runtime（如果系统没有）。
+    *   **Linux**：需要安装 `webkit2gtk` 或 `webkitgtk` 等依赖。
+    *   **macOS**：通常无需额外安装。
+4.  **Wails CLI**：`go install github.com/wailsapp/wails/v2/cmd/wails@latest`。
+
+### 3.2 创建项目
+
+使用 Wails CLI 初始化一个新项目。
 ```bash
-go version
+wails init -n my-wails-app -t vue # 选择 Vue 模板
+# 或者 wails init -n my-wails-app -t react
 ```
 
-### 3.2 安装 Wails CLI
-
-Wails 提供了命令行工具 `wails` 来创建、运行和构建项目。
-
-```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+项目结构示例：
+```
+my-wails-app/
+├── frontend/              # 前端 Web 代码 (例如 Vue/React 项目)
+│   ├── index.html
+│   ├── src/
+│   └── package.json
+├── main.go                # Go 后端代码和应用入口点
+├── wails.json             # Wails 核心配置文件
+└── go.mod / go.sum        # Go 模块文件
 ```
 
-安装完成后，验证是否成功：
+### 3.3 编写前端代码
 
-```bash
-wails doctor
-```
-`wails doctor` 会检查你的系统环境是否满足 Wails 的开发和构建要求，并提示缺少哪些依赖。根据提示安装缺少的依赖（例如在 Windows 上安装 WebView2 Runtime 和 C++ Build Tools，在 Linux 上安装 WebKitGTK 及其开发库等）。
+在 `frontend/` 目录下像往常一样编写你的 Web 应用。
+**示例 (前端调用后端 Go 方法):**
+`frontend/src/App.vue` (Vue 示例)
+```vue
+<template>
+  <div>
+    <h1>Hello Wails!</h1>
+    <input v-model="name" placeholder="Enter your name">
+    <button @click="greet">Greet</button>
+    <p v-if="greeting">{{ greeting }}</p>
+  </div>
+</template>
 
-### 3.3 Node.js / NPM (可选，取决于你的前端技术栈)
+<script setup>
+import { ref } from 'vue';
 
-如果你使用 Vue, React 等现代前端框架，可能需要安装 Node.js 和 npm/yarn 来管理和构建前端项目。
+const name = ref('');
+const greeting = ref('');
 
-## 四、创建你的第一个 Wails 项目
-
-使用 `wails init` 命令创建新项目：
-
-```bash
-wails init -n MyWailsApp -t vanilla
-```
-
-*   `-n MyWailsApp`：指定项目名称为 `MyWailsApp`。
-*   `-t vanilla`：指定前端模板为 `vanilla` (原生 JS/HTML/CSS)。Wails 也支持 `vue`, `react`, `svelte`, `angular` 等模板。
-
-这会在当前目录创建一个名为 `MyWailsApp` 的文件夹，包含 Wails 项目的基本结构。
-
-### 项目结构概览
-
-```
-MyWailsApp/
-├── wails.json              # Wails 项目配置文件
-├── main.go                 # Go 后端主入口文件
-├── go.mod                  # Go 模块文件
-├── frontend/               # 前端项目目录
-│   ├── src/                # 前端源码
-│   │   ├── main.js
-│   │   └── style.css
-│   │   └── index.html
-│   └── package.json        # 前端依赖管理 (如果使用 npm/yarn)
-│   └── ...                 # 其他前端文件
-├── build/                  # 构建目录 (Wails 自动生成)
-│   ├── appicon.png
-│   └── ...
-└── app.go                  # Go 应用逻辑文件 (Wails 自动生成)
+async function greet() {
+  if (name.value) {
+    // 调用 Go 后端的 'Greet' 方法，这里的 'App' 是 Go 结构体的实例名
+    // 假设 Go 后端有一个名为 'App' 的结构体，上面有一个 'Greet' 方法
+    greeting.value = await window.go.main.App.Greet(name.value);
+  }
+}
+</script>
 ```
 
-## 五、开发流程
+### 3.4 编写后端代码 (Go)
 
-### 5.1 Go 后端逻辑 (`app.go`)
-
-`app.go` 文件包含了你的 Go 应用程序的核心逻辑，它会作为前端可调用的方法被 Wails 自动绑定。
-
+在 `main.go` 中定义 Go 结构体和方法，并注册到 Wails 应用中。
+**示例 (Go 后端方法):**
+`main.go`
 ```go
 package main
 
 import (
 	"context"
 	"fmt"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App struct
+// App struct 包含应用程序的上下文和业务逻辑
 type App struct {
 	ctx context.Context
 }
 
-// NewApp creates a new App application struct
+// NewApp 创建一个新的 App 结构体实例
 func NewApp() *App {
 	return &App{}
 }
 
-// Startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) Startup(ctx context.Context) {
+// startup 是在应用启动时调用的方法，用于注入上下文
+func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// Greet returns a greeting for the given name
+// Greet 方法是一个暴露给前端的 Go 方法
+// 前端可以调用这个方法，并传递一个 name 参数
 func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, Go is awesome!", name)
+	// 可以在这里执行 Go 的业务逻辑，例如文件操作、网络请求等
+	// 也可以通过 runtime.Log.Info 等记录日志
+	runtime.LogInfo(a.ctx, fmt.Sprintf("Greet method called with name: %s", name))
+	return fmt.Sprintf("Hello %s, from Go!", name)
 }
 
-// SumNumbers sums two numbers
-func (a *App) SumNumbers(a, b int) int {
-	return a + b
-}
-```
+func main() {
+	app := NewApp()
 
-*   `App` 结构体：定义了你的应用对象。
-*   `Startup(ctx context.Context)`：当应用启动时被调用，你可以保存 `context` 以便后续使用 Wails runtime 方法（如事件发送）。
-*   `Greet(name string) string` 和 `SumNumbers(a, b int) int`：这些都是暴露给前端的 Go 方法。Wails 会自动将它们注册到前端 `window.wails` 对象上。**注意：方法名首字母需大写才能被前端调用。**
+	err := wails.Run(&options.App{
+		Title:  "My Wails App",
+		Width:  1024,
+		Height: 768,
+		AssetServer: &options.AssetServer{
+			Handler: assets.NewFileSystem(),
+		},
+		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		OnStartup:        app.startup, // 注册 startup 方法
+		Bind: []interface{}{           // 注册 Go 结构体实例，其方法将暴露给前端
+			app,
+		},
+	})
 
-### 5.2 前端界面 (`frontend/src/main.js` 和 `frontend/src/index.html`)
-
-前端的 `main.js` 文件将通过 `window.go.main.App.Greet` 等方式调用 Go 方法。
-
-```html
-<!-- frontend/src/index.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Wails App</title>
-    <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-    <div id="app">
-        <h1>Welcome to Wails!</h1>
-        <input id="nameInput" type="text" placeholder="Enter your name...">
-        <button onclick="greet()">Greet</button>
-        <p id="greetingOutput"></p>
-
-        <h2>Sum two numbers</h2>
-        <input id="num1Input" type="number" value="10">
-        <input id="num2Input" type="number" value="20">
-        <button onclick="sum()">Sum</button>
-        <p id="sumOutput"></p>
-    </div>
-    <script src="./main.js"></script>
-</body>
-</html>
-```
-
-```javascript
-// frontend/src/main.js
-import { main } from "../wailsjs/go/models"; // 导入Go的模型（类型定义）
-import { App } from "../wailsjs/go/main"; // 导入Go后端方法
-
-document.addEventListener('DOMContentLoaded', () => {
-    // 监听 Go 方法的调用
-    window.onload = function() {
-        console.log("Wails has loaded!");
-    };
-});
-
-async function greet() {
-    const nameInput = document.getElementById('nameInput');
-    const greetingOutput = document.getElementById('greetingOutput');
-    const name = nameInput.value;
-    if (name) {
-        // 调用 Go 后端的 App 结构体中的 Greet 方法
-        const result = await App.Greet(name);
-        greetingOutput.textContent = result;
-    } else {
-        greetingOutput.textContent = "Please enter a name.";
-    }
-}
-
-async function sum() {
-    const num1Input = document.getElementById('num1Input');
-    const num2Input = document.getElementById('num2Input');
-    const sumOutput = document.getElementById('sumOutput');
-    const num1 = parseInt(num1Input.value);
-    const num2 = parseInt(num2Input.value);
-
-    // 调用 Go 后端的 App 结构体中的 SumNumbers 方法
-    const result = await App.SumNumbers(num1, num2);
-    sumOutput.textContent = `Sum: ${result}`;
-}
-
-// 暴露出函数以便在 HTML 中通过 onclick 调用
-window.greet = greet;
-window.sum = sum;
-```
-**注意：**
-*   `../wailsjs/go/main` 和 `../wailsjs/go/models` 是 Wails 自动生成的 Go 后端方法和类型定义的 JavaScript 绑定文件。这些文件在 `wails dev` 或 `wails build` 时会自动生成/更新。
-*   你需要将函数暴露出到 `window` 对象，才能在 `index.html` 的 `onclick` 中直接引用。或者使用更现代的前端框架来管理事件。
-
-### 5.3 运行应用程序
-
-在项目根目录执行：
-
-```bash
-wails dev
-```
-`wails dev` 会启动一个开发服务器，自动编译 Go 代码，并在一个新窗口中打开你的应用。每次保存 Go 代码或前端代码时，它都会自动热重载，方便调试。
-
-## 六、Wails 双向通信机制详解
-
-Wails 提供强大的双向通信能力，是其核心亮点之一。
-
-### 6.1 前端调用 Go (JS -> Go)
-
-这是最常见的模式，前端通过 JavaScript 调用 Go 后端的逻辑。
-
-*   **调用方式**：通过 Wails 自动生成的 `window.go.<packageName>.<StructName>.<MethodName>(...args)`
-    *   **例子**：`window.go.main.App.Greet("World")` (如果你的 `App` 结构体在 `main` 包中)
-    *   **推荐方式 (JS Module)**：如上例，先 `import { App } from "../wailsjs/go/main";`，然后 `App.Greet("World")`。
-*   **参数类型**：Go 方法可以接受基本类型、结构体、切片、Map 等作为参数。Wails 会自动进行 JSON 序列化/反序列化。
-*   **返回值**：Go 方法可以返回任何可序列化的 Go 类型。
-
-### 6.2 Go 调用前端 (Go -> JS)
-
-Go 后端可以通过 Wails Runtime API 向前端发送事件或执行 JS 代码。
-
-#### 6.2.1 发送事件 (推荐)
-
-Go 后端向前端广播事件，前端监听事件并触发响应。这是更解耦、优雅的通信方式。
-
-**Go 代码 (`app.go`):**
-
-```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-)
-
-type App struct {
-	ctx context.Context
-}
-// ... Startup 方法省略 ...
-
-// SendMessageToFrontend sends a message to the frontend every second
-func (a *App) StartSendingMessages() {
-	go func() {
-		for i := 0; i < 5; i++ {
-			msg := fmt.Sprintf("Message from Go: %d", i)
-			// 发布事件
-			runtime.EventsEmit(a.ctx, "myMessage", msg) // "myMessage" 是事件名, msg 是数据
-			time.Sleep(time.Second)
-		}
-		runtime.EventsEmit(a.ctx, "myMessage", "Go has finished sending messages!")
-	}()
+	if err != nil {
+		println("Error:", err.Error())
+	}
 }
 ```
 
-**前端 JS (`main.js`):**
+### 3.5 运行与构建
 
-```javascript
-// ... (之前的代码)
+*   **开发模式**：
+    ```bash
+    wails dev
+    ```
+    这会启动你的前端开发服务器，并在一个 Wails 窗口中加载它。支持热重载。
+*   **构建生产版本**：
+    ```bash
+    wails build
+    ```
+    这会编译你的 Go 后端，打包前端资源，并生成针对当前操作系统架构的原生应用安装包或可执行文件。
 
-document.addEventListener('DOMContentLoaded', () => {
-    // ... (之前的代码)
+## 四、Wails 与 Tauri 的对比
 
-    // 监听 Go 后端发送的事件
-    window.runtime.EventsOn("myMessage", (message) => {
-        console.log("Received from Go:", message);
-        const eventOutput = document.createElement('p');
-        eventOutput.textContent = `Event from Go: ${message}`;
-        document.getElementById('app').appendChild(eventOutput);
-    });
+Wails 和 Tauri 都是优秀的 Electron 替代品，它们共享许多核心理念（如使用系统 WebView、小体积、低内存）。主要区别在于后端语言和生态：
 
-    // 启动 Go 后端发送消息的函数
-    App.StartSendingMessages();
-});
-```
-*   `runtime.EventsEmit(ctx, eventName, data)`：在 Go 后端发送事件。
-*   `window.runtime.EventsOn(eventName, callback)`：在前端 JS 监听事件。
+| 特性             | Wails                                        | Tauri                                        |
+| :--------------- | :------------------------------------------- | :------------------------------------------- |
+| **后端语言**     | Go 语言                                      | Rust 语言                                    |
+| **后端性能**     | 高，Go 的并发和运行时性能优异                | 极高，Rust 提供极致的内存安全和运行时性能    |
+| **语言门槛**     | Go 开发者友好，学习曲线相对平缓              | Rust 学习曲线陡峭，对新人可能更具挑战        |
+| **生态系统**     | 依赖 Go 生态，标准库和工具链成熟             | 依赖 Rust 生态，内存安全和系统编程能力强     |
+| **安全强调**     | 良好的安全实践，但也依赖 Go 的安全性         | 默认安全，Rust 语言特性和严格的权限控制提供更高级别的安全保障 |
+| **社区活跃度**   | 活跃，但相对 Tauri 稍小                      | 极度活跃，社区成长迅速，获得更多关注和投资   |
+| **打包体积**     | 极小 (几MB)                                  | 极小 (几MB)                                  |
+| **内存占用**     | 低，接近原生应用                             | 低，接近原生应用                             |
 
-#### 6.2.2 执行 JavaScript (慎用)
+**选择建议：**
 
-Go 后端可以执行任意的 JavaScript 代码。
+*   **如果你是 Go 开发者**，或者你的项目已经有大量 Go 代码，Wails 可能是更自然、更高效的选择。你可以直接复用 Go 的库和经验。
+*   **如果你关注极致的性能、内存安全，或者你的团队已经有 Rust 经验**，并且愿意投入学习 Rust，Tauri 提供了更强大的底层控制和更强的安全保证。
 
-**Go 代码 (某个 Go 方法中):**
+## 五、总结
 
-```go
-runtime.ExecJS(a.ctx, "alert('Hello from Go backend in JavaScript!');")
-```
+Wails 提供了一个出色的解决方案，让 Go 开发者能够利用他们熟悉的语言构建高性能、轻量级、跨平台的桌面应用程序。它结合了 Go 语言的简洁、高效和 Web 前端技术的灵活性，为桌面应用开发带来了新的活力。
 
-**前端 JS:** 无需额外代码，直接执行。
-
-**考量**：
-*   **优点**：直接、灵活。
-*   **缺点**：耦合度高，不易维护，可能导致安全问题 (应避免执行不可信的 JS)。
-*   **推荐**：除非特定场景，尽量使用事件通信。
-
-## 七、构建与部署
-
-当你的应用开发完成后，可以使用 `wails build` 命令进行构建。
-
-```bash
-wails build
-```
-
-这会在 `build/bin` 目录下生成一个独立的、特定于当前操作系统的可执行文件。
-
-**常用构建选项：**
-
-*   `wails build -r`：构建 release 版本（优化、减小体积），默认包含调试信息。
-*   `wails build --clean`：在构建前清理缓存。
-*   `wails build --upx`：使用 UPX 压缩可执行文件（需要先安装 UPX）。
-*   `wails build --platform windows/amd64`：交叉编译到指定平台。
-*   `wails build --platform windows/amd64,linux/amd64`：交叉编译到多个平台。
-
-**注意事项：**
-
-*   **Windows**：确保系统中安装了 WebView2 Runtime (Edge Chromium)。Windows 10/11 通常预装；旧版本可能需要手动安装。
-*   **macOS**：通常无需额外依赖。
-*   **Linux**：依赖 WebKitGTK 或 WebView2。你需要确保目标系统安装了 `webkit2gtk` 或类似的包。例如在 Ubuntu/Debian 上：`sudo apt install webkit2gtk-4.0`。
-
-## 八、Wails 配置文件 (`wails.json`)
-
-`wails.json` 文件是 Wails 项目的配置中心，你可以自定义应用名称、图标、窗口大小、Frontend 命令等。
-
-```json
-{
-  "$schema": "https://wails.io/schemas/wails.json",
-  "name": "MyWailsApp",
-  "outputfilename": "mywailsapp",
-  "frontend:install": "npm install",
-  "frontend:build": "npm run build",
-  "frontend:dev": "npm run dev",
-  "frontend:dir": "frontend",
-  "wailsjsdir": "./frontend/wailsjs",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  },
-  "info": {
-    "productName": "My Awesome Wails App"
-  },
-  "options": {
-    "bindings": {
-      "css": {
-        "output": ""
-      },
-      "typescript": {
-          "output": ""
-      }
-    },
-    "appicon": "build/appicon.png",
-    "devtools": {
-      "enabled": true
-    },
-    "window": {
-      "width": 1024,
-      "height": 768,
-      "resizable": true,
-      "frameless": false,
-      "sizefixed": false,
-      "fullscreen": false,
-      "alwaysOnTop": false,
-      "backgroundType": "opaque",
-      "minimisable": true,
-      "maximisable": true
-    }
-  }
-}
-```
-*   `frontend:install`, `frontend:build`, `frontend:dev`：自定义前端项目的安装、构建和开发命令。如果你使用 `npm`, `yarn`, `pnpm` 或其他构建工具，可以在这里配置。
-*   `frontend:dir`：前端项目源代码的目录。
-*   `wailsjsdir`：Wails 自动生成的 JS 绑定文件的输出目录。
-
-## 九、其他实用特性
-
-*   **上下文菜单**： Wails 允许你自定义右键上下文菜单。
-*   **通知**：支持系统级的通知。
-*   **Dialogs**：文件选择、消息提示等系统原生对话框。
-*   **Dark Mode (深色模式)**：Wails 可以感知系统深色模式设置，方便前端适配。
-*   **应用图标和构建设置**：通过 `wails.json` 和 `build/` 目录进行配置。
-
-## 十、总结
-
-Wails 框架为 Go 开发者提供了一个强大而新颖的桌面应用开发体验。它巧妙地结合了 Go 的后端性能与 Web 的前端灵活性，同时避免了 Electron 的体积和内存开销。如果你是 Go 开发者，又希望利用现代 Web 技术构建跨平台的桌面应用，Wails 绝对是一个值得你投入学习和使用的优秀选择。
-
-通过简洁的 API、高效的双向通信和轻量级的原生 Webview，Wails 使得创建美观、高性能的桌面应用变得前所未有的简单。开始你的 Wails 之旅，用 Go 语言和 Web 技术，探索桌面应用的无限可能吧！
+虽然它仍是一个相对年轻的框架，但其核心优势（小体积、低内存、Go 后端）使其在特定场景下成为 Electron 或其他更重型框架的有力竞争者。对于 Go 语言生态中的开发者而言，Wails 无疑是构建桌面应用时一个值得认真考虑的优秀选择。
