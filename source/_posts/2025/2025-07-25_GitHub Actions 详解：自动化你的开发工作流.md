@@ -10,318 +10,385 @@ categories:
   - CI/CD
 ---
 
-> GitHub Actions 是 GitHub 提供的持续集成 (CI) 和持续部署 (CD) 服务，它可以帮助开发者自动化软件开发生命周期中的各种任务，例如代码构建、测试、部署，甚至代码审查和发布管理。通过 GitHub Actions，你可以在代码仓库中定义一系列自动化工作流，让你的开发过程更加高效、可靠。
+> **GitHub Actions** 是 GitHub 推出的一项持续集成/持续部署 (CI/CD) 服务，它允许用户在 GitHub 仓库中直接自动化、自定义和执行软件开发工作流。它可以响应 GitHub 上的各种事件，例如代码推送、Pull Request 创建、Issue 评论等，从而触发一系列自动化任务。通过 GitHub Actions，开发者可以在不离开 GitHub 环境的情况下实现代码的构建、测试、部署、发布等自动化流程，极大地提高了开发效率和质量。
 
 {% note info %}
-“好的工具能让开发者专注于创造，而不是重复劳动。GitHub Actions 就是这样的工具。”
+核心思想：**将开发流程中的重复性任务自动化，并通过事件驱动的方式集成到 GitHub 生态系统中。**
 {% endnote %}
 ------
 
-## 一、什么是 GitHub Actions？
+## 一、为什么需要 GitHub Actions？
 
-GitHub Actions 是一种事件驱动的自动化平台。这意味着当 GitHub 仓库中发生特定事件（例如 `push` 代码、`pull_request` 创建、`issue` 开启等）时，它可以自动触发预定义的工作流（Workflow）执行。
+在现代软件开发中，持续集成 (CI) 和持续部署 (CD) 是不可或缺的实践。它们帮助开发团队：
 
-**核心优势：**
+*   **快速反馈**：每次代码提交后立即运行测试，快速发现并修复错误。
+*   **提高质量**：自动化测试确保代码质量，减少人工错误。
+*   **加速交付**：自动化构建和部署流程，使软件能够更快地交付到用户手中。
+*   **消除重复工作**：将重复性的任务（如格式检查、依赖安装、构建、部署）自动化，释放开发人员的精力。
 
-*   **与 GitHub 深度集成**：直接在 GitHub 仓库中管理 CI/CD，无需外部工具。
-*   **事件驱动**：灵活配置触发事件，覆盖开发流程的各个环节。
-*   **丰富生态**：拥有庞大的 Actions 市场，提供各种预构建的自动化任务块。
-*   **云原生**：在云端虚拟机上运行，无需维护自己的 CI 服务器。
-*   **免费额度**：为开源项目和个人用户提供免费的构建时间。
+GitHub Actions 旨在提供一个紧密集成到 GitHub 生态系统中的 CI/CD 解决方案，相比于独立的 CI/CD 工具，它具有以下优势：
+
+*   **原生集成**：与 GitHub 仓库无缝集成，无需额外配置外部服务。
+*   **事件驱动**：可响应 GitHub 上的几乎所有事件，提供极高的灵活性。
+*   **丰富的生态**：拥有庞大的 Actions Marketplace，提供大量可复用的预构建 Actions。
+*   **免费额度**：为开源项目和私有仓库提供慷慨的免费使用额度。
+*   **代码驱动**：工作流配置以 YAML 文件的形式存储在仓库中，易于版本控制和协作。
 
 ## 二、核心概念
 
-在深入使用 GitHub Actions 之前，理解以下核心概念至关重要：
+理解 GitHub Actions 的核心概念是创建有效工作流的关键。
 
-1.  **Workflow (工作流)**
-    *   一个工作流是一个可配置的自动化过程。它由一个或多个作业（Job）组成。
-    *   工作流使用 YAML 文件定义，存储在 `.github/workflows/` 目录下。
-    *   每个工作流文件代表一个独立的自动化流程，例如一个用于测试，一个用于部署。
+### 2.1 工作流 (Workflow)
 
-2.  **Event (事件)**
-    *   触发工作流运行的特定活动。
-    *   常见的事件包括 `push`（代码推送到仓库）、`pull_request`（PR 被创建、打开、同步等）、`schedule`（定时任务）、`workflow_dispatch`（手动触发）、`issue_comment` 等。
-    *   你可以在工作流文件中指定一个或多个事件来触发它。
+**定义**：工作流是自动化过程的配置。它定义了一个或多个作业 (Jobs)，以及它们何时运行的条件。工作流文件使用 YAML 语法，存储在仓库的 `.github/workflows/` 目录下。
 
-3.  **Job (作业)**
-    *   一个作业是在一个**新的虚拟机环境**中执行的一系列步骤（Step）。
-    *   一个工作流可以包含多个作业。这些作业可以并行运行，也可以按顺序依赖关系运行。
-    *   每个作业都独立运行，拥有自己的虚拟机环境。
+*   一个仓库可以有多个工作流文件。
+*   每个工作流文件定义了一个独立的自动化流程。
 
-4.  **Step (步骤)**
-    *   作业中的单个任务单元。
-    *   一个步骤可以是一个 `run` 命令（执行 shell 脚本），也可以是一个 `uses` 操作（使用一个预定义的 Action）。
-    *   步骤的执行是顺序的。
-
-5.  **Action (操作)**
-    *   GitHub Actions 平台中可重用的代码单元，是实现特定任务的基础组件。
-    *   一个 Action 可以是一个 Shell 脚本、一个 Docker 容器，或者一个 JavaScript 程序。
-    *   Action 通常由社区或 GitHub 官方提供，可以在 GitHub Marketplace 中找到。
-    *   例如：`actions/checkout@v4` 用于拉取仓库代码，`actions/setup-node@v4` 用于设置 Node.js 环境。
-
-6.  **Runner (运行器)**
-    *   执行工作流的服务器。
-    *   GitHub 提供 GitHub-hosted runners (托管运行器)，支持 Linux、Windows、macOS 等操作系统环境。
-    *   你也可以搭建 Self-hosted runners (自托管运行器)，在自己的服务器上运行工作流，适用于特殊环境或私有网络需求。
-
-## 三、工作流文件 (.yml) 结构详解
-
-工作流文件是 GitHub Actions 的核心配置文件，采用 YAML 格式。
+**示例：一个简单的 Go 语言构建工作流**
 
 ```yaml
-# .github/workflows/ci.yml
+# .github/workflows/go-build.yml
+name: Go Build and Test
 
-# 1. workflow 名称
-name: CI Build and Test
-
-# 2. 触发事件
 on:
-  # 在 push 到 main 分支时触发
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+    - name: Build
+      run: go build -v ./...
+    - name: Test
+      run: go test -v ./...
+```
+
+### 2.2 事件 (Events)
+
+**定义**：事件是触发工作流运行的特定活动。当 GitHub 仓库中发生特定事件时，与之关联的工作流就会被触发。
+
+常见的事件类型包括：
+
+*   `push`: 代码推送到仓库的指定分支。
+*   `pull_request`: 创建、更新或关闭 Pull Request。
+*   `workflow_dispatch`: 手动触发工作流。
+*   `schedule`: 基于 CRON 表达式定时触发。
+*   `issue_comment`: 在 Issue 或 Pull Request 上发表评论。
+*   `release`: 创建、编辑或删除发布。
+
+**示例：多种事件触发**
+
+```yaml
+on:
+  push:
+    branches:    # 仅当推送到 main 或 develop 分支时触发
+      - main
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened] # 当 PR 被打开、同步或重新打开时触发
+  schedule:
+    - cron: '0 0 * * *' # 每天 UTC 时间午夜运行一次
+  workflow_dispatch: # 允许手动从 GitHub UI 触发
+```
+
+### 2.3 作业 (Job)
+
+**定义**：作业是工作流中的一个独立运行单元，它由一个或多个步骤 (Steps) 组成。所有步骤都将在同一个运行器 (Runner) 上执行。
+
+*   工作流可以包含多个作业，它们可以是并行执行的，也可以是按顺序依赖执行的。
+*   每个作业默认是独立的，但可以通过 `needs` 关键字定义作业间的依赖关系。
+
+**示例：定义两个并行作业**
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build code
+      run: echo "Building..."
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run tests
+      run: echo "Running tests..."
+```
+
+**示例：定义依赖作业**
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build artifacts
+      run: echo "Artifacts built"
+    
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build # deploy 作业将在 build 作业成功完成后才运行
+    steps:
+    - name: Deploy application
+      run: echo "Application deployed"
+```
+
+### 2.4 步骤 (Step)
+
+**定义**：步骤是作业中执行的最小单元。一个步骤可以是一个 `run` 命令（执行 shell 脚本），也可以是执行一个 Action。
+
+*   每个步骤都在作业的运行器上执行。
+*   步骤之间可以共享数据和文件。
+
+**示例：包含 `run` 命令和 `uses` Action 的步骤**
+
+```yaml
+steps:
+  - name: Checkout repository # 步骤名称
+    uses: actions/checkout@v4 # 使用一个 Action
+
+  - name: Run a shell command # 另一个步骤，执行 shell 命令
+    run: |
+      echo "Hello, GitHub Actions!"
+      ls -la
+```
+
+### 2.5 Action
+
+**定义**：Action 是 GitHub Actions 平台中最核心的可复用单元。它是一个封装了特定任务的自定义应用程序，可以在工作流中作为步骤使用。Actions 可以是社区共享的、GitHub 官方提供的，或由用户自己创建。
+
+*   Actions 可以极大简化工作流的编写，避免重复编写脚本。
+*   可以在 GitHub Marketplace 上找到大量预构建的 Actions。
+
+**Action 的类型：**
+
+1.  **JavaScript Actions**：用 JavaScript 编写。
+2.  **Docker Container Actions**：用 Docker 容器打包。
+3.  **Composite Actions**：组合多个步骤到一个可复用 Action 中。
+
+**示例：使用官方和社区 Actions**
+
+```yaml
+steps:
+  - uses: actions/checkout@v4 # 检查代码到运行器
+  - uses: actions/setup-node@v4 # 设置 Node.js 环境
+    with:
+      node-version: '18'
+  - name: Install dependencies
+    run: npm ci
+  - name: Lint code
+    uses: github/super-linter@v4 # 使用社区提供的代码质量检查 Action
+```
+
+### 2.6 运行器 (Runner)
+
+**定义**：运行器是执行工作流中作业的服务器环境。每个运行器都可以运行一个作业，并将结果报告给 GitHub。
+
+*   **GitHub-hosted runners**：GitHub 提供的托管运行器。它们是预配置的虚拟机，可以运行 Linux、Windows 或 macOS 系统，每次运行作业时都会提供一个全新的环境，用完即丢。
+*   **Self-hosted runners**：用户自己搭建并管理的运行器。适用于需要特定硬件、操作系统、软件环境，或者需要在私有网络中执行任务的场景。
+
+**示例：指定 GitHub-hosted runner 类型**
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest # 使用 Ubuntu Linux 运行器
+    # 或者 runs-on: windows-latest
+    # 或者 runs-on: macos-latest
+    steps:
+      ...
+```
+
+## 三、GitHub Actions 工作流配置详解
+
+工作流文件 (`.github/workflows/*.yml`) 是核心。以下是一些关键的配置项。
+
+### 3.1 `name`
+
+工作流的名称，显示在 GitHub UI 中。
+
+```yaml
+name: Deploy to Production
+```
+
+### 3.2 `on`
+
+定义触发工作流的事件。
+
+```yaml
+on:
   push:
     branches:
       - main
-  # 在 pull request 目标为 main 分支时触发
+    paths:
+      - 'src/**' # 仅当 src 目录下的文件发生变化时触发
   pull_request:
-    branches:
-      - main
-  # 允许手动触发
+    types: [opened, synchronize]
+  release:
+    types: [published]
   workflow_dispatch:
-
-# 3. 定义一个或多个作业 (Jobs)
-jobs:
-  # 第一个作业：build
-  build:
-    # 运行此作业的操作系统环境
-    runs-on: ubuntu-latest
-  
-    # 步骤 (Steps) 列表
-    steps:
-      # 步骤 1: 打印一条消息
-      - name: Say Hi
-        run: echo "Hello, GitHub Actions!"
-
-      # 步骤 2: 拉取代码 (使用官方 action)
-      - name: Checkout Code
-        uses: actions/checkout@v4 # 使用 actions/checkout@v4 这个 Action
-
-      # 步骤 3: 设置 Node.js 环境 (使用官方 action)
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20' # 指定 Node.js 版本
-
-      # 步骤 4: 安装依赖
-      - name: Install dependencies
-        run: npm install
-
-      # 步骤 5: 运行构建
-      - name: Run build
-        run: npm run build
-
-  # 第二个作业：test
-  test:
-    # 这个作业依赖于 build 作业，只有 build 成功后才运行
-    needs: build
-    runs-on: ubuntu-latest
-  
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
-
-      # 运行测试
-      - name: Run tests
-        run: npm test
-
-  # 第三个作业：deploy (仅在 push 到 main 分支时，且 test 成功后才运行)
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test # 依赖 test 作业
-    runs-on: ubuntu-latest
-  
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # ... 部署相关的步骤，例如登录云平台、上传文件等
-      - name: Deploy to Production
-        run: echo "Deploying to production..."
+    inputs:
+      version:
+        description: 'Image version to deploy'
+        required: true
+        default: 'latest'
+        type: string
 ```
 
-### 关键配置项详解：
+### 3.3 `env`
 
-*   **`name`**：工作流的名称，显示在 GitHub UI 中。
-*   **`on`**：定义触发工作流的事件。
-    *   `push`: 当代码 `push` 到指定分支时触发。
-        *   `branches`: 指定分支列表。
-        *   `paths`: 指定文件路径，只有这些文件发生变化才触发。
-        *   `tags`: 指定触发的 Git 标签。
-    *   `pull_request`: 当 PR 发生变化时触发。
-    *   `schedule`: 使用 `cron` 语法定义定时触发。
-    *   `workflow_dispatch`: 允许从 GitHub UI 手动触发。
-    *   `repository_dispatch`: 允许从外部 webhook 触发。
-*   **`jobs`**：工作流中的一系列作业。
-    *   **`job_id`**：每个作业的唯一标识符（如 `build`, `test`, `deploy`）。
-    *   **`runs-on`**：指定运行作业的执行环境，例如 `ubuntu-latest`, `windows-latest`, `macos-latest` 或自定义的 `self-hosted` 标签。
-    *   **`steps`**：作业中的一系列步骤，按顺序执行。
-        *   **`name`**：步骤的名称。
-        *   **`run`**：执行 shell 命令或脚本。
-        *   **`uses`**：使用一个 Action。格式通常是 `owner/repo@ref` (如 `actions/checkout@v4`)。你可以传递 `with` 参数给 Action。
-        *   **`env`**：在当前步骤中设置环境变量。
-        *   **`with`**：向 Action 或 `run` 命令传递输入参数。
-        *   **`if`**：条件表达式，用于决定是否执行该步骤。
-    *   **`needs`**：指定当前作业依赖的其他作业的 `job_id`。依赖的作业会先运行，并且成功后才会运行当前作业。
-    *   **`timeout-minutes`**: 作业超时时间，单位分钟。
-    *   **`strategy`**: 定义矩阵策略，用于并行运行多个变体配置的作业（如多个 Node 版本或操作系统）。
-    *   **`env`**: 在整个作业范围内设置环境变量。
-*   **`env`**：在整个工作流范围内设置环境变量。
-*   **`defaults`**: 为工作流或作业中的所有 `run` 命令设置默认的 shell 或工作目录。
-
-## 四、事件类型与表达式
-
-### 1. 常见事件
-
-*   `push`: 代码推送到仓库。
-*   `pull_request`: PR 的各种活动（`opened`, `synchronize`, `closed`, `reopened`）。
-*   `schedule`: 定时任务，使用 cron 语法（`0 0 * * *` 表示每天午夜）。
-*   `workflow_dispatch`: 手动触发，可以在 UI 界面输入参数。
-*   `issue_comment`: 当 issue 收到评论时触发。
-*   `release`: 发布新的 release 时触发。
-
-### 2. 条件表达式 (`if`)
-
-`if` 关键字允许你基于特定条件来决定是否执行某个 Job 或 Step。它可以使用 GitHub Contexts 来获取工作流运行时的各种信息。
+定义工作流或作业级别的环境变量。
 
 ```yaml
-jobs:
-  conditional_job:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' # 只有 push 到 main 分支时才运行
-    steps:
-      - run: echo "This runs only on main branch pushes."
+env:
+  NODE_VERSION: '18.x' # 全局环境变量
 
-  another_conditional_job:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Conditional Step
-        if: success() # 只有前一个步骤成功才运行
-        run: echo "Previous step was successful."
-```
-
-**常用的上下文 (Contexts)：**
-
-*   `github`: 包含仓库信息、触发事件、提交信息等。
-    *   `github.event_name`, `github.ref`, `github.sha`, `github.actor`
-*   `env`: 环境变量。
-*   `job`: 当前作业的信息。
-*   `steps`: 步骤的输出信息。
-*   `runner`: 运行器信息。
-*   `secrets`: 存储的敏感信息。
-
-## 五、Actions 市场与自定义 Actions
-
-### 1. Actions 市场 (GitHub Marketplace)
-
-GitHub Actions 市场是一个巨大的宝库，你可以在其中找到各种预构建的 Action，用于：
-
-*   代码仓库操作 (checkout, upload artifact)
-*   环境设置 (setup-node, setup-python, setup-go, setup-java)
-*   构建工具 (npm, yarn, gradle, maven)
-*   测试工具 (jest, cypress)
-*   通知 (slack, teams)
-*   部署 (to AWS, Azure, GCP, Heroku, Netlify)
-*   代码扫描、安全检查等
-
-使用 Action 非常简单，只需在 `uses` 关键字后指定其路径和版本。
-
-```yaml
-- name: Upload coverage reports to Codecov
-  uses: codecov/codecov-action@v4
-  with:
-    token: ${{ secrets.CODECOV_TOKEN }} # 使用 Secrets 传递敏感信息
-    flags: unittest # optional
-```
-
-### 2. 自定义 Actions
-
-如果你在市场上找不到满足需求的 Action，或者想要封装自己的逻辑，可以编写自定义 Actions。自定义 Actions 可以是：
-
-*   **JavaScript Actions**：用 JavaScript 编写，推荐用于复杂逻辑。
-*   **Docker Container Actions**：用 Docker 容器封装环境和逻辑。
-*   **Composite Actions**: 将多个 `run` 步骤和 `uses` 步骤组合成一个可复用的 Action。
-
-## 六、Secrets (秘密)
-
-在 CI/CD 流程中，经常需要使用敏感信息，如 API 密钥、数据库凭证等。GitHub Actions 提供了 `Secrets` 机制来安全地存储和使用这些信息。
-
-*   **存储位置**：在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions` 中配置。
-*   **使用方式**：通过 `${{ secrets.SECRET_NAME }}` 表达式在工作流中引用。
-*   **安全性**：Secrets 在日志中会被自动遮盖，不会明文显示。
-
-```yaml
-- name: Deploy to AWS
-  env:
-    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  run: |
-    aws s3 sync ./build s3://${{ secrets.S3_BUCKET_NAME }}
-```
-
-## 七、神器：Artifacts (构件)
-
-Artifacts 允许你在不同的 Job 之间共享数据，例如：
-
-*   **构建产物**：在一个 Job 中构建的二进制文件、打包文件可以作为 Artifact 上传。
-*   **测试报告**：测试结果报告可以作为 Artifact 上传。
-
-```yaml
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      BUILD_MODE: 'release' # 作业级别环境变量
     steps:
-      # ... 构建代码
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: my-app-bundle
-          path: ./dist # 将 dist 目录作为构件上传
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: my-app-bundle # 下载名为 my-app-bundle 的构件
-          path: ./deploy_tmp # 下载到 deploy_tmp 目录
-
-      - name: Deploy
-        run: ls -l ./deploy_tmp && echo "Now deploying..."
+      - name: Show env vars
+        run: |
+          echo "Node Version: $NODE_VERSION"
+          echo "Build Mode: $BUILD_MODE"
 ```
 
-## 八、实践场景举例
+### 3.4 `jobs`
 
-GitHub Actions 可以应用于广泛的开发场景：
+定义工作流中的所有作业。
 
-*   **代码质量检查**：每次 Push 代码时，自动运行 ESLint、Prettier、单元测试。
-*   **自动化测试**：PR 被创建或更新时，自动运行单元测试、集成测试、端到端测试。
-*   **构建与打包**：每次 Push 到 `main` 分支时，自动构建 Docker 镜像、打包前端应用。
-*   **持续部署 (CD)**：代码合并到 `main` 分支并通过所有测试后，自动部署到开发、测试或生产环境。
-*   **发布管理**：当创建新的 Git Tag 时，自动生成发布日志、创建 GitHub Release、发布到 NPM 或 Docker Hub。
-*   **任务自动化**：定时清理不活跃的 Issues、自动回复 PR 评论等。
+#### 3.4.1 `job_id`
 
-## 九、总结与展望
+每个作业必须有一个唯一的 ID。
 
-GitHub Actions 提供了一个强大、灵活且与 GitHub 平台深度集成的自动化解决方案。通过 YAML 文件配置工作流，你可以轻松地将各种自动化任务集成到你的开发流程中。
+```yaml
+jobs:
+  build: # job_id 为 'build'
+    ...
+  test: # job_id 为 'test'
+    ...
+```
 
-掌握 GitHub Actions 不仅能提升你的个人开发效率，也能帮助团队构建更健壮、更高效的 CI/CD 管道。随着云原生技术和 DevOps 理念的普及，自动化工具的重要性日益增加，GitHub Actions 无疑是这个领域中的一颗璀璨明星。
+#### 3.4.2 `runs-on`
 
-开始尝试编写你的第一个 `.github/workflows/*.yml` 文件吧，将你的重复性任务交给自动化，专注于更有创造性的编码工作！
+指定作业运行的运行器类型。
+
+```yaml
+runs-on: ubuntu-latest
+# 或者 runs-on: self-hosted # 使用自托管运行器
+```
+
+#### 3.4.3 `steps`
+
+作业中按顺序执行的步骤列表。
+
+*   **`uses`**: 引用一个 Action。格式为 `owner/repo@ref` 或 `docker://image:tag`。
+*   **`name`**: 步骤的名称，在 UI 中显示。
+*   **`run`**: 执行一个 shell 命令或多行脚本。
+*   **`with`**: 向 Action 传递输入参数。
+*   **`env`**: 定义步骤级别的环境变量。
+*   **`if`**: 定义步骤执行的条件表达式。
+
+**示例：复杂的步骤配置**
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+    with:
+      fetch-depth: 0 # 获取所有历史，用于版本管理
+
+  - name: Build Docker Image
+    run: |
+      docker build -t myapp:latest .
+      docker tag myapp:latest myapp:${{ github.sha }}
+    env:
+      DOCKER_USER: ${{ secrets.DOCKER_USERNAME }} # 从 secrets 获取敏感信息
+
+  - name: Deploy if main branch
+    if: github.ref == 'refs/heads/main' # 条件判断
+    run: echo "Deploying to production..."
+```
+
+### 3.5 `secrets` 和 `variables`
+
+**定义**：
+
+*   **Secrets (机密)**：用于存储敏感信息，如 API 密钥、数据库凭证等。它们在工作流日志中是加密的，不会被暴露。在仓库设置中进行管理。
+*   **Variables (变量)**：用于存储非敏感的配置值，可以在工作流中方便地引用。在仓库设置或组织设置中进行管理。
+
+**使用示例：**
+
+```yaml
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }} # 引用 secret
+          password: ${{ secrets.DOCKER_PASSWORD }} # 引用 secret
+
+      - name: Get project version
+        run: echo "VERSION=${{ vars.PROJECT_VERSION }}" >> $GITHUB_ENV # 引用 variable
+```
+
+## 四、GitHub Actions 工作流执行流程
+
+一个典型的 GitHub Actions 工作流执行流程如下所示：
+
+{% mermaid %}
+graph TD
+    A[GitHub Event Triggered] --> B{Workflow Definition <br/> .github/workflows/*.yml};
+    B -- Matches 'on' condition --> C[Workflow Run Initiated];
+    C --> D[Identify Jobs to Run];
+    D -- Each Job --> E[Request Runner];
+    E --> F[Runner Provisioned/Assigned];
+    F -- Each Job --> G[Execute Steps in Sequence];
+    G -- Step 'uses' Action --> H[Run Action Code];
+    G -- Step 'run' command --> I[Execute Shell Script];
+    F --> J{Job Completed?};
+    J -- Yes --> K[Report Job Status to GitHub];
+    J -- No (Step Failed) --> L[Report Job Failure];
+    D -- All Jobs Completed --> M[Workflow Run Completed];
+    M --> N[Display Status in GitHub UI];
+{% endmermaid %}
+
+**流程说明：**
+
+1.  **事件触发**：GitHub 上的某个事件（如 Push、PR）发生。
+2.  **匹配工作流**：系统检查 `.github/workflows/` 目录下的所有 YAML 文件，寻找 `on` 条件与事件匹配的工作流。
+3.  **启动工作流运行**：匹配成功的工作流被启动。
+4.  **分配作业**：工作流中的每个作业被识别并分配。
+5.  **请求运行器**：每个作业请求一个合适的运行器（GitHub 托管或自托管）。
+6.  **执行步骤**：在指定的运行器上，作业中的每个步骤按顺序执行。
+    *   `uses` 类型的步骤会下载并执行对应的 Action 代码。
+    *   `run` 类型的步骤会在运行器上执行指定的 shell 命令。
+7.  **状态报告**：每个步骤和作业的执行状态（成功、失败）都会实时报告给 GitHub。
+8.  **工作流完成**：所有作业完成后，整个工作流运行结束，并在 GitHub UI 上显示最终状态。
+
+## 五、安全性考虑
+
+使用 GitHub Actions 时，安全性是一个重要方面：
+
+1.  **Secrets 管理**：将所有敏感信息存储在 GitHub Secrets 中，并通过 `secrets` 上下文安全地引用。**不要将敏感信息直接硬编码到工作流文件中。**
+2.  **权限最小化**：GitHub Actions 默认会为工作流提供一个 `GITHUB_TOKEN`，该 Token 具有对仓库的读写权限。在某些情况下，可以考虑根据需要调整 `GITHUB_TOKEN` 的权限（`permissions` 关键字），以遵循最小权限原则。
+3.  **不信任外部 Actions**：在使用来自 GitHub Marketplace 的第三方 Actions 时，应谨慎。优先使用官方 Action (`actions/checkout@v4`) 或信誉良好的组织提供的 Action。审查其源代码，了解其功能和潜在风险。
+4.  **防止代码注入**：当使用用户输入或外部变量构建 `run` 命令时，要特别注意潜在的代码注入漏洞。确保所有输入都经过适当的清理或参数化。
+5.  **拉取请求安全**：来自 Fork 仓库的 Pull Request 在默认情况下对 Secrets 的访问是受限的。这是为了防止恶意用户通过 PoC (Proof of Concept) PR 窃取仓库 Secrets。在合并外部 PR 之前，应仔细审查代码。
+6.  **自托管运行器安全**：如果使用自托管运行器，确保运行器所在的机器操作系统、补丁和网络都得到妥善管理和保护，因为它们可以访问您的私有网络和资源。
+
+## 六、总结
+
+GitHub Actions 为开发者提供了一个强大、灵活且与 GitHub 深度集成的自动化平台。通过 YAML 配置，开发者可以定义复杂的 CI/CD 工作流，自动化构建、测试、部署等一系列任务，从而提高开发效率和软件质量。掌握其核心概念、配置语法以及安全实践，将能够充分利用 GitHub Actions 的潜力，实现高效的 DevOps 流程。
