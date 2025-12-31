@@ -2,7 +2,7 @@
 title: Goroutine 相比 OS 线程，为什么能规模化？
 date: 2024-08-05 06:24:00
 tags: 
-    - 2025
+    - 2024
     - Golang
     - goroutine
 categories: 
