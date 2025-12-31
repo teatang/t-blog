@@ -1,0 +1,536 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Golang 缓冲Channel和无缓冲Channel的区别 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在 Go 语言的并发编程模型中，Channel 是 Goroutine 之间通信和同步的核心机制。Channel 提供了一种安全、同步的方式来传递数据。根据其容量大小，Channel 可以分为两种类型：无缓冲 Channel (Unbuffered Channel) 和 缓冲 Channel (Buffered Channel)。理解这两种 Channel 的区别以及它们各自的适用场景，是编写高">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Golang 缓冲Channel和无缓冲Channel的区别">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/099de403ef3d/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在 Go 语言的并发编程模型中，Channel 是 Goroutine 之间通信和同步的核心机制。Channel 提供了一种安全、同步的方式来传递数据。根据其容量大小，Channel 可以分为两种类型：无缓冲 Channel (Unbuffered Channel) 和 缓冲 Channel (Buffered Channel)。理解这两种 Channel 的区别以及它们各自的适用场景，是编写高">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg">
+<meta property="article:published_time" content="2024-08-06T22:24:00.000Z">
+<meta property="article:modified_time" content="2025-12-31T14:22:27.345Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="goroutine">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Golang 缓冲Channel和无缓冲Channel的区别",
+  "url": "https://blog.tbf1211.xx.kg/099de403ef3d/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-02.jpg",
+  "datePublished": "2024-08-06T22:24:00.000Z",
+  "dateModified": "2025-12-31T14:22:27.345Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/099de403ef3d/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Golang 缓冲Channel和无缓冲Channel的区别',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">450</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-02.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Golang 缓冲Channel和无缓冲Channel的区别</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Golang 缓冲Channel和无缓冲Channel的区别</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-08-06T22:24:00.000Z" title="发表于 2024-08-07 06:24:00">2024-08-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/goroutine/">goroutine</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在 Go 语言的并发编程模型中，<strong>Channel</strong> 是 Goroutine 之间通信和同步的核心机制。Channel 提供了一种安全、同步的方式来传递数据。根据其容量大小，Channel 可以分为两种类型：<strong>无缓冲 Channel (Unbuffered Channel)</strong> 和 <strong>缓冲 Channel (Buffered Channel)</strong>。理解这两种 Channel 的区别以及它们各自的适用场景，是编写高效、正确 Go 并发代码的关键。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>无缓冲 Channel 强调“同步”通信，发送方和接收方必须同时就绪。缓冲 Channel 则允许“异步”通信，发送方可以在接收方未就绪时发送数据，但容量有限。</strong></p>
+</div>
+<hr>
+<h2 id="一、Channel-简介"><a href="#一、Channel-简介" class="headerlink" title="一、Channel 简介"></a>一、Channel 简介</h2><p>在 Go 中，Channel 是类型化的管道，可以通过它们发送和接收特定类型的值。它遵循“通过通信共享内存，而不是通过共享内存来通信”的并发哲学。</p>
+<p><strong>声明 Channel 的基本语法：</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 声明一个传递 int 类型数据的无缓冲 Channel</span></span><br><span class="line"><span class="keyword">var</span> ch1 <span class="keyword">chan</span> <span class="type">int</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 声明一个传递 string 类型数据的缓冲 Channel，容量为 5</span></span><br><span class="line"><span class="keyword">var</span> ch2 <span class="keyword">chan</span> <span class="type">string</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>创建 Channel 的基本语法：</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建一个无缓冲 Channel</span></span><br><span class="line">ch1 := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">int</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建一个容量为 5 的缓冲 Channel</span></span><br><span class="line">ch2 := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">string</span>, <span class="number">5</span>)</span><br></pre></td></tr></table></figure>
+
+<p><strong>Channel 的操作：</strong></p>
+<ul>
+<li><strong>发送数据</strong>：<code>ch &lt;- value</code></li>
+<li><strong>接收数据</strong>：<code>value := &lt;-ch</code> 或 <code>&lt;-ch</code> (丢弃接收值)</li>
+<li><strong>关闭 Channel</strong>：<code>close(ch)</code> (关闭后的 Channel 仍可接收数据，但不可再发送)</li>
+</ul>
+<h2 id="二、无缓冲-Channel-Unbuffered-Channel"><a href="#二、无缓冲-Channel-Unbuffered-Channel" class="headerlink" title="二、无缓冲 Channel (Unbuffered Channel)"></a>二、无缓冲 Channel (Unbuffered Channel)</h2><h3 id="2-1-定义与创建"><a href="#2-1-定义与创建" class="headerlink" title="2.1 定义与创建"></a>2.1 定义与创建</h3><p>无缓冲 Channel 是指在创建时未指定容量，或者指定容量为 0 的 Channel。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ch := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">int</span>) <span class="comment">// 默认容量为 0</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-特性：同步通信"><a href="#2-2-特性：同步通信" class="headerlink" title="2.2 特性：同步通信"></a>2.2 特性：同步通信</h3><p>无缓冲 Channel 实现了<strong>同步通信 (Synchronous Communication)</strong>。这意味着：</p>
+<ul>
+<li><strong>发送操作会阻塞</strong>：直到有另一个 Goroutine 准备好接收所发送的值。</li>
+<li><strong>接收操作会阻塞</strong>：直到有另一个 Goroutine 准备好发送所接收的值。</li>
+</ul>
+<p>形象地说，无缓冲 Channel 就像一个“<strong>握手</strong>”机制。发送方和接收方必须在同一时间点协调，才能完成数据的传递。数据不会在 Channel 中停留，而是直接从发送方传递到接收方。</p>
+<h3 id="2-3-工作流程示例"><a href="#2-3-工作流程示例" class="headerlink" title="2.3 工作流程示例"></a>2.3 工作流程示例</h3><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant G1 as Goroutine 1 (发送方)
+    participant G2 as Goroutine 2 (接收方)
+    participant Channel as 无缓冲 Channel
+
+    G1-&gt;&gt;G1: 准备发送数据 (ch &lt;- &quot;data&quot;)
+    G1-&gt;&gt;Channel: 尝试发送 &quot;data&quot;
+    Note over G1,Channel: G1 阻塞，等待接收方
+    G2-&gt;&gt;G2: 准备接收数据 (data :&#x3D; &lt;-ch)
+    G2-&gt;&gt;Channel: 尝试接收数据
+    Note over Channel,G2: G2 找到发送方
+    Channel-&gt;&gt;G1: 允许 G1 发送
+    Channel-&gt;&gt;G2: 传递 &quot;data&quot; 给 G2
+    G1-&gt;&gt;G1: G1 解除阻塞，继续执行
+    G2-&gt;&gt;G2: G2 解除阻塞，data &#x3D; &quot;data&quot;
+  </pre></div>
+
+<h3 id="2-4-适用场景"><a href="#2-4-适用场景" class="headerlink" title="2.4 适用场景"></a>2.4 适用场景</h3><ol>
+<li><strong>Goroutine 间的同步</strong>：当一个 Goroutine 必须等待另一个 Goroutine 完成某个操作或达到某个状态时，无缓冲 Channel 是理想的选择。例如，协同执行任务。</li>
+<li><strong>保证数据的一次性传递与处理</strong>：确保每发送一个数据，都会紧接着被接收方处理。</li>
+<li><strong>任务完成通知</strong>：一个 Goroutine 完成任务后，通过无缓冲 Channel 发送一个信号，通知等待的 Goroutine。</li>
+</ol>
+<h3 id="2-5-示例代码"><a href="#2-5-示例代码" class="headerlink" title="2.5 示例代码"></a>2.5 示例代码</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">worker</span><span class="params">(id <span class="type">int</span>, messages <span class="keyword">chan</span> <span class="type">int</span>, done <span class="keyword">chan</span> <span class="type">bool</span>)</span></span> &#123;</span><br><span class="line">	fmt.Printf(<span class="string">&quot;Worker %d: 准备接收任务...\n&quot;</span>, id)</span><br><span class="line">	<span class="comment">// 接收任务</span></span><br><span class="line">	msg := &lt;-messages</span><br><span class="line">	fmt.Printf(<span class="string">&quot;Worker %d: 接收到任务 %d，开始处理...\n&quot;</span>, id, msg)</span><br><span class="line">	time.Sleep(time.Second) <span class="comment">// 模拟任务处理时间</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Worker %d: 任务 %d 处理完成。\n&quot;</span>, id, msg)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 通知主 Goroutine 任务已完成</span></span><br><span class="line">	done &lt;- <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	messages := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">int</span>) <span class="comment">// 无缓冲 channel，用于传递任务</span></span><br><span class="line">	done     := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">bool</span>) <span class="comment">// 无缓冲 channel，用于同步通知</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> worker(<span class="number">1</span>, messages, done) <span class="comment">// 启动一个 worker Goroutine</span></span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;主 Goroutine: 发送任务 1...&quot;</span>)</span><br><span class="line">	messages &lt;- <span class="number">1</span> <span class="comment">// 发送任务，主 Goroutine 会阻塞直到 worker 接收</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;主 Goroutine: 任务 1 发送完毕，等待 worker 完成...&quot;</span>)</span><br><span class="line"></span><br><span class="line">	&lt;-done <span class="comment">// 主 Goroutine 阻塞，等待 worker 发送完成通知</span></span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;主 Goroutine: 接收到 worker 完成通知，程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>运行上述代码，你会观察到 <code>messages &lt;- 1</code> 语句只有在 <code>worker</code> Goroutine 执行到 <code>msg := &lt;-messages</code> 时才会继续执行。这是一个典型的同步点。</strong></p>
+<h2 id="三、缓冲-Channel-Buffered-Channel"><a href="#三、缓冲-Channel-Buffered-Channel" class="headerlink" title="三、缓冲 Channel (Buffered Channel)"></a>三、缓冲 Channel (Buffered Channel)</h2><h3 id="3-1-定义与创建"><a href="#3-1-定义与创建" class="headerlink" title="3.1 定义与创建"></a>3.1 定义与创建</h3><p>缓冲 Channel 是指在创建时指定了大于 0 的容量的 Channel。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ch := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">int</span>, <span class="number">5</span>) <span class="comment">// 容量为 5 的缓冲 Channel</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-特性：异步通信-有限制"><a href="#3-2-特性：异步通信-有限制" class="headerlink" title="3.2 特性：异步通信 (有限制)"></a>3.2 特性：异步通信 (有限制)</h3><p>缓冲 Channel 实现了<strong>异步通信 (Asynchronous Communication)</strong>，但这种异步是<strong>有限制的</strong>：</p>
+<ul>
+<li><strong>发送操作会阻塞</strong>：当且仅当 Channel 中的数据量达到其容量上限时，发送操作才会阻塞。</li>
+<li><strong>接收操作会阻塞</strong>：当且仅当 Channel 中没有数据可接收时，接收操作才会阻塞。</li>
+</ul>
+<p>缓冲 Channel 就像一个有容量的队列。发送方可以在队列不满时直接将数据放入，而无需等待接收方；接收方可以在队列不空时直接取出数据，而无需等待发送方。</p>
+<h3 id="3-3-工作流程示例"><a href="#3-3-工作流程示例" class="headerlink" title="3.3 工作流程示例"></a>3.3 工作流程示例</h3><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant G1 as Goroutine 1 (发送方)
+    participant G2 as Goroutine 2 (接收方)
+    participant Channel as 缓冲 Channel (容量: N)
+
+    G1-&gt;&gt;G1: 准备发送数据 (ch &lt;- &quot;data1&quot;)
+    G1-&gt;&gt;Channel: 尝试发送 &quot;data1&quot;
+    Note over Channel: Channel 容量未满，接收 &quot;data1&quot;
+    G1-&gt;&gt;G1: G1 解除阻塞，继续执行 (立即返回)
+
+    G1-&gt;&gt;G1: 准备发送数据 (ch &lt;- &quot;data2&quot;)
+    G1-&gt;&gt;Channel: 尝试发送 &quot;data2&quot;
+    Note over Channel: Channel 容量未满，接收 &quot;data2&quot;
+    G1-&gt;&gt;G1: G1 解除阻塞，继续执行 (立即返回)
+
+    Note over Channel: 假设此时 Channel 已满
+    G1-&gt;&gt;G1: 准备发送数据 (ch &lt;- &quot;dataN+1&quot;)
+    G1-&gt;&gt;Channel: 尝试发送 &quot;dataN+1&quot;
+    Note over G1,Channel: G1 阻塞，等待 Channel 有空位
+
+    G2-&gt;&gt;G2: 准备接收数据 (d1 :&#x3D; &lt;-ch)
+    G2-&gt;&gt;Channel: 尝试接收数据
+    Note over Channel,G2: Channel 不空
+    Channel-&gt;&gt;G2: 传递 &quot;data1&quot; 给 G2
+    G2-&gt;&gt;G2: G2 解除阻塞，d1 &#x3D; &quot;data1&quot;
+    Note over G1,Channel: Channel 腾出空位，G1 解除阻塞
+    Channel-&gt;&gt;G1: 允许 G1 发送
+    Channel-&gt;&gt;Channel: 接收 &quot;dataN+1&quot;
+    G1-&gt;&gt;G1: G1 解除阻塞，继续执行
+  </pre></div>
+
+<h3 id="3-4-适用场景"><a href="#3-4-适用场景" class="headerlink" title="3.4 适用场景"></a>3.4 适用场景</h3><ol>
+<li><strong>生产者-消费者模型</strong>：当生产者和消费者的生产&#x2F;消费速度不一致时，缓冲 Channel 可以作为两者之间的缓冲区，平衡速度差异。生产者可以生产一批数据放入 Channel，而无需立即等待消费者处理。</li>
+<li><strong>流量控制&#x2F;背压</strong>：当需要限制同时处理任务的数量时，可以使用缓冲 Channel 作为信号量。例如，启动 N 个 Goroutine 处理任务，每处理完一个才从 Channel 中取一个“令牌”。</li>
+<li><strong>异步队列</strong>：需要将任务异步地放入队列等待处理，而不想阻塞发送方。</li>
+<li><strong>简单的计数器或限流器</strong>：Channel 的满状态和空状态可以用来实现某些限流逻辑。</li>
+</ol>
+<h3 id="3-5-示例代码"><a href="#3-5-示例代码" class="headerlink" title="3.5 示例代码"></a>3.5 示例代码</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">producer</span><span class="params">(id <span class="type">int</span>, requests <span class="keyword">chan</span> <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">5</span>; i++ &#123;</span><br><span class="line">		req := id*<span class="number">100</span> + i</span><br><span class="line">		fmt.Printf(<span class="string">&quot;Producer %d: 正在发送请求 %d...\n&quot;</span>, id, req)</span><br><span class="line">		requests &lt;- req <span class="comment">// 发送请求，如果 channel 未满，此操作不会阻塞</span></span><br><span class="line">		time.Sleep(<span class="number">100</span> * time.Millisecond) <span class="comment">// 模拟生产数据时间</span></span><br><span class="line">	&#125;</span><br><span class="line">	fmt.Printf(<span class="string">&quot;Producer %d: 完成所有请求发送。\n&quot;</span>, id)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">consumer</span><span class="params">(id <span class="type">int</span>, requests <span class="keyword">chan</span> <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> req, ok := &lt;-requests:</span><br><span class="line">			<span class="keyword">if</span> !ok &#123;</span><br><span class="line">				fmt.Printf(<span class="string">&quot;Consumer %d: Channel 已关闭，退出。\n&quot;</span>, id)</span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			&#125;</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Consumer %d: 正在处理请求 %d...\n&quot;</span>, id, req)</span><br><span class="line">			time.Sleep(<span class="number">300</span> * time.Millisecond) <span class="comment">// 模拟处理时间，略长于生产时间</span></span><br><span class="line">		<span class="keyword">case</span> &lt;-time.After(time.Second):</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Consumer %d: 等待请求超时，可能已无更多请求。\n&quot;</span>, id)</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// 创建一个容量为 3 的缓冲 channel</span></span><br><span class="line">	requests := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">int</span>, <span class="number">3</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> producer(<span class="number">1</span>, requests)</span><br><span class="line">	<span class="keyword">go</span> consumer(<span class="number">1</span>, requests)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 等待一段时间，确保所有 Goroutine 有机会运行</span></span><br><span class="line">	time.Sleep(<span class="number">5</span> * time.Second)</span><br><span class="line">	<span class="built_in">close</span>(requests) <span class="comment">// 关闭 channel</span></span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second) <span class="comment">// 等待 consumer 退出</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;主 Goroutine: 程序结束。&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>运行上述代码，你会发现在 <code>producer</code> 发送前几个请求时，它不会被阻塞，因为 <code>requests</code> Channel 有缓冲区。但如果 <code>producer</code> 生产速度远快于 <code>consumer</code>，且 Channel 达到容量上限，<code>producer</code> 就会被阻塞。</strong></p>
+<h2 id="四、主要区别总结"><a href="#四、主要区别总结" class="headerlink" title="四、主要区别总结"></a>四、主要区别总结</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">无缓冲 Channel (make(chan T))</th>
+<th align="left">缓冲 Channel (make(chan T, N), N &gt; 0)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>容量</strong></td>
+<td align="left">0 (没有内部队列)</td>
+<td align="left">N (有内部队列，可存储 N 个元素)</td>
+</tr>
+<tr>
+<td align="left"><strong>通信模式</strong></td>
+<td align="left">同步 (Synchronous)</td>
+<td align="left">异步 (Asynchronous)，但容量有限制</td>
+</tr>
+<tr>
+<td align="left"><strong>发送阻塞</strong></td>
+<td align="left">必须等待接收方准备就绪</td>
+<td align="left">只有当 Channel 满时才会阻塞，否则立即返回</td>
+</tr>
+<tr>
+<td align="left"><strong>接收阻塞</strong></td>
+<td align="left">必须等待发送方准备就绪</td>
+<td align="left">只有当 Channel 空时才会阻塞，否则立即返回</td>
+</tr>
+<tr>
+<td align="left"><strong>应用场景</strong></td>
+<td align="left">两个 Goroutine 之间的严格同步、任务完成通知、事件信号</td>
+<td align="left">生产者-消费者模型、流量控制、任务队列、平衡不同速度的 Goroutine</td>
+</tr>
+<tr>
+<td align="left"><strong>性能</strong></td>
+<td align="left">通常是 Goroutine 之间最快的通信方式 (如果同步效率高)</td>
+<td align="left">提供一定程度的解耦和吞吐量，但引入了少量额外的内存和调度开销</td>
+</tr>
+<tr>
+<td align="left"><strong>死锁风险</strong></td>
+<td align="left">容易出现死锁，如果发送方没有对应的接收方，或接收方没有对应的发送方</td>
+<td align="left">避免因立即同步导致的死锁，但如果发送比接收快，填满缓冲区后仍可能阻塞发送方</td>
+</tr>
+</tbody></table>
+<h2 id="五、选择建议"><a href="#五、选择建议" class="headerlink" title="五、选择建议"></a>五、选择建议</h2><ul>
+<li><strong>默认使用无缓冲 Channel。</strong> 如果不是明确需要一个缓冲区来解耦或进行流量控制，无缓冲 Channel 是一个很好的起点，因为它能强制进行同步，减少潜在的并发问题。</li>
+<li><strong>当生产者和消费者之间存在速度差异，或者需要解耦发送方和接收方，使它们不必严格同步时，考虑使用缓冲 Channel。</strong><ul>
+<li>缓冲 <code>1</code> 的 Channel 可以用作一个“信号量”，确保只有一个事件正在等待处理。</li>
+<li>较大容量的缓冲 Channel 可以平滑突发流量或在速度不匹配时提供缓冲区。</li>
+</ul>
+</li>
+<li><strong>避免过度使用超大容量的缓冲 Channel。</strong> 这可能导致内存占用过高，并且掩盖了潜在的设计问题（例如，生产者速度过快，消费者处理不过来）。Channel 的容量大小需要根据实际场景仔细评估。</li>
+<li><strong>牢记 Channel 的阻塞特性。</strong> 理解在何种情况下发送或接收操作会阻塞，对于避免死锁至关重要。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>无缓冲 Channel 强调 Goroutine 间的紧密<strong>同步</strong>，提供了一个强有力的握手机制，确保数据在发送和接收的同一瞬间被传递。它适用于需要精确协调和任务完成通知的场景。</p>
+<p>缓冲 Channel 则在发送方和接收方之间提供了一个<strong>缓冲区</strong>，允许一定程度的<strong>异步</strong>通信。它更适合处理生产者和消费者速度不匹配、需要进行流量控制或者实现任务队列的场景。</p>
+<p>了解这两种 Channel 类型及其工作原理，是编写健壮、高效 Go 并发程序的关键一步。在实际开发中，应根据业务需求和 Goroutine 之间的关系，明智地选择合适的 Channel 类型。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/099de403ef3d/">https://blog.tbf1211.xx.kg/099de403ef3d/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/goroutine/">goroutine</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-02.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/294ecfb9f29c/" title="Vue3响应式原理深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Vue3响应式原理深度解析</div></div><div class="info-2"><div class="info-item-1"> Vue.js 的核心特性之一是其响应式系统 (Reactivity System)。在 Vue 3 中，响应式系统经历了重大革新，从 Vue 2 基于 Object.defineProperty 的实现全面升级为基于 JavaScript Proxy。这一转变解决了 Vue 2 中存在的诸多限制，如无法检测对象属性的添加&#x2F;删除、无法有效监听数组变动等，并为 Composition API (组合式 API) 提供了坚实的基础。深入理解 Vue 3 的响应式原理，对于编写高效、可维护的 Vue 应用至关重要。  核心思想：Vue 3 的响应式系统借助 Proxy 对象劫持数据对象的读取 (get) 和修改 (set) 操作，并在副作用函数 (Effect Function，如组件渲染函数、计算属性、侦听器) 执行时收集其依赖 (track)。当响应式数据发生变化时，系统会通知所有依赖于该数据的副作用函数重新执行 (trigger)，从而实现数据的自动更新到 UI。    一、响应式系统概述响应式系统是一个能够自动追踪数据变化并作出相应更新的机制。在 Vue 中，当数据变...</div></div></div></a><a class="pagination-related" href="/9f5a2c0e7ea7/" title="Goroutine 相比 OS 线程，为什么能规模化？"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Goroutine 相比 OS 线程，为什么能规模化？</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，Goroutine 是其并发模型的核心。与传统的操作系统 (OS) 线程相比，Goroutine 展现出了惊人的规模化能力，使得 Go 程序能够轻松地并发处理成千上万甚至数百万的任务。这种规模化的差异并非偶然，而是由 Goroutine 独特的设计哲学和 Go 运行时（runtime）的智能调度机制所决定的。  核心思想：Goroutine 之所以能规模化，是因为它是一种轻量级的用户态协程，由 Go 运行时在少数 OS 线程上进行多路复用和调度，从而避免了 OS 线程的高开销和上下文切换代价。   一、Goroutine 与 OS 线程的本质区别在深入探讨为什么 Goroutine 能够规模化之前，我们需要理解它与 OS 线程之间的根本不同。 1.1 OS 线程 (Operating System Thread) 内核态实体：OS 线程是由操作系统内核调度的执行单元。每次创建、销毁或切换线程都需要进行系统调用（进入内核态），这会带来较大的开销。 内存开销大：每个 OS 线程通常会分配一个固定大小的栈（例如，Linux 上默认 8MB），即使实际只使用了很小一部...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/7642665c9bbb/" title="Golang context 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-03</div><div class="info-item-2">Golang context 详解</div></div><div class="info-2"><div class="info-item-1"> context 包 是 Go 语言标准库中的一个关键组件，自 Go 1.7 版本引入，它提供了一种在 Goroutine 之间传递请求范围的数据 (request-scoped data)、取消信号 (cancellation signals) 和截止时间 (deadlines) 的标准机制。在构建复杂的并发系统、微服务架构以及处理网络请求链时，context 包是管理 Goroutine 生命周期和避免资源泄露的基石。  核心思想：context.Context 接口允许在 Goroutine 树中安全地传递控制流信息。其核心价值在于实现对计算任务的统一取消、超时控制和值传递，从而提升程序的健壮性和资源利用效率。   一、context 包的必要性在 Go 语言中，Goroutine 是轻量级并发的基础。然而，当应用程序的并发逻辑变得复杂时，以下问题会变得突出：  并发操作的取消：当一个上游操作（如用户取消请求）不再需要其下游的所有并发子任务时，如何有效地通知并停止这些子任务，避免不必要的计算和资源消耗？ 操作超时控制：如何在复杂的请求链中，为整个链条或其中某个环节设置统一的...</div></div></div></a><a class="pagination-related" href="/9f5a2c0e7ea7/" title="Goroutine 相比 OS 线程，为什么能规模化？"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-05</div><div class="info-item-2">Goroutine 相比 OS 线程，为什么能规模化？</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，Goroutine 是其并发模型的核心。与传统的操作系统 (OS) 线程相比，Goroutine 展现出了惊人的规模化能力，使得 Go 程序能够轻松地并发处理成千上万甚至数百万的任务。这种规模化的差异并非偶然，而是由 Goroutine 独特的设计哲学和 Go 运行时（runtime）的智能调度机制所决定的。  核心思想：Goroutine 之所以能规模化，是因为它是一种轻量级的用户态协程，由 Go 运行时在少数 OS 线程上进行多路复用和调度，从而避免了 OS 线程的高开销和上下文切换代价。   一、Goroutine 与 OS 线程的本质区别在深入探讨为什么 Goroutine 能够规模化之前，我们需要理解它与 OS 线程之间的根本不同。 1.1 OS 线程 (Operating System Thread) 内核态实体：OS 线程是由操作系统内核调度的执行单元。每次创建、销毁或切换线程都需要进行系统调用（进入内核态），这会带来较大的开销。 内存开销大：每个 OS 线程通常会分配一个固定大小的栈（例如，Linux 上默认 8MB），即使实际只使用了很小一部...</div></div></div></a><a class="pagination-related" href="/49c9c17349e3/" title="Go语言常用设计模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-13</div><div class="info-item-2">Go语言常用设计模式详解</div></div><div class="info-2"><div class="info-item-1"> 设计模式是对在特定情境下，反复出现的问题提供一套成熟的、可复用的解决方案。Go 语言以其简洁、并发优先的特性，在实现设计模式时通常会有其独特的“Go 惯例”，有时会与传统面向对象设计模式的实现有所不同。本篇将探讨 Go 语言中常用的设计模式，并结合 Go 的特性给出实现示例。  核心思想：Go 语言的设计模式实现通常倾向于简洁、组合而非继承、接口优先以及利用 Goroutine 和 Channel 进行并发处理。   一、Go 语言与设计模式的哲学Go 语言在设计模式的实践上，有一些与传统 OOP 语言不同的哲学：  组合优于继承：Go 没有类继承的概念，而是通过结构体嵌入（Composition）和接口（Interfaces）来实现代码复用和多态。 接口优先：Go 的接口是隐式实现的（implicit interface satisfaction），任何类型只要实现了接口定义的所有方法，就自然地实现了该接口。这使得接口更加灵活，鼓励“小接口，大组合”的原则。 并发原语：Goroutine 和 Channel 是 Go 语言的核心并发原语，许多设计模式在 Go 中会自然融入并发...</div></div></div></a><a class="pagination-related" href="/5798c9959389/" title="Golang select 多路复用详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-22</div><div class="info-item-2">Golang select 多路复用详解</div></div><div class="info-2"><div class="info-item-1"> select 语句 是 Go 语言中专为并发通信设计的一种控制结构，它允许 Goroutine 在多个通信操作上等待，并在其中任意一个准备就绪时执行相应的代码块。它提供了一种强大的机制，可以监听多个 Channel 的发送和接收操作，实现通信多路复用。这使得 Go 语言能够优雅地处理并发模式，例如超时、取消、扇入 (fan-in) 和任务调度等。  核心思想：select 语句是 Go 语言实现 CSP (Communicating Sequential Processes) 并发模型的核心工具之一，它能够协调和同步多个 Goroutine 之间的通信，使其能够响应最先准备就绪的 Channel 操作，避免了传统多线程编程中复杂的锁和条件变量。   一、为什么需要 select？在 Go 语言中，Goroutine 和 Channel 是构建并发程序的基础。当一个 Goroutine 需要从多个 Channel 中接收数据，或向多个 Channel 发送数据，并且希望响应其中任意一个 Channel 上的第一个就绪事件时，就引入了等待多路通信的需求。 考虑以下场景：  超时处理...</div></div></div></a><a class="pagination-related" href="/dad74ce3245f/" title="Golang 指针接收者与值接收者深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-22</div><div class="info-item-2">Golang 指针接收者与值接收者深度解析</div></div><div class="info-2"><div class="info-item-1"> 在 Golang 中，为结构体或其他类型定义方法时，我们可以选择使用值接收者 (Value Receiver) 或指针接收者 (Pointer Receiver)。这两种接收者类型对方法的行为、性能以及类型是否能满足特定接口有着重要的影响。理解它们之间的区别和适用场景是 Go 语言编程中的一个核心概念。  核心思想：选择值接收者还是指针接收者，主要取决于方法是否需要修改接收者的数据，以及在方法调用时是想操作接收者的副本还是原始数据。   一、方法的定义与接收者在 Go 语言中，方法是绑定到特定类型上的函数。方法的定义形式如下： 123func (receiver Type) MethodName(parameters) (results) &#123;    // 方法体&#125; 其中 receiver Type 就是接收者，它可以是一个值类型（T）或一个指针类型（*T）。 二、值接收者 (Value Receiver)当方法使用值接收者时，它操作的是接收者值的一个副本。 2.1 语法123func (t MyStruct) MyMethod() &#123;    // ...</div></div></div></a><a class="pagination-related" href="/31430f1f9376/" title="Go Modules(go mod)详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-11</div><div class="info-item-2">Go Modules(go mod)详解</div></div><div class="info-2"><div class="info-item-1"> Go Modules (Go Mod) 是 Go 语言自 Go 1.11 版本引入的官方包管理系统，并在 Go 1.13 版本后成为默认的依赖管理工具。它旨在解决之前 Go 生态系统中依赖管理混乱的问题，提供了一种简洁、可靠且支持版本控制的方式来管理 Go 项目的依赖。  核心思想：将项目代码与依赖项的版本管理解耦，不再强制依赖 $GOPATH，每个模块(项目)在自己的目录中独立管理依赖，并通过 go.mod 文件清晰定义所有直接和间接依赖及其精确版本。   一、为什么需要 Go Modules？在 Go Modules 出现之前，Go 语言的依赖管理主要围绕 $GOPATH 环境变量展开。这种方式存在一些显著问题：  全局 $GOPATH 污染：所有项目都共享 $GOPATH 下的依赖，不同项目对同一个依赖可能需要不同版本，导致版本冲突或需要技巧性地管理 $GOPATH。 非确定性构建：没有明确的依赖版本锁定机制，go get 命令总是获取依赖的最新版本，可能导致构建结果不一致。 对 $GOPATH 的严格依赖：项目必须放置在 $GOPATH/src 目录下，对项目结构造成限...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">450</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Channel-%E7%AE%80%E4%BB%8B"><span class="toc-text">一、Channel 简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%97%A0%E7%BC%93%E5%86%B2-Channel-Unbuffered-Channel"><span class="toc-text">二、无缓冲 Channel (Unbuffered Channel)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E5%88%9B%E5%BB%BA"><span class="toc-text">2.1 定义与创建</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E7%89%B9%E6%80%A7%EF%BC%9A%E5%90%8C%E6%AD%A5%E9%80%9A%E4%BF%A1"><span class="toc-text">2.2 特性：同步通信</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B%E7%A4%BA%E4%BE%8B"><span class="toc-text">2.3 工作流程示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">2.4 适用场景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E7%A4%BA%E4%BE%8B%E4%BB%A3%E7%A0%81"><span class="toc-text">2.5 示例代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E7%BC%93%E5%86%B2-Channel-Buffered-Channel"><span class="toc-text">三、缓冲 Channel (Buffered Channel)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E5%88%9B%E5%BB%BA"><span class="toc-text">3.1 定义与创建</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E7%89%B9%E6%80%A7%EF%BC%9A%E5%BC%82%E6%AD%A5%E9%80%9A%E4%BF%A1-%E6%9C%89%E9%99%90%E5%88%B6"><span class="toc-text">3.2 特性：异步通信 (有限制)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B%E7%A4%BA%E4%BE%8B"><span class="toc-text">3.3 工作流程示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">3.4 适用场景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E7%A4%BA%E4%BE%8B%E4%BB%A3%E7%A0%81"><span class="toc-text">3.5 示例代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%BB%E8%A6%81%E5%8C%BA%E5%88%AB%E6%80%BB%E7%BB%93"><span class="toc-text">四、主要区别总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%80%89%E6%8B%A9%E5%BB%BA%E8%AE%AE"><span class="toc-text">五、选择建议</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何防止 Golang Goroutine 泄漏"/></a><div class="content"><a class="title" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏">如何防止 Golang Goroutine 泄漏</a><time datetime="2025-12-30T22:24:00.000Z" title="发表于 2025-12-31 06:24:00">2025-12-31</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-02.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
