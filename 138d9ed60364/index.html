@@ -1,13 +1,13 @@
-<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>MySQL EXPLAIN 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="EXPLAIN 是 MySQL 提供的一个非常强大的工具，用于分析 SELECT 语句的执行计划。通过 EXPLAIN 的输出结果，我们可以了解查询是如何执行的，包括使用了哪些索引、扫描了多少行、是否进行了文件排序等信息。这是数据库性能调优不可或缺的一环，能够帮助我们发现 SQL 语句中的性能瓶颈并进行优化。  “优化前，先 EXPLAIN。没有 EXPLAIN 的优化都是盲人摸象。” - 数据">
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>MySQL EXPLAIN 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="EXPLAIN 是 MySQL 提供的一个非常强大的工具，用于分析 SQL 查询语句的执行计划。通过使用 EXPLAIN 命令，我们可以深入了解 MySQL 是如何执行一个 SELECT、INSERT、UPDATE 或 DELETE 语句的，包括它使用了哪些索引、表的连接顺序、扫描了多少行数据等。理解 EXPLAIN 的输出对于数据库性能优化至关重要，它可以帮助开发者识别并解决慢查询问题。  核">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MySQL EXPLAIN 详解">
 <meta property="og:url" content="https://blog.tbf1211.xx.kg/138d9ed60364/index.html">
 <meta property="og:site_name" content="1024 维度">
-<meta property="og:description" content="EXPLAIN 是 MySQL 提供的一个非常强大的工具，用于分析 SELECT 语句的执行计划。通过 EXPLAIN 的输出结果，我们可以了解查询是如何执行的，包括使用了哪些索引、扫描了多少行、是否进行了文件排序等信息。这是数据库性能调优不可或缺的一环，能够帮助我们发现 SQL 语句中的性能瓶颈并进行优化。  “优化前，先 EXPLAIN。没有 EXPLAIN 的优化都是盲人摸象。” - 数据">
+<meta property="og:description" content="EXPLAIN 是 MySQL 提供的一个非常强大的工具，用于分析 SQL 查询语句的执行计划。通过使用 EXPLAIN 命令，我们可以深入了解 MySQL 是如何执行一个 SELECT、INSERT、UPDATE 或 DELETE 语句的，包括它使用了哪些索引、表的连接顺序、扫描了多少行数据等。理解 EXPLAIN 的输出对于数据库性能优化至关重要，它可以帮助开发者识别并解决慢查询问题。  核">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg">
 <meta property="article:published_time" content="2023-05-31T22:24:00.000Z">
-<meta property="article:modified_time" content="2025-12-30T10:31:22.328Z">
+<meta property="article:modified_time" content="2025-12-31T06:41:34.956Z">
 <meta property="article:author" content="TeaTang">
 <meta property="article:tag" content="2023">
 <meta property="article:tag" content="中间件">
@@ -16,14 +16,14 @@
 <meta property="article:tag" content="数据结构">
 <meta property="article:tag" content="算法">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg"><script type="application/ld+json">{
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg"><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "MySQL EXPLAIN 详解",
   "url": "https://blog.tbf1211.xx.kg/138d9ed60364/",
-  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg",
   "datePublished": "2023-05-31T22:24:00.000Z",
-  "dateModified": "2025-12-30T10:31:22.328Z",
+  "dateModified": "2025-12-31T06:41:34.956Z",
   "author": [
     {
       "@type": "Person",
@@ -183,203 +183,113 @@
   isToc: true,
   pageType: 'post'
 }</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
-</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">447</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-08.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">MySQL EXPLAIN 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">MySQL EXPLAIN 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-05-31T22:24:00.000Z" title="发表于 2023-06-01 06:24:00">2023-06-01</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/">中间件</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/MySQL/">MySQL</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>11分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
-<p><code>EXPLAIN</code> 是 MySQL 提供的一个非常强大的工具，用于分析 <code>SELECT</code> 语句的执行计划。通过 <code>EXPLAIN</code> 的输出结果，我们可以了解查询是如何执行的，包括使用了哪些索引、扫描了多少行、是否进行了文件排序等信息。这是数据库性能调优不可或缺的一环，能够帮助我们发现 SQL 语句中的性能瓶颈并进行优化。</p>
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">448</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-24.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">MySQL EXPLAIN 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">MySQL EXPLAIN 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-05-31T22:24:00.000Z" title="发表于 2023-06-01 06:24:00">2023-06-01</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/">中间件</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/MySQL/">MySQL</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>12分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong><code>EXPLAIN</code></strong> 是 MySQL 提供的一个非常强大的工具，用于分析 SQL 查询语句的执行计划。通过使用 <code>EXPLAIN</code> 命令，我们可以深入了解 MySQL 是如何执行一个 <code>SELECT</code>、<code>INSERT</code>、<code>UPDATE</code> 或 <code>DELETE</code> 语句的，包括它使用了哪些索引、表的连接顺序、扫描了多少行数据等。理解 <code>EXPLAIN</code> 的输出对于数据库性能优化至关重要，它可以帮助开发者识别并解决慢查询问题。</p>
 </blockquote>
-<div class="note info flat"><p>“优化前，先 <code>EXPLAIN</code>。没有 <code>EXPLAIN</code> 的优化都是盲人摸象。” - 数据库优化格言</p>
+<div class="note info flat"><p>核心思想：<strong>揭示查询语句的内部执行机制，为索引设计、SQL 重写和数据库结构优化提供数据支持。</strong></p>
 </div>
 <hr>
-<h2 id="一、什么是-EXPLAIN？"><a href="#一、什么是-EXPLAIN？" class="headerlink" title="一、什么是 EXPLAIN？"></a>一、什么是 EXPLAIN？</h2><p><code>EXPLAIN</code> 命令实际上是用来获取 MySQL 执行查询语句的执行计划的。执行计划描述了 MySQL 如何处理 <code>SQL</code> 语句，包括：</p>
+<h2 id="一、为什么需要-EXPLAIN？"><a href="#一、为什么需要-EXPLAIN？" class="headerlink" title="一、为什么需要 EXPLAIN？"></a>一、为什么需要 EXPLAIN？</h2><p>在复杂的数据库应用中，性能问题往往是瓶颈所在。SQL 查询效率低下是导致性能问题的常见原因之一。当一个 SQL 查询执行缓慢时，我们需要知道：</p>
 <ul>
-<li>表的连接顺序</li>
-<li>每个表使用的索引</li>
-<li>是否使用了临时表</li>
-<li>是否进行了文件排序</li>
-<li>扫描的行数预估</li>
+<li><strong>是否使用了正确的索引？</strong> 或者根本没有使用索引？</li>
+<li><strong>扫描了多少行数据？</strong> 全表扫描还是部分扫描？</li>
+<li><strong>表的连接顺序是否合理？</strong></li>
+<li><strong>是否存在不必要的临时表或文件排序？</strong></li>
+<li><strong>查询的瓶颈究竟在哪里？</strong></li>
 </ul>
-<p>通过分析这些信息，我们可以判断查询是否高效，是否可以进一步优化。</p>
-<h2 id="二、如何使用-EXPLAIN？"><a href="#二、如何使用-EXPLAIN？" class="headerlink" title="二、如何使用 EXPLAIN？"></a>二、如何使用 EXPLAIN？</h2><p>使用 <code>EXPLAIN</code> 非常简单，只需将 <code>EXPLAIN</code> 关键字放在任何 <code>SELECT</code> 语句的前面。</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> username <span class="operator">=</span> <span class="string">&#x27;Alice&#x27;</span>;</span><br><span class="line">EXPLAIN <span class="keyword">SELECT</span> u.username, o.order_id</span><br><span class="line"><span class="keyword">FROM</span> users u <span class="keyword">JOIN</span> orders o <span class="keyword">ON</span> u.id <span class="operator">=</span> o.user_id</span><br><span class="line"><span class="keyword">WHERE</span> u.status <span class="operator">=</span> <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+<p><code>EXPLAIN</code> 命令能够回答这些问题，它通过输出一张表格来详细描述 MySQL 查询优化器的工作方式，从而帮助我们：</p>
+<ul>
+<li><strong>定位性能瓶颈</strong>：快速找出查询中效率低下的部分。</li>
+<li><strong>评估索引效果</strong>：判断现有索引是否被有效利用，或者是否需要创建新索引。</li>
+<li><strong>优化 SQL 语句</strong>：根据 <code>EXPLAIN</code> 的建议，调整 SQL 语句的写法。</li>
+<li><strong>优化表结构</strong>：根据 <code>EXPLAIN</code> 的反馈，改进表的设计。</li>
+</ul>
+<h2 id="二、EXPLAIN-的使用方法"><a href="#二、EXPLAIN-的使用方法" class="headerlink" title="二、EXPLAIN 的使用方法"></a>二、EXPLAIN 的使用方法</h2><p><code>EXPLAIN</code> 命令非常简单，只需在待分析的 <code>SELECT</code>（最常用）、<code>INSERT</code>、<code>UPDATE</code> 或 <code>DELETE</code> 语句前加上 <code>EXPLAIN</code> 关键字即可。</p>
+<p><strong>语法：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> ... <span class="keyword">FROM</span> ... <span class="keyword">WHERE</span> ...;</span><br><span class="line">EXPLAIN <span class="keyword">INSERT</span> ...;</span><br><span class="line">EXPLAIN <span class="keyword">UPDATE</span> ...;</span><br><span class="line">EXPLAIN <span class="keyword">DELETE</span> ...;</span><br></pre></td></tr></table></figure>
 
-<p>执行后，结果会以表格的形式展示，每行代表一个表或一个操作。</p>
-<h2 id="三、EXPLAIN-输出格式解读"><a href="#三、EXPLAIN-输出格式解读" class="headerlink" title="三、EXPLAIN 输出格式解读"></a>三、EXPLAIN 输出格式解读</h2><p><code>EXPLAIN</code> 命令的输出结果通常包含以下列（不同版本或配置可能略有差异）：</p>
+<p><strong>示例：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">&gt;</span> <span class="number">25</span> <span class="keyword">ORDER</span> <span class="keyword">BY</span> name;</span><br></pre></td></tr></table></figure>
+
+<p>执行后，MySQL 会返回一个表格，包含多行数据，每行代表查询计划中的一个操作步骤（通常与表相关）。</p>
+<h2 id="三、EXPLAIN-输出列详解"><a href="#三、EXPLAIN-输出列详解" class="headerlink" title="三、EXPLAIN 输出列详解"></a>三、EXPLAIN 输出列详解</h2><p><code>EXPLAIN</code> 输出的表格包含了多个列，每个列都提供了关于查询计划的重要信息。理解这些列的含义是解读 <code>EXPLAIN</code> 输出的关键。</p>
 <table>
 <thead>
 <tr>
 <th align="left">列名</th>
 <th align="left">描述</th>
-<th align="left">关键关注点</th>
+<th align="left">优化建议</th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="left"><code>id</code></td>
-<td align="left">SELECT 查询的编号，表示查询中每个 <code>SELECT</code> 语句的序号。</td>
-<td align="left">越大越优先执行，相同 ID 从上往下执行。</td>
+<td align="left"><strong>SELECT 查询的标识符。</strong> 如果查询包含子查询或 UNION 操作，则每个 <code>SELECT</code> 语句都会有一个唯一的 <code>id</code>。<code>id</code> 越大，优先级越高；<code>id</code> 相同，则从上往下依次执行。</td>
+<td align="left">用于判断子查询的执行顺序。</td>
 </tr>
 <tr>
 <td align="left"><code>select_type</code></td>
-<td align="left">SELECT 查询的类型。</td>
-<td align="left"><code>SIMPLE</code>, <code>PRIMARY</code>, <code>SUBQUERY</code>, <code>UNION</code> 等。</td>
+<td align="left"><strong>SELECT 查询的类型。</strong> 表示查询中每个部分的 SQL 操作类型，常见类型包括：- <code>SIMPLE</code>：简单的 SELECT 查询，不包含 UNION 或子查询。- <code>PRIMARY</code>：最外层的 SELECT 查询。- <code>SUBQUERY</code>：子查询中的第一个 SELECT。- <code>DERIVED</code>：派生表（FROM 子句中的子查询）SELECT。- <code>UNION</code>：UNION 中的第二个或后续 SELECT。- <code>UNION RESULT</code>：UNION 查询的结果。</td>
+<td align="left"><code>SUBQUERY</code> 和 <code>DERIVED</code> 生成的临时表可能导致性能问题，考虑重写为 JOIN。</td>
 </tr>
 <tr>
 <td align="left"><code>table</code></td>
-<td align="left">查询涉及的表名。</td>
-<td align="left">关系到数据的来源。</td>
+<td align="left"><strong>正在访问的表名。</strong> 有时会是 <code>&lt;derivedN&gt;</code>（N 是 <code>id</code> 号）表示派生表，或 <code>&lt;unionM,N...&gt;</code> 表示 UNION 结果。</td>
+<td align="left">用于识别每个操作涉及的具体表。</td>
 </tr>
 <tr>
 <td align="left"><code>partitions</code></td>
-<td align="left">匹配到的分区信息 (MySQL 5.6+), 对于未分区表显示 NULL。</td>
-<td align="left">如果是分区表，查看是否正确选择分区。</td>
+<td align="left"><strong>查询匹配到的分区。</strong> 对于使用了分区表的查询，这个列会显示命中的分区。</td>
+<td align="left">如果查询命中了过多分区，可能需要优化分区策略或查询条件。</td>
 </tr>
 <tr>
 <td align="left"><code>type</code></td>
-<td align="left">连接类型&#x2F;访问类型，非常重要，显示查询如何从表中查找行。</td>
-<td align="left"><code>ALL</code> (全表扫描) 最差，<code>index</code>, <code>range</code>, <code>ref</code>, <code>eq_ref</code>, <code>const</code> 较好。</td>
+<td align="left"><strong>Join 类型&#x2F;访问类型。</strong> 这是 <code>EXPLAIN</code> 输出中最重要的列之一，表示 MySQL 如何查找表中的行。从最好到最差的顺序大致是：<code>system &gt; const &gt; eq_ref &gt; ref &gt; fulltext &gt; ref_or_null &gt; index_merge &gt; unique_subquery &gt; index_subquery &gt; range &gt; index &gt; ALL</code>。<strong><code>ALL</code> 是最差的情况 (全表扫描)。</strong></td>
+<td align="left"><strong><code>ALL</code> 代表全表扫描，应极力避免。</strong> 争取达到 <code>range</code> 或 <code>ref</code> 级别，最好是 <code>const</code> 或 <code>eq_ref</code>。优化方向通常是通过创建索引来改变 <code>type</code>。</td>
 </tr>
 <tr>
 <td align="left"><code>possible_keys</code></td>
-<td align="left">可能使用的索引列表。</td>
-<td align="left">供优化器选择的索引。</td>
+<td align="left"><strong>可能被用于查询的索引。</strong> MySQL 优化器认为在查找表中行时可能使用的索引。<strong>不代表实际使用了这些索引。</strong></td>
+<td align="left">如果此列为空，说明没有合适的索引可用。如果 <code>key</code> 列也不为空，但 <code>possible_keys</code> 为空，说明索引可能不是最优或有其他问题。</td>
 </tr>
 <tr>
 <td align="left"><code>key</code></td>
-<td align="left">实际使用的索引。</td>
-<td align="left">优化器最终选择的索引。</td>
+<td align="left"><strong>实际使用的索引。</strong> MySQL 优化器最终选择用于查询的索引。如果为 <code>NULL</code>，表示没有使用索引。这可能意味着没有合适的索引，或者优化器认为全表扫描更有效 (例如，表太小或需要扫描大部分行)。</td>
+<td align="left">如果为 <code>NULL</code>，通常需要考虑创建合适的索引。如果 <code>key</code> 和 <code>possible_keys</code> 不同，可能需要手动 <code>FORCE INDEX</code> 或分析优化器选择的原因。</td>
 </tr>
 <tr>
 <td align="left"><code>key_len</code></td>
-<td align="left">实际使用的索引长度（字节）。</td>
-<td align="left">越短越好，看是否完全使用了联合索引。</td>
+<td align="left"><strong>实际使用的索引的长度（字节数）。</strong> 表示 MySQL 此次查询中使用了索引的哪个部分。对于复合索引，<code>key_len</code> 可以告诉你多列索引中实际使用了多少列。</td>
+<td align="left"><code>key_len</code> 值越小，通常说明索引的使用越高效。对于复合索引，如果 <code>key_len</code> 没有达到预期长度，可能说明索引没有完全被利用 (如没有使用到覆盖索引全部列)。</td>
 </tr>
 <tr>
 <td align="left"><code>ref</code></td>
-<td align="left">显示索引的哪一列被用作查找依据。</td>
-<td align="left">常量、其他表的列、函数等。</td>
+<td align="left"><strong>与 <code>key</code> 列所示索引结合使用的列或常量。</strong> 说明了哪个列或常量被用于与 <code>key</code> 列中使用的索引进行比较。例如，如果 <code>key</code> 是 <code>idx_name</code>，<code>ref</code> 可能是 <code>const</code>（常量）、<code>database.table.column_name</code>（某个表的列）。</td>
+<td align="left"><code>ref</code> 列通常与 <code>type</code> 列一起判断索引的使用效率。如果 <code>ref</code> 引用的是常量，通常效率高。</td>
 </tr>
 <tr>
 <td align="left"><code>rows</code></td>
-<td align="left">MySQL 估计要扫描的行数。</td>
-<td align="left">越小越好，直接影响查询性能。</td>
+<td align="left"><strong>MySQL 估计为了找到所需的行而必须读取的行数。</strong> 这是一个非常重要的指标，可以粗略地衡量查询的效率。它不是一个精确的值，而是一个估计值。</td>
+<td align="left"><strong><code>rows</code> 越小越好。</strong> 高的 <code>rows</code> 值通常意味着查询效率低，可能存在全表扫描或索引使用不当。优化目标是让 <code>rows</code> 尽可能接近实际返回的行数。</td>
 </tr>
 <tr>
 <td align="left"><code>filtered</code></td>
-<td align="left">MySQL 估计将通过条件过滤的表行的百分比 (MySQL 5.7+)。</td>
-<td align="left">过滤率越高，说明通过索引过滤的数据越多。</td>
+<td align="left"><strong>通过表条件过滤后，剩余的行百分比的估计值（MySQL 5.7+）。</strong> 例如，如果 <code>rows</code> 是 1000，<code>filtered</code> 是 10.00，则表示有 100 行通过条件过滤后保留下来。这与 <code>rows</code> 列一起用于估计传递给下一个表中的行数。</td>
+<td align="left"><code>filtered</code> 值越高越好 (接近 100%)，说明经过索引检索后，再通过 WHERE 条件过滤掉的行数越少。值越低，说明过滤条件效果不佳，可能需要创建更精确的索引。</td>
 </tr>
 <tr>
 <td align="left"><code>Extra</code></td>
-<td align="left">额外信息，包含许多重要的执行细节。</td>
-<td align="left"><code>Using filesort</code>, <code>Using temporary</code>, <code>Using index</code> (覆盖索引) 等，非常关键。</td>
+<td align="left"><strong>额外信息。</strong> 提供了关于查询执行计划的额外详细信息，这通常是 <code>EXPLAIN</code> 输出中最重要的部分之一。常见的 <code>Extra</code> 值包括：- <code>Using filesort</code>：需要进行文件排序，通常出现在 <code>ORDER BY</code> 子句中没有使用索引的情况下，应尽量避免。- <code>Using temporary</code>：M<code>ySQL 需要创建临时表来处理查询，通常出现在 </code>DISTINCT<code>、</code>GROUP BY<code>或</code>UNION<code>操作中，且无法通过索引优化。-</code>Using index<code>：**使用覆盖索引**，表示查询所需的所有数据都可以在索引中找到，无需回表查询，效率非常高。- </code>Using where<code>：使用了 WHERE 子句来限制返回的行，但可能没有充分利用索引。- </code>Using index condition<code>：**索引条件下推 (ICP)**，MySQL 5.6+ 引入的优化。在存储引擎层就对数据进行过滤，而不是返回所有数据到服务器层再过滤。- </code>Using join buffer (Block Nested Loop)<code>：使用了连接缓冲区。- </code>Impossible WHERE&#96;：WHERE 子句总是为假，查询永远不会返回任何行。</td>
+<td align="left"><strong>应尽量避免 <code>Using filesort</code> 和 <code>Using temporary</code>。</strong> <code>Using index</code> 表示使用了覆盖索引，这是非常高效的。<code>Using index condition</code> 也是一个好的优化标志。</td>
 </tr>
 </tbody></table>
-<p>接下来，我们详细解读其中几个最重要的列：</p>
-<h3 id="1-id-SELECT-Query-ID"><a href="#1-id-SELECT-Query-ID" class="headerlink" title="1. id (SELECT Query ID)"></a>1. <code>id</code> (SELECT Query ID)</h3><ul>
-<li>同一组的查询，<code>id</code> 相同。ID 越大，执行优先级越高。</li>
-<li>并发执行的查询，<code>id</code> 可能相同。</li>
-<li>如果存在子查询等嵌套查询，<code>id</code> 会不同。<ul>
-<li><code>id</code> 最大的语句块最先执行。</li>
-<li>如果 <code>id</code> 相同，则从上往下依次执行。</li>
-</ul>
-</li>
-</ul>
-<p>示例：</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> id <span class="keyword">IN</span> (<span class="keyword">SELECT</span> user_id <span class="keyword">FROM</span> orders <span class="keyword">WHERE</span> amount <span class="operator">&gt;</span> <span class="number">100</span>);</span><br><span class="line"><span class="comment">-- id=2 (子查询) 会比 id=1 (外层查询) 先执行</span></span><br></pre></td></tr></table></figure>
+<h2 id="四、EXPLAIN-优化案例与解读"><a href="#四、EXPLAIN-优化案例与解读" class="headerlink" title="四、EXPLAIN 优化案例与解读"></a>四、EXPLAIN 优化案例与解读</h2><p>通过几个案例来演示如何利用 <code>EXPLAIN</code> 进行优化。</p>
+<h3 id="4-1-案例一：全表扫描-ALL"><a href="#4-1-案例一：全表扫描-ALL" class="headerlink" title="4.1 案例一：全表扫描 (ALL)"></a>4.1 案例一：全表扫描 (ALL)</h3><p><strong>表结构：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE TABLE</span> `users` (</span><br><span class="line">  `id` <span class="type">INT</span> AUTO_INCREMENT <span class="keyword">PRIMARY KEY</span>,</span><br><span class="line">  `username` <span class="type">VARCHAR</span>(<span class="number">50</span>) <span class="keyword">NOT NULL</span>,</span><br><span class="line">  `age` <span class="type">INT</span>,</span><br><span class="line">  `email` <span class="type">VARCHAR</span>(<span class="number">100</span>),</span><br><span class="line">  `created_at` DATETIME <span class="keyword">DEFAULT</span> <span class="built_in">CURRENT_TIMESTAMP</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="keyword">INSERT INTO</span> users (username, age, email) <span class="keyword">VALUES</span></span><br><span class="line">(<span class="string">&#x27;Alice&#x27;</span>, <span class="number">28</span>, <span class="string">&#x27;alice@example.com&#x27;</span>),</span><br><span class="line">(<span class="string">&#x27;Bob&#x27;</span>, <span class="number">35</span>, <span class="string">&#x27;bob@example.com&#x27;</span>),</span><br><span class="line">(<span class="string">&#x27;Charlie&#x27;</span>, <span class="number">22</span>, <span class="string">&#x27;charlie@example.com&#x27;</span>),</span><br><span class="line">(<span class="string">&#x27;David&#x27;</span>, <span class="number">40</span>, <span class="string">&#x27;david@example.com&#x27;</span>),</span><br><span class="line">(<span class="string">&#x27;Eve&#x27;</span>, <span class="number">30</span>, <span class="string">&#x27;eve@example.com&#x27;</span>);</span><br></pre></td></tr></table></figure>
 
-<h3 id="2-select-type-Query-Type"><a href="#2-select-type-Query-Type" class="headerlink" title="2. select_type (Query Type)"></a>2. <code>select_type</code> (Query Type)</h3><p>表示每个 <code>SELECT</code> 语句的类型。常见的有：</p>
-<ul>
-<li><code>SIMPLE</code>: 简单的 <code>SELECT</code> 查询，不包含 <code>UNION</code> 或子查询。</li>
-<li><code>PRIMARY</code>: 最外层 <code>SELECT</code> 查询 (如果包含子查询)。</li>
-<li><code>SUBQUERY</code>: 子查询中的第一个 <code>SELECT</code> 查询。</li>
-<li><code>DEPENDENT SUBQUERY</code>: 依赖于外部查询的子查询。</li>
-<li><code>UNION</code>: <code>UNION</code> 中的第二个或后续 <code>SELECT</code> 查询。</li>
-<li><code>DEPENDENT UNION</code>: 依赖于外部查询的 <code>UNION</code> 中的第二个或后续 <code>SELECT</code> 查询。</li>
-<li><code>UNION RESULT</code>: <code>UNION</code> 查询的结果集。</li>
-<li><code>DERIVED</code>: 用于代表派生表（<code>FROM</code> 子句中的子查询）。</li>
-<li><code>MATERIALIZED</code>: 已经物化（创建了临时表）的子查询（MySQL 5.6+）。</li>
-</ul>
-<h3 id="3-table-Table-Name"><a href="#3-table-Table-Name" class="headerlink" title="3. table (Table Name)"></a>3. <code>table</code> (Table Name)</h3><p>当前操作的表名。如果是派生表或 <code>UNION</code> 结果，会显示为 <code>&lt;derivedN&gt;</code> 或 <code>&lt;unionM,N&gt;</code>。</p>
-<h3 id="4-type-Access-Type-最重要的列之一"><a href="#4-type-Access-Type-最重要的列之一" class="headerlink" title="4. type (Access Type) - 最重要的列之一"></a>4. <code>type</code> (Access Type) - 最重要的列之一</h3><p>这是判断查询性能的最关键指标之一，显示 MySQL 如何从表中查找行。从最好到最差的连接类型：</p>
-<ul>
-<li><code>system</code>: 表只有一行记录（系统表），这是 <code>const</code> 类型的一个特例。</li>
-<li><code>const</code>: 通过主键或唯一索引查找，结果只有一行。非常快，因为只读一次。<ul>
-<li><code>EXPLAIN SELECT * FROM users WHERE id = 1;</code></li>
-</ul>
-</li>
-<li><code>eq_ref</code>: 对于每个来自先前的表的行，从当前表中读取一行。通常在连接操作中使用主键或唯一索引时发生。<ul>
-<li><code>EXPLAIN SELECT * FROM users u JOIN orders o ON u.id = o.user_id WHERE o.order_id = 1;</code></li>
-</ul>
-</li>
-<li><code>ref</code>: 非唯一性索引扫描，返回匹配某个单独值的多行。<ul>
-<li><code>EXPLAIN SELECT * FROM users WHERE status = 1;</code> (status 列有索引且值不唯一)</li>
-</ul>
-</li>
-<li><code>range</code>: 范围扫描，适用于 <code>WHERE</code> 子句中使用 <code>&lt;</code>、<code>&gt;</code>、<code>BETWEEN</code>、<code>IN</code> 等操作符。<ul>
-<li><code>EXPLAIN SELECT * FROM users WHERE id BETWEEN 1 AND 10;</code></li>
-</ul>
-</li>
-<li><code>index</code>: 全索引扫描，扫描整个索引树，但由于不读取数据行，比 <code>ALL</code> 快（如果索引小于数据）。<ul>
-<li><code>EXPLAIN SELECT username FROM users ORDER BY username;</code> (如果 <code>username</code> 有索引)</li>
-</ul>
-</li>
-<li><code>ALL</code>: 全表扫描，最差的访问类型。如果 <code>Extra</code> 列没有 <code>Using where</code>，那可能是在全表扫描后直接返回所有数据。如果 <code>Extra</code> 列有 <code>Using where</code>，那表示全表扫描后进行条件过滤。我们应该尽量避免。<ul>
-<li><code>EXPLAIN SELECT * FROM users WHERE address LIKE &#39;%street%&#39;;</code> (address 列没有索引)</li>
-</ul>
-</li>
-</ul>
-<p>优化目标： 尽量将 <code>type</code> 优化到 <code>ref</code>、<code>eq_ref</code>、<code>const</code> 或 <code>system</code> 等，<code>range</code> 也是可以接受的。避免 <code>ALL</code>。</p>
-<h3 id="5-possible-keys-Possible-Keys"><a href="#5-possible-keys-Possible-Keys" class="headerlink" title="5. possible_keys (Possible Keys)"></a>5. <code>possible_keys</code> (Possible Keys)</h3><p>表示 MySQL 在当前查询中可能选择的索引列表。这只是一个候选列表，优化器最终可能不选择其中任何一个。</p>
-<h3 id="6-key-Chosen-Key-也很重要"><a href="#6-key-Chosen-Key-也很重要" class="headerlink" title="6. key (Chosen Key) - 也很重要"></a>6. <code>key</code> (Chosen Key) - 也很重要</h3><p>优化器最终决定实际使用的索引。</p>
-<ul>
-<li>如果为 <code>NULL</code>，表示没有使用索引。</li>
-<li>如果 <code>key</code> 显示的索引不在 <code>possible_keys</code> 中，说明 <code>possible_keys</code> 有误，或者 <code>key</code> 是通过隐式优化生成的（如自适应哈希索引）。</li>
-</ul>
-<h3 id="7-key-len-Key-Length"><a href="#7-key-len-Key-Length" class="headerlink" title="7. key_len (Key Length)"></a>7. <code>key_len</code> (Key Length)</h3><p>表示实际使用的索引的长度（字节数）。</p>
-<ul>
-<li>对于联合索引，<code>key_len</code> 可以帮你判断索引被用到了多少列。</li>
-<li>如果是一个 <code>VARCHAR(100) CHARACTER SET utf8mb4</code> 的列，其 <code>key_len</code> 会根据编码和是否允许 <code>NULL</code> 有所不同。</li>
-<li><code>key_len</code> 越小，说明索引用到的字段越少，或者字段的类型本身占用空间小。在保证索引效率的前提下，通常希望 <code>key_len</code> 尽可能小。</li>
-</ul>
-<h3 id="8-ref-Reference"><a href="#8-ref-Reference" class="headerlink" title="8. ref (Reference)"></a>8. <code>ref</code> (Reference)</h3><p>显示索引的哪一列或常量被用作查找索引的参考。</p>
-<ul>
-<li><code>const</code>: 表示与一个常量进行比较。</li>
-<li><code>func</code>: 表示与表达式或函数的结果进行比较。</li>
-<li><code>db.tbl.col_name</code>: 表示与前一个表的某个列进行比较 (在连接查询中)。</li>
-</ul>
-<h3 id="9-rows-Estimated-Rows-非常重要"><a href="#9-rows-Estimated-Rows-非常重要" class="headerlink" title="9. rows (Estimated Rows) - 非常重要"></a>9. <code>rows</code> (Estimated Rows) - 非常重要</h3><p>MySQL 估计为了找到所需的行而需要读取的行数。这是一个非常重要的指标，值越小越好。它直接反映了查询的效率。</p>
-<p>即使 <code>type</code> 看起来不错，如果 <code>rows</code> 很大，也需要警惕。</p>
-<h3 id="10-filtered-Filtered-Percentage-MySQL-5-7-常用"><a href="#10-filtered-Filtered-Percentage-MySQL-5-7-常用" class="headerlink" title="10. filtered (Filtered Percentage) - (MySQL 5.7+ 常用)"></a>10. <code>filtered</code> (Filtered Percentage) - (MySQL 5.7+ 常用)</h3><p>通过条件过滤后的表行的百分比。</p>
-<ul>
-<li><code>filtered</code> 的值越高（越接近 100%），表示通过索引或 WHERE 条件过滤掉的数据越多，越高效。</li>
-<li>例如，<code>rows</code> 是 1000，<code>filtered</code> 是 10%，表示 MySQL 认为从这个表里取出 1000 行，经过 WHERE 过滤后，只有 100 行会传给上层。</li>
-</ul>
-<h3 id="11-Extra-Extra-Information-最重要的列之一"><a href="#11-Extra-Extra-Information-最重要的列之一" class="headerlink" title="11. Extra (Extra Information) - 最重要的列之一"></a>11. <code>Extra</code> (Extra Information) - 最重要的列之一</h3><p>包含不适合在其他列中显示但对查询优化非常重要的额外信息。以下是一些常见的 <code>Extra</code> 值及其含义：</p>
-<ul>
-<li><code>Using index</code>: 覆盖索引（Covering Index）。表示查询所需的所有数据都可以在索引中找到，而不需要回表查询数据行。这是非常高效的查询，值得追求。</li>
-<li><code>Using where</code>: 表明 <code>WHERE</code> 子句被用来限制哪些行与下一个表匹配，或者发送给客户端。如果 <code>type</code> 是 <code>ALL</code> 且 <code>Extra</code> 有 <code>Using where</code>，则表示在全表扫描后进行了过滤。</li>
-<li><code>Using filesort</code>: 文件排序。当查询需要对结果进行排序，但无法使用索引来完成排序时，MySQL 会在内存或磁盘上进行排序。这通常会导致性能问题，尤其是在大数据量时。应尽量避免。<ul>
-<li>优化方法：为 <code>ORDER BY</code> 子句的列创建索引。</li>
-</ul>
-</li>
-<li><code>Using temporary</code>: 使用临时表。通常发生在 <code>GROUP BY</code> 或 <code>ORDER BY</code> 子句无法使用索引优化时，或者多次 <code>UNION</code> 查询时。这也会导致性能问题，应尽量避免。<ul>
-<li>优化方法：考虑优化 <code>GROUP BY</code> 或 <code>UNION</code> 语句，或增加内存。</li>
-</ul>
-</li>
-<li><code>Using join buffer (Block Nested Loop)</code>: 当两个表连接时，如果连接条件没有索引或者无法使用索引，MySQL 可能会使用连接缓冲区来处理。</li>
-<li><code>Using index condition</code>: 索引条件下推 (Index Condition Pushdown, ICP) (MySQL 5.6+)。在存储引擎层进行数据过滤，而不是在服务器层。这可以减少存储引擎返回给服务器层的行数，提高效率。<ul>
-<li>例如，对于 <code>idx(A, B)</code>，查询 <code>WHERE A &gt; 10 AND B &lt; 20</code>，ICP 允许在遍历索引时就根据 <code>B &lt; 20</code> 条件进行过滤，而不是将所有 <code>A &gt; 10</code> 的行都取出来再过滤。</li>
-</ul>
-</li>
-<li><code>Using MRR</code>: 多范围读取 (Multi-Range Read) (MySQL 5.6+)。当访问非聚集索引来获取数据时，MRR 可以将随机 I&#x2F;O 转换为顺序 I&#x2F;O，提高效率。</li>
-<li><code>Backward index scan</code>: 反向索引扫描 (MySQL 8.0+)。查询以相反的顺序（降序）遍历索引，避免了额外的文件排序。</li>
-</ul>
-<h2 id="四、EXPLAIN-的限制"><a href="#四、EXPLAIN-的限制" class="headerlink" title="四、EXPLAIN 的限制"></a>四、EXPLAIN 的限制</h2><ul>
-<li><code>EXPLAIN</code> 只能解释 <code>SELECT</code> 语句，不能解释 <code>INSERT</code>、<code>UPDATE</code>、<code>DELETE</code>。但可以通过将 <code>UPDATE/DELETE</code> 的 <code>WHERE</code> 子句提炼成 <code>SELECT</code> 语句进行分析。</li>
-<li><code>EXPLAIN</code> 提供的是查询优化器估算的执行计划，在某些复杂查询或数据分布极端的情况下，实际执行计划可能与 <code>EXPLAIN</code> 有细微差异。</li>
-<li>当涉及到存储过程、触发器或用户自定义函数时，<code>EXPLAIN</code> 可能无法提供完整的执行计划信息。</li>
-</ul>
-<h2 id="五、实际案例分析"><a href="#五、实际案例分析" class="headerlink" title="五、实际案例分析"></a>五、实际案例分析</h2><p>场景：用户表 <code>users</code> (id, username, email, status, create_time)，订单表 <code>orders</code> (order_id, user_id, amount, create_time)。</p>
-<h3 id="案例-1-无索引全表扫描"><a href="#案例-1-无索引全表扫描" class="headerlink" title="案例 1: 无索引全表扫描"></a>案例 1: 无索引全表扫描</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> email <span class="operator">=</span> <span class="string">&#x27;test@example.com&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<p><strong>查询：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">=</span> <span class="number">30</span>;</span><br></pre></td></tr></table></figure>
 
+<p><strong>EXPLAIN 输出：</strong></p>
 <table>
 <thead>
 <tr>
@@ -407,21 +317,25 @@
 <td>NULL</td>
 <td>NULL</td>
 <td>NULL</td>
-<td>10000</td>
-<td>10.00</td>
+<td>5</td>
+<td>20.00</td>
 <td>Using where</td>
 </tr>
 </tbody></table>
-<p>分析:</p>
+<p><strong>解读与优化：</strong></p>
 <ul>
-<li><code>type: ALL</code> -&gt; 全表扫描，性能极差。</li>
-<li><code>possible_keys: NULL</code>, <code>key: NULL</code> -&gt; 没有使用任何索引。</li>
-<li><code>rows: 10000</code> -&gt; 估计扫描 10000 行。</li>
-<li><code>Extra: Using where</code> -&gt; 全表扫描后在服务器层进行条件过滤。</li>
+<li><code>type: ALL</code>：表示全表扫描，这是最糟糕的情况。</li>
+<li><code>possible_keys: NULL</code>, <code>key: NULL</code>：说明没有使用任何索引。</li>
+<li><code>rows: 5</code>：估计需要读取 5 行，对于小表尚可接受，但对于大表将是灾难。</li>
+<li><code>Extra: Using where</code>：表示 WHERE 条件用于过滤，但没有通过索引加速过滤。</li>
 </ul>
-<p>优化: 为 <code>email</code> 列添加索引 <code>CREATE INDEX idx_email ON users (email);</code></p>
-<h3 id="案例-2-使用普通索引"><a href="#案例-2-使用普通索引" class="headerlink" title="案例 2: 使用普通索引"></a>案例 2: 使用普通索引</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> email <span class="operator">=</span> <span class="string">&#x27;test@example.com&#x27;</span>;</span><br></pre></td></tr></table></figure>
+<p><strong>优化方案：</strong> 为 <code>age</code> 列添加索引。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> INDEX idx_age <span class="keyword">ON</span> users (age);</span><br></pre></td></tr></table></figure>
 
+<p><strong>再次 EXPLAIN：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">=</span> <span class="number">30</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>新的 EXPLAIN 输出：</strong></p>
 <table>
 <thead>
 <tr>
@@ -445,25 +359,28 @@
 <td>users</td>
 <td>NULL</td>
 <td>ref</td>
-<td>idx_email</td>
-<td>idx_email</td>
-<td>302</td>
+<td>idx_age</td>
+<td>idx_age</td>
+<td>5</td>
 <td>const</td>
 <td>1</td>
 <td>100.00</td>
 <td>NULL</td>
 </tr>
 </tbody></table>
-<p>分析:</p>
+<p><strong>优化后解读：</strong></p>
 <ul>
-<li><code>type: ref</code> -&gt; 这是一个良好的访问类型，表示通过非唯一索引查找。</li>
-<li><code>key: idx_email</code> -&gt; 成功使用了 <code>email</code> 索引。</li>
-<li><code>rows: 1</code> -&gt; 估计只扫描 1 行，效率极高。</li>
-<li><code>Extra: NULL</code> -&gt; 没有额外的开销。</li>
-<li><code>key_len: 302</code> -&gt; <code>VARCHAR(100)</code> 的索引长度（UTF8MB4 编码下，每个字符最多占 4 字节 + 2 字节长度前缀 + 1 字节 NULL 标识 &#x3D; 4*100 + 2 + 1 &#x3D; 403 字节，这里是 302，说明它可能只索引了部分长度或者编码不同）。</li>
+<li><code>type: ref</code>：表示使用了非唯一索引进行查找，效率显著提高。</li>
+<li><code>key: idx_age</code>：实际使用了 <code>idx_age</code> 索引。</li>
+<li><code>key_len: 5</code>：索引长度。</li>
+<li><code>ref: const</code>：表示与一个常量进行比较。</li>
+<li><code>rows: 1</code>：估计只需要读取 1 行，效率极高。</li>
+<li><code>Extra: NULL</code>：没有额外的复杂操作。</li>
 </ul>
-<h3 id="案例-3-使用覆盖索引"><a href="#案例-3-使用覆盖索引" class="headerlink" title="案例 3: 使用覆盖索引"></a>案例 3: 使用覆盖索引</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> email <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> email <span class="operator">=</span> <span class="string">&#x27;test@example.com&#x27;</span>;</span><br></pre></td></tr></table></figure>
-
+<h3 id="4-2-案例二：文件排序-Using-filesort"><a href="#4-2-案例二：文件排序-Using-filesort" class="headerlink" title="4.2 案例二：文件排序 (Using filesort)"></a>4.2 案例二：文件排序 (Using filesort)</h3><p><strong>查询：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">&gt;</span> <span class="number">25</span> <span class="keyword">ORDER</span> <span class="keyword">BY</span> username;</span><br></pre></td></tr></table></figure>
+<p>假设 <code>username</code> 列没有索引。</p>
+<p><strong>EXPLAIN 输出 (部分)：</strong></p>
 <table>
 <thead>
 <tr>
@@ -486,62 +403,28 @@
 <td>SIMPLE</td>
 <td>users</td>
 <td>NULL</td>
-<td>ref</td>
-<td>idx_email</td>
-<td>idx_email</td>
-<td>302</td>
-<td>const</td>
-<td>1</td>
+<td>range</td>
+<td>idx_age</td>
+<td>idx_age</td>
+<td>5</td>
+<td>NULL</td>
+<td>3</td>
 <td>100.00</td>
-<td>Using index</td>
+<td>Using where; Using filesort</td>
 </tr>
 </tbody></table>
-<p>分析:</p>
+<p><strong>解读与优化：</strong></p>
 <ul>
-<li><code>Extra: Using index</code> -&gt; 覆盖索引！ 查询的所有列（<code>email</code>）都可以在 <code>idx_email</code> 索引中获取，不需要回表查询数据行，效率最高。</li>
+<li><code>type: range</code>：对于 <code>age &gt; 25</code> 范围查询，使用了 <code>idx_age</code> 索引，这部分不错。</li>
+<li><strong><code>Extra: Using filesort</code></strong>：这是关键，表示 MySQL 无法利用索引进行排序，而是在内存或磁盘上对结果集进行额外的排序操作。对于大量数据，<code>filesort</code> 会非常耗时。</li>
 </ul>
-<h3 id="案例-4-包含排序的文件排序"><a href="#案例-4-包含排序的文件排序" class="headerlink" title="案例 4: 包含排序的文件排序"></a>案例 4: 包含排序的文件排序</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">ORDER</span> <span class="keyword">BY</span> create_time <span class="keyword">DESC</span>;</span><br></pre></td></tr></table></figure>
+<p><strong>优化方案：</strong> 为 <code>username</code> 列添加索引，以便 <code>ORDER BY</code> 子句可以使用索引。或者考虑创建复合索引以同时覆盖 WHERE 和 ORDER BY。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> INDEX idx_username <span class="keyword">ON</span> users (username);</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th>id</th>
-<th>select_type</th>
-<th>table</th>
-<th>partitions</th>
-<th>type</th>
-<th>possible_keys</th>
-<th>key</th>
-<th>key_len</th>
-<th>ref</th>
-<th>rows</th>
-<th>filtered</th>
-<th>Extra</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>1</td>
-<td>SIMPLE</td>
-<td>users</td>
-<td>NULL</td>
-<td>ALL</td>
-<td>NULL</td>
-<td>NULL</td>
-<td>NULL</td>
-<td>NULL</td>
-<td>10000</td>
-<td>100.00</td>
-<td>Using filesort</td>
-</tr>
-</tbody></table>
-<p>分析:</p>
-<ul>
-<li><code>type: ALL</code> -&gt; 全表扫描。</li>
-<li><code>Extra: Using filesort</code> -&gt; 进行了文件排序，性能代价高。</li>
-</ul>
-<p>优化: 为 <code>create_time</code> 列添加索引 <code>CREATE INDEX idx_create_time ON users (create_time);</code></p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">ORDER</span> <span class="keyword">BY</span> create_time <span class="keyword">DESC</span>;</span><br></pre></td></tr></table></figure>
+<p><strong>再次 EXPLAIN：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">&gt;</span> <span class="number">25</span> <span class="keyword">ORDER</span> <span class="keyword">BY</span> username;</span><br></pre></td></tr></table></figure>
 
+<p><strong>新的 EXPLAIN 输出 (部分)：</strong></p>
 <table>
 <thead>
 <tr>
@@ -565,28 +448,165 @@
 <td>users</td>
 <td>NULL</td>
 <td>index</td>
-<td>idx_create_time</td>
-<td>idx_create_time</td>
-<td>5</td>
+<td>idx_age,idx_username</td>
+<td>idx_username</td>
+<td>152</td>
 <td>NULL</td>
-<td>10000</td>
-<td>100.00</td>
-<td>Backward index scan (MySQL 8.0+) 或 NULL (旧版本)</td>
+<td>5</td>
+<td>60.00</td>
+<td>Using where</td>
 </tr>
 </tbody></table>
-<p>分析:</p>
+<p><strong>优化后解读：</strong></p>
 <ul>
-<li><code>type: index</code> -&gt; 全索引扫描，比全表扫描好。</li>
-<li><code>Extra: Backward index scan</code> (MySQL 8.0+) 或 <code>NULL</code> (旧版本) -&gt; 说明利用索引进行排序，避免了文件排序。</li>
+<li><code>type: index</code>：表示 MySQL 对 <code>idx_username</code> 索引进行了全扫描以获取排序后的结果，虽然不是 <code>ref</code> 或 <code>range</code> 那么高效，但至少避免了 <code>filesort</code>。</li>
+<li><code>Extra: Using where</code>：说明 <code>age &gt; 25</code> 仍然需要额外过滤。</li>
 </ul>
-<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p><code>EXPLAIN</code> 是 MySQL 性能调优的基石。掌握其输出结果的含义，并结合索引的知识进行分析，能够帮助我们：</p>
-<ol>
-<li>识别潜在的慢查询：特别是 <code>type: ALL</code> 和 <code>Extra</code> 中包含 <code>Using filesort</code> 或 <code>Using temporary</code> 的查询。</li>
-<li>验证索引的有效性：查看 <code>key</code> 字段是否使用了预期索引。</li>
-<li>优化索引设计和 SQL 语句：根据分析结果调整索引、重写 <code>WHERE</code> 或 <code>JOIN</code> 条件。</li>
-</ol>
-<p>记住，性能优化是一个持续的过程，<code>EXPLAIN</code> 是你在这个过程中最得力的助手。</p>
-</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/138d9ed60364/">https://blog.tbf1211.xx.kg/138d9ed60364/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/">中间件</a><a class="post-meta__tags" href="/tags/MySQL/">MySQL</a><a class="post-meta__tags" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><a class="post-meta__tags" href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/">数据结构</a><a class="post-meta__tags" href="/tags/%E7%AE%97%E6%B3%95/">算法</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-08.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/0549b932640e/" title="DeFi (去中心化金融) 深度解读"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">DeFi (去中心化金融) 深度解读</div></div><div class="info-2"><div class="info-item-1"> DeFi (Decentralized Finance)，即去中心化金融，是一个建立在区块链技术之上的开放、透明、无需许可 (Permissionless) 且无需信任 (Trustless) 的金融生态系统。它旨在通过智能合约 (Smart Contracts) 自动化执行金融协议，从而消除传统金融体系中对银行、券商、交易所等中心化中介机构的需求，将金融服务的控制权归还给用户。  核心思想：DeFi 通过区块链和智能合约，将传统金融产品（如借贷、交易、保险）去中心化、自动化和透明化，使得任何拥有互联网连接的人都可以平等地访问和参与，打破了传统金融的壁垒。   一、传统金融 (TradFi) 的痛点与 DeFi 的起源传统金融体系（TradFi）虽然成熟，但也存在诸多局限性：  中心化中介：银行、券商、交易所等扮演关键中介角色，带来高昂费用、效率低下、单点故障风险。 效率低下与高成本：交易结算时间长（如银行转账需要数天），跨境支付费用高昂，运营成本高。 金融排斥：全球仍有大量人口无法获得基础银行服务，被排除在主流金融体系之外。 不透明与审查：金融机构的运作往往不透明，用户数据可...</div></div></div></a><a class="pagination-related" href="/699d44e596f6/" title="Web Worker 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Web Worker 深度解析</div></div><div class="info-2"><div class="info-item-1"> Web Worker 是一种允许 Web 应用程序在后台线程中运行脚本的机制，独立于主执行线程。它使得复杂的、计算密集型的任务可以在不阻塞用户界面 (UI) 的情况下执行，从而显著提升了 Web 应用的响应性和用户体验。  核心思想：Web Worker 解决了 JavaScript 单线程模型在处理耗时任务时可能导致的 UI 阻塞问题。它通过在独立的后台线程中运行 JavaScript 代码，允许主线程继续响应用户交互，从而实现 Web 应用的“多线程”体验。   一、为什么需要 Web Worker？(JavaScript 的单线程本质)JavaScript 在浏览器中是单线程运行的，这意味着所有脚本执行、事件处理、DOM 操作和 UI 渲染都在同一个主线程上进行。这种单线程模型虽然简化了编程模型（避免了复杂的并发问题），但也带来了一个显著的缺点：  UI 阻塞：当主线程执行一个耗时较长的计算任务时（例如，处理大量数据、复杂的图像处理、加密解密操作等），主线程会被这个任务长时间占用。在这期间，浏览器无法响应用户的输入（点击、滚动）、无法更新 UI，导致页面“卡死”或“无响应...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/f1bab0cad58f/" title="MySQL B+树索引原理详解与对比"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-07-11</div><div class="info-item-2">MySQL B+树索引原理详解与对比</div></div><div class="info-2"><div class="info-item-1"> 数据库索引是提升查询性能的关键，而 MySQL 中最常见的索引结构就是 B+树。理解 B+树的原理对于优化数据库性能至关重要。本文将详细解析 B+树索引的内部工作机制，并将其与二叉查找树、平衡二二叉查找树、红黑树和 B 树进行对比，阐明 B+树在磁盘存储和数据库查询场景下的优势。  “索引的本质是空间换时间，而 B+树是这种理念在磁盘存储场景下的极致优化。”   一、为什么需要索引？想象一下，你有一本几百页的字典，如果要查找一个词，没有目录（索引）的话，你可能需要从头到尾翻阅。而有了目录（索引），你可以快速定位到词语的大致位置，大大提高查找效率。 在数据库中，表是按照某种顺序（不一定是逻辑顺序）存储在磁盘上的。当数据量巨大时，如果没有索引，每次查询都需要进行全表扫描（Full Table Scan），这意味着数据库需要读取磁盘上的每一行数据并进行比较，效率极低。 索引通过创建一种特殊的数据结构，可以快速定位到数据记录的位置，从而显著减少磁盘 I&#x2F;O 次数，提高查询速度。 二、各种树结构简述与对比在深入 B+树之前，我们先回顾一下几种常见的树形数据结构，了解它们的优缺点...</div></div></div></a><a class="pagination-related" href="/895bad372d95/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-27</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> MySQL 索引 (Index) 是一种特殊的数据结构，存储着表中一列或多列数据的排序值和指向对应数据行的物理指针。它的主要目的是提高数据库查询的效率。通过创建索引，数据库系统可以快速定位到所需的数据行，而无需扫描整个表。然而，索引并非越多越好，不当的索引使用反而可能降低性能，因此深入理解索引的工作原理和优化策略至关重要。  核心思想：索引的本质是一种“文件目录”或“字典检索”，它通过牺牲一定的存储空间和维护成本，来大幅提升数据检索的速度。    一、为什么需要索引？想象一下一本没有目录的书，当你想查找某个特定主题时，你必须从头到尾翻阅整本书，效率非常低下。数据库查询也是一样。 当未对表中的列创建索引时：  全表扫描 (Full Table Scan)：每次查询都需要遍历表的每一行，逐一比对条件。对于小表来说可能影响不大，但对于包含数百万甚至数千万行记录的大表，全表扫描将导致灾难性的性能问题。 排序性能下降：如果查询结果需要排序（ORDER BY），但没有合适的索引，数据库需要在内存或磁盘上对结果集进行排序，开销巨大。 连接 (JOIN) 性能下降：多个表进行连接操作时，如果没...</div></div></div></a><a class="pagination-related" href="/396257856dc6/" title="Java Collections Framework 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-16</div><div class="info-item-2">Java Collections Framework 详解</div></div><div class="info-2"><div class="info-item-1"> Java Collections Framework (JCF) 是 Java 语言中一套标准的接口、类和算法的集合，用于存储和操作对象组。它提供了一系列高性能的数据结构实现，如列表、集合、映射等，这些数据结构被精心设计以满足各种常见的数据存储和检索需求。JCF 旨在统一管理、操作对象集合的 API，提高 Java 程序的生产力和性能。  核心思想：JCF 提供了一致的 API 来处理不同类型的数据结构，如列表、集合和映射，并与用于操作这些结构的标准算法（排序、搜索等）相结合。它允许开发者专注于业务逻辑，而不是底层数据结构的实现细节。   一、JCF 的发展历程与目的在 JCF 出现之前 (即 JDK 1.2 之前)，Java 提供了 Vector、Hashtable 等线程安全的旧式集合类，以及数组。这些类功能有限，API 不统一，且缺乏泛型支持，使用起来不便。 JCF 的引入旨在解决以下问题：  统一 API：提供一套统一的接口和类，使得操作不同类型的集合具有相似的代码模式。 提高性能：提供高效的数据结构实现，并利用算法优化常见操作。 减少学习成本：开发者只需学习一套 AP...</div></div></div></a><a class="pagination-related" href="/abb68b6fbe95/" title="从单机到哨兵，一张图理清redis架构演进！"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-26</div><div class="info-item-2">从单机到哨兵，一张图理清redis架构演进！</div></div><div class="info-2"><div class="info-item-1">Redis 的架构是逐步演进而来的，正所谓“罗马不是一天建成的”。    2010 年：单机版 Redis  当 Redis1.0在 2010 年首次发布时，整体架构非常简单，通常作为业务系统的缓存使用。不过，Redis 的数据是存储在内存中的，一旦重启，数据就会全部丢失，导致请求会直接打到数据库上，带来较大的压力。  2013 年：持久化机制上线  2013 年，Redis2.8版本发布，解决了之前“重启就丢数据”的问题。Redis 引入了 RDB（内存快照）机制，用于定时将内存中的数据持久化到磁盘。同时还支持 AOF（只追加文件）方式，将每一次写操作都记录到日志文件中，实现更高级别的持久化保障。  2013 年：主从复制机制  同样在 Redis2.8中，官方引入了主从复制功能，提升了系统的高可用性。主节点负责处理实时的读写请求，从节点则负责同步主节点的数据，起到备份和读扩展的作用。  2013 年：Sentinel 哨兵机制上线  在 Redis2.8版本中，引入了 Sentinel（哨兵）机制，用于实时监控 Redis 实例的运行状态。它主要负责以下几个方面的工作：   ...</div></div></div></a><a class="pagination-related" href="/ab44062dd349/" title="深入理解虚拟 DOM 与 Vue 核心补丁机制：patch(), patchVnode(), updateChildren()"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-11-15</div><div class="info-item-2">深入理解虚拟 DOM 与 Vue 核心补丁机制：patch(), patchVnode(), updateChildren()</div></div><div class="info-2"><div class="info-item-1"> 现代前端框架如 Vue 和 React 之所以能提供高性能和优秀的开发体验，很大程度上要归功于 虚拟 DOM (Virtual DOM) 及其配套的 Diff 算法 (补丁机制)。虚拟 DOM 充当了真实 DOM 的一个轻量级抽象层，而 Vue 的补丁机制则负责将虚拟 DOM 的变化高效地反映到真实的浏览器 DOM 上。本文将深入解析虚拟 DOM 的概念，并聚焦 Vue 2 中驱动这一机制的三个核心函数：patch(), patchVnode(), 和 updateChildren()，并辅以 Mermaid 流程图进行可视化说明。  “虚拟 DOM 是前端性能优化的基石，而 Vue 的 patch() 系列函数正是将这块基石转化为实际渲染效率的魔法棒。”   一、虚拟 DOM (Virtual DOM) 再探1.1 什么是虚拟 DOM？虚拟 DOM 是一个用 JavaScript 对象来模拟真实 DOM 节点的数据结构。它是一个轻量级的、内存中的真实 DOM 树的抽象。每一个虚拟节点（VNode）都包含构建一个真实 DOM 节点所需的所有信息，例如：  tag：标签名（如 d...</div></div></div></a><a class="pagination-related" href="/2dc66126bcaa/" title="Redis 各类数据结构指令详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-08</div><div class="info-item-2">Redis 各类数据结构指令详解</div></div><div class="info-2"><div class="info-item-1"> Redis 是一个开源（BSD 许可）的内存数据结构存储，可用作数据库、缓存和消息代理。它支持多种类型的数据结构，如字符串（strings）、哈希（hashes）、列表（lists）、集合（sets）、有序集合（sorted sets）等。理解并熟练使用这些数据结构及其相关指令，是高效利用 Redis 的关键。  Redis 的强大之处在于其在内存中操作这些丰富的数据结构，使得读写速度极快。掌握每个数据结构的使用场景和对应指令，是进行高性能应用开发的基础。   一、通用键指令 (Generic Commands)这些指令适用于所有数据类型的键。    指令 描述 示例    DEL key [key ...] 删除一个或多个键。 DEL mykey mylist   EXISTS key [key ...] 检查给定键是否存在。返回存在的键的数量。 EXISTS mykey   EXPIRE key seconds 设置键的过期时间（秒）。 EXPIRE mykey 60 (60秒后过期)   TTL key 获取键的剩余过期时间（秒）。-1 表示永久，-2 表示键不存在或已过...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">447</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF-EXPLAIN%EF%BC%9F"><span class="toc-text">一、什么是 EXPLAIN？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8-EXPLAIN%EF%BC%9F"><span class="toc-text">二、如何使用 EXPLAIN？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81EXPLAIN-%E8%BE%93%E5%87%BA%E6%A0%BC%E5%BC%8F%E8%A7%A3%E8%AF%BB"><span class="toc-text">三、EXPLAIN 输出格式解读</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-id-SELECT-Query-ID"><span class="toc-text">1. id (SELECT Query ID)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-select-type-Query-Type"><span class="toc-text">2. select_type (Query Type)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-table-Table-Name"><span class="toc-text">3. table (Table Name)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-type-Access-Type-%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E5%88%97%E4%B9%8B%E4%B8%80"><span class="toc-text">4. type (Access Type) - 最重要的列之一</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-possible-keys-Possible-Keys"><span class="toc-text">5. possible_keys (Possible Keys)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-key-Chosen-Key-%E4%B9%9F%E5%BE%88%E9%87%8D%E8%A6%81"><span class="toc-text">6. key (Chosen Key) - 也很重要</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-key-len-Key-Length"><span class="toc-text">7. key_len (Key Length)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-ref-Reference"><span class="toc-text">8. ref (Reference)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-rows-Estimated-Rows-%E9%9D%9E%E5%B8%B8%E9%87%8D%E8%A6%81"><span class="toc-text">9. rows (Estimated Rows) - 非常重要</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-filtered-Filtered-Percentage-MySQL-5-7-%E5%B8%B8%E7%94%A8"><span class="toc-text">10. filtered (Filtered Percentage) - (MySQL 5.7+ 常用)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-Extra-Extra-Information-%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E5%88%97%E4%B9%8B%E4%B8%80"><span class="toc-text">11. Extra (Extra Information) - 最重要的列之一</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81EXPLAIN-%E7%9A%84%E9%99%90%E5%88%B6"><span class="toc-text">四、EXPLAIN 的限制</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%AE%9E%E9%99%85%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90"><span class="toc-text">五、实际案例分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A1%88%E4%BE%8B-1-%E6%97%A0%E7%B4%A2%E5%BC%95%E5%85%A8%E8%A1%A8%E6%89%AB%E6%8F%8F"><span class="toc-text">案例 1: 无索引全表扫描</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A1%88%E4%BE%8B-2-%E4%BD%BF%E7%94%A8%E6%99%AE%E9%80%9A%E7%B4%A2%E5%BC%95"><span class="toc-text">案例 2: 使用普通索引</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A1%88%E4%BE%8B-3-%E4%BD%BF%E7%94%A8%E8%A6%86%E7%9B%96%E7%B4%A2%E5%BC%95"><span class="toc-text">案例 3: 使用覆盖索引</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A1%88%E4%BE%8B-4-%E5%8C%85%E5%90%AB%E6%8E%92%E5%BA%8F%E7%9A%84%E6%96%87%E4%BB%B6%E6%8E%92%E5%BA%8F"><span class="toc-text">案例 4: 包含排序的文件排序</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"/></a><div class="content"><a class="title" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)">L7 负载均衡详解 (Layer 7 Load Balancing Explained)</a><time datetime="2025-12-14T22:24:00.000Z" title="发表于 2025-12-15 06:24:00">2025-12-15</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-08.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+<p><strong>更优的方案 (复合索引)：</strong></p>
+<p>如果查询经常同时用到 <code>age</code> 和 <code>username</code> 进行过滤和排序，可以考虑一个包含 <code>age</code> 和 <code>username</code> 的复合索引。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> INDEX idx_age_username <span class="keyword">ON</span> users (age, username);</span><br></pre></td></tr></table></figure>
+
+<p><strong>再次 EXPLAIN：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">&gt;</span> <span class="number">25</span> <span class="keyword">ORDER</span> <span class="keyword">BY</span> username;</span><br></pre></td></tr></table></figure>
+
+<p><strong>新的 EXPLAIN 输出 (部分)：</strong></p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>select_type</th>
+<th>table</th>
+<th>partitions</th>
+<th>type</th>
+<th>possible_keys</th>
+<th>key</th>
+<th>key_len</th>
+<th>ref</th>
+<th>rows</th>
+<th>filtered</th>
+<th>Extra</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>SIMPLE</td>
+<td>users</td>
+<td>NULL</td>
+<td>range</td>
+<td>idx_age_username</td>
+<td>idx_age_username</td>
+<td>5</td>
+<td>NULL</td>
+<td>3</td>
+<td>100.00</td>
+<td>Using where</td>
+</tr>
+</tbody></table>
+<p><strong>此时 <code>type: range</code>，且 <code>Extra</code> 中没有 <code>Using filesort</code>。这是因为 <code>ORDER BY username</code> 可以利用 <code>idx_age_username</code> 索引的顺序特性来避免额外的排序。</strong></p>
+<h3 id="4-3-案例三：覆盖索引-Using-index"><a href="#4-3-案例三：覆盖索引-Using-index" class="headerlink" title="4.3 案例三：覆盖索引 (Using index)"></a>4.3 案例三：覆盖索引 (Using index)</h3><p><strong>查询：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> id, username <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">&gt;</span> <span class="number">25</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>EXPLAIN 输出：</strong></p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>select_type</th>
+<th>table</th>
+<th>partitions</th>
+<th>type</th>
+<th>possible_keys</th>
+<th>key</th>
+<th>key_len</th>
+<th>ref</th>
+<th>rows</th>
+<th>filtered</th>
+<th>Extra</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>SIMPLE</td>
+<td>users</td>
+<td>NULL</td>
+<td>range</td>
+<td>idx_age</td>
+<td>idx_age</td>
+<td>5</td>
+<td>NULL</td>
+<td>3</td>
+<td>100.00</td>
+<td>Using index condition</td>
+</tr>
+</tbody></table>
+<p><strong>解读与优化：</strong></p>
+<ul>
+<li><code>type: range</code>：使用了 <code>idx_age</code> 索引。</li>
+<li><code>Extra: Using index condition</code>：这是 MySQL 5.6+ 的一个优化，表示索引条件下推。它在存储引擎层就过滤了大部分不满足 <code>age &gt; 25</code> 的行，减少了返回到服务器层的行数。</li>
+</ul>
+<p>如果要实现“覆盖索引 (Using index)”，即查询的所有列都包含在索引中，无需再回表查询数据。</p>
+<p><strong>优化方案：</strong> 创建一个包含 <code>age</code>、<code>id</code> 和 <code>username</code> 的复合索引。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> INDEX idx_age_id_username <span class="keyword">ON</span> users (age, id, username);</span><br></pre></td></tr></table></figure>
+
+<p><strong>再次 EXPLAIN：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN <span class="keyword">SELECT</span> id, username <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">&gt;</span> <span class="number">25</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>新的 EXPLAIN 输出：</strong></p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>select_type</th>
+<th>table</th>
+<th>partitions</th>
+<th>type</th>
+<th>possible_keys</th>
+<th>key</th>
+<th>key_len</th>
+<th>ref</th>
+<th>rows</th>
+<th>filtered</th>
+<th>Extra</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>SIMPLE</td>
+<td>users</td>
+<td>NULL</td>
+<td>range</td>
+<td>idx_age,idx_age_id_username</td>
+<td>idx_age_id_username</td>
+<td>5</td>
+<td>NULL</td>
+<td>3</td>
+<td>100.00</td>
+<td>Using index</td>
+</tr>
+</tbody></table>
+<p><strong>优化后解读：</strong></p>
+<ul>
+<li><code>key: idx_age_id_username</code>：使用了复合索引。</li>
+<li><strong><code>Extra: Using index</code></strong>：表示使用了覆盖索引。因为查询需要的 <code>id</code> 和 <code>username</code> 列都在 <code>idx_age_id_username</code> 索引中，MySQL 无需再访问主表，大大提高了查询效率。</li>
+</ul>
+<h2 id="五、EXPLAIN-扩展：FORMAT-JSON"><a href="#五、EXPLAIN-扩展：FORMAT-JSON" class="headerlink" title="五、EXPLAIN 扩展：FORMAT &#x3D; JSON"></a>五、EXPLAIN 扩展：FORMAT &#x3D; JSON</h2><p>从 MySQL 5.7 开始，<code>EXPLAIN</code> 支持 <code>FORMAT = JSON</code>，可以输出更详细、更结构化的 JSON 格式执行计划。这对于自动化分析和更深入的优化非常有用。</p>
+<p><strong>语法：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN FORMAT <span class="operator">=</span> JSON <span class="keyword">SELECT</span> ...;</span><br></pre></td></tr></table></figure>
+
+<p><strong>示例：</strong></p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPLAIN FORMAT <span class="operator">=</span> JSON <span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> users <span class="keyword">WHERE</span> age <span class="operator">=</span> <span class="number">30</span>;</span><br></pre></td></tr></table></figure>
+
+<p>JSON 格式的输出包含了更多细节，例如成本估计 (<code>cost_info</code>)、具体操作的嵌套结构等，但其基本信息与传统表格输出是对应的。</p>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p><code>EXPLAIN</code> 是 MySQL DBA 和开发者进行性能优化的必备工具。通过系统地学习和实践 <code>EXPLAIN</code> 输出中的各个列 (<code>id</code>, <code>select_type</code>, <code>table</code>, <code>type</code>, <code>possible_keys</code>, <code>key</code>, <code>key_len</code>, <code>ref</code>, <code>rows</code>, <code>filtered</code>, <code>Extra</code>)，我们可以深入理解查询的执行计划，识别潜在的性能瓶颈。</p>
+<p><strong>优化总结原则：</strong></p>
+<ul>
+<li><strong>避免 <code>type: ALL</code></strong>：尽量通过索引将访问类型优化到 <code>range</code>、<code>ref</code> 甚至 <code>const</code>。</li>
+<li><strong>避免 <code>Using filesort</code> 和 <code>Using temporary</code></strong>：它们通常是性能问题的根源，可以通过创建合适的多列索引或重写 SQL 语句来消除。</li>
+<li><strong>追求 <code>Using index</code> (覆盖索引)</strong>：如果查询所需的列都在索引中，避免回表操作可以显著提高性能。</li>
+<li><strong>关注 <code>rows</code> 和 <code>filtered</code></strong>：这两个值越小越好，代表 MySQL 需要处理的数据量越少。</li>
+</ul>
+<p>通过反复使用 <code>EXPLAIN</code> 并结合实践，你将能够有效地优化 MySQL 查询，提升数据库整体性能。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/138d9ed60364/">https://blog.tbf1211.xx.kg/138d9ed60364/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/">中间件</a><a class="post-meta__tags" href="/tags/MySQL/">MySQL</a><a class="post-meta__tags" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><a class="post-meta__tags" href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/">数据结构</a><a class="post-meta__tags" href="/tags/%E7%AE%97%E6%B3%95/">算法</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-24.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/0549b932640e/" title="DeFi (去中心化金融) 深度解读"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">DeFi (去中心化金融) 深度解读</div></div><div class="info-2"><div class="info-item-1"> DeFi (Decentralized Finance)，即去中心化金融，是一个建立在区块链技术之上的开放、透明、无需许可 (Permissionless) 且无需信任 (Trustless) 的金融生态系统。它旨在通过智能合约 (Smart Contracts) 自动化执行金融协议，从而消除传统金融体系中对银行、券商、交易所等中心化中介机构的需求，将金融服务的控制权归还给用户。  核心思想：DeFi 通过区块链和智能合约，将传统金融产品（如借贷、交易、保险）去中心化、自动化和透明化，使得任何拥有互联网连接的人都可以平等地访问和参与，打破了传统金融的壁垒。   一、传统金融 (TradFi) 的痛点与 DeFi 的起源传统金融体系（TradFi）虽然成熟，但也存在诸多局限性：  中心化中介：银行、券商、交易所等扮演关键中介角色，带来高昂费用、效率低下、单点故障风险。 效率低下与高成本：交易结算时间长（如银行转账需要数天），跨境支付费用高昂，运营成本高。 金融排斥：全球仍有大量人口无法获得基础银行服务，被排除在主流金融体系之外。 不透明与审查：金融机构的运作往往不透明，用户数据可...</div></div></div></a><a class="pagination-related" href="/699d44e596f6/" title="Web Worker 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Web Worker 深度解析</div></div><div class="info-2"><div class="info-item-1"> Web Worker 是一种允许 Web 应用程序在后台线程中运行脚本的机制，独立于主执行线程。它使得复杂的、计算密集型的任务可以在不阻塞用户界面 (UI) 的情况下执行，从而显著提升了 Web 应用的响应性和用户体验。  核心思想：Web Worker 解决了 JavaScript 单线程模型在处理耗时任务时可能导致的 UI 阻塞问题。它通过在独立的后台线程中运行 JavaScript 代码，允许主线程继续响应用户交互，从而实现 Web 应用的“多线程”体验。   一、为什么需要 Web Worker？(JavaScript 的单线程本质)JavaScript 在浏览器中是单线程运行的，这意味着所有脚本执行、事件处理、DOM 操作和 UI 渲染都在同一个主线程上进行。这种单线程模型虽然简化了编程模型（避免了复杂的并发问题），但也带来了一个显著的缺点：  UI 阻塞：当主线程执行一个耗时较长的计算任务时（例如，处理大量数据、复杂的图像处理、加密解密操作等），主线程会被这个任务长时间占用。在这期间，浏览器无法响应用户的输入（点击、滚动）、无法更新 UI，导致页面“卡死”或“无响应...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/f1bab0cad58f/" title="MySQL B+树索引原理详解与对比"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-07-11</div><div class="info-item-2">MySQL B+树索引原理详解与对比</div></div><div class="info-2"><div class="info-item-1"> 索引是数据库性能优化的基石，而 B+树 是 MySQL（尤其是 InnoDB 存储引擎）中最常用、也是最核心的索引数据结构。理解 B+树的原理对于深入优化数据库性能、正确设计索引至关重要。本文将详细解析 B+树的结构、工作原理，并将其与 B树、二叉查找树等其他树结构进行对比，阐明 B+树在数据库索引中的优势。  核心思想：B+树通过其扁平、层级式的结构和叶子节点链表特性，优化了磁盘I&#x2F;O次数，实现了高效的范围查询和全表扫描，完美契合了数据库索引的需求。   一、为什么需要索引？想象一下，你有一本几百页的字典，如果要查找一个词，没有目录（索引）的话，你可能需要从头到尾翻阅。而有了目录（索引），你可以快速定位到词语的大致位置，大大提高查找效率。 在数据库中，表是按照某种顺序（不一定是逻辑顺序）存储在磁盘上的。当数据量巨大时，如果没有索引，每次查询都需要进行全表扫描（Full Table Scan），这意味着数据库需要读取磁盘上的每一行数据并进行比较，效率极低。 索引通过创建一种特殊的数据结构，可以快速定位到数据记录的位置，从而显著减少磁盘 I&#x2F;O 次数，提高查询...</div></div></div></a><a class="pagination-related" href="/895bad372d95/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-27</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> MySQL 索引 (Index) 是一种特殊的数据结构，存储着表中一列或多列数据的排序值和指向对应数据行的物理指针。它的主要目的是提高数据库查询的效率。通过创建索引，数据库系统可以快速定位到所需的数据行，而无需扫描整个表。然而，索引并非越多越好，不当的索引使用反而可能降低性能，因此深入理解索引的工作原理和优化策略至关重要。  核心思想：索引的本质是一种“文件目录”或“字典检索”，它通过牺牲一定的存储空间和维护成本，来大幅提升数据检索的速度。    一、为什么需要索引？想象一下一本没有目录的书，当你想查找某个特定主题时，你必须从头到尾翻阅整本书，效率非常低下。数据库查询也是一样。 当未对表中的列创建索引时：  全表扫描 (Full Table Scan)：每次查询都需要遍历表的每一行，逐一比对条件。对于小表来说可能影响不大，但对于包含数百万甚至数千万行记录的大表，全表扫描将导致灾难性的性能问题。 排序性能下降：如果查询结果需要排序（ORDER BY），但没有合适的索引，数据库需要在内存或磁盘上对结果集进行排序，开销巨大。 连接 (JOIN) 性能下降：多个表进行连接操作时，如果没...</div></div></div></a><a class="pagination-related" href="/2dc66126bcaa/" title="Redis 各类数据结构指令详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-08</div><div class="info-item-2">Redis 各类数据结构指令详解</div></div><div class="info-2"><div class="info-item-1"> Redis 是一个开源（BSD 许可）的内存数据结构存储，可用作数据库、缓存和消息代理。它支持多种类型的数据结构，如字符串（strings）、哈希（hashes）、列表（lists）、集合（sets）、有序集合（sorted sets）等。理解并熟练使用这些数据结构及其相关指令，是高效利用 Redis 的关键。  Redis 的强大之处在于其在内存中操作这些丰富的数据结构，使得读写速度极快。掌握每个数据结构的使用场景和对应指令，是进行高性能应用开发的基础。   一、通用键指令 (Generic Commands)这些指令适用于所有数据类型的键。    指令 描述 示例    DEL key [key ...] 删除一个或多个键。 DEL mykey mylist   EXISTS key [key ...] 检查给定键是否存在。返回存在的键的数量。 EXISTS mykey   EXPIRE key seconds 设置键的过期时间（秒）。 EXPIRE mykey 60 (60秒后过期)   TTL key 获取键的剩余过期时间（秒）。-1 表示永久，-2 表示键不存在或已过...</div></div></div></a><a class="pagination-related" href="/396257856dc6/" title="Java Collections Framework 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-05-16</div><div class="info-item-2">Java Collections Framework 详解</div></div><div class="info-2"><div class="info-item-1"> Java Collections Framework (JCF) 是 Java 语言中一套标准的接口、类和算法的集合，用于存储和操作对象组。它提供了一系列高性能的数据结构实现，如列表、集合、映射等，这些数据结构被精心设计以满足各种常见的数据存储和检索需求。JCF 旨在统一管理、操作对象集合的 API，提高 Java 程序的生产力和性能。  核心思想：JCF 提供了一致的 API 来处理不同类型的数据结构，如列表、集合和映射，并与用于操作这些结构的标准算法（排序、搜索等）相结合。它允许开发者专注于业务逻辑，而不是底层数据结构的实现细节。   一、JCF 的发展历程与目的在 JCF 出现之前 (即 JDK 1.2 之前)，Java 提供了 Vector、Hashtable 等线程安全的旧式集合类，以及数组。这些类功能有限，API 不统一，且缺乏泛型支持，使用起来不便。 JCF 的引入旨在解决以下问题：  统一 API：提供一套统一的接口和类，使得操作不同类型的集合具有相似的代码模式。 提高性能：提供高效的数据结构实现，并利用算法优化常见操作。 减少学习成本：开发者只需学习一套 AP...</div></div></div></a><a class="pagination-related" href="/ab44062dd349/" title="深入理解虚拟 DOM 与 Vue 核心补丁机制：patch(), patchVnode(), updateChildren()"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-11-15</div><div class="info-item-2">深入理解虚拟 DOM 与 Vue 核心补丁机制：patch(), patchVnode(), updateChildren()</div></div><div class="info-2"><div class="info-item-1"> 现代前端框架如 Vue 和 React 之所以能提供高性能和优秀的开发体验，很大程度上要归功于 虚拟 DOM (Virtual DOM) 及其配套的 Diff 算法 (补丁机制)。虚拟 DOM 充当了真实 DOM 的一个轻量级抽象层，而 Vue 的补丁机制则负责将虚拟 DOM 的变化高效地反映到真实的浏览器 DOM 上。本文将深入解析虚拟 DOM 的概念，并聚焦 Vue 2 中驱动这一机制的三个核心函数：patch(), patchVnode(), 和 updateChildren()，并辅以 Mermaid 流程图进行可视化说明。  “虚拟 DOM 是前端性能优化的基石，而 Vue 的 patch() 系列函数正是将这块基石转化为实际渲染效率的魔法棒。”   一、虚拟 DOM (Virtual DOM) 再探1.1 什么是虚拟 DOM？虚拟 DOM 是一个用 JavaScript 对象来模拟真实 DOM 节点的数据结构。它是一个轻量级的、内存中的真实 DOM 树的抽象。每一个虚拟节点（VNode）都包含构建一个真实 DOM 节点所需的所有信息，例如：  tag：标签名（如 d...</div></div></div></a><a class="pagination-related" href="/abb68b6fbe95/" title="从单机到哨兵，一张图理清redis架构演进！"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-26</div><div class="info-item-2">从单机到哨兵，一张图理清redis架构演进！</div></div><div class="info-2"><div class="info-item-1">Redis 的架构是逐步演进而来的，正所谓“罗马不是一天建成的”。    2010 年：单机版 Redis  当 Redis1.0在 2010 年首次发布时，整体架构非常简单，通常作为业务系统的缓存使用。不过，Redis 的数据是存储在内存中的，一旦重启，数据就会全部丢失，导致请求会直接打到数据库上，带来较大的压力。  2013 年：持久化机制上线  2013 年，Redis2.8版本发布，解决了之前“重启就丢数据”的问题。Redis 引入了 RDB（内存快照）机制，用于定时将内存中的数据持久化到磁盘。同时还支持 AOF（只追加文件）方式，将每一次写操作都记录到日志文件中，实现更高级别的持久化保障。  2013 年：主从复制机制  同样在 Redis2.8中，官方引入了主从复制功能，提升了系统的高可用性。主节点负责处理实时的读写请求，从节点则负责同步主节点的数据，起到备份和读扩展的作用。  2013 年：Sentinel 哨兵机制上线  在 Redis2.8版本中，引入了 Sentinel（哨兵）机制，用于实时监控 Redis 实例的运行状态。它主要负责以下几个方面的工作：   ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">448</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">80</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-EXPLAIN%EF%BC%9F"><span class="toc-text">一、为什么需要 EXPLAIN？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81EXPLAIN-%E7%9A%84%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"><span class="toc-text">二、EXPLAIN 的使用方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81EXPLAIN-%E8%BE%93%E5%87%BA%E5%88%97%E8%AF%A6%E8%A7%A3"><span class="toc-text">三、EXPLAIN 输出列详解</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81EXPLAIN-%E4%BC%98%E5%8C%96%E6%A1%88%E4%BE%8B%E4%B8%8E%E8%A7%A3%E8%AF%BB"><span class="toc-text">四、EXPLAIN 优化案例与解读</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%A1%88%E4%BE%8B%E4%B8%80%EF%BC%9A%E5%85%A8%E8%A1%A8%E6%89%AB%E6%8F%8F-ALL"><span class="toc-text">4.1 案例一：全表扫描 (ALL)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%A1%88%E4%BE%8B%E4%BA%8C%EF%BC%9A%E6%96%87%E4%BB%B6%E6%8E%92%E5%BA%8F-Using-filesort"><span class="toc-text">4.2 案例二：文件排序 (Using filesort)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%A1%88%E4%BE%8B%E4%B8%89%EF%BC%9A%E8%A6%86%E7%9B%96%E7%B4%A2%E5%BC%95-Using-index"><span class="toc-text">4.3 案例三：覆盖索引 (Using index)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81EXPLAIN-%E6%89%A9%E5%B1%95%EF%BC%9AFORMAT-JSON"><span class="toc-text">五、EXPLAIN 扩展：FORMAT &#x3D; JSON</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="测试驱动开发 (TDD) 详解"/></a><div class="content"><a class="title" href="/7bb082434be0/" title="测试驱动开发 (TDD) 详解">测试驱动开发 (TDD) 详解</a><time datetime="2025-12-19T22:24:00.000Z" title="发表于 2025-12-20 06:24:00">2025-12-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPFS (InterPlanetary File System) 详解"/></a><div class="content"><a class="title" href="/24ffc0bedb41/" title="IPFS (InterPlanetary File System) 详解">IPFS (InterPlanetary File System) 详解</a><time datetime="2025-12-16T22:24:00.000Z" title="发表于 2025-12-17 06:24:00">2025-12-17</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="L7 负载均衡详解 (Layer 7 Load Balancing Explained)"/></a><div class="content"><a class="title" href="/974825c9c64f/" title="L7 负载均衡详解 (Layer 7 Load Balancing Explained)">L7 负载均衡详解 (Layer 7 Load Balancing Explained)</a><time datetime="2025-12-14T22:24:00.000Z" title="发表于 2025-12-15 06:24:00">2025-12-15</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-24.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="📌 2023">📌 2023</a><a href="/archives/2024/" target="_blank" title="❓ 2024">❓ 2024</a><a href="/archives/2025/" target="_blank" title="🚀 2025">🚀 2025</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="分类">分类</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="时间线">时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="说说">说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2025 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
   const runMermaid = ele => {
     window.loadMermaid = true
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
