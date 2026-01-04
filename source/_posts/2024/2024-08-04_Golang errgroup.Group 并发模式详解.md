@@ -220,16 +220,6 @@ Main: 所有 goroutine 已停止。
 ```
 在这个例子中，`callExternalAPI` 仅用时 1 秒就失败了。由于它返回了非 `nil` 错误，`errgroup.Group` 立即取消了它内部的 `Context`。`fetchDataFromDB` 在其 `select` 语句中检测到了这个取消信号，并提前退出了，避免了不必要的 3 秒等待。
 
-{% mermaid %}
-graph TD
-    A[main goroutine] -- errgroup.WithContext() --> B(errgroup.Group & ctx)
-    B -- group.Go() --> C["Goroutine 1 (fetchDataFromDB)"]
-    B -- group.Go() --> D["Goroutine 2 (callExternalAPI)"]
-    C -- select <-ctx.Done() --> E{Context Canceled?}
-    D -- returns error --> B -- cancel() --> C
-    B -- group.Wait() --> F[Main: handle error/success]
-{% endmermaid %}
-
 ### 3.3 限制并发数 (可选)
 
 `errgroup.Group` 本身不提供限制并发数的功能。如果需要限制并发，可以结合 `chan struct{}` 或 `semaphore` 来实现。
@@ -309,7 +299,18 @@ func main() {
 2.  **不处理 panic**：`errgroup.Go` 不会捕获 `panic`。如果 goroutine 发生 `panic`，程序通常会崩溃。需要在 `Go` 的函数内部进行 `recover`。
 3.  **不能限制并发数**：`errgroup.Group` 本身没有内置的并发限制功能，需要结合 `channel` 或 `semaphore` 等其他机制来实现。
 
-## 五、安全性考虑与最佳实践
+## 五、`errgroup.Group` 对比 `sync.WaitGroup` 和 `context.WithCancel`
+
+| 特性          | `sync.WaitGroup`                                  | `context.WithCancel` (手动与 WaitGroup 结合)               | `errgroup.Group`                                            |
+| :------------ | :------------------------------------------------ | :--------------------------------------------------------- | :---------------------------------------------------------- |
+| **功能焦点**  | 等待一组 goroutine 完成                             | 手动取消 goroutine 集合                                    | 等待 goroutine 完成，收集第一个错误，自动取消协程             |
+| **错误处理**  | 无内建错误收集机制，需手动实现                       | 需手动实现错误收集和判断逻辑                                | **自动收集第一个非 nil 错误**                              |
+| **取消传播**  | 无内建取消机制，需结合 `context.WithCancel` 手动实现 | 可实现取消，但需手动管理 `CancelFunc` 和 `Done` channel      | **自动在任一 goroutine 失败时取消所有其他 goroutine**       |
+| **Context 管理** | 无                                                | 需手动创建并传递 `Context` 和 `CancelFunc`                   | **提供一个可自动取消和传播的 `Context`**                     |
+| **代码复杂度** | 简单（仅等待），错误和取消需额外代码                 | 中等（需要协调 WaitGroup, Context, 错误 channel）            | **简洁**（封装了 WaitGroup, Context, 错误处理逻辑）          |
+| **适用场景**  | 仅需要等待 goroutine 完成，不关心错误或取消           | 对错误和取消有精细控制需求，但允许手动管理复杂性             | **并行执行多个任务，需要快速失败和统一错误处理的场景**       |
+
+## 六、安全性考虑与最佳实践
 
 1.  **始终使用 `WithContext`**：为了能够利用 `errgroup` 的自动取消机制，务必使用 `errgroup.WithContext(parentCtx)` 来初始化 `Group` 并获取其派生的 `Context`。
 2.  **将 `ctx` 传递给子 goroutine**：将 `errgroup.WithContext` 返回的 `ctx` 传递给由 `group.Go` 启动的函数，并在这些函数内部通过 `select { case <-ctx.Done(): ... }` 监听取消信号。
@@ -319,6 +320,6 @@ func main() {
 6.  **并发限制**：在处理大量任务时，如果资源有限，应结合 `chan struct{}` 或 `golang.org/x/sync/semaphore` 等工具来限制并发数，防止资源耗尽。
 7.  **理解取消机制**：明确 `Group` 的 `Context` 仅在**有 goroutine 返回非 `nil` 错误**时才会被取消。如果所有 goroutine 都成功返回 `nil`，或者它们没有监听 `ctx.Done()`，则不会被取消。
 
-## 六、总结
+## 七、总结
 
 `errgroup.Group` 是 Go 语言并发编程中的一个非常实用的模式，它将 `sync.WaitGroup` 和 `context.WithCancel` 的常见用法封装起来，提供了一个简洁高效的 API。它特别适用于需要并行执行一组任务、等待所有这些任务完成、并在任何任务失败时能够及时取消其他任务的场景。掌握 `errgroup.Group` 的使用，能够显著提升 Go 并发代码的健壮性和可维护性。
