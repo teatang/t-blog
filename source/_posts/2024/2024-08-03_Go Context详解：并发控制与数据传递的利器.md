@@ -101,11 +101,13 @@ import (
 func main() {
 	// 作为根 Context
 	bgCtx := context.Background()
-	fmt.Printf("Background Context: Deadline=%v, Done=%v, Err=%v\n", bgCtx.Deadline())
+	bgDeadline, _ := bgCtx.Deadline()
+	fmt.Printf("Background Context: Deadline=%v, Done=%v, Err=%v\n", bgDeadline, bgCtx.Done(), bgCtx.Err())
 
 	// 作为占位符
 	todoCtx := context.TODO()
-	fmt.Printf("TODO Context: Deadline=%v, Done=%v, Err=%v\n", todoCtx.Deadline())
+	todoDeadline, _ := todoCtx.Deadline()
+	fmt.Printf("TODO Context: Deadline=%v, Done=%v, Err=%v\n", todoDeadline, todoCtx.Done(), todoCtx.Err())
 }
 ```
 
