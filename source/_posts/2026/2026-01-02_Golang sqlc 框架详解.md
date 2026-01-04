@@ -10,7 +10,7 @@ categories:
     - 库
 ---
 
-> **sqlc** 是一个**SQL 编译器 (SQL Compiler)**，它能够根据用户定义的 SQL 查询和数据库 Schema 自动生成类型安全 (type-safe) 的 Go 代码。与传统的 ORM (Object-Relational Mapping) 工具不同，`sqlc` 的核心理念是**“写 SQL，生成 Go (Write SQL, Get Go)”**。开发者专注于编写原生的 SQL 查询，`sqlc` 则负责将其转换为易于在 Go 应用程序中使用的、无反射、高性能的 API。
+> **sqlc** 是一个**SQL 编译器 (SQL Compiler)**，它能够根据用户定义的 SQL 查询和数据库 Schema 自动生成类型安全 (type-safe) 的 Go 代码。与传统的 ORM (Object-Relational Mapping) 工具不同，`sqlc` 的核心理念是“**写 SQL，生成 Go (Write SQL, Get Go)**”。开发者专注于编写原生的 SQL 查询，`sqlc` 则负责将其转换为易于在 Go 应用程序中使用的、无反射、高性能的 API。
 
 {% note info %}
 核心思想：**保持 SQL 源码作为事实的唯一来源，并通过代码生成器将其无缝集成到 Go 代码中，实现类型安全和高效的数据库操作。** 它不尝试将 SQL 抽象化，而是将 SQL 语句转换为可直接调用的 Go 函数。
