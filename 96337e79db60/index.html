@@ -1,0 +1,551 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Node.js FS 模块详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Node.js 的 fs (File System) 模块 提供了与文件系统进行交互的 API。它允许 Node.js 应用程序执行各种文件操作，如读取文件、写入文件、创建目录、删除文件等。fs 模块是 Node.js 的核心模块之一，无需安装，通过 require(&#39;fs&#39;) 即可使用。  核心思想：将底层操作系统提供的文件系统操作抽象为统一的 JavaScript API，并">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Node.js FS 模块详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/96337e79db60/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Node.js 的 fs (File System) 模块 提供了与文件系统进行交互的 API。它允许 Node.js 应用程序执行各种文件操作，如读取文件、写入文件、创建目录、删除文件等。fs 模块是 Node.js 的核心模块之一，无需安装，通过 require(&#39;fs&#39;) 即可使用。  核心思想：将底层操作系统提供的文件系统操作抽象为统一的 JavaScript API，并">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2024-04-02T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-05T09:12:04.344Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="JavaScript">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="Node.js">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Node.js FS 模块详解",
+  "url": "https://blog.tbf1211.xx.kg/96337e79db60/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2024-04-02T22:24:00.000Z",
+  "dateModified": "2026-01-05T09:12:04.344Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/96337e79db60/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Node.js FS 模块详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">466</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">81</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Node.js FS 模块详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Node.js FS 模块详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-04-02T22:24:00.000Z" title="发表于 2024-04-03 06:24:00">2024-04-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/Node-js/">Node.js</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Node.js 的 <code>fs</code> (File System) 模块</strong> 提供了与文件系统进行交互的 API。它允许 Node.js 应用程序执行各种文件操作，如读取文件、写入文件、创建目录、删除文件等。<code>fs</code> 模块是 Node.js 的核心模块之一，无需安装，通过 <code>require(&#39;fs&#39;)</code> 即可使用。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>将底层操作系统提供的文件系统操作抽象为统一的 JavaScript API，并提供同步和异步两种操作模式，以适应 Node.js 的事件驱动特性。</strong> 它是 Node.js 应用与磁盘数据交互的桥梁。</p>
+</div>
+<hr>
+<h2 id="一、为什么需要-fs-模块？"><a href="#一、为什么需要-fs-模块？" class="headerlink" title="一、为什么需要 fs 模块？"></a>一、为什么需要 <code>fs</code> 模块？</h2><p>在任何应用程序中，与文件系统交互都是常见的需求。无论是读取配置文件、存储用户数据、处理上传文件，还是管理日志，<code>fs</code> 模块都提供了基础能力：</p>
+<ul>
+<li><strong>数据持久化</strong>：将应用程序的数据写入磁盘，以便长期存储。</li>
+<li><strong>配置管理</strong>：读取和解析应用程序的配置文件。</li>
+<li><strong>日志记录</strong>：将应用程序的运行日志写入文件。</li>
+<li><strong>文件上传下载</strong>：处理客户端上传的文件，或提供文件下载服务。</li>
+<li><strong>目录管理</strong>：创建、删除、遍历目录结构。</li>
+<li><strong>系统监控</strong>：获取文件或目录的元数据（如大小、修改时间），进行监控和管理。</li>
+<li><strong>跨平台兼容性</strong>：提供统一的 API，屏蔽了不同操作系统（Windows, Linux, macOS）在文件系统操作上的差异。</li>
+</ul>
+<h2 id="二、核心概念"><a href="#二、核心概念" class="headerlink" title="二、核心概念"></a>二、核心概念</h2><p>在深入了解 <code>fs</code> 模块的具体方法之前，理解以下几个核心概念至关重要：</p>
+<h3 id="2-1-同步-Synchronous-与-异步-Asynchronous"><a href="#2-1-同步-Synchronous-与-异步-Asynchronous" class="headerlink" title="2.1 同步 (Synchronous) 与 异步 (Asynchronous)"></a>2.1 同步 (Synchronous) 与 异步 (Asynchronous)</h3><p><code>fs</code> 模块几乎所有方法都提供了同步和异步两种形式：</p>
+<ul>
+<li><strong>异步方法 (Asynchronous)</strong>：<ul>
+<li>通常以回调函数 (<code>callback</code>) 作为最后一个参数，或者返回 <code>Promise</code> 对象 (<code>fs/promises</code> API)。</li>
+<li><strong>非阻塞 (Non-blocking)</strong>：当执行文件 I&#x2F;O 操作时，不会暂停 Node.js 进程的事件循环，允许其他代码继续执行。文件操作完成后，通过回调函数或 Promise 解析来通知应用程序。</li>
+<li><strong>推荐使用</strong>：在服务器端编程中，为了保持应用程序的高并发性和响应性，强烈推荐使用异步方法。</li>
+</ul>
+</li>
+<li><strong>同步方法 (Synchronous)</strong>：<ul>
+<li>通常以 <code>Sync</code> 结尾（例如 <code>readFileSync</code>）。</li>
+<li><strong>阻塞 (Blocking)</strong>：在文件 I&#x2F;O 操作完成之前，会暂停 Node.js 进程的事件循环。在此期间，应用程序无法处理其他请求或执行其他代码。</li>
+<li><strong>慎用</strong>：仅在启动脚本、小型工具或不需要高并发的场景下使用。在 Web 服务器中，同步 I&#x2F;O 可能会导致性能瓶颈。</li>
+</ul>
+</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[Node.js Application] --&gt; B{File I&#x2F;O Operation}
+    B -- Synchronous --&gt; C[Block Event Loop]
+    C --&gt; D[Wait for I&#x2F;O to complete]
+    D --&gt; E[Continue Execution]
+    B -- Asynchronous &lt;br&gt;(Callback&#x2F;Promise) --&gt; F[Do Not Block Event Loop]
+    F --&gt; G[Continue Other Tasks]
+    G -- I&#x2F;O Completes --&gt; H[Execute Callback&#x2F;&lt;br&gt;Resolve Promise]
+  </pre></div>
+
+<h3 id="2-2-文件描述符-File-Descriptors"><a href="#2-2-文件描述符-File-Descriptors" class="headerlink" title="2.2 文件描述符 (File Descriptors)"></a>2.2 文件描述符 (File Descriptors)</h3><ul>
+<li>在类 Unix 系统中，文件描述符是一个非负整数，用于表示一个打开的文件或 I&#x2F;O 资源。</li>
+<li>在 <code>fs</code> 模块中，<code>fs.open()</code> 方法会返回一个文件描述符 (通常是 <code>fd</code>)，后续的低级文件操作（如 <code>fs.read()</code>、<code>fs.write()</code>）将使用这个 <code>fd</code> 来指定要操作的文件。</li>
+<li>文件描述符在使用完毕后必须关闭 (<code>fs.close()</code>)，以释放系统资源。</li>
+</ul>
+<h3 id="2-3-权限-Permissions"><a href="#2-3-权限-Permissions" class="headerlink" title="2.3 权限 (Permissions)"></a>2.3 权限 (Permissions)</h3><ul>
+<li><code>fs</code> 模块支持设置和检查文件&#x2F;目录的访问权限，通常遵循 POSIX 权限模型。</li>
+<li>权限通常用八进制数表示，例如 <code>0o755</code> (rwxr-xr-x)。<ul>
+<li>第一个数字：所有者权限。</li>
+<li>第二个数字：同组用户权限。</li>
+<li>第三个数字：其他用户权限。</li>
+<li><code>r</code> (read): 4, <code>w</code> (write): 2, <code>x</code> (execute): 1。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-4-Buffer-缓冲区"><a href="#2-4-Buffer-缓冲区" class="headerlink" title="2.4 Buffer (缓冲区)"></a>2.4 Buffer (缓冲区)</h3><ul>
+<li>在进行二进制文件读写时，Node.js 使用 <code>Buffer</code> 类来处理原始二进制数据。</li>
+<li><code>fs.readFile()</code> 默认会返回 <code>Buffer</code>，除非指定了编码。</li>
+</ul>
+<h2 id="三、fs-模块的核心-API"><a href="#三、fs-模块的核心-API" class="headerlink" title="三、fs 模块的核心 API"></a>三、<code>fs</code> 模块的核心 API</h2><p><code>fs</code> 模块提供了大量方法，这里我们主要介绍常用的几类。</p>
+<h3 id="3-1-fs-promises-API-推荐用于现代-Async-Await"><a href="#3-1-fs-promises-API-推荐用于现代-Async-Await" class="headerlink" title="3.1 fs/promises API (推荐用于现代 Async&#x2F;Await)"></a>3.1 <code>fs/promises</code> API (推荐用于现代 Async&#x2F;Await)</h3><p>从 Node.js v10.0.0 开始，<code>fs</code> 模块提供了基于 Promise 的 API，可以更好地与 <code>async/await</code> 语法结合，使异步代码更易读、易维护。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs/promises&#x27;</span>); <span class="comment">// 注意这里是 &#x27;fs/promises&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">readFileContent</span>(<span class="params">filePath</span>) &#123;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> data = <span class="keyword">await</span> fs.<span class="title function_">readFile</span>(filePath, &#123; <span class="attr">encoding</span>: <span class="string">&#x27;utf8&#x27;</span> &#125;);</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件内容 (Promise):&#x27;</span>, data);</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;读取文件失败 (Promise):&#x27;</span>, error);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">writeFileContent</span>(<span class="params">filePath, content</span>) &#123;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">await</span> fs.<span class="title function_">writeFile</span>(filePath, content, &#123; <span class="attr">encoding</span>: <span class="string">&#x27;utf8&#x27;</span> &#125;);</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件写入成功 (Promise)&#x27;</span>);</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;写入文件失败 (Promise):&#x27;</span>, error);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 示例用法</span></span><br><span class="line">(<span class="title function_">async</span> () =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> testFilePath = <span class="string">&#x27;example_promise.txt&#x27;</span>;</span><br><span class="line">  <span class="keyword">await</span> <span class="title function_">writeFileContent</span>(testFilePath, <span class="string">&#x27;Hello from fs/promises!&#x27;</span>);</span><br><span class="line">  <span class="keyword">await</span> <span class="title function_">readFileContent</span>(testFilePath);</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+
+<p>在下面的示例中，我们将主要使用异步回调形式，但请记住，它们都有对应的 <code>Sync</code> 版本和 <code>fs/promises</code> 版本。</p>
+<h3 id="3-2-文件读取"><a href="#3-2-文件读取" class="headerlink" title="3.2 文件读取"></a>3.2 文件读取</h3><ul>
+<li><p><code>fs.readFile(path[, options], callback)</code>: 异步读取整个文件内容。</p>
+</li>
+<li><p><code>fs.readFileSync(path[, options])</code>: 同步读取整个文件内容。</p>
+<ul>
+<li><code>path</code>: 文件路径。</li>
+<li><code>options</code>: 可选对象，可包含 <code>encoding</code> (编码，如 ‘utf8’)、<code>flag</code> (文件打开模式，默认为 ‘r’)。</li>
+<li><code>callback(err, data)</code>: 异步回调函数，<code>data</code> 是文件内容（<code>Buffer</code> 或字符串）。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 异步读取文件</span></span><br><span class="line">fs.<span class="title function_">readFile</span>(<span class="string">&#x27;example.txt&#x27;</span>, <span class="string">&#x27;utf8&#x27;</span>, <span class="function">(<span class="params">err, data</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;异步读取文件失败:&#x27;</span>, err);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;异步读取文件内容:&#x27;</span>, data);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 同步读取文件</span></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="keyword">const</span> data = fs.<span class="title function_">readFileSync</span>(<span class="string">&#x27;example.txt&#x27;</span>, <span class="string">&#x27;utf8&#x27;</span>);</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;同步读取文件内容:&#x27;</span>, data);</span><br><span class="line">&#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;同步读取文件失败:&#x27;</span>, err);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-文件写入与追加"><a href="#3-3-文件写入与追加" class="headerlink" title="3.3 文件写入与追加"></a>3.3 文件写入与追加</h3><ul>
+<li><p><code>fs.writeFile(file, data[, options], callback)</code>: 异步写入数据到文件，如果文件不存在则创建，如果存在则覆盖。</p>
+</li>
+<li><p><code>fs.writeFileSync(file, data[, options])</code>: 同步写入数据到文件。</p>
+</li>
+<li><p><code>fs.appendFile(file, data[, options], callback)</code>: 异步追加数据到文件。</p>
+</li>
+<li><p><code>fs.appendFileSync(file, data[, options])</code>: 同步追加数据到文件。</p>
+<ul>
+<li><code>file</code>: 文件路径。</li>
+<li><code>data</code>: 要写入的数据（<code>string</code> 或 <code>Buffer</code>）。</li>
+<li><code>options</code>: 可选对象，可包含 <code>encoding</code>、<code>mode</code> (文件权限，默认为 <code>0o666</code>)、<code>flag</code> (文件打开模式，默认为 ‘w’ 或 ‘a’)。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 异步写入文件</span></span><br><span class="line">fs.<span class="title function_">writeFile</span>(<span class="string">&#x27;output.txt&#x27;</span>, <span class="string">&#x27;Hello, Node.js FS Module!&#x27;</span>, <span class="string">&#x27;utf8&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;异步写入文件失败:&#x27;</span>, err);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;异步写入文件成功&#x27;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 异步追加文件</span></span><br><span class="line">  fs.<span class="title function_">appendFile</span>(<span class="string">&#x27;output.txt&#x27;</span>, <span class="string">&#x27;\nAppended new line.&#x27;</span>, <span class="string">&#x27;utf8&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (err) &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;异步追加文件失败:&#x27;</span>, err);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;异步追加文件成功&#x27;</span>);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 同步写入文件</span></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  fs.<span class="title function_">writeFileSync</span>(<span class="string">&#x27;sync_output.txt&#x27;</span>, <span class="string">&#x27;This is written synchronously.&#x27;</span>, <span class="string">&#x27;utf8&#x27;</span>);</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;同步写入文件成功&#x27;</span>);</span><br><span class="line">&#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;同步写入文件失败:&#x27;</span>, err);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-目录操作"><a href="#3-4-目录操作" class="headerlink" title="3.4 目录操作"></a>3.4 目录操作</h3><ul>
+<li><code>fs.mkdir(path[, options], callback)</code>: 异步创建目录。<code>options</code> 可包含 <code>recursive: true</code> 来创建嵌套目录。</li>
+<li><code>fs.rm(path[, options], callback)</code>: 异步删除文件或目录。<code>options</code> 可包含 <code>recursive: true</code> 来递归删除目录及其内容。<strong>推荐使用 <code>fs.rm</code> 替代 <code>fs.rmdir</code></strong>。</li>
+<li><code>fs.readdir(path[, options], callback)</code>: 异步读取目录内容（文件名数组）。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> dirPath = <span class="string">&#x27;my_new_directory&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 异步创建目录</span></span><br><span class="line">fs.<span class="title function_">mkdir</span>(dirPath, &#123; <span class="attr">recursive</span>: <span class="literal">true</span> &#125;, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;创建目录失败:&#x27;</span>, err);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;目录创建成功&#x27;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 在新目录中创建文件</span></span><br><span class="line">  fs.<span class="title function_">writeFile</span>(<span class="string">`<span class="subst">$&#123;dirPath&#125;</span>/file1.txt`</span>, <span class="string">&#x27;Content of file1&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (err) &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;创建文件失败:&#x27;</span>, err);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件创建成功&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 异步读取目录</span></span><br><span class="line">    fs.<span class="title function_">readdir</span>(dirPath, <span class="function">(<span class="params">err, files</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (err) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;读取目录失败:&#x27;</span>, err);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;目录内容:&#x27;</span>, files); <span class="comment">// [ &#x27;file1.txt&#x27; ]</span></span><br><span class="line"></span><br><span class="line">      <span class="comment">// 异步删除目录 (递归删除)</span></span><br><span class="line">      fs.<span class="title function_">rm</span>(dirPath, &#123; <span class="attr">recursive</span>: <span class="literal">true</span>, <span class="attr">force</span>: <span class="literal">true</span> &#125;, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (err) &#123;</span><br><span class="line">          <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;删除目录失败:&#x27;</span>, err);</span><br><span class="line">          <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;目录删除成功&#x27;</span>);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-5-文件信息-Stats"><a href="#3-5-文件信息-Stats" class="headerlink" title="3.5 文件信息 (Stats)"></a>3.5 文件信息 (Stats)</h3><ul>
+<li><code>fs.stat(path[, options], callback)</code>: 异步获取文件或目录的统计信息。</li>
+<li><code>fs.lstat(path[, options], callback)</code>: 类似于 <code>stat</code>，但如果路径是符号链接，则获取链接本身的统计信息，而不是它指向的目标。</li>
+<li><code>fs.fstat(fd[, options], callback)</code>: 异步获取文件描述符的统计信息。</li>
+</ul>
+<p>回调函数会接收一个 <code>fs.Stats</code> 对象，它提供了以下有用的方法和属性：</p>
+<ul>
+<li><code>stats.isFile()</code>: 是否为文件。</li>
+<li><code>stats.isDirectory()</code>: 是否为目录。</li>
+<li><code>stats.isSymbolicLink()</code>: 是否为符号链接。</li>
+<li><code>stats.size</code>: 文件大小（字节）。</li>
+<li><code>stats.birthtime</code> &#x2F; <code>stats.mtime</code> &#x2F; <code>stats.ctime</code> &#x2F; <code>stats.atime</code>: 创建、修改、状态改变、访问时间。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line">fs.<span class="title function_">stat</span>(<span class="string">&#x27;example.txt&#x27;</span>, <span class="function">(<span class="params">err, stats</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;获取文件信息失败:&#x27;</span>, err);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件信息:&#x27;</span>);</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`  是一个文件: <span class="subst">$&#123;stats.isFile()&#125;</span>`</span>);</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`  是一个目录: <span class="subst">$&#123;stats.isDirectory()&#125;</span>`</span>);</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`  文件大小: <span class="subst">$&#123;stats.size&#125;</span> 字节`</span>);</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`  最后修改时间: <span class="subst">$&#123;stats.mtime&#125;</span>`</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-6-文件-目录重命名与删除"><a href="#3-6-文件-目录重命名与删除" class="headerlink" title="3.6 文件&#x2F;目录重命名与删除"></a>3.6 文件&#x2F;目录重命名与删除</h3><ul>
+<li><code>fs.rename(oldPath, newPath, callback)</code>: 异步重命名文件或目录。</li>
+<li><code>fs.unlink(path, callback)</code>: 异步删除文件。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建一个临时文件</span></span><br><span class="line">fs.<span class="title function_">writeFile</span>(<span class="string">&#x27;old_name.txt&#x27;</span>, <span class="string">&#x27;This is a test file.&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) <span class="keyword">throw</span> err;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件 old_name.txt 已创建&#x27;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 异步重命名文件</span></span><br><span class="line">  fs.<span class="title function_">rename</span>(<span class="string">&#x27;old_name.txt&#x27;</span>, <span class="string">&#x27;new_name.txt&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (err) &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;重命名文件失败:&#x27;</span>, err);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件重命名成功&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 异步删除文件</span></span><br><span class="line">    fs.<span class="title function_">unlink</span>(<span class="string">&#x27;new_name.txt&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (err) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;删除文件失败:&#x27;</span>, err);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件删除成功&#x27;</span>);</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-7-文件复制"><a href="#3-7-文件复制" class="headerlink" title="3.7 文件复制"></a>3.7 文件复制</h3><ul>
+<li><code>fs.copyFile(src, dest[, flags], callback)</code>: 异步复制文件。<code>flags</code> 可选，控制复制行为，如 <code>fs.constants.COPYFILE_EXCL</code> (如果目标存在则失败)。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line">fs.<span class="title function_">copyFile</span>(<span class="string">&#x27;source.txt&#x27;</span>, <span class="string">&#x27;destination.txt&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;文件复制失败:&#x27;</span>, err);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;文件复制成功&#x27;</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-8-文件流-Streams"><a href="#3-8-文件流-Streams" class="headerlink" title="3.8 文件流 (Streams)"></a>3.8 文件流 (Streams)</h3><p>对于处理大型文件，使用 <code>fs.createReadStream()</code> 和 <code>fs.createWriteStream()</code> 提供的文件流 (Stream) API 是更高效的方式，因为它不会一次性将整个文件加载到内存中，而是以小块数据流的形式进行处理。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"><span class="keyword">const</span> path = <span class="built_in">require</span>(<span class="string">&#x27;path&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> readableStream = fs.<span class="title function_">createReadStream</span>(path.<span class="title function_">join</span>(__dirname, <span class="string">&#x27;large_input.txt&#x27;</span>));</span><br><span class="line"><span class="keyword">const</span> writableStream = fs.<span class="title function_">createWriteStream</span>(path.<span class="title function_">join</span>(__dirname, <span class="string">&#x27;large_output.txt&#x27;</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将读取流的内容管道传输到写入流</span></span><br><span class="line">readableStream.<span class="title function_">pipe</span>(writableStream);</span><br><span class="line"></span><br><span class="line">readableStream.<span class="title function_">on</span>(<span class="string">&#x27;end&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;大型文件读取完成&#x27;</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">writableStream.<span class="title function_">on</span>(<span class="string">&#x27;finish&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;大型文件写入完成&#x27;</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">readableStream.<span class="title function_">on</span>(<span class="string">&#x27;error&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;读取流错误:&#x27;</span>, err);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">writableStream.<span class="title function_">on</span>(<span class="string">&#x27;error&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">&#x27;写入流错误:&#x27;</span>, err);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-9-文件监控"><a href="#3-9-文件监控" class="headerlink" title="3.9 文件监控"></a>3.9 文件监控</h3><ul>
+<li><code>fs.watch(filename[, options][, listener])</code>: 监控文件或目录的更改。在不同操作系统上，其行为和可靠性可能有所不同，通常推荐使用更健壮的第三方库（如 <code>chokidar</code>）。</li>
+<li><code>fs.watchFile(filename[, options][, listener])</code>: 轮询 (polling) 方式监控文件更改。效率较低。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">&#x27;fs&#x27;</span>);</span><br><span class="line"></span><br><span class="line">fs.<span class="title function_">watch</span>(<span class="string">&#x27;monitor_this_file.txt&#x27;</span>, <span class="function">(<span class="params">eventType, filename</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`文件 <span class="subst">$&#123;filename&#125;</span> 发生了 <span class="subst">$&#123;eventType&#125;</span> 事件`</span>);</span><br><span class="line">  <span class="comment">// eventType: &#x27;rename&#x27; 或 &#x27;change&#x27;</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;正在监控 monitor_this_file.txt...&#x27;</span>);</span><br><span class="line"><span class="comment">// 可以在另一个终端或程序中修改 monitor_this_file.txt 来观察输出</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、错误处理"><a href="#四、错误处理" class="headerlink" title="四、错误处理"></a>四、错误处理</h2><p>在 Node.js 中，文件系统操作的错误处理至关重要。</p>
+<ul>
+<li><strong>异步回调</strong>：错误会作为回调函数的第一个参数 (<code>err</code>) 传递。始终检查 <code>err</code> 对象。</li>
+<li><strong><code>fs/promises</code></strong>：使用 <code>try...catch</code> 块捕获 Promise 拒绝的错误。</li>
+<li><strong>同步方法</strong>：使用 <code>try...catch</code> 块捕获同步抛出的错误。</li>
+</ul>
+<p>常见的 <code>fs</code> 错误包括：</p>
+<ul>
+<li><code>ENOENT</code>: No such file or directory (文件或目录不存在)。</li>
+<li><code>EACCES</code>: Permission denied (权限不足)。</li>
+<li><code>EISDIR</code>: Is a directory (尝试对目录执行文件操作)。</li>
+<li><code>ENOTDIR</code>: Not a directory (尝试对文件执行目录操作)。</li>
+</ul>
+<h2 id="五、最佳实践与安全性考虑"><a href="#五、最佳实践与安全性考虑" class="headerlink" title="五、最佳实践与安全性考虑"></a>五、最佳实践与安全性考虑</h2><ol>
+<li><strong>优先使用异步 API</strong>：这是 Node.js 的核心设计理念。使用异步方法可以避免阻塞事件循环，保持应用程序的高性能和响应性。</li>
+<li><strong>使用 <code>fs/promises</code> API</strong>：结合 <code>async/await</code>，它能让异步文件操作的代码更简洁、更易于理解和维护，避免回调地狱。</li>
+<li><strong>严格错误处理</strong>：始终检查 <code>err</code> 对象或使用 <code>try...catch</code>。未处理的错误可能导致应用程序崩溃或不可预测的行为。</li>
+<li><strong>路径验证和规范化</strong>：<ul>
+<li><strong>防止路径遍历攻击 (Path Traversal)</strong>：永远不要直接使用用户提供的路径进行文件系统操作。恶意用户可能会提供 <code>../../../etc/passwd</code> 这样的路径来访问系统敏感文件。</li>
+<li>使用 <code>path.join()</code> 来安全地拼接路径。</li>
+<li>使用 <code>path.resolve()</code> 来获取绝对路径，并可能通过比较路径前缀来限制访问范围。</li>
+<li>例如，确保解析后的路径仍在允许的根目录下。</li>
+</ul>
+</li>
+<li><strong>处理大型文件使用流</strong>：对于需要读取或写入大文件（例如几 MB 到 GB），请使用 <code>fs.createReadStream()</code> 和 <code>fs.createWriteStream()</code> 来避免内存溢出。</li>
+<li><strong>正确的文件模式 (Flags) 和权限 (Mode)</strong>：<ul>
+<li><code>flag</code> 参数（如 <code>&#39;r&#39;</code>, <code>&#39;w&#39;</code>, <code>&#39;a&#39;</code>, <code>&#39;wx&#39;</code>, <code>&#39;ax&#39;</code>）控制文件如何被打开。<code>&#39;wx&#39;</code> (写入并独占打开) 在创建新文件时很有用，可以避免覆盖现有文件。</li>
+<li><code>mode</code> 参数设置文件或目录的权限，如 <code>0o755</code> (目录) 或 <code>0o644</code> (文件)。</li>
+</ul>
+</li>
+<li><strong>临时文件管理</strong>：在创建临时文件时，考虑使用 <code>os.tmpdir()</code> 来获取系统临时目录，并确保在使用完毕后删除这些文件。</li>
+<li><strong>并发操作限制</strong>：如果需要同时进行大量文件操作，考虑使用 <code>p-limit</code> 或 <code>async.queue</code> 等库来限制并发，防止耗尽系统资源。</li>
+</ol>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p><code>fs</code> 模块是 Node.js 应用程序与文件系统进行交互的基石。它提供了丰富且灵活的 API，涵盖了从简单的文件读写到复杂的目录管理和文件流处理的各种需求。理解异步与同步操作的区别，优先选择异步和基于 Promise 的 API (<code>fs/promises</code>)，并结合严格的错误处理和安全最佳实践，是构建高效、稳定和安全 Node.js 应用程序的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/96337e79db60/">https://blog.tbf1211.xx.kg/96337e79db60/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/JavaScript/">JavaScript</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/Node-js/">Node.js</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/08e0b5b075ee/" title="手写Promise：深入解析JavaScript Promise原理"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">手写Promise：深入解析JavaScript Promise原理</div></div><div class="info-2"><div class="info-item-1"> Promise 是 JavaScript 中进行异步编程的解决方案之一，它代表了一个异步操作的最终完成（或失败）及其结果值。它提供了一种更结构化、更易于管理和理解异步操作的方式，旨在解决传统回调函数所导致的“回调地狱 (Callback Hell)”问题。Promise 对象在 ES6 (ECMAScript 2015) 中被正式纳入标准，成为了现代 JavaScript 异步编程的基石。  核心思想：Promise 是一种异步操作的状态容器。它将异步操作封装成一个对象，提供统一的接口（.then(), .catch(), .finally()）来处理操作成功时的数据和失败时的错误，从而避免深层嵌套回调，使异步代码扁平化且更具可读性。   一、为什么需要 Promise？—— 回调地狱的困境在 Promise 出现之前，JavaScript 主要通过回调函数 (Callback Function) 来处理异步操作。当多个异步操作需要按顺序执行，或者一个异步操作的结果依赖于另一个异步操作时，就会导致回调函数的层层嵌套，形成难以阅读和维护的“回调地狱”： 1234567891011...</div></div></div></a><a class="pagination-related" href="/84f87d7e2bfd/" title="Node.js Path, URL, 和 Query String 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Node.js Path, URL, 和 Query String 模块详解</div></div><div class="info-2"><div class="info-item-1"> 在 Node.js 开发中，处理文件路径、统一资源定位符（URL）及其查询字符串是日常任务。path、url 和 querystring 这三个核心模块提供了强大且跨平台的功能，使得开发者能够高效、安全地解析、格式化和操作这些关键的标识符数据。  核心思想：path 抽象操作系统文件路径差异；url 标准化 URL 的解析与构建；querystring 专注于查询参数的编码与解码。 它们共同构成了 Node.js 应用在文件系统和网络层面的基础数据处理能力。   一、path 模块：处理文件和目录路径path 模块提供了用于处理文件和目录路径的工具函数。它无需 require() 即可使用（通常是 const path = require(&#39;path&#39;);），并且抽象了操作系统之间路径表示方式的差异。 1.1 核心概念 跨平台兼容性：path 模块设计用于处理 POSIX (Linux&#x2F;macOS) 和 Windows 操作系统之间的路径差异。它提供了 path.sep（路径片段分隔符）和 path.delimiter（环境变量分隔符）来适应不同平台。...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/b6520b282ef3/" title="Node.js Buffer 类详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-05</div><div class="info-item-2">Node.js Buffer 类详解</div></div><div class="info-2"><div class="info-item-1"> Node.js Buffer 类是用于处理二进制数据流的全局对象。在 Node.js 中，Buffer 实例是原始二进制数据的容器，类似于整数数组，但它对应着 V8 引擎堆外（off-heap）的内存区域。这意味着 Buffer 的内存分配独立于 V8 的垃圾回收机制，使其在处理大量或频繁的二进制数据时，具有更高的效率和性能。  核心思想：弥补 JavaScript 原生对二进制数据处理能力的不足，提供高效、直接操作原始字节的能力。 在文件I&#x2F;O、网络通信、数据压缩&#x2F;加密等场景中不可或缺。   一、为什么需要 Buffer？JavaScript 语言最初设计用于处理字符串和数字，对二进制数据流的处理能力有限。然而，在服务器端开发中，经常需要与底层系统进行交互，例如：  文件 I&#x2F;O：读取或写入文件时，数据通常以二进制形式存在。 网络通信：TCP 流、HTTP 请求&#x2F;响应体等都涉及原始字节流。 数据编解码：处理图像、音频、视频、加密数据等，都需要直接操作字节。 数据库交互：某些数据库驱动在传输数据时会使用二进制格式。  Node.js 的 ...</div></div></div></a><a class="pagination-related" href="/6ffd4698abd4/" title="Node.js 事件驱动模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-01</div><div class="info-item-2">Node.js 事件驱动模型详解</div></div><div class="info-2"><div class="info-item-1"> Node.js 因其基于 事件驱动 (Event-Driven)、非阻塞 I&#x2F;O (Non-blocking I&#x2F;O) 的特性，在构建高性能、可伸缩的网络应用方面表现出色。其核心在于一个高效的 事件循环 (Event Loop) 机制，使得 Node.js 成为后端开发领域的有力工具。  核心思想：将耗时的操作（如文件读写、网络请求）委托给操作系统处理，Node.js 自身不等待结果，而是注册回调函数，当操作完成后，操作系统通知 Node.js 将相应的回调函数放入事件队列，等待事件循环执行。 这种模型避免了传统多线程&#x2F;多进程模型中线程&#x2F;进程切换的开销，从而提高了性能。   一、为什么需要事件驱动模型？传统的服务器模型，如 Apache HTTP Server，通常采用多线程或多进程模型来处理并发请求。每个传入的请求都会创建一个新的线程或进程来处理，这在请求量大时会导致：  资源消耗高：每个线程&#x2F;进程都需要独立的内存和 CPU 资源，频繁创建和销毁或上下文切换会带来显著的开销。 并发瓶颈：操作系统限制了线程&#x2F;进程的最大...</div></div></div></a><a class="pagination-related" href="/84f87d7e2bfd/" title="Node.js Path, URL, 和 Query String 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-01</div><div class="info-item-2">Node.js Path, URL, 和 Query String 模块详解</div></div><div class="info-2"><div class="info-item-1"> 在 Node.js 开发中，处理文件路径、统一资源定位符（URL）及其查询字符串是日常任务。path、url 和 querystring 这三个核心模块提供了强大且跨平台的功能，使得开发者能够高效、安全地解析、格式化和操作这些关键的标识符数据。  核心思想：path 抽象操作系统文件路径差异；url 标准化 URL 的解析与构建；querystring 专注于查询参数的编码与解码。 它们共同构成了 Node.js 应用在文件系统和网络层面的基础数据处理能力。   一、path 模块：处理文件和目录路径path 模块提供了用于处理文件和目录路径的工具函数。它无需 require() 即可使用（通常是 const path = require(&#39;path&#39;);），并且抽象了操作系统之间路径表示方式的差异。 1.1 核心概念 跨平台兼容性：path 模块设计用于处理 POSIX (Linux&#x2F;macOS) 和 Windows 操作系统之间的路径差异。它提供了 path.sep（路径片段分隔符）和 path.delimiter（环境变量分隔符）来适应不同平台。...</div></div></div></a><a class="pagination-related" href="/9c9de7393330/" title="PM2 (Process Manager 2) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-21</div><div class="info-item-2">PM2 (Process Manager 2) 详解</div></div><div class="info-2"><div class="info-item-1"> PM2 (Process Manager 2) 是一个功能丰富的、生产就绪的 Node.js 应用进程管理器，它专注于提供高可用性、简化部署和自动化运维。它通过监控应用状态、自动重启崩溃进程、实现零停机重新加载和内置负载均衡来确保 Node.js 应用的健壮运行。PM2 是部署 Node.js 应用到生产环境的推荐工具之一。  核心思想：PM2 将 Node.js 应用作为一个守护进程 (daemon) 托管，负责其生命周期管理。它能够自动处理应用崩溃、实现多核 CPU 利用 (集群模式)、简化日志管理和提供实时监控，从而保证应用服务的持续稳定运行。   一、为什么需要 PM2？传统的 Node.js 应用启动方式通常是 node app.js。这种方式在生产环境中存在诸多问题：  单点故障 (Single Point of Failure)：如果应用进程因为未捕获的异常崩溃，整个服务将停止，用户无法访问。 资源利用不足：Node.js 默认是单线程模型，即使服务器有多个 CPU 核心，一个 node app.js 进程也只能利用其中一个核心，无法充分利用硬件资源来处理高并发请...</div></div></div></a><a class="pagination-related" href="/5d69a3774b10/" title="Node.js worker_threads 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-19</div><div class="info-item-2">Node.js worker_threads 模块详解</div></div><div class="info-2"><div class="info-item-1"> Node.js 的 worker_threads 模块 允许开发者在 Node.js 应用程序中创建真正的多线程。传统上，Node.js 是单线程的，其事件循环处理 I&#x2F;O 密集型任务非常高效，但在面对 CPU 密集型任务时，单线程模型会导致事件循环阻塞，从而影响应用程序的响应性。worker_threads 模块正是为了解决这一痛点而引入的，它使得 Node.js 能够更好地利用多核 CPU 资源，执行并行计算，而不会阻塞主事件循环。  核心思想：将 CPU 密集型任务从主线程卸载到独立的 Worker 线程中执行，从而防止主事件循环被阻塞，保持应用程序的响应性和吞吐量。 每个 Worker 线程拥有独立的 V8 实例、事件循环和内存空间，通过消息传递进行通信。   一、为什么需要 worker_threads？Node.js 以其非阻塞 I&#x2F;O 模型而闻名，这得益于其单线程的事件循环。对于网络请求、文件读写等 I&#x2F;O 密集型操作，Node.js 可以通过异步回调或 Promise 迅速处理大量并发请求。然而，这种模型在处理以下情况时会遇到瓶颈：...</div></div></div></a><a class="pagination-related" href="/af1b623130b7/" title="Node.js package.json 文件详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-28</div><div class="info-item-2">Node.js package.json 文件详解</div></div><div class="info-2"><div class="info-item-1"> package.json 文件是任何 Node.js 项目的核心。它是一个 JSON 格式的文件，包含了项目的元数据、依赖信息、脚本命令、版本控制等关键配置。它不仅是项目信息的载体，更是 npm (Node Package Manager) 或 yarn 等包管理器与项目交互的桥梁，定义了项目的身份、行为和依赖关系。  核心思想：package.json 是 Node.js 项目的清单文件，它描述了项目的所有关键信息，包括项目名称、版本、作者、许可证、脚本命令以及最重要的依赖关系。它是实现项目自动化、协作开发和依赖管理的基石。   一、为什么需要 package.json？package.json 在 Node.js 生态系统中扮演着至关重要的角色：  项目身份标识：提供项目的名称、版本、描述等基本信息，方便识别和管理。 依赖管理：记录项目所依赖的第三方模块及其版本范围，确保团队成员和部署环境使用相同的依赖，避免”在我机器上能跑”的问题。 脚本自动化：定义可执行的脚本命令（如启动服务器、运行测试、构建项目），简化开发流程和部署操作。 版本控制与发布：指导 npm 将项目发布到 ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">466</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">81</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-fs-%E6%A8%A1%E5%9D%97%EF%BC%9F"><span class="toc-text">一、为什么需要 fs 模块？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%90%8C%E6%AD%A5-Synchronous-%E4%B8%8E-%E5%BC%82%E6%AD%A5-Asynchronous"><span class="toc-text">2.1 同步 (Synchronous) 与 异步 (Asynchronous)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%96%87%E4%BB%B6%E6%8F%8F%E8%BF%B0%E7%AC%A6-File-Descriptors"><span class="toc-text">2.2 文件描述符 (File Descriptors)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E6%9D%83%E9%99%90-Permissions"><span class="toc-text">2.3 权限 (Permissions)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-Buffer-%E7%BC%93%E5%86%B2%E5%8C%BA"><span class="toc-text">2.4 Buffer (缓冲区)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81fs-%E6%A8%A1%E5%9D%97%E7%9A%84%E6%A0%B8%E5%BF%83-API"><span class="toc-text">三、fs 模块的核心 API</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-fs-promises-API-%E6%8E%A8%E8%8D%90%E7%94%A8%E4%BA%8E%E7%8E%B0%E4%BB%A3-Async-Await"><span class="toc-text">3.1 fs&#x2F;promises API (推荐用于现代 Async&#x2F;Await)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%96%87%E4%BB%B6%E8%AF%BB%E5%8F%96"><span class="toc-text">3.2 文件读取</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%96%87%E4%BB%B6%E5%86%99%E5%85%A5%E4%B8%8E%E8%BF%BD%E5%8A%A0"><span class="toc-text">3.3 文件写入与追加</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E7%9B%AE%E5%BD%95%E6%93%8D%E4%BD%9C"><span class="toc-text">3.4 目录操作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E6%96%87%E4%BB%B6%E4%BF%A1%E6%81%AF-Stats"><span class="toc-text">3.5 文件信息 (Stats)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-%E6%96%87%E4%BB%B6-%E7%9B%AE%E5%BD%95%E9%87%8D%E5%91%BD%E5%90%8D%E4%B8%8E%E5%88%A0%E9%99%A4"><span class="toc-text">3.6 文件&#x2F;目录重命名与删除</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-7-%E6%96%87%E4%BB%B6%E5%A4%8D%E5%88%B6"><span class="toc-text">3.7 文件复制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-8-%E6%96%87%E4%BB%B6%E6%B5%81-Streams"><span class="toc-text">3.8 文件流 (Streams)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-9-%E6%96%87%E4%BB%B6%E7%9B%91%E6%8E%A7"><span class="toc-text">3.9 文件监控</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86"><span class="toc-text">四、错误处理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5%E4%B8%8E%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E8%99%91"><span class="toc-text">五、最佳实践与安全性考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何防止 Golang Goroutine 泄漏"/></a><div class="content"><a class="title" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏">如何防止 Golang Goroutine 泄漏</a><time datetime="2025-12-30T22:24:00.000Z" title="发表于 2025-12-31 06:24:00">2025-12-31</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

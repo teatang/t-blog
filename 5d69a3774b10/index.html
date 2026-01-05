@@ -1,0 +1,543 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Node.js worker_threads 模块详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Node.js 的 worker_threads 模块 允许开发者在 Node.js 应用程序中创建真正的多线程。传统上，Node.js 是单线程的，其事件循环处理 I&#x2F;O 密集型任务非常高效，但在面对 CPU 密集型任务时，单线程模型会导致事件循环阻塞，从而影响应用程序的响应性。worker_threads 模块正是为了解决这一痛点而引入的，它使得 Node.js 能够更好地利用多核">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Node.js worker_threads 模块详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/5d69a3774b10/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Node.js 的 worker_threads 模块 允许开发者在 Node.js 应用程序中创建真正的多线程。传统上，Node.js 是单线程的，其事件循环处理 I&#x2F;O 密集型任务非常高效，但在面对 CPU 密集型任务时，单线程模型会导致事件循环阻塞，从而影响应用程序的响应性。worker_threads 模块正是为了解决这一痛点而引入的，它使得 Node.js 能够更好地利用多核">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-27.jpg">
+<meta property="article:published_time" content="2024-04-18T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-05T09:12:04.345Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="前端技术">
+<meta property="article:tag" content="JavaScript">
+<meta property="article:tag" content="并发编程">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="Node.js">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-27.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Node.js worker_threads 模块详解",
+  "url": "https://blog.tbf1211.xx.kg/5d69a3774b10/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-27.jpg",
+  "datePublished": "2024-04-18T22:24:00.000Z",
+  "dateModified": "2026-01-05T09:12:04.345Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/5d69a3774b10/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Node.js worker_threads 模块详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">466</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">81</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-27.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Node.js worker_threads 模块详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Node.js worker_threads 模块详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-04-18T22:24:00.000Z" title="发表于 2024-04-19 06:24:00">2024-04-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/Node-js/">Node.js</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>12分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Node.js 的 <code>worker_threads</code> 模块</strong> 允许开发者在 Node.js 应用程序中创建真正的多线程。传统上，Node.js 是单线程的，其事件循环处理 I&#x2F;O 密集型任务非常高效，但在面对 CPU 密集型任务时，单线程模型会导致事件循环阻塞，从而影响应用程序的响应性。<code>worker_threads</code> 模块正是为了解决这一痛点而引入的，它使得 Node.js 能够更好地利用多核 CPU 资源，执行并行计算，而不会阻塞主事件循环。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>将 CPU 密集型任务从主线程卸载到独立的 Worker 线程中执行，从而防止主事件循环被阻塞，保持应用程序的响应性和吞吐量。</strong> 每个 Worker 线程拥有独立的 V8 实例、事件循环和内存空间，通过消息传递进行通信。</p>
+</div>
+<hr>
+<h2 id="一、为什么需要-worker-threads？"><a href="#一、为什么需要-worker-threads？" class="headerlink" title="一、为什么需要 worker_threads？"></a>一、为什么需要 <code>worker_threads</code>？</h2><p>Node.js 以其非阻塞 I&#x2F;O 模型而闻名，这得益于其单线程的事件循环。对于网络请求、文件读写等 I&#x2F;O 密集型操作，Node.js 可以通过异步回调或 Promise 迅速处理大量并发请求。然而，这种模型在处理以下情况时会遇到瓶颈：</p>
+<ol>
+<li><p><strong>CPU 密集型任务</strong>：例如复杂的数学计算、数据加密&#x2F;解密、图片或视频处理、大量数据转换等。这些任务会长时间占用 CPU，并阻塞主线程的事件循环。</p>
+<ul>
+<li><strong>问题</strong>：当主线程被 CPU 密集型任务阻塞时，所有新的传入请求（如 HTTP 请求）都将等待，导致应用程序无响应，用户体验下降。</li>
+</ul>
+</li>
+<li><p><strong>长时间运行的任务</strong>：任何耗时较长的同步操作都会对事件循环造成压力。</p>
+</li>
+</ol>
+<p>在 <code>worker_threads</code> 模块出现之前，Node.js 解决 CPU 密集型任务的常见方案是使用 <code>child_process</code> 模块创建子进程。虽然子进程也能实现并行，但它们之间通信开销较大，且每个子进程都有独立的 Node.js 运行时和内存空间，资源消耗相对较高。</p>
+<p><code>worker_threads</code> 模块提供了更轻量级的线程模型，它解决了 <code>child_process</code> 的一些局限性，使得 Node.js 能够：</p>
+<ul>
+<li><strong>更好地利用多核 CPU</strong>：将 CPU 密集型任务分发到多个 Worker 线程并行执行。</li>
+<li><strong>保持主线程的响应性</strong>：确保主事件循环不被阻塞，即使在执行耗时计算时也能继续处理 I&#x2F;O 和其他请求。</li>
+<li><strong>更高效的通信</strong>：线程间的消息传递比进程间通信更高效。</li>
+<li><strong>支持共享内存</strong>：通过 <code>SharedArrayBuffer</code> 实现线程间内存共享，进一步优化性能（但需谨慎处理）。</li>
+</ul>
+<h2 id="二、worker-threads-模块的核心概念"><a href="#二、worker-threads-模块的核心概念" class="headerlink" title="二、worker_threads 模块的核心概念"></a>二、<code>worker_threads</code> 模块的核心概念</h2><h3 id="2-1-主线程-Main-Thread"><a href="#2-1-主线程-Main-Thread" class="headerlink" title="2.1 主线程 (Main Thread)"></a>2.1 主线程 (Main Thread)</h3><p>启动 Node.js 应用程序的原始线程。它负责处理大部分 I&#x2F;O 操作和事件循环，并可以创建和管理 Worker 线程。</p>
+<h3 id="2-2-Worker-线程-Worker-Thread"><a href="#2-2-Worker-线程-Worker-Thread" class="headerlink" title="2.2 Worker 线程 (Worker Thread)"></a>2.2 Worker 线程 (Worker Thread)</h3><p>由主线程创建的独立执行线程。每个 Worker 线程：</p>
+<ul>
+<li>拥有自己的 V8 实例（独立的内存堆）。</li>
+<li>拥有自己的事件循环。</li>
+<li>运行一个独立的 JavaScript 脚本文件。</li>
+<li>无法直接访问主线程的全局变量或内存，必须通过消息传递进行通信。</li>
+</ul>
+<h3 id="2-3-消息传递-Message-Passing"><a href="#2-3-消息传递-Message-Passing" class="headerlink" title="2.3 消息传递 (Message Passing)"></a>2.3 消息传递 (Message Passing)</h3><p>主线程和 Worker 线程之间通信的主要方式。它们通过发送和接收消息来交换数据。</p>
+<ul>
+<li><strong><code>postMessage(value[, transferList])</code></strong>: 用于向另一个线程发送数据。</li>
+<li><strong><code>on(&#39;message&#39;, callback)</code></strong>: 用于监听接收到的消息。</li>
+</ul>
+<h3 id="2-4-共享内存-Shared-Memory"><a href="#2-4-共享内存-Shared-Memory" class="headerlink" title="2.4 共享内存 (Shared Memory)"></a>2.4 共享内存 (Shared Memory)</h3><p>虽然 Worker 线程默认不共享内存，但可以通过 <code>SharedArrayBuffer</code> 对象实现真正的共享内存。当一个 <code>SharedArrayBuffer</code> 实例被传递给 Worker 线程时，主线程和 Worker 线程都指向同一个底层的内存块。这需要使用 <code>Atomics</code> API 来进行同步操作，以避免竞态条件。</p>
+<h3 id="2-5-Worker-类"><a href="#2-5-Worker-类" class="headerlink" title="2.5 Worker 类"></a>2.5 <code>Worker</code> 类</h3><p>在主线程中用于创建和管理 Worker 线程的构造函数。</p>
+<ul>
+<li><code>new Worker(filename[, options])</code>: 创建一个新的 Worker 线程，<code>filename</code> 是 Worker 线程将执行的脚本路径。</li>
+<li><code>workerData</code>: <code>options</code> 中的一个属性，用于在 Worker 线程启动时传递初始数据。</li>
+</ul>
+<h3 id="2-6-parentPort"><a href="#2-6-parentPort" class="headerlink" title="2.6 parentPort"></a>2.6 <code>parentPort</code></h3><p>在 Worker 线程中，<code>parentPort</code> 是一个 <code>MessagePort</code> 实例，用于与创建它的主线程进行通信。它提供了 <code>postMessage()</code> 和 <code>on(&#39;message&#39;, callback)</code> 方法。</p>
+<h3 id="2-7-isMainThread"><a href="#2-7-isMainThread" class="headerlink" title="2.7 isMainThread"></a>2.7 <code>isMainThread</code></h3><p>一个布尔值，用于判断当前代码是否运行在主线程中。在 Worker 线程中为 <code>false</code>，在主线程中为 <code>true</code>。</p>
+<h2 id="三、worker-threads-工作原理架构"><a href="#三、worker-threads-工作原理架构" class="headerlink" title="三、worker_threads 工作原理架构"></a>三、<code>worker_threads</code> 工作原理架构</h2><p><code>worker_threads</code> 模块允许 Node.js 进程内部创建多个 V8 引擎实例，每个实例都在一个独立的线程中运行。这些线程共享操作系统级别的进程资源（如文件描述符），但拥有独立的 JavaScript 运行时环境和内存空间。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph LR
+    A[Node.js Main Process] -- Fork Worker Thread --&gt; B{Worker Thread 1}
+    A -- Fork Worker Thread --&gt; C{Worker Thread 2}
+    A -- Fork Worker Thread --&gt; D{Worker Thread N}
+
+    subgraph Node.js Main Thread
+        A_EventLoop[Event Loop]
+        A_V8[V8 Instance]
+        A_Heap[Memory Heap]
+        A_JS[Your Main JavaScript Code]
+        A_NodeAPI[&quot;Node.js APIs &lt;br&gt;(e.g., File I&#x2F;O, Network)&quot;]
+        A_EventLoop -- Manages I&#x2F;O &amp; Queues --&gt; A_NodeAPI
+        A_JS -- Creates&#x2F;Manages Workers --&gt; A
+        A_JS -- Sends&#x2F;Receives Messages --&gt; A_MessagePort(MessagePort)
+    end
+
+    subgraph Worker Thread 1
+        B_EventLoop[Event Loop]
+        B_V8[V8 Instance]
+        B_Heap[Memory Heap]
+        B_JS[Your Worker &lt;br&gt;JavaScript Code]
+        B_NodeAPI[Subset of Node.js APIs]
+        B_JS -- Sends&#x2F;Receives Messages --&gt; B_MessagePort(MessagePort)
+    end
+
+    subgraph Worker Thread 2
+        C_EventLoop[Event Loop]
+        C_V8[V8 Instance]
+        C_Heap[Memory Heap]
+        C_JS[Your Worker &lt;br&gt;JavaScript Code]
+        C_NodeAPI[Subset of Node.js APIs]
+        C_JS -- Sends&#x2F;Receives Messages --&gt; C_MessagePort(MessagePort)
+    end
+
+    A_MessagePort -- Message Passing --&gt; B_MessagePort
+    B_MessagePort -- Message Passing --&gt; A_MessagePort
+    A_MessagePort -- Message Passing --&gt; C_MessagePort
+    C_MessagePort -- Message Passing --&gt; A_MessagePort
+  </pre></div>
+
+<h2 id="四、基本使用示例"><a href="#四、基本使用示例" class="headerlink" title="四、基本使用示例"></a>四、基本使用示例</h2><p>我们以一个计算一个大数是否为素数的 CPU 密集型任务为例。</p>
+<h3 id="4-1-Worker-线程脚本-worker-js"><a href="#4-1-Worker-线程脚本-worker-js" class="headerlink" title="4.1 Worker 线程脚本 (worker.js)"></a>4.1 Worker 线程脚本 (<code>worker.js</code>)</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; parentPort, workerData &#125; = <span class="built_in">require</span>(<span class="string">&#x27;worker_threads&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 检查一个数字是否为素数</span></span><br><span class="line"><span class="comment"> * 这是一个 CPU 密集型任务</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &#123;<span class="type">number</span>&#125; <span class="variable">num</span></span></span><br><span class="line"><span class="comment"> * <span class="doctag">@returns</span> &#123;<span class="type">boolean</span>&#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">isPrime</span>(<span class="params">num</span>) &#123;</span><br><span class="line">  <span class="keyword">if</span> (num &lt;= <span class="number">1</span>) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  <span class="keyword">if</span> (num &lt;= <span class="number">3</span>) <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  <span class="keyword">if</span> (num % <span class="number">2</span> === <span class="number">0</span> || num % <span class="number">3</span> === <span class="number">0</span>) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">5</span>; i * i &lt;= num; i = i + <span class="number">6</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (num % i === <span class="number">0</span> || num % (i + <span class="number">2</span>) === <span class="number">0</span>) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 接收主线程发送的初始数据 (workerData)</span></span><br><span class="line"><span class="keyword">const</span> numberToCheck = workerData.<span class="property">number</span>;</span><br><span class="line"><span class="keyword">const</span> startTime = <span class="title class_">Date</span>.<span class="title function_">now</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// 执行 CPU 密集型任务</span></span><br><span class="line"><span class="keyword">const</span> result = <span class="title function_">isPrime</span>(numberToCheck);</span><br><span class="line"><span class="keyword">const</span> endTime = <span class="title class_">Date</span>.<span class="title function_">now</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将结果和耗时发送回主线程</span></span><br><span class="line">parentPort.<span class="title function_">postMessage</span>(&#123;</span><br><span class="line">  <span class="attr">number</span>: numberToCheck,</span><br><span class="line">  <span class="attr">isPrime</span>: result,</span><br><span class="line">  <span class="attr">timeTaken</span>: <span class="string">`<span class="subst">$&#123;endTime - startTime&#125;</span>ms`</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 监听主线程可能发来的额外消息</span></span><br><span class="line">parentPort.<span class="title function_">on</span>(<span class="string">&#x27;message&#x27;</span>, <span class="function">(<span class="params">message</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (message.<span class="property">type</span> === <span class="string">&#x27;check_another&#x27;</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> anotherNumber = message.<span class="property">number</span>;</span><br><span class="line">    <span class="keyword">const</span> anotherStartTime = <span class="title class_">Date</span>.<span class="title function_">now</span>();</span><br><span class="line">    <span class="keyword">const</span> anotherResult = <span class="title function_">isPrime</span>(anotherNumber);</span><br><span class="line">    <span class="keyword">const</span> anotherEndTime = <span class="title class_">Date</span>.<span class="title function_">now</span>();</span><br><span class="line">    parentPort.<span class="title function_">postMessage</span>(&#123;</span><br><span class="line">      <span class="attr">type</span>: <span class="string">&#x27;another_check_result&#x27;</span>,</span><br><span class="line">      <span class="attr">number</span>: anotherNumber,</span><br><span class="line">      <span class="attr">isPrime</span>: anotherResult,</span><br><span class="line">      <span class="attr">timeTaken</span>: <span class="string">`<span class="subst">$&#123;anotherEndTime - anotherStartTime&#125;</span>ms`</span></span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-主线程脚本-main-js"><a href="#4-2-主线程脚本-main-js" class="headerlink" title="4.2 主线程脚本 (main.js)"></a>4.2 主线程脚本 (<code>main.js</code>)</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; <span class="title class_">Worker</span>, isMainThread, parentPort &#125; = <span class="built_in">require</span>(<span class="string">&#x27;worker_threads&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;--- Running in Main Thread ---&#x27;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">const</span> numbersToProcess = [</span><br><span class="line">    <span class="number">123456789123456789n</span>, <span class="comment">// 一个很大的合数</span></span><br><span class="line">    <span class="number">982451653</span>,           <span class="comment">// 一个很大的素数</span></span><br><span class="line">    <span class="number">982451654</span>,           <span class="comment">// 一个很大的合数</span></span><br><span class="line">    <span class="number">17</span>,                  <span class="comment">// 小素数</span></span><br><span class="line">    <span class="number">123456789123456787n</span>  <span class="comment">// 另一个大素数 (注意这里使用了 BigInt)</span></span><br><span class="line">  ];</span><br><span class="line"></span><br><span class="line">  <span class="keyword">const</span> workers = [];</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 创建并启动多个 Worker 线程</span></span><br><span class="line">  numbersToProcess.<span class="title function_">forEach</span>(<span class="function">(<span class="params">num, index</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// 创建一个 Worker 实例，并传递初始数据</span></span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> <span class="title class_">Worker</span>(<span class="string">&#x27;./worker.js&#x27;</span>, &#123;</span><br><span class="line">      <span class="attr">workerData</span>: &#123; <span class="attr">number</span>: num &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">    workers.<span class="title function_">push</span>(worker);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 监听 Worker 线程发送的消息</span></span><br><span class="line">    worker.<span class="title function_">on</span>(<span class="string">&#x27;message&#x27;</span>, <span class="function">(<span class="params">message</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (message.<span class="property">type</span> === <span class="string">&#x27;another_check_result&#x27;</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`Worker <span class="subst">$&#123;index + <span class="number">1</span>&#125;</span> (another check): Number <span class="subst">$&#123;message.number&#125;</span> is prime: <span class="subst">$&#123;message.isPrime&#125;</span>, took <span class="subst">$&#123;message.timeTaken&#125;</span>`</span>);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`Worker <span class="subst">$&#123;index + <span class="number">1</span>&#125;</span>: Number <span class="subst">$&#123;message.number&#125;</span> is prime: <span class="subst">$&#123;message.isPrime&#125;</span>, took <span class="subst">$&#123;message.timeTaken&#125;</span>`</span>);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 如果所有工作都完成了，可以终止 Worker</span></span><br><span class="line">      <span class="comment">// worker.terminate(); // 根据需求决定是否立即终止</span></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 监听 Worker 线程的错误</span></span><br><span class="line">    worker.<span class="title function_">on</span>(<span class="string">&#x27;error&#x27;</span>, <span class="function">(<span class="params">err</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`Worker <span class="subst">$&#123;index + <span class="number">1</span>&#125;</span> encountered an error:`</span>, err);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 监听 Worker 线程退出</span></span><br><span class="line">    worker.<span class="title function_">on</span>(<span class="string">&#x27;exit&#x27;</span>, <span class="function">(<span class="params">code</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (code !== <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">error</span>(<span class="string">`Worker <span class="subst">$&#123;index + <span class="number">1</span>&#125;</span> stopped with exit code <span class="subst">$&#123;code&#125;</span>`</span>);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`Worker <span class="subst">$&#123;index + <span class="number">1</span>&#125;</span> exited normally.`</span>);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// 从列表中移除已退出的 worker</span></span><br><span class="line">      <span class="keyword">const</span> idx = workers.<span class="title function_">indexOf</span>(worker);</span><br><span class="line">      <span class="keyword">if</span> (idx &gt; -<span class="number">1</span>) &#123;</span><br><span class="line">        workers.<span class="title function_">splice</span>(idx, <span class="number">1</span>);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (workers.<span class="property">length</span> === <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;All workers have finished and exited.&#x27;</span>);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 在所有 Worker 都开始工作后，主线程可以继续执行其他任务</span></span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Main thread continues to run...&#x27;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 示例：主线程稍后向某个 Worker 发送新的任务</span></span><br><span class="line">  <span class="built_in">setTimeout</span>(<span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (workers[<span class="number">0</span>]) &#123;</span><br><span class="line">      <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;Main thread sending new task to Worker 1...&#x27;</span>);</span><br><span class="line">      workers[<span class="number">0</span>].<span class="title function_">postMessage</span>(&#123; <span class="attr">type</span>: <span class="string">&#x27;check_another&#x27;</span>, <span class="attr">number</span>: <span class="number">1234567891</span> &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;, <span class="number">2000</span>);</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="comment">// 这段代码不会在 worker.js 中执行，因为 worker.js 被直接作为脚本传递给 Worker 构造函数</span></span><br><span class="line">  <span class="comment">// 但如果 worker.js 内部也检查 isMainThread，它会发现自己不是主线程</span></span><br><span class="line">  <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;--- Running in Worker Thread (This message should not appear if worker.js is directly used) ---&#x27;</span>);</span><br><span class="line">  <span class="comment">// 这里的代码只会在 worker.js 自身被直接作为 Node.js 脚本运行时执行</span></span><br><span class="line">  <span class="comment">// 在 worker_threads 场景下，是 parentPort 来处理通信</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="运行方式"><a href="#运行方式" class="headerlink" title="运行方式"></a>运行方式</h3><p>保存上述两个文件，然后在终端中运行 <code>main.js</code>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">node main.js</span><br></pre></td></tr></table></figure>
+
+<p><strong>观察结果</strong>：你会发现主线程的 <code>Main thread continues to run...</code> 消息会立即打印出来，而 Worker 线程的计算结果则会异步地陆续返回，证明了主线程并未被计算任务阻塞。</p>
+<h2 id="五、高级用法与注意事项"><a href="#五、高级用法与注意事项" class="headerlink" title="五、高级用法与注意事项"></a>五、高级用法与注意事项</h2><h3 id="5-1-SharedArrayBuffer-与-Atomics"><a href="#5-1-SharedArrayBuffer-与-Atomics" class="headerlink" title="5.1 SharedArrayBuffer 与 Atomics"></a>5.1 <code>SharedArrayBuffer</code> 与 <code>Atomics</code></h3><ul>
+<li><strong><code>SharedArrayBuffer</code></strong>：用于创建可被多个 Worker 线程共享的原始二进制数据缓冲区。</li>
+<li><strong><code>Atomics</code></strong>：提供了一组静态方法，用于在 <code>SharedArrayBuffer</code> 上执行原子操作。这些操作是不可中断的，确保了在多线程环境下数据的完整性和同步性，防止竞态条件。</li>
+<li><strong>使用场景</strong>：当多个 Worker 线程需要频繁读写同一块内存时，<code>SharedArrayBuffer</code> 可以显著减少消息传递的开销，提高性能。但它也带来了多线程编程的复杂性，需要开发者自行处理同步问题。</li>
+</ul>
+<h3 id="5-2-错误处理与生命周期"><a href="#5-2-错误处理与生命周期" class="headerlink" title="5.2 错误处理与生命周期"></a>5.2 错误处理与生命周期</h3><ul>
+<li><strong><code>worker.on(&#39;error&#39;, callback)</code></strong>: 捕获 Worker 线程内部未捕获的异常。</li>
+<li><strong><code>worker.on(&#39;exit&#39;, callback)</code></strong>: 在 Worker 线程退出时触发，无论正常退出还是因错误退出。<code>code</code> 参数为退出码（0 表示成功）。</li>
+<li><strong><code>worker.terminate()</code></strong>: 手动终止 Worker 线程。这会发送一个 <code>SIGTERM</code> 信号，强制 Worker 退出。如果 Worker 正在执行 CPU 密集型任务，这可能不是立即的。</li>
+</ul>
+<h3 id="5-3-Worker-Pool-工作池"><a href="#5-3-Worker-Pool-工作池" class="headerlink" title="5.3 Worker Pool (工作池)"></a>5.3 Worker Pool (工作池)</h3><p>频繁地创建和销毁 Worker 线程会带来一定的性能开销。对于需要处理大量短期 CPU 密集型任务的场景，推荐使用 Worker Pool：</p>
+<ol>
+<li><strong>预先创建固定数量的 Worker 线程</strong>。</li>
+<li><strong>维护一个任务队列</strong>。</li>
+<li><strong>当有新任务到来时，从池中取出一个空闲 Worker 进行处理</strong>。</li>
+<li><strong>Worker 完成任务后，将其返回到池中，等待下一个任务</strong>。</li>
+</ol>
+<p>这可以有效地复用 Worker 线程，减少创建和销毁的开销，并限制并发 Worker 的数量，避免系统资源耗尽。</p>
+<h3 id="5-4-何时不使用-worker-threads"><a href="#5-4-何时不使用-worker-threads" class="headerlink" title="5.4 何时不使用 worker_threads"></a>5.4 何时不使用 <code>worker_threads</code></h3><ul>
+<li><strong>I&#x2F;O 密集型任务</strong>：Node.js 的事件循环本身就非常擅长处理 I&#x2F;O 密集型任务。将它们放入 Worker 线程通常不会带来性能提升，反而可能增加线程间通信的开销和复杂性。</li>
+<li><strong>少量或简单的 CPU 任务</strong>：对于耗时极短的 CPU 任务，创建 Worker 的开销可能大于直接在主线程执行的开销。</li>
+<li><strong>对简单代码的过度设计</strong>：引入多线程会增加代码的复杂性、调试难度和潜在的竞态条件。只在真正需要时使用。</li>
+</ul>
+<h2 id="六、worker-threads-与-child-process-对比"><a href="#六、worker-threads-与-child-process-对比" class="headerlink" title="六、worker_threads 与 child_process 对比"></a>六、<code>worker_threads</code> 与 <code>child_process</code> 对比</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left"><code>child_process</code> (子进程)</th>
+<th align="left"><code>worker_threads</code> (工作线程)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>执行单元</strong></td>
+<td align="left">操作系统进程 (Operating System Process)</td>
+<td align="left">进程内的线程 (Thread within a Process)</td>
+</tr>
+<tr>
+<td align="left"><strong>资源消耗</strong></td>
+<td align="left">较高 (独立的 Node.js 运行时、内存空间、文件描述符等)</td>
+<td align="left">较低 (共享部分进程资源，独立 V8 实例和堆)</td>
+</tr>
+<tr>
+<td align="left"><strong>启动速度</strong></td>
+<td align="left">较慢</td>
+<td align="left">较快</td>
+</tr>
+<tr>
+<td align="left"><strong>通信方式</strong></td>
+<td align="left">IPC (Inter-Process Communication)，如管道、TCP 套接字、消息队列等</td>
+<td align="left">消息传递 (<code>postMessage()</code>)，通过 <code>MessagePort</code> 对象；可选 <code>SharedArrayBuffer</code></td>
+</tr>
+<tr>
+<td align="left"><strong>内存共享</strong></td>
+<td align="left">默认不共享，只能通过 IPC 传递数据</td>
+<td align="left">默认不共享，但可通过 <code>SharedArrayBuffer</code> 实现真正的内存共享 (需 <code>Atomics</code> 同步)</td>
+</tr>
+<tr>
+<td align="left"><strong>适用场景</strong></td>
+<td align="left">外部命令执行、长时运行的 I&#x2F;O 密集型任务、独立的微服务、需要较高隔离度的任务</td>
+<td align="left">CPU 密集型任务、并行计算、需要保持主线程响应性、计算密集型数据处理</td>
+</tr>
+<tr>
+<td align="left"><strong>错误隔离</strong></td>
+<td align="left">进程级别隔离，一个子进程崩溃不会影响主进程</td>
+<td align="left">线程级别隔离，但由于在同一进程内，可能对整个进程稳定性有影响 (如内存泄漏)</td>
+</tr>
+</tbody></table>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p><code>worker_threads</code> 模块是 Node.js 解决 CPU 密集型任务阻塞主线程问题的强大工具。它通过引入多线程并行执行能力，使得 Node.js 应用程序能够更好地利用多核 CPU 资源，保持出色的响应性。然而，多线程编程引入了新的复杂性，如数据同步、竞态条件和错误处理。开发者在使用 <code>worker_threads</code> 时应权衡其带来的性能优势和额外的开发维护成本，并遵循最佳实践，例如使用 Worker Pool 管理线程，以及在必要时才使用 <code>SharedArrayBuffer</code>。正确使用 <code>worker_threads</code> 可以显著提升 Node.js 应用在特定场景下的性能和用户体验。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/5d69a3774b10/">https://blog.tbf1211.xx.kg/5d69a3774b10/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/">前端技术</a><a class="post-meta__tags" href="/tags/JavaScript/">JavaScript</a><a class="post-meta__tags" href="/tags/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/">并发编程</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/Node-js/">Node.js</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-27.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/9c9de7393330/" title="PM2 (Process Manager 2) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">PM2 (Process Manager 2) 详解</div></div><div class="info-2"><div class="info-item-1"> PM2 (Process Manager 2) 是一个功能丰富的、生产就绪的 Node.js 应用进程管理器，它专注于提供高可用性、简化部署和自动化运维。它通过监控应用状态、自动重启崩溃进程、实现零停机重新加载和内置负载均衡来确保 Node.js 应用的健壮运行。PM2 是部署 Node.js 应用到生产环境的推荐工具之一。  核心思想：PM2 将 Node.js 应用作为一个守护进程 (daemon) 托管，负责其生命周期管理。它能够自动处理应用崩溃、实现多核 CPU 利用 (集群模式)、简化日志管理和提供实时监控，从而保证应用服务的持续稳定运行。   一、为什么需要 PM2？传统的 Node.js 应用启动方式通常是 node app.js。这种方式在生产环境中存在诸多问题：  单点故障 (Single Point of Failure)：如果应用进程因为未捕获的异常崩溃，整个服务将停止，用户无法访问。 资源利用不足：Node.js 默认是单线程模型，即使服务器有多个 CPU 核心，一个 node app.js 进程也只能利用其中一个核心，无法充分利用硬件资源来处理高并发请...</div></div></div></a><a class="pagination-related" href="/6a6fe76b55d2/" title="Python 结构化模式匹配 (Structural Pattern Matching) 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Python 结构化模式匹配 (Structural Pattern Matching) 深度详解</div></div><div class="info-2"><div class="info-item-1"> Python 的结构化模式匹配 (Structural Pattern Matching) 是在 Python 3.10 中引入的一项强大新特性，灵感来源于其他函数式编程语言。该特性通过 match 和 case 语句，提供了一种简洁、富有表现力的方式来根据数据结构和值进行分支逻辑处理。它不仅是对传统 if/elif/else 语句的补充，更是一种处理复杂数据结构（如列表、字典、对象）的新范式，能够显著提高代码的可读性、可维护性和健壮性。  核心思想：模式匹配允许你将一个主题 (subject) 值与一系列模式 (patterns) 进行比较。当一个模式成功匹配主题值时，相关的代码块将被执行。在此过程中，模式还可以解构 (destructure) 主题值，并将其中的部分绑定到新的变量上，从而直接获取所需的数据。   一、为什么需要结构化模式匹配？背景与痛点在 Python 3.10 之前，处理复杂的数据结构，特别是当需要根据其形状、类型或包含的值进行条件判断时，代码往往会变得冗长且难以阅读。例如，考虑处理来自不同来源的 JSON 数据，或者解析命令行参数，传统的方法通常涉及： ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/b6520b282ef3/" title="Node.js Buffer 类详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-05</div><div class="info-item-2">Node.js Buffer 类详解</div></div><div class="info-2"><div class="info-item-1"> Node.js Buffer 类是用于处理二进制数据流的全局对象。在 Node.js 中，Buffer 实例是原始二进制数据的容器，类似于整数数组，但它对应着 V8 引擎堆外（off-heap）的内存区域。这意味着 Buffer 的内存分配独立于 V8 的垃圾回收机制，使其在处理大量或频繁的二进制数据时，具有更高的效率和性能。  核心思想：弥补 JavaScript 原生对二进制数据处理能力的不足，提供高效、直接操作原始字节的能力。 在文件I&#x2F;O、网络通信、数据压缩&#x2F;加密等场景中不可或缺。   一、为什么需要 Buffer？JavaScript 语言最初设计用于处理字符串和数字，对二进制数据流的处理能力有限。然而，在服务器端开发中，经常需要与底层系统进行交互，例如：  文件 I&#x2F;O：读取或写入文件时，数据通常以二进制形式存在。 网络通信：TCP 流、HTTP 请求&#x2F;响应体等都涉及原始字节流。 数据编解码：处理图像、音频、视频、加密数据等，都需要直接操作字节。 数据库交互：某些数据库驱动在传输数据时会使用二进制格式。  Node.js 的 ...</div></div></div></a><a class="pagination-related" href="/9c9de7393330/" title="PM2 (Process Manager 2) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-21</div><div class="info-item-2">PM2 (Process Manager 2) 详解</div></div><div class="info-2"><div class="info-item-1"> PM2 (Process Manager 2) 是一个功能丰富的、生产就绪的 Node.js 应用进程管理器，它专注于提供高可用性、简化部署和自动化运维。它通过监控应用状态、自动重启崩溃进程、实现零停机重新加载和内置负载均衡来确保 Node.js 应用的健壮运行。PM2 是部署 Node.js 应用到生产环境的推荐工具之一。  核心思想：PM2 将 Node.js 应用作为一个守护进程 (daemon) 托管，负责其生命周期管理。它能够自动处理应用崩溃、实现多核 CPU 利用 (集群模式)、简化日志管理和提供实时监控，从而保证应用服务的持续稳定运行。   一、为什么需要 PM2？传统的 Node.js 应用启动方式通常是 node app.js。这种方式在生产环境中存在诸多问题：  单点故障 (Single Point of Failure)：如果应用进程因为未捕获的异常崩溃，整个服务将停止，用户无法访问。 资源利用不足：Node.js 默认是单线程模型，即使服务器有多个 CPU 核心，一个 node app.js 进程也只能利用其中一个核心，无法充分利用硬件资源来处理高并发请...</div></div></div></a><a class="pagination-related" href="/af1b623130b7/" title="Node.js package.json 文件详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-28</div><div class="info-item-2">Node.js package.json 文件详解</div></div><div class="info-2"><div class="info-item-1"> package.json 文件是任何 Node.js 项目的核心。它是一个 JSON 格式的文件，包含了项目的元数据、依赖信息、脚本命令、版本控制等关键配置。它不仅是项目信息的载体，更是 npm (Node Package Manager) 或 yarn 等包管理器与项目交互的桥梁，定义了项目的身份、行为和依赖关系。  核心思想：package.json 是 Node.js 项目的清单文件，它描述了项目的所有关键信息，包括项目名称、版本、作者、许可证、脚本命令以及最重要的依赖关系。它是实现项目自动化、协作开发和依赖管理的基石。   一、为什么需要 package.json？package.json 在 Node.js 生态系统中扮演着至关重要的角色：  项目身份标识：提供项目的名称、版本、描述等基本信息，方便识别和管理。 依赖管理：记录项目所依赖的第三方模块及其版本范围，确保团队成员和部署环境使用相同的依赖，避免”在我机器上能跑”的问题。 脚本自动化：定义可执行的脚本命令（如启动服务器、运行测试、构建项目），简化开发流程和部署操作。 版本控制与发布：指导 npm 将项目发布到 ...</div></div></div></a><a class="pagination-related" href="/6ffd4698abd4/" title="Node.js 事件驱动模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-01</div><div class="info-item-2">Node.js 事件驱动模型详解</div></div><div class="info-2"><div class="info-item-1"> Node.js 因其基于 事件驱动 (Event-Driven)、非阻塞 I&#x2F;O (Non-blocking I&#x2F;O) 的特性，在构建高性能、可伸缩的网络应用方面表现出色。其核心在于一个高效的 事件循环 (Event Loop) 机制，使得 Node.js 成为后端开发领域的有力工具。  核心思想：将耗时的操作（如文件读写、网络请求）委托给操作系统处理，Node.js 自身不等待结果，而是注册回调函数，当操作完成后，操作系统通知 Node.js 将相应的回调函数放入事件队列，等待事件循环执行。 这种模型避免了传统多线程&#x2F;多进程模型中线程&#x2F;进程切换的开销，从而提高了性能。   一、为什么需要事件驱动模型？传统的服务器模型，如 Apache HTTP Server，通常采用多线程或多进程模型来处理并发请求。每个传入的请求都会创建一个新的线程或进程来处理，这在请求量大时会导致：  资源消耗高：每个线程&#x2F;进程都需要独立的内存和 CPU 资源，频繁创建和销毁或上下文切换会带来显著的开销。 并发瓶颈：操作系统限制了线程&#x2F;进程的最大...</div></div></div></a><a class="pagination-related" href="/29b1408d2e85/" title="Node.js OS 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-09</div><div class="info-item-2">Node.js OS 模块详解</div></div><div class="info-2"><div class="info-item-1"> Node.js 的 os 模块 提供了一系列与操作系统交互的实用方法和属性。它允许 Node.js 应用程序获取关于底层操作系统的信息，例如平台、架构、CPU 信息、内存使用情况、网络接口以及处理操作系统特定的文件路径等。os 模块是一个内置模块，无需安装，通过 require(&#39;os&#39;) 即可使用。  核心思想：提供跨平台的方式来获取和操作系统相关的环境信息。 开发者可以利用这些信息编写出更具平台适应性的应用程序。   一、为什么需要 os 模块？在 Node.js 应用程序开发中，有时需要根据运行环境的不同来调整程序的行为，或者获取系统资源的使用情况进行监控。JavaScript 语言本身是平台无关的，无法直接访问底层操作系统信息。os 模块正是为了填补这一空白，提供了以下核心能力：  平台适配：根据不同的操作系统（Windows, Linux, macOS）调整文件路径、执行特定命令或加载特定配置。 资源监控：获取 CPU 使用率、内存使用量、系统运行时间等，用于性能监控或诊断。 网络配置：查看机器的网络接口信息，如 IP 地址、MAC 地址。 用户与环境...</div></div></div></a><a class="pagination-related" href="/84f87d7e2bfd/" title="Node.js Path, URL, 和 Query String 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-01</div><div class="info-item-2">Node.js Path, URL, 和 Query String 模块详解</div></div><div class="info-2"><div class="info-item-1"> 在 Node.js 开发中，处理文件路径、统一资源定位符（URL）及其查询字符串是日常任务。path、url 和 querystring 这三个核心模块提供了强大且跨平台的功能，使得开发者能够高效、安全地解析、格式化和操作这些关键的标识符数据。  核心思想：path 抽象操作系统文件路径差异；url 标准化 URL 的解析与构建；querystring 专注于查询参数的编码与解码。 它们共同构成了 Node.js 应用在文件系统和网络层面的基础数据处理能力。   一、path 模块：处理文件和目录路径path 模块提供了用于处理文件和目录路径的工具函数。它无需 require() 即可使用（通常是 const path = require(&#39;path&#39;);），并且抽象了操作系统之间路径表示方式的差异。 1.1 核心概念 跨平台兼容性：path 模块设计用于处理 POSIX (Linux&#x2F;macOS) 和 Windows 操作系统之间的路径差异。它提供了 path.sep（路径片段分隔符）和 path.delimiter（环境变量分隔符）来适应不同平台。...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">466</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">81</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-worker-threads%EF%BC%9F"><span class="toc-text">一、为什么需要 worker_threads？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81worker-threads-%E6%A8%A1%E5%9D%97%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、worker_threads 模块的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E4%B8%BB%E7%BA%BF%E7%A8%8B-Main-Thread"><span class="toc-text">2.1 主线程 (Main Thread)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Worker-%E7%BA%BF%E7%A8%8B-Worker-Thread"><span class="toc-text">2.2 Worker 线程 (Worker Thread)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E6%B6%88%E6%81%AF%E4%BC%A0%E9%80%92-Message-Passing"><span class="toc-text">2.3 消息传递 (Message Passing)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98-Shared-Memory"><span class="toc-text">2.4 共享内存 (Shared Memory)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-Worker-%E7%B1%BB"><span class="toc-text">2.5 Worker 类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-parentPort"><span class="toc-text">2.6 parentPort</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-7-isMainThread"><span class="toc-text">2.7 isMainThread</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81worker-threads-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E6%9E%B6%E6%9E%84"><span class="toc-text">三、worker_threads 工作原理架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B"><span class="toc-text">四、基本使用示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-Worker-%E7%BA%BF%E7%A8%8B%E8%84%9A%E6%9C%AC-worker-js"><span class="toc-text">4.1 Worker 线程脚本 (worker.js)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E4%B8%BB%E7%BA%BF%E7%A8%8B%E8%84%9A%E6%9C%AC-main-js"><span class="toc-text">4.2 主线程脚本 (main.js)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%90%E8%A1%8C%E6%96%B9%E5%BC%8F"><span class="toc-text">运行方式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95%E4%B8%8E%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">五、高级用法与注意事项</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-SharedArrayBuffer-%E4%B8%8E-Atomics"><span class="toc-text">5.1 SharedArrayBuffer 与 Atomics</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86%E4%B8%8E%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">5.2 错误处理与生命周期</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-Worker-Pool-%E5%B7%A5%E4%BD%9C%E6%B1%A0"><span class="toc-text">5.3 Worker Pool (工作池)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E4%BD%95%E6%97%B6%E4%B8%8D%E4%BD%BF%E7%94%A8-worker-threads"><span class="toc-text">5.4 何时不使用 worker_threads</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81worker-threads-%E4%B8%8E-child-process-%E5%AF%B9%E6%AF%94"><span class="toc-text">六、worker_threads 与 child_process 对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何防止 Golang Goroutine 泄漏"/></a><div class="content"><a class="title" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏">如何防止 Golang Goroutine 泄漏</a><time datetime="2025-12-30T22:24:00.000Z" title="发表于 2025-12-31 06:24:00">2025-12-31</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="行为驱动开发 (BDD) 详解"/></a><div class="content"><a class="title" href="/03cebd3cc28a/" title="行为驱动开发 (BDD) 详解">行为驱动开发 (BDD) 详解</a><time datetime="2025-12-21T22:24:00.000Z" title="发表于 2025-12-22 06:24:00">2025-12-22</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-27.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
