@@ -1,0 +1,523 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>fzf 详解：命令行模糊查找神器 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="fzf (fuzzy finder) 是一个用 Go 语言编写的通用命令行模糊查找器。它能够交互式地从任何列表输入中筛选出你想要的项目，并将其作为输出返回。fzf 的核心价值在于其极高的速度、简洁的界面和强大的可定制性，能够无缝集成到各种命令行工作流程中，极大地提升文件查找、历史命令、进程管理等日常操作的效率。  核心思想：将任何长列表（文件、历史命令、进程、Git 分支等）通过模糊匹配的方式快">
+<meta property="og:type" content="article">
+<meta property="og:title" content="fzf 详解：命令行模糊查找神器">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/1875cb2898b7/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="fzf (fuzzy finder) 是一个用 Go 语言编写的通用命令行模糊查找器。它能够交互式地从任何列表输入中筛选出你想要的项目，并将其作为输出返回。fzf 的核心价值在于其极高的速度、简洁的界面和强大的可定制性，能够无缝集成到各种命令行工作流程中，极大地提升文件查找、历史命令、进程管理等日常操作的效率。  核心思想：将任何长列表（文件、历史命令、进程、Git 分支等）通过模糊匹配的方式快">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg">
+<meta property="article:published_time" content="2024-03-28T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-07T07:50:15.060Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="macOS">
+<meta property="article:tag" content="命令行">
+<meta property="article:tag" content="Windows">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "fzf 详解：命令行模糊查找神器",
+  "url": "https://blog.tbf1211.xx.kg/1875cb2898b7/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg",
+  "datePublished": "2024-03-28T22:24:00.000Z",
+  "dateModified": "2026-01-07T07:50:15.060Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/1875cb2898b7/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'fzf 详解：命令行模糊查找神器',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">474</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">230</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">82</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-07.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">fzf 详解：命令行模糊查找神器</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">fzf 详解：命令行模糊查找神器</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-03-28T22:24:00.000Z" title="发表于 2024-03-29 06:24:00">2024-03-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%91%BD%E4%BB%A4%E8%A1%8C/">命令行</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>fzf</strong> (fuzzy finder) 是一个用 Go 语言编写的通用命令行模糊查找器。它能够交互式地从任何列表输入中筛选出你想要的项目，并将其作为输出返回。fzf 的核心价值在于其极高的速度、简洁的界面和强大的可定制性，能够无缝集成到各种命令行工作流程中，极大地提升文件查找、历史命令、进程管理等日常操作的效率。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>将任何长列表（文件、历史命令、进程、Git 分支等）通过模糊匹配的方式快速过滤和选择，将选择结果返回给主 Shell 或其他命令，从而实现交互式的增强命令输入。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-fzf？"><a href="#一、为什么需要-fzf？" class="headerlink" title="一、为什么需要 fzf？"></a>一、为什么需要 fzf？</h2><p>在命令行环境中，我们经常需要从大量的选项中进行选择：</p>
+<ol>
+<li><strong>文件和目录查找</strong>：当项目目录结构复杂，或需要查找一个不确定完整名称的文件时，<code>find</code> 命令可能会变得冗长且输出难以消化。</li>
+<li><strong>历史命令查找</strong>：<code>Ctrl+R</code>（<code>reverse-i-search</code>）虽然有用，但在历史命令数量庞大时仍显得效率低下。</li>
+<li><strong>Git 分支切换</strong>：在有大量分支的项目中，每次 <code>git checkout &lt;branch-name&gt;</code> 都需要完整输入分支名，或者通过 <code>git branch</code> 结合 <code>grep</code> 来查找。</li>
+<li><strong>进程管理</strong>：查找并杀死某个进程时，<code>ps aux | grep &lt;process&gt;</code> 之后再手动复制 PID。</li>
+<li><strong>自定义脚本</strong>：任何需要从一个列表中选择一个或多个项目的场景。</li>
+</ol>
+<p>传统方法往往涉及：</p>
+<ul>
+<li><strong>手动输入完整名称</strong>：耗时且易错。</li>
+<li><strong>链式 <code>grep</code> 命令</strong>：输出通常是静态的，选择不便。</li>
+<li><strong>记住复杂路径或 ID</strong>：增加认知负担。</li>
+</ul>
+<p><code>fzf</code> 旨在解决这些痛点，提供一个<strong>交互式、智能且速度极快</strong>的解决方案，让你在复杂的命令行世界中如鱼得水。</p>
+<h2 id="二、fzf-的工作原理"><a href="#二、fzf-的工作原理" class="headerlink" title="二、fzf 的工作原理"></a>二、fzf 的工作原理</h2><p><code>fzf</code> 的核心工作流程非常简单但功能强大：</p>
+<ol>
+<li><strong>接收列表输入</strong>：<code>fzf</code> 可以通过管道 (<code>|</code>) 或文件重定向 (<code>&lt;</code>) 从任何命令接收一个多行文本列表作为其输入。例如，<code>ls -a | fzf</code> 会将当前目录下的所有文件和目录列表作为输入。</li>
+<li><strong>启动交互式界面</strong>：一旦接收到输入，<code>fzf</code> 会立即在终端中启动一个全屏的交互式界面。这个界面会显示所有输入项。</li>
+<li><strong>模糊匹配过滤</strong>：用户在界面中输入搜索关键词。<code>fzf</code> 会使用一个高效的模糊匹配算法，实时地过滤并显示匹配的条目。匹配结果会根据相关性进行排序。</li>
+<li><strong>选择并返回</strong>：<ul>
+<li>用户可以使用方向键上下移动来选择一个或多个条目。</li>
+<li>按下 <code>Enter</code> 键后，<code>fzf</code> 会将选中的一个或多个条目输出到标准输出 (stdout)。</li>
+<li>如果按下 <code>Ctrl+C</code> 或 <code>Escape</code>，则退出而不输出任何内容。</li>
+</ul>
+</li>
+<li><strong>结果用于其他命令</strong>：被 <code>fzf</code> 输出的选中条目可以再次通过管道连接到其他命令，或者作为命令的参数。</li>
+</ol>
+<h3 id="工作流程示意图"><a href="#工作流程示意图" class="headerlink" title="工作流程示意图"></a>工作流程示意图</h3><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[&quot;任何命令生成列表数据 &lt;br&#x2F;&gt; (e.g., ls, find, history, git branch)&quot;]
+    A -- 管道 | --&gt; B[fzf 启动交互式模糊查找界面]
+    B --&gt; C[用户在界面中输入关键词模糊匹配]
+    C --&gt; D[fzf 实时过滤并高亮显示匹配结果]
+    D -- 用户选择条目并按 Enter --&gt; E[选中的条目输出到 stdout]
+    E -- 管道 | 或 作为参数 --&gt; F[其他命令接收 fzf 的输出进行后续操作]
+    F --&gt; G[完成目标操作]
+  </pre></div>
+
+<h2 id="三、安装-fzf"><a href="#三、安装-fzf" class="headerlink" title="三、安装 fzf"></a>三、安装 fzf</h2><p><code>fzf</code> 是一个独立的二进制文件，安装非常简单。同时，它还附带了一些有用的 Shell 扩展和键绑定。</p>
+<h3 id="3-1-Linux-macOS-安装"><a href="#3-1-Linux-macOS-安装" class="headerlink" title="3.1 Linux&#x2F;macOS 安装"></a>3.1 Linux&#x2F;macOS 安装</h3><h4 id="使用包管理器-推荐"><a href="#使用包管理器-推荐" class="headerlink" title="使用包管理器 (推荐)"></a>使用包管理器 (推荐)</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># macOS (Homebrew)</span></span><br><span class="line">brew install fzf</span><br><span class="line"></span><br><span class="line"><span class="comment"># Debian/Ubuntu (APT)</span></span><br><span class="line"><span class="built_in">sudo</span> apt install fzf</span><br><span class="line"></span><br><span class="line"><span class="comment"># Arch Linux (pacman)</span></span><br><span class="line"><span class="built_in">sudo</span> pacman -S fzf</span><br><span class="line"></span><br><span class="line"><span class="comment"># Fedora (dnf)</span></span><br><span class="line"><span class="built_in">sudo</span> dnf install fzf</span><br></pre></td></tr></table></figure>
+
+<h4 id="从源代码安装"><a href="#从源代码安装" class="headerlink" title="从源代码安装"></a>从源代码安装</h4><p>如果你的系统没有对应的包管理器，或者你想安装最新版本，可以使用 Git 克隆并运行安装脚本：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> --depth 1 https://github.com/junegunn/fzf.git ~/.fzf</span><br><span class="line">~/.fzf/install</span><br></pre></td></tr></table></figure>
+<p><code>install</code> 脚本会引导你设置 Shell 键绑定和自动补全，以及 <code>PATH</code> 变量。强烈建议选择 <code>y</code> 来安装这些增强功能。</p>
+<h3 id="3-2-Windows-安装"><a href="#3-2-Windows-安装" class="headerlink" title="3.2 Windows 安装"></a>3.2 Windows 安装</h3><h4 id="使用-Scoop-推荐"><a href="#使用-Scoop-推荐" class="headerlink" title="使用 Scoop (推荐)"></a>使用 Scoop (推荐)</h4><figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">scoop install fzf</span><br></pre></td></tr></table></figure>
+
+<h4 id="使用-Chocolatey"><a href="#使用-Chocolatey" class="headerlink" title="使用 Chocolatey"></a>使用 Chocolatey</h4><figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">choco install fzf</span><br></pre></td></tr></table></figure>
+
+<h2 id="四、核心功能与常用集成"><a href="#四、核心功能与常用集成" class="headerlink" title="四、核心功能与常用集成"></a>四、核心功能与常用集成</h2><p><code>fzf</code> 提供了强大的默认行为，并通过 Shell 扩展和键绑定在日常使用中发挥最大效用。</p>
+<h3 id="4-1-基本用法"><a href="#4-1-基本用法" class="headerlink" title="4.1 基本用法"></a>4.1 基本用法</h3><p>最简单的用法是将任何生成列表的命令的输出管道传输给 <code>fzf</code>。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 交互式选择文件和目录</span></span><br><span class="line"><span class="built_in">ls</span> -a | fzf</span><br><span class="line"></span><br><span class="line"><span class="comment"># 选择历史命令</span></span><br><span class="line"><span class="built_in">history</span> | fzf</span><br><span class="line"></span><br><span class="line"><span class="comment"># 选择 Git 分支</span></span><br><span class="line">git branch | fzf</span><br></pre></td></tr></table></figure>
+
+<p>选中一个条目后按 <code>Enter</code>，该条目会打印到终端；按 <code>Ctrl+C</code> 或 <code>Escape</code> 则退出。</p>
+<h3 id="4-2-文件模糊查找-Shell-键绑定"><a href="#4-2-文件模糊查找-Shell-键绑定" class="headerlink" title="4.2 文件模糊查找 (Shell 键绑定)"></a>4.2 文件模糊查找 (Shell 键绑定)</h3><p><code>fzf</code> 最常用的功能之一是文件查找。安装时提供的 Shell 键绑定使得这一操作变得非常流畅。</p>
+<ul>
+<li><strong><code>Ctrl+T</code> (或 <code>Alt+C</code> on Bash&#x2F;Zsh if <code>fzf-alt-c</code> is enabled)</strong>：<ul>
+<li>在当前目录下递归查找文件和目录。</li>
+<li>选中的路径会自动插入到当前命令行光标处。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<ol>
+<li>在终端输入 <code>vim </code> (注意后面有个空格)。</li>
+<li>按下 <code>Ctrl+T</code>。</li>
+<li><code>fzf</code> 界面弹出，显示当前目录下的文件和目录。</li>
+<li>模糊搜索并选择你想要编辑的文件。</li>
+<li>按 <code>Enter</code>，文件路径会出现在 <code>vim </code> 后面。</li>
+<li>再次按 <code>Enter</code> 即可打开文件。</li>
+</ol>
+<h3 id="4-3-历史命令模糊查找-Shell-键绑定"><a href="#4-3-历史命令模糊查找-Shell-键绑定" class="headerlink" title="4.3 历史命令模糊查找 (Shell 键绑定)"></a>4.3 历史命令模糊查找 (Shell 键绑定)</h3><p>替代传统的 <code>Ctrl+R</code>，<code>fzf</code> 提供了更强大的历史命令查找。</p>
+<ul>
+<li><strong><code>Ctrl+R</code></strong>：<ul>
+<li>打开 <code>fzf</code> 界面，显示你的 Shell 历史命令。</li>
+<li>模糊搜索并选择。</li>
+<li>选中的命令会插入到当前命令行光标处，可以直接编辑或执行。</li>
+</ul>
+</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<ol>
+<li>按下 <code>Ctrl+R</code>。</li>
+<li><code>fzf</code> 界面弹出，显示所有历史命令。</li>
+<li>输入 <code>git commit</code>，<code>fzf</code> 会实时过滤显示所有相关命令。</li>
+<li>选择你想要的 <code>git commit</code> 命令。</li>
+<li>按 <code>Enter</code>，该命令会出现在命令行。</li>
+</ol>
+<h3 id="4-4-模糊切换目录-Shell-键绑定"><a href="#4-4-模糊切换目录-Shell-键绑定" class="headerlink" title="4.4 模糊切换目录 (Shell 键绑定)"></a>4.4 模糊切换目录 (Shell 键绑定)</h3><ul>
+<li><strong><code>Alt+C</code> (Bash&#x2F;Zsh)</strong>：<ul>
+<li>在 <code>fzf</code> 界面中列出最近访问的目录 (通过 <code>autojump</code> 或 <code>zoxide</code> 如果安装并集成)。</li>
+<li>模糊搜索并选择一个目录。</li>
+<li>选中后，Shell 会自动 <code>cd</code> 到该目录。</li>
+</ul>
+</li>
+</ul>
+<p><strong>注意</strong>：这个功能通常需要 <code>fzf-tab</code> 插件 (Zsh) 或 <code>zoxide</code>&#x2F;<code>autojump</code> 与 <code>fzf</code> 的集成。</p>
+<h3 id="4-5-与-Git-集成"><a href="#4-5-与-Git-集成" class="headerlink" title="4.5 与 Git 集成"></a>4.5 与 Git 集成</h3><p><code>fzf</code> 可以与 Git 命令完美结合，例如：</p>
+<h4 id="模糊切换-Git-分支"><a href="#模糊切换-Git-分支" class="headerlink" title="模糊切换 Git 分支"></a>模糊切换 Git 分支</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 将以下内容添加到你的 .bashrc 或 .zshrc</span></span><br><span class="line"><span class="function"><span class="title">fco</span></span>() &#123;</span><br><span class="line">  <span class="built_in">local</span> branch=$(git branch -a --color=always | grep -v <span class="string">&#x27;/HEAD\s&#x27;</span> | fzf --height 40% --ansi --no-sort --reverse --prompt=<span class="string">&quot;Checkout branch: &quot;</span> --query=<span class="string">&quot;<span class="variable">$1</span>&quot;</span> \</span><br><span class="line">    --query-boundary=<span class="string">&#x27;: &#x27;</span> --header-lines <span class="string">&#x27;0&#x27;</span> \</span><br><span class="line">    --tiebreak=index --layout=reverse --pointer=<span class="string">&#x27;✨&#x27;</span>)</span><br><span class="line">  <span class="keyword">if</span> [[ -n <span class="string">&quot;<span class="variable">$branch</span>&quot;</span> ]]; <span class="keyword">then</span></span><br><span class="line">    branch=$(<span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$branch</span>&quot;</span> | sed <span class="string">&quot;s/.* //&quot;</span> | sed <span class="string">&quot;s#remotes/[^/]*/##&quot;</span>)</span><br><span class="line">    git checkout <span class="string">&quot;<span class="variable">$branch</span>&quot;</span></span><br><span class="line">  <span class="keyword">fi</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后你可以通过 <code>fco</code> 命令来模糊查找并切换分支。</p>
+<h4 id="模糊查找-Git-提交-log"><a href="#模糊查找-Git-提交-log" class="headerlink" title="模糊查找 Git 提交 (log)"></a>模糊查找 Git 提交 (log)</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 将以下内容添加到你的 .bashrc 或 .zshrc</span></span><br><span class="line"><span class="function"><span class="title">flog</span></span>() &#123;</span><br><span class="line">  <span class="built_in">local</span> selected</span><br><span class="line">  selected=$(git <span class="built_in">log</span> --pretty=format:<span class="string">&quot;%C(yellow)%h%Creset %s %C(blue)%an%Creset&quot;</span> --graph --color=always <span class="string">&quot;<span class="variable">$@</span>&quot;</span> |</span><br><span class="line">    fzf --no-sort --reverse --height 40% --ansi --no-hscroll --preview=<span class="string">&quot;grep -o &#x27;[a-f0-9]\&#123;7,\&#125;&#x27; &lt;&lt;&lt; &#123;&#125; | head -1 | xargs -I % sh -c &#x27;git show --color=always %&#x27;&quot;</span> --preview-window=right:70% |</span><br><span class="line">    grep -o <span class="string">&#x27;[a-f0-9]\&#123;7,\&#125;&#x27;</span> | <span class="built_in">head</span> -1)</span><br><span class="line">  <span class="keyword">if</span> [[ -n <span class="string">&quot;<span class="variable">$selected</span>&quot;</span> ]]; <span class="keyword">then</span></span><br><span class="line">    git show <span class="string">&quot;<span class="variable">$selected</span>&quot;</span></span><br><span class="line">  <span class="keyword">fi</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>flog</code> 命令会显示一个交互式界面，你可以模糊查找提交日志，并实时预览提交详情。</p>
+<h3 id="4-6-进程管理"><a href="#4-6-进程管理" class="headerlink" title="4.6 进程管理"></a>4.6 进程管理</h3><p>结合 <code>ps</code> 和 <code>kill</code> 命令，可以实现交互式杀死进程。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 杀死进程</span></span><br><span class="line"><span class="built_in">kill</span> -9 $(ps -ef | sed 1d | fzf -m | awk <span class="string">&#x27;&#123;print $2&#125;&#x27;</span>)</span><br></pre></td></tr></table></figure>
+<p>解释：</p>
+<ul>
+<li><code>ps -ef | sed 1d</code>：列出所有进程，并跳过头部。</li>
+<li><code>fzf -m</code>：允许进行多选模式 (<code>-m</code>)。</li>
+<li><code>awk &#39;&#123;print $2&#125;&#39;</code>：提取选中的进程的 PID。</li>
+<li><code>kill -9</code>：杀死这些 PID。</li>
+</ul>
+<h2 id="五、高级配置与定制"><a href="#五、高级配置与定制" class="headerlink" title="五、高级配置与定制"></a>五、高级配置与定制</h2><p><code>fzf</code> 提供了丰富的环境变量和命令行选项来定制其行为和外观。</p>
+<h3 id="5-1-环境变量"><a href="#5-1-环境变量" class="headerlink" title="5.1 环境变量"></a>5.1 环境变量</h3><ul>
+<li><strong><code>FZF_DEFAULT_COMMAND</code></strong>：在未通过管道提供输入时，<code>fzf</code> 默认使用的命令。默认是 <code>find . -path &#39;*/\.*&#39; -prune -o -print -quit</code> (macOS&#x2F;BSD) 或 <code>find . -path &#39;*/\.git&#39; -prune -o -print -quit</code> (Linux)。你可以设置为 <code>rg --files</code> (<code>ripgrep</code> 的文件模式) 来加速文件查找。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> FZF_DEFAULT_COMMAND=<span class="string">&#x27;rg --files --hidden --glob &quot;!.git/*&quot;&#x27;</span></span><br></pre></td></tr></table></figure></li>
+<li><strong><code>FZF_DEFAULT_OPTS</code></strong>：<code>fzf</code> 的默认命令行选项。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> FZF_DEFAULT_OPTS=<span class="string">&quot;--height 40% --layout=reverse --border --margin=1 --padding=1 --color=bg+:#313244,bg:#1e1e2e,fg:#cdd6f4,fg+:#cdd6f4,hl:#f9e2af,hl+:#f9e2af,info:#a6e3a1,pointer:#f2cdcd,prompt:#f2cdcd,spinner:#f2cdcd,header:#f2cdcd,selection:#585b70,marker:#f2cdcd&quot;</span></span><br></pre></td></tr></table></figure>
+这里是一个使用 Catppuccin Macchiato 配色的示例。</li>
+</ul>
+<h3 id="5-2-命令行选项"><a href="#5-2-命令行选项" class="headerlink" title="5.2 命令行选项"></a>5.2 命令行选项</h3><p><code>fzf</code> 有大量的命令行选项用于调整行为，例如：</p>
+<ul>
+<li><code>-m, --multi</code>：允许多选 (使用 <code>Tab</code> 或 <code>Shift+Tab</code> 选中&#x2F;取消选中)。</li>
+<li><code>-q, --query &lt;query&gt;</code>：初始查询字符串。</li>
+<li><code>--height &lt;percent&gt;</code>：设置窗口高度 (如 <code>--height 40%</code>)。</li>
+<li><code>--layout=reverse</code>：界面显示在终端底部。</li>
+<li><code>--border</code>：添加边框。</li>
+<li><code>--preview</code>：指定一个命令来预览选中的条目。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 预览文件内容</span></span><br><span class="line"><span class="comment"># 结合 bat 进行语法高亮</span></span><br><span class="line">find . -<span class="built_in">type</span> f | fzf --preview <span class="string">&#x27;bat --color=always --line-range :500 &#123;&#125;&#x27;</span></span><br></pre></td></tr></table></figure></li>
+<li><code>--bind</code>：绑定自定义键操作。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 绑定 Ctrl+D 将选中的文件移动到回收站</span></span><br><span class="line">find . -<span class="built_in">type</span> f | fzf --<span class="built_in">bind</span> <span class="string">&#x27;ctrl-d:execute-silent(mv &#123;&#125; ~/.Trash)+reload(find . -type f)&#x27;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="六、集成到-IDE-编辑器"><a href="#六、集成到-IDE-编辑器" class="headerlink" title="六、集成到 IDE &#x2F; 编辑器"></a>六、集成到 IDE &#x2F; 编辑器</h2><p><code>fzf</code> 不仅限于 Shell，也可以集成到 Vim&#x2F;Neovim、VS Code 等编辑器中，提供模糊文件查找、Buffer 切换等功能。</p>
+<h3 id="Vim-Neovim"><a href="#Vim-Neovim" class="headerlink" title="Vim&#x2F;Neovim"></a>Vim&#x2F;Neovim</h3><p>最常见的集成是通过 <code>fzf.vim</code> 插件。它提供了 <code>:Files</code>, <code>:Buffers</code>, <code>:History</code> 等命令，基于 <code>fzf</code> 进行模糊查找。</p>
+<p><strong>示例 (使用 vim-plug)</strong>:</p>
+<figure class="highlight vim"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Plug <span class="string">&#x27;junegunn/fzf&#x27;</span>, &#123; <span class="string">&#x27;do&#x27;</span>: &#123; -&gt; fzf#install() &#125; &#125;</span><br><span class="line">Plug <span class="string">&#x27;junegunn/fzf.vim&#x27;</span></span><br></pre></td></tr></table></figure>
+<p>安装后，你就可以在 Vim 中使用 <code>:Files</code>, <code>:Buffers</code>, <code>:History</code> 等命令了。</p>
+<h2 id="七、安全性考虑"><a href="#七、安全性考虑" class="headerlink" title="七、安全性考虑"></a>七、安全性考虑</h2><p><code>fzf</code> 本身是一个相对安全的工具，因为它主要处理你本地系统中的数据。然而，与其他命令行工具一样，仍有一些点需要注意：</p>
+<ol>
+<li><strong>输入来源</strong>：<code>fzf</code> 只是一个过滤器。如果其输入来自不可信的源（例如，从网络下载的恶意文件名列表），那么后续使用 <code>fzf</code> 选中的结果去执行其他命令时，仍可能带来风险。因此，始终确保你的数据源是可信的。</li>
+<li><strong><code>eval</code> 和 <code>source</code> 命令</strong>：如果你使用 <code>fzf</code> 来选择并执行包含 Shell 代码的字符串（例如，选择一个 Shell 脚本并 <code>source</code> 它），请确保这些脚本是安全无害的。</li>
+</ol>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p><code>fzf</code> 是一个真正的命令行效率神器，它以其快速的模糊匹配能力、简洁的交互界面和强大的可定制性，彻底改变了用户在终端中查找和选择信息的方式。无论是文件导航、历史命令回顾、Git 操作还是自定义脚本，<code>fzf</code> 都能无缝集成，将繁琐的手动输入或模糊的 <code>grep</code> 过滤转化为直观、高效的交互式体验。掌握 <code>fzf</code> 及其集成技巧，将显著提升你的命令行工作效率和舒适度，使其成为现代命令行用户不可或缺的工具。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/1875cb2898b7/">https://blog.tbf1211.xx.kg/1875cb2898b7/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Linux/">Linux</a><a class="post-meta__tags" href="/tags/macOS/">macOS</a><a class="post-meta__tags" href="/tags/%E5%91%BD%E4%BB%A4%E8%A1%8C/">命令行</a><a class="post-meta__tags" href="/tags/Windows/">Windows</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-07.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/84f87d7e2bfd/" title="Node.js Path, URL, 和 Query String 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Node.js Path, URL, 和 Query String 模块详解</div></div><div class="info-2"><div class="info-item-1"> 在 Node.js 开发中，处理文件路径、统一资源定位符（URL）及其查询字符串是日常任务。path、url 和 querystring 这三个核心模块提供了强大且跨平台的功能，使得开发者能够高效、安全地解析、格式化和操作这些关键的标识符数据。  核心思想：path 抽象操作系统文件路径差异；url 标准化 URL 的解析与构建；querystring 专注于查询参数的编码与解码。 它们共同构成了 Node.js 应用在文件系统和网络层面的基础数据处理能力。   一、path 模块：处理文件和目录路径path 模块提供了用于处理文件和目录路径的工具函数。它无需 require() 即可使用（通常是 const path = require(&#39;path&#39;);），并且抽象了操作系统之间路径表示方式的差异。 1.1 核心概念 跨平台兼容性：path 模块设计用于处理 POSIX (Linux&#x2F;macOS) 和 Windows 操作系统之间的路径差异。它提供了 path.sep（路径片段分隔符）和 path.delimiter（环境变量分隔符）来适应不同平台。...</div></div></div></a><a class="pagination-related" href="/e4ac942e6528/" title="深入理解JavaScript原型链（Prototype Chain）"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">深入理解JavaScript原型链（Prototype Chain）</div></div><div class="info-2"><div class="info-item-1"> JavaScript 的原型链 (Prototype Chain) 是其实现继承的核心机制，也是理解 JavaScript 面向对象编程的关键。与 C++ 或 Java 等传统面向对象语言通过类（class）来实现继承不同，JavaScript 是一种基于原型 (Prototype-based) 的语言。这意味着对象可以直接从其他对象继承属性和方法。  核心思想：每个 JavaScript 对象都有一个指向其原型 (prototype) 的内部链接。当访问一个对象的属性或方法时，如果该对象本身没有这个属性或方法，JavaScript 就会沿着这条链向上查找，直到找到该属性或方法，或者查找到原型链的末端（null）。   一、理解原型链的基石：[[Prototype]]、__proto__ 和 prototype在深入原型链之前，我们需要区分三个核心概念： 1.1 1. [[Prototype]] (隐式原型) 这是一个存在于每个 JavaScript 对象上的内部属性。 它指向该对象的原型对象。 它是真正构成原型链的链接。 在 ES5 之后，可以通过 Object.getPro...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-07</div><div class="info-item-2">传统命令行工具的现代补强与替代方案详解</div></div><div class="info-2"><div class="info-item-1"> 随着技术的发展和用户体验需求的变化，许多经典的 Unix&#x2F;Linux 命令行工具虽然功能强大且稳定，但在交互性、可视化、性能和便捷性方面，逐渐暴露出一些局限性。为了提升命令行操作的效率、可读性和舒适度，社区涌现出大量用 Go、Rust 等现代语言编写的“补强”或“替代”工具。本文将详细介绍一系列旨在现代化命令行体验的工具。  核心思想：并非完全取代经典工具，而是通过提供更丰富的功能、更美观的输出、更快的执行速度和更友好的交互方式，来增强或补充传统命令行工具的能力，以适应现代开发和系统管理的需求。   一、文件查看与内容处理1.1 cat 的补强：bat 传统工具：cat (concatenate files and print on the standard output) 现代补强：bat bat 是 cat 的一个语法高亮、分页和 Git 集成增强版。它不仅能显示文件内容，还能： 语法高亮：对代码文件自动进行语法高亮显示，支持多种编程语言。 行号显示：默认显示行号，方便代码审查和定位。 Git 集成：在显示文件时，会自动显示 Git 变更标记（如新增、修改）。 分...</div></div></div></a><a class="pagination-related" href="/2214744a8ff3/" title="Oh My Posh 详解 - 终端提示符美化与增强"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-29</div><div class="info-item-2">Oh My Posh 详解 - 终端提示符美化与增强</div></div><div class="info-2"><div class="info-item-1"> Oh My Posh 是一个开源的、高度可定制的命令行提示符（prompt）引擎，旨在为你的终端（Terminal）提供美观且功能丰富的提示符。它支持多种 shell，包括 PowerShell、Bash、Zsh、Cmd、Fish 等，并且能够显示 Git 状态、当前路径、用户名、系统信息、电池状态等多种上下文信息，极大地提升了终端使用的效率和体验。  核心思想：将静态、单调的命令行提示符，转换为动态、数据丰富、高度定制化且视觉友好的信息中心，从而提高工作效率和终端美观度。   一、为什么选择 Oh My Posh？传统的命令行提示符通常信息量有限且外观单调，例如 PS C:\Users\Username&gt; 或 user@host:~$。在进行复杂的开发工作时，你可能经常需要：  查看 Git 仓库状态：当前分支、是否有未提交的更改、是否有未推送的提交。 快速了解当前路径：路径过长时自动截断，仅显示相关部分。 获取其他上下文信息：例如当前 Python 虚拟环境、Node.js 版本、Go 版本、电池电量等。 视觉美观：一个漂亮的终端能让人心情愉悦，提高工作效率。 跨平台...</div></div></div></a><a class="pagination-related" href="/bbac3d35a168/" title="Zsh (Z Shell) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-07-07</div><div class="info-item-2">Zsh (Z Shell) 详解</div></div><div class="info-2"><div class="info-item-1"> Zsh (Z Shell) 是一款功能强大的 Unix Shell，与 Bash、Ksh、TCSH 等 Shell 类似，但它在功能和可定制性方面提供了显著的增强。Zsh 提供了更强大的命令补全、历史记录、参数展开、拼写纠正、主题和插件支持等功能，极大地提升了命令行用户的体验和效率。许多 macOS 和 Linux 用户选择 Zsh 作为他们的默认 Shell，特别是结合 Oh My Zsh 等框架使用时。  核心思想：Zsh 是 Bash 的一个强大且高度可定制的超集，旨在提供更智能、更高效的命令行交互体验。   一、Zsh 概览与核心优势1.1 什么是 Zsh？Zsh 是一个兼容 POSIX 标准的命令行解释器。它在 Bash 的基础上进行了大量的改进和扩展，提供了许多 Bash 没有的功能。它最初由 Paul Falstad 在 1990 年开发。 1.2 Zsh 相较于 Bash 的优势虽然 Bash 已经非常强大和普及，但 Zsh 在以下方面提供了显著优势：  更强大的自动补全 (Autocompletion)： 智能感知上下文，能够补全命令、文件路径、选项、变量、甚...</div></div></div></a><a class="pagination-related" href="/adec04354a63/" title="Homebrew 深度详解：Macos (Linux) 上的包管理器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-02</div><div class="info-item-2">Homebrew 深度详解：Macos (Linux) 上的包管理器</div></div><div class="info-2"><div class="info-item-1"> Homebrew 是 macOS（以及近期扩展到 Linux）平台上一款免费开源的软件包管理系统，它简化了在 Mac 上安装 UNIX 工具、开源软件和各种开发工具的过程。对于开发者而言，Homebrew 极大地提高了生产力，使得在命令行环境下安装、更新和管理软件变得像使用 apt 或 yum 那样简单。它弥补了 macOS 缺乏官方包管理器的不足，被誉为“Mac 缺失的包管理器”。  核心思想：Homebrew 是 macOS (和 Linux) 上的命令行包管理器，通过简化安装、更新和管理软件的过程，极大地提高了开发者的工作效率。它允许用户安装 Apple 没有预装但 UNIX 世界常用的工具，以及各种开发软件。   一、什么是 Homebrew？Homebrew 是一个用 Ruby 编写的软件包管理器。它允许用户从命令行轻松安装、更新和卸载软件。与其它的软件包管理器不同，Homebrew 以一种非侵入式的方式工作，它将所有软件包安装在 &#x2F;usr&#x2F;local&#x2F;Cellar (默认路径) 下，然后通过符号链接将可执行文件链接到 /usr/loca...</div></div></div></a><a class="pagination-related" href="/0fe4ebbe0d37/" title="Fish Shell 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-07-31</div><div class="info-item-2">Fish Shell 详解</div></div><div class="info-2"><div class="info-item-1"> Fish Shell (Friendly Interactive Shell) 是一个专为交互式使用而设计的类 Unix Shell。与 Bash 或 Zsh 等传统 Shell 不同，Fish 的核心设计哲学是提供开箱即用 (out-of-the-box) 的用户友好体验，它默认集成了许多现代化功能，如语法高亮、自动建议和 Web 配置界面，致力于让命令行工作更加便捷和高效，而无需复杂的配置。  核心思想：“Friendly” 是 Fish Shell 的核心，它预装了许多提升用户体验的功能，减少了用户手动配置的负担，让命令行操作更加智能、直观。   一、为什么选择 Fish Shell？传统的 Shell (如 Bash, Zsh) 功能强大且高度可定制，但它们的许多高级特性需要用户投入大量时间进行配置，例如：  语法高亮：需要额外安装插件。 自动建议：需要额外安装插件，如 Zsh 的 zsh-autosuggestions。 灵活的Tab补全：需要复杂的配置。 更友好的错误提示：通常需要手动配置。  对于许多用户而言，尤其是那些刚接触命令行或希望减少配置时间的开发者，这些...</div></div></div></a><a class="pagination-related" href="/e410b6ed358c/" title="oh-my-zsh 与 Powerlevel10k：终端环境深度定制指南"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-07-08</div><div class="info-item-2">oh-my-zsh 与 Powerlevel10k：终端环境深度定制指南</div></div><div class="info-2"><div class="info-item-1"> 命令行界面 (CLI) 是开发者日常工作中不可或缺的工具。一个高效、美观且功能强大的终端环境，能够显著提升开发效率与体验。本文将详细介绍如何安装和配置 oh-my-zsh 这一流行的 Zsh 框架，并进一步集成 Powerlevel10k 主题，以构建一个极致优化的终端工作区。  核心思想：通过 Zsh 及其生态系统，将传统命令行终端从单一的命令执行器，提升为具备智能辅助、高度定制化和卓越视觉体验的开发利器。 oh-my-zsh 简化了 Zsh 的管理，而 Powerlevel10k 则在美观性和性能上将 Zsh 推向新的高度。    一、Zsh 简介与 oh-my-zsh 核心概念在深入安装之前，理解 Zsh 和 oh-my-zsh 的基本概念至关重要。 1.1 Zsh (Z Shell) 简介 定义：Zsh (Z Shell) 是一种功能强大的 Unix shell，它不仅兼容 Bash (Bourne-Again Shell) 的大部分功能，还在其基础上进行了诸多增强和扩展。 特性： 高级自动补全：提供更智能、更灵活的命令、参数、文件路径补全功能。 历史命令管理：支持跨会...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">474</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">230</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">82</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-fzf%EF%BC%9F"><span class="toc-text">一、为什么需要 fzf？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81fzf-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">二、fzf 的工作原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B%E7%A4%BA%E6%84%8F%E5%9B%BE"><span class="toc-text">工作流程示意图</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AE%89%E8%A3%85-fzf"><span class="toc-text">三、安装 fzf</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-Linux-macOS-%E5%AE%89%E8%A3%85"><span class="toc-text">3.1 Linux&#x2F;macOS 安装</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8%E5%8C%85%E7%AE%A1%E7%90%86%E5%99%A8-%E6%8E%A8%E8%8D%90"><span class="toc-text">使用包管理器 (推荐)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%8E%E6%BA%90%E4%BB%A3%E7%A0%81%E5%AE%89%E8%A3%85"><span class="toc-text">从源代码安装</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Windows-%E5%AE%89%E8%A3%85"><span class="toc-text">3.2 Windows 安装</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-Scoop-%E6%8E%A8%E8%8D%90"><span class="toc-text">使用 Scoop (推荐)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-Chocolatey"><span class="toc-text">使用 Chocolatey</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E4%B8%8E%E5%B8%B8%E7%94%A8%E9%9B%86%E6%88%90"><span class="toc-text">四、核心功能与常用集成</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95"><span class="toc-text">4.1 基本用法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%96%87%E4%BB%B6%E6%A8%A1%E7%B3%8A%E6%9F%A5%E6%89%BE-Shell-%E9%94%AE%E7%BB%91%E5%AE%9A"><span class="toc-text">4.2 文件模糊查找 (Shell 键绑定)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%8E%86%E5%8F%B2%E5%91%BD%E4%BB%A4%E6%A8%A1%E7%B3%8A%E6%9F%A5%E6%89%BE-Shell-%E9%94%AE%E7%BB%91%E5%AE%9A"><span class="toc-text">4.3 历史命令模糊查找 (Shell 键绑定)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E6%A8%A1%E7%B3%8A%E5%88%87%E6%8D%A2%E7%9B%AE%E5%BD%95-Shell-%E9%94%AE%E7%BB%91%E5%AE%9A"><span class="toc-text">4.4 模糊切换目录 (Shell 键绑定)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E4%B8%8E-Git-%E9%9B%86%E6%88%90"><span class="toc-text">4.5 与 Git 集成</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%A8%A1%E7%B3%8A%E5%88%87%E6%8D%A2-Git-%E5%88%86%E6%94%AF"><span class="toc-text">模糊切换 Git 分支</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%A8%A1%E7%B3%8A%E6%9F%A5%E6%89%BE-Git-%E6%8F%90%E4%BA%A4-log"><span class="toc-text">模糊查找 Git 提交 (log)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E8%BF%9B%E7%A8%8B%E7%AE%A1%E7%90%86"><span class="toc-text">4.6 进程管理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%AB%98%E7%BA%A7%E9%85%8D%E7%BD%AE%E4%B8%8E%E5%AE%9A%E5%88%B6"><span class="toc-text">五、高级配置与定制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F"><span class="toc-text">5.1 环境变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%91%BD%E4%BB%A4%E8%A1%8C%E9%80%89%E9%A1%B9"><span class="toc-text">5.2 命令行选项</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E9%9B%86%E6%88%90%E5%88%B0-IDE-%E7%BC%96%E8%BE%91%E5%99%A8"><span class="toc-text">六、集成到 IDE &#x2F; 编辑器</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Vim-Neovim"><span class="toc-text">Vim&#x2F;Neovim</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E8%99%91"><span class="toc-text">七、安全性考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="传统命令行工具的现代补强与替代方案详解"/></a><div class="content"><a class="title" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解">传统命令行工具的现代补强与替代方案详解</a><time datetime="2026-01-06T22:24:00.000Z" title="发表于 2026-01-07 06:24:00">2026-01-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何防止 Golang Goroutine 泄漏"/></a><div class="content"><a class="title" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏">如何防止 Golang Goroutine 泄漏</a><time datetime="2025-12-30T22:24:00.000Z" title="发表于 2025-12-31 06:24:00">2025-12-31</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-07.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
