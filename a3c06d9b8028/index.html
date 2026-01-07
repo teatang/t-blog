@@ -1,0 +1,545 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>pipx 详解：Python 命令行应用程序的沙盒化管理工具 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="pipx 是一个专门用于安装和运行 Python 命令行应用程序 (CLI tools) 的工具，它将每个应用程序安装到独立的虚拟环境中，并使其可从系统 PATH 中直接调用。其核心目标是解决全局安装 Python CLI 工具时可能出现的依赖冲突问题，同时提供类似系统原生应用程序的便捷使用体验。  核心思想：为每个 Python 命令行工具创建独立的虚拟环境进行安装，避免依赖冲突，并通过符号链">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pipx 详解：Python 命令行应用程序的沙盒化管理工具">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/a3c06d9b8028/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="pipx 是一个专门用于安装和运行 Python 命令行应用程序 (CLI tools) 的工具，它将每个应用程序安装到独立的虚拟环境中，并使其可从系统 PATH 中直接调用。其核心目标是解决全局安装 Python CLI 工具时可能出现的依赖冲突问题，同时提供类似系统原生应用程序的便捷使用体验。  核心思想：为每个 Python 命令行工具创建独立的虚拟环境进行安装，避免依赖冲突，并通过符号链">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg">
+<meta property="article:published_time" content="2024-11-29T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-07T03:33:23.891Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="项目构建">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="包管理">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "pipx 详解：Python 命令行应用程序的沙盒化管理工具",
+  "url": "https://blog.tbf1211.xx.kg/a3c06d9b8028/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg",
+  "datePublished": "2024-11-29T22:24:00.000Z",
+  "dateModified": "2026-01-07T03:33:23.891Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/a3c06d9b8028/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'pipx 详解：Python 命令行应用程序的沙盒化管理工具',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">472</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">230</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">82</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-11.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">pipx 详解：Python 命令行应用程序的沙盒化管理工具</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">pipx 详解：Python 命令行应用程序的沙盒化管理工具</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-11-29T22:24:00.000Z" title="发表于 2024-11-30 06:24:00">2024-11-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/">Python</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Python/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.1k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>pipx</strong> 是一个专门用于安装和运行 Python 命令行应用程序 (CLI tools) 的工具，它将每个应用程序安装到独立的虚拟环境中，并使其可从系统 PATH 中直接调用。其核心目标是解决全局安装 Python CLI 工具时可能出现的依赖冲突问题，同时提供类似系统原生应用程序的便捷使用体验。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>为每个 Python 命令行工具创建独立的虚拟环境进行安装，避免依赖冲突，并通过符号链接将其可执行文件暴露到系统 PATH 中，实现全局可用但又相互隔离。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-pipx？"><a href="#一、为什么需要-pipx？" class="headerlink" title="一、为什么需要 pipx？"></a>一、为什么需要 pipx？</h2><p>传统的 Python 包管理方式，如直接使用 <code>pip</code> 或手动管理 <code>venv</code>，在处理命令行应用程序时存在一些痛点：</p>
+<ol>
+<li><p><strong>全局 <code>pip</code> 安装的风险</strong>：</p>
+<ul>
+<li>直接使用 <code>pip install &lt;package&gt;</code> 进行全局安装，可能将包及其依赖安装到系统 Python 环境中。这可能导致系统 Python 环境变得混乱，甚至破坏依赖于特定 Python 版本的系统工具。</li>
+<li>不同的命令行工具可能依赖相同库的不同版本。例如，工具 A 需要 <code>requests==2.20</code>，而工具 B 需要 <code>requests==2.25</code>。如果都全局安装，会造成依赖冲突，导致其中一个或两个工具无法正常工作。</li>
+</ul>
+</li>
+<li><p><strong>手动 <code>venv</code> 管理的繁琐</strong>：</p>
+<ul>
+<li>虽然可以使用 <code>venv</code>（或 <code>virtualenv</code>）为每个命令行工具创建独立的虚拟环境，以避免依赖冲突，但这通常需要手动创建环境、激活环境、安装工具、然后记住如何从特定的虚拟环境运行该工具。这对于开发者来说是可行的，但对于只想使用命令行工具的用户来说，不够友好且容易出错。</li>
+</ul>
+</li>
+</ol>
+<p><code>pipx</code> 旨在解决这些问题，提供一种<strong>安全、便捷且隔离</strong>的方式来管理 Python CLI 应用程序：</p>
+<ul>
+<li><strong>隔离性</strong>：每个应用程序都安装在自己的独立虚拟环境中，彻底避免了不同应用程序之间的依赖冲突。</li>
+<li><strong>全局可用性</strong>：尽管应用程序被隔离，<code>pipx</code> 通过在用户 PATH 中创建符号链接，使得这些工具可以像普通命令行程序一样直接调用，无需手动激活虚拟环境。</li>
+<li><strong>清洁的系统环境</strong>：不会污染系统级的 Python 安装。</li>
+<li><strong>简化管理</strong>：提供了一系列命令来安装、升级、列出和卸载这些独立的应用程序，降低了管理复杂性。</li>
+</ul>
+<p>你可以将 <code>pipx</code> 视为 Python 版的 JavaScript <code>npx</code> 或 macOS <code>brew</code> &#x2F; Linux <code>apt</code> &#x2F; <code>dnf</code> 等包管理器，但它专注于 Python CLI 应用程序。</p>
+<h2 id="二、pipx-的工作原理"><a href="#二、pipx-的工作原理" class="headerlink" title="二、pipx 的工作原理"></a>二、pipx 的工作原理</h2><p><code>pipx</code> 的核心机制是自动化 <code>venv</code> 和符号链接 (symlink) 的管理：</p>
+<ol>
+<li><strong>创建隔离的虚拟环境</strong>：当你使用 <code>pipx install &lt;package&gt;</code> 命令时，<code>pipx</code> 会在 <code>~/.local/pipx/venvs/</code> (这是默认位置，可通过 <code>PIPX_HOME</code> 环境变量覆盖) 目录下为指定的包自动创建一个全新的、独立的虚拟环境。</li>
+<li><strong>安装包及其依赖</strong>：在这个新创建的虚拟环境中，<code>pipx</code> 会使用 <code>pip</code> 安装你指定的 Python 包及其所有依赖。</li>
+<li><strong>暴露命令行入口点 (Entry Points)</strong>：Python 包的开发者可以在 <code>setup.py</code> 或 <code>pyproject.toml</code> 中定义 “console script entry points” (控制台脚本入口点)。这些入口点是 Python 包提供的命令行工具的名称。</li>
+<li><strong>创建符号链接</strong>：<code>pipx</code> 会在 <code>~/.local/bin/</code> (这是默认位置，可通过 <code>PIPX_BIN_DIR</code> 环境变量覆盖) 目录下为这些命令行入口点创建符号链接，指向其在隔离虚拟环境中的实际可执行文件。</li>
+<li><strong>PATH 配置</strong>：为了让这些符号链接在任何终端会话中都可执行，<code>pipx</code> 会提示或帮助你确保 <code>~/.local/bin/</code> 目录已添加到你的系统 <code>PATH</code> 环境变量中。你可以通过 <code>pipx ensurepath</code> 命令来自动完成这一步。</li>
+</ol>
+<p>整个过程是自动化的，用户只需执行一个 <code>pipx</code> 命令。</p>
+<h3 id="工作流程示意图"><a href="#工作流程示意图" class="headerlink" title="工作流程示意图"></a>工作流程示意图</h3><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[用户执行: pipx install &lt;cli_tool&gt;] --&gt; B{pipx}
+
+    B --&gt; C[在 ~&#x2F;.local&#x2F;pipx&#x2F;venvs&#x2F;&lt;cli_tool&gt;&#x2F; 中创建独立的Venv]
+    C --&gt; D[在该Venv中通过 pip 安装 &lt;cli_tool&gt; 及其所有依赖]
+    D --&gt; E[查找 &lt;cli_tool&gt; 提供的 Console Entry Points]
+    E --&gt; F[在 ~&#x2F;.local&#x2F;bin&#x2F; 中为每个 Entry Point 创建符号链接]
+    F --&gt; G[用户在任何终端直接调用 &lt;cli_tool&gt; 命令]
+    G --&gt; H[系统PATH找到 ~&#x2F;.local&#x2F;bin&#x2F; 中的符号链接]
+    H --&gt; I[符号链接指向 Venv 中的真实可执行文件]
+    I --&gt; J[执行 &lt;cli_tool&gt; 应用程序]
+  </pre></div>
+
+<h2 id="三、关键概念"><a href="#三、关键概念" class="headerlink" title="三、关键概念"></a>三、关键概念</h2><ul>
+<li><strong>隔离虚拟环境 (Isolated Virtual Environments)</strong>：<code>pipx</code> 为每个安装的应用程序创建一个独立的 Python 虚拟环境。这意味着每个应用程序都有自己的 <code>site-packages</code> 目录，其依赖项与其他应用程序互不干扰。</li>
+<li><strong>命令行入口点 (Console Script Entry Points)</strong>：Python 包通过在 <code>setup.py</code> 或 <code>pyproject.toml</code> 中定义 <code>console_scripts</code> 来声明哪些函数应该作为命令行工具暴露。例如，一个名为 <code>black</code> 的包可能会定义一个名为 <code>black</code> 的入口点，让用户可以直接运行 <code>black</code> 命令。</li>
+<li><strong>符号链接 (Symlinks)</strong>：<code>pipx</code> 使用符号链接将隔离虚拟环境中的应用程序可执行文件映射到用户 PATH 中的一个公共目录 (<code>~/.local/bin</code>)。这使得用户可以在不激活特定虚拟环境的情况下运行这些应用程序。</li>
+<li><strong><code>PATH</code> 环境变量</strong>: 操作系统通过 <code>PATH</code> 环境变量来查找可执行程序。<code>pipx</code> 依赖于将 <code>~/.local/bin</code> 添加到 <code>PATH</code> 中，以便能够找到并执行其管理的应用程序。</li>
+</ul>
+<h2 id="四、常用命令"><a href="#四、常用命令" class="headerlink" title="四、常用命令"></a>四、常用命令</h2><h3 id="4-1-安装-pipx"><a href="#4-1-安装-pipx" class="headerlink" title="4.1 安装 pipx"></a>4.1 安装 pipx</h3><p>首先，你需要使用 <code>pip</code> 来安装 <code>pipx</code> 本身。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -m pip install --user pipx</span><br></pre></td></tr></table></figure>
+
+<p>安装完成后，建议运行 <code>pipx ensurepath</code> 来确保 <code>pipx</code> 管理的应用程序可以在命令行中直接访问。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx ensurepath</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-安装应用程序"><a href="#4-2-安装应用程序" class="headerlink" title="4.2 安装应用程序"></a>4.2 安装应用程序</h3><p>安装一个 Python 命令行应用程序，例如 <code>black</code> (一个代码格式化工具)。 <code>pipx install</code> 命令会创建一个新的虚拟环境并安装包。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx install black</span><br></pre></td></tr></table></figure>
+
+<p>如果需要安装特定版本的包：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx install <span class="string">&#x27;black==23.1.0&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-运行一次性应用程序"><a href="#4-3-运行一次性应用程序" class="headerlink" title="4.3 运行一次性应用程序"></a>4.3 运行一次性应用程序</h3><p><code>pipx run</code> 命令允许你在一个临时虚拟环境中运行一个包，而无需永久安装它。这对于尝试一个新工具或者运行不需要长期保留的脚本非常方便。 <code>pipx</code> 会下载、安装到临时环境，运行，然后清理。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 运行 pycowsay 工具，无需安装</span></span><br><span class="line">pipx run pycowsay moo</span><br></pre></td></tr></table></figure>
+
+<p>你可以运行远程或本地的 .py 脚本，甚至可以指定依赖：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># hello.py</span></span><br><span class="line"><span class="comment"># /// script</span></span><br><span class="line"><span class="comment"># dependencies = [</span></span><br><span class="line"><span class="comment"># &quot;rich==13.7.0&quot;,</span></span><br><span class="line"><span class="comment"># ]</span></span><br><span class="line"><span class="comment"># ///</span></span><br><span class="line"><span class="keyword">from</span> rich.console <span class="keyword">import</span> Console</span><br><span class="line">console = Console()</span><br><span class="line">console.<span class="built_in">print</span>(<span class="string">&quot;[bold green]Hello, World![/bold green]&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx run hello.py</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-列出已安装的应用程序"><a href="#4-4-列出已安装的应用程序" class="headerlink" title="4.4 列出已安装的应用程序"></a>4.4 列出已安装的应用程序</h3><p>查看所有通过 <code>pipx</code> 安装的应用程序及其所在的虚拟环境路径。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx list</span><br></pre></td></tr></table></figure>
+
+<p>输出示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">venvs are in /home/user/.local/pipx/venvs</span><br><span class="line">apps are exposed in /home/user/.local/bin</span><br><span class="line">- black 23.1.0</span><br><span class="line">  installed using python3.9</span><br><span class="line">  - black</span><br><span class="line">  - blackd</span><br><span class="line">- ruff 0.2.2</span><br><span class="line">  installed using python3.9</span><br><span class="line">  - ruff</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-5-升级应用程序"><a href="#4-5-升级应用程序" class="headerlink" title="4.5 升级应用程序"></a>4.5 升级应用程序</h3><p>将所有用 <code>pipx</code> 安装的应用程序升级到最新版本。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx upgrade-all</span><br></pre></td></tr></table></figure>
+
+<p>也可以升级单个应用程序：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx upgrade black</span><br></pre></td></tr></table></figure>
+<p><code>--force</code> 标志可以强制重新安装，即使已是目标版本。</p>
+<h3 id="4-6-卸载应用程序"><a href="#4-6-卸载应用程序" class="headerlink" title="4.6 卸载应用程序"></a>4.6 卸载应用程序</h3><p>卸载单个应用程序及其对应的虚拟环境。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx uninstall black</span><br></pre></td></tr></table></figure>
+
+<p>或卸载所有应用程序：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx uninstall-all</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-7-注入-Inject-额外依赖"><a href="#4-7-注入-Inject-额外依赖" class="headerlink" title="4.7 注入 (Inject) 额外依赖"></a>4.7 注入 (Inject) 额外依赖</h3><p>有时，一个 <code>pipx</code> 安装的应用程序可能需要一些不在其默认依赖列表中的额外包。<code>pipx inject</code> 命令允许你向现有应用程序的虚拟环境中注入新的包。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 假设你安装了 my-tool，现在想给它添加 requests 库</span></span><br><span class="line">pipx inject my-tool requests</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、pipx-与-pip-venv-的比较"><a href="#五、pipx-与-pip-venv-的比较" class="headerlink" title="五、pipx 与 pip&#x2F;venv 的比较"></a>五、pipx 与 pip&#x2F;venv 的比较</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left"><code>pip</code> (全局安装)</th>
+<th align="left"><code>pip</code> (在虚拟环境中)</th>
+<th align="left"><code>pipx</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>目的</strong></td>
+<td align="left">通用 Python 包安装器，用于库和应用程序。通常用于项目依赖。</td>
+<td align="left">项目级别的依赖管理，确保项目环境隔离。</td>
+<td align="left">专门用于安装和运行 Python 命令行应用程序。</td>
+</tr>
+<tr>
+<td align="left"><strong>隔离性</strong></td>
+<td align="left">无隔离，直接安装到当前 Python 环境。</td>
+<td align="left">将包安装到激活的虚拟环境中，与系统或其他项目隔离。</td>
+<td align="left">为每个 CLI 应用程序创建独立的虚拟环境，完全隔离。</td>
+</tr>
+<tr>
+<td align="left"><strong>可用性</strong></td>
+<td align="left">全局可用，但可能导致依赖冲突。</td>
+<td align="left">仅在激活特定虚拟环境后可用。</td>
+<td align="left">全局可用，无需激活虚拟环境，通过符号链接实现。</td>
+</tr>
+<tr>
+<td align="left"><strong>依赖冲突</strong></td>
+<td align="left">高风险，容易发生。</td>
+<td align="left">低风险，项目间隔离。</td>
+<td align="left">几乎无风险，应用程序间隔离。</td>
+</tr>
+<tr>
+<td align="left"><strong>管理</strong></td>
+<td align="left">手动处理版本冲突，卸载可能不完全。</td>
+<td align="left">需要手动创建、激活、去激活虚拟环境。</td>
+<td align="left">自动化虚拟环境和 PATH 管理，简化安装、升级、卸载。</td>
+</tr>
+<tr>
+<td align="left"><strong>典型用途</strong></td>
+<td align="left">安装项目所需的库、系统级工具（不推荐）。</td>
+<td align="left">开发特定 Python 项目时管理其依赖。</td>
+<td align="left">安装 <code>black</code> (格式化), <code>ruff</code> (Linter), <code>httpie</code> (CLI HTTP 客户端), <code>youtube-dl</code> (视频下载工具) 等命令行工具。</td>
+</tr>
+</tbody></table>
+<p><strong>总结</strong>：</p>
+<ul>
+<li><strong><code>pip</code> (在 <code>venv</code> 中)</strong>：用于管理<strong>项目依赖</strong>，当你需要 <code>import</code> 的库或特定项目所需工具时使用。</li>
+<li><strong><code>pipx</code></strong>：用于安装和管理你作为<strong>用户</strong>在命令行中直接运行的<strong>独立 Python 应用程序</strong>。</li>
+</ul>
+<h2 id="六、优点与缺点"><a href="#六、优点与缺点" class="headerlink" title="六、优点与缺点"></a>六、优点与缺点</h2><h3 id="6-1-优点"><a href="#6-1-优点" class="headerlink" title="6.1 优点"></a>6.1 优点</h3><ol>
+<li><strong>解决依赖冲突</strong>：这是 <code>pipx</code> 最显著的优势，每个工具都在自己的沙箱中运行，确保了稳定性。</li>
+<li><strong>保持系统环境清洁</strong>：避免了将大量第三方包及其依赖安装到系统 Python 环境中，降低了系统意外损坏的风险。</li>
+<li><strong>用户友好</strong>：安装后即可直接运行，无需关心虚拟环境的激活与管理，提供了类似原生系统应用的体验。</li>
+<li><strong>易于管理</strong>：统一的命令集用于安装、升级和卸载所有 <code>pipx</code> 管理的应用程序。</li>
+<li><strong>一次性运行</strong>：<code>pipx run</code> 功能非常适合偶尔使用的工具或测试场景，用完即丢，不留痕迹。</li>
+</ol>
+<h3 id="6-2-缺点"><a href="#6-2-缺点" class="headerlink" title="6.2 缺点"></a>6.2 缺点</h3><ol>
+<li><strong>磁盘空间占用</strong>：由于每个应用程序都拥有独立的虚拟环境，即使它们共享一些底层依赖，也会各自存储一份，这可能导致更多的磁盘空间占用。</li>
+<li><strong>不适用于库文件</strong>：<code>pipx</code> 仅适用于带有命令行入口点的应用程序，不能用于安装需要通过 <code>import</code> 引入到 Python 代码中的库。</li>
+</ol>
+<h2 id="七、安全性考虑"><a href="#七、安全性考虑" class="headerlink" title="七、安全性考虑"></a>七、安全性考虑</h2><ol>
+<li><strong>恶意包风险</strong>：如同 <code>pip</code> 一样，从 PyPI 安装任何包都存在风险，PyPI 上曾出现过恶意包。在使用 <code>pipx install</code> 或 <code>pipx run</code> 时，应确保你信任该包的来源。</li>
+<li><strong>名称拼写错误 (Typosquatting)</strong>：攻击者可能上传与流行工具名称相似的恶意包。如果你拼写错误命令名称，<code>pipx</code> 可能会下载并运行一个恶意包。虽然 <code>pipx</code> 开发者已讨论过此问题并考虑缓解措施，但用户仍需谨慎。</li>
+<li><strong>PATH 劫持</strong>：确保 <code>~/.local/bin</code> 在 <code>PATH</code> 中的顺序合理，防止恶意脚本通过劫持 <code>PATH</code> 优先级来伪造 <code>pipx</code> 应用程序。</li>
+<li><strong><code>HTTPS</code> 加密</strong>：<code>pipx</code> 依赖 <code>pip</code> 从 PyPI 下载包，理论上下载过程是安全的（通过 HTTPS）。</li>
+</ol>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p><code>pipx</code> 是现代 Python 开发中一个非常实用的工具，它以一种优雅的方式解决了 Python 命令行应用程序的依赖冲突和全局可用性问题。通过自动化虚拟环境的创建和符号链接的管理，<code>pipx</code> 使得安装和使用 Python CLI 工具变得前所未有的简单和安全。对于任何经常使用 Python 命令行工具的开发者或用户来说，<code>pipx</code> 都应该成为其工具箱中的重要组成部分。它让你可以在享受 Python 生态丰富工具的同时，保持系统的整洁和项目的隔离。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/a3c06d9b8028/">https://blog.tbf1211.xx.kg/a3c06d9b8028/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/%E5%8C%85%E7%AE%A1%E7%90%86/">包管理</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-11.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/aeeb1d5d94e7/" title="WebDAV详解：基于HTTP的分布式文件管理协议"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">WebDAV详解：基于HTTP的分布式文件管理协议</div></div><div class="info-2"><div class="info-item-1"> WebDAV (Web Distributed Authoring and Versioning) 是一种基于 HTTP 协议的扩展协议，它允许客户端直接通过 Web 远程地执行文件和文件夹的操作，包括创建、移动、复制、删除、读取以及管理文件属性和锁机制。简而言之，WebDAV 将 Web 服务器从一个简单的内容消费者转变为一个可供用户直接进行创作和协同工作的平台，将 Web 页面视为可编辑的文档集合。  核心思想：WebDAV 在不改变 HTTP 核心语义的前提下，增加了 HTTP 缺乏的文件锁定、属性管理、命名空间管理等功能，使其能够支持分布式文件系统的基本操作。它将传统的“请求-响应”模式扩展为“文档创作-协作”模式。   一、为什么需要 WebDAV？HTTP 的局限性HTTP (Hypertext Transfer Protocol) 在设计之初，主要是为了实现信息的单向传输，即客户端请求资源，服务器提供资源。它的主要方法 (GET, POST, PUT, DELETE, HEAD, OPTIONS) 专注于获取、提交和替换&#x2F;删除单个资源。 然而，对于 We...</div></div></div></a><a class="pagination-related" href="/8d6f5f56de5e/" title="Python Setuptools 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Python Setuptools 详解</div></div><div class="info-2"><div class="info-item-1"> Setuptools 是一个强大的 Python 库，用于简化 Python 项目的打包 (packaging)、分发 (distribution) 和安装 (installation)。它是 distutils 库的增强版，提供了一系列高级功能，如声明项目元数据、自动发现包、安装依赖项、创建可执行脚本和支持插件机制等。Setuptools 已经成为 Python 项目管理和分发的事实标准 (de facto standard)。  核心思想：将 Python 代码、资源文件、元数据和依赖项封装成标准化的发行包 (Source Distribution 或 Wheel)，方便用户通过 pip 等工具安装和管理，从而实现代码的轻松共享和复用。   一、为什么需要 Setuptools？在 Python 项目开发中，尤其当项目需要被他人使用、共享或部署到不同环境时，会遇到以下问题：  代码复用与分发：如何将自己的 Python 代码模块化，并方便地分享给他人使用？简单地复制粘贴文件显然不是一个可持续的方案。 依赖管理：我的项目依赖了哪些第三方库？如何确保用户在安装我的项目时，这些依...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/8d6f5f56de5e/" title="Python Setuptools 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-27</div><div class="info-item-2">Python Setuptools 详解</div></div><div class="info-2"><div class="info-item-1"> Setuptools 是一个强大的 Python 库，用于简化 Python 项目的打包 (packaging)、分发 (distribution) 和安装 (installation)。它是 distutils 库的增强版，提供了一系列高级功能，如声明项目元数据、自动发现包、安装依赖项、创建可执行脚本和支持插件机制等。Setuptools 已经成为 Python 项目管理和分发的事实标准 (de facto standard)。  核心思想：将 Python 代码、资源文件、元数据和依赖项封装成标准化的发行包 (Source Distribution 或 Wheel)，方便用户通过 pip 等工具安装和管理，从而实现代码的轻松共享和复用。   一、为什么需要 Setuptools？在 Python 项目开发中，尤其当项目需要被他人使用、共享或部署到不同环境时，会遇到以下问题：  代码复用与分发：如何将自己的 Python 代码模块化，并方便地分享给他人使用？简单地复制粘贴文件显然不是一个可持续的方案。 依赖管理：我的项目依赖了哪些第三方库？如何确保用户在安装我的项目时，这些依...</div></div></div></a><a class="pagination-related" href="/92d90a6caba1/" title="Python 项目管理工具 Poetry 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-10</div><div class="info-item-2">Python 项目管理工具 Poetry 详解</div></div><div class="info-2"><div class="info-item-1"> Poetry 是一款现代化的 Python 项目管理和打包工具。它将依赖管理、虚拟环境管理、打包和发布功能集成在一个直观的命令行界面中。Poetry 的核心理念是提供一个统一的、声明式的项目配置方式，以 pyproject.toml 文件 (遵循 PEP 518 和 PEP 621) 作为所有项目元数据和依赖的唯一真实来源。  核心思想：Poetry 旨在通过一个工具，简化 Python 项目从创建到发布的全生命周期管理，确保环境隔离、依赖可重现性和便捷的打包发布流程。   一、为什么需要 Poetry？传统的 Python 项目管理方式通常涉及多个工具和手动步骤，带来了诸多痛点：  pip 和 requirements.txt 的局限性： requirements.txt 仅记录直接依赖，不处理传递性依赖，容易导致环境不一致。 缺乏强大的依赖解析能力，解决包版本冲突困难。 没有统一的元数据管理，项目信息分散在 setup.py、README.md 等文件中。   虚拟环境管理不便： 需要手动创建 venv 或 virtualenv，并手动激活、切换。 项目与虚拟环境的关联不够...</div></div></div></a><a class="pagination-related" href="/62acbead38d8/" title="Python 打包工具 uv 详解：下一代包管理器与构建器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-05-12</div><div class="info-item-2">Python 打包工具 uv 详解：下一代包管理器与构建器</div></div><div class="info-2"><div class="info-item-1"> uv 是由 Astral 公司开发的一款高性能 Rust 实现的 Python 包安装器和解析器，旨在全面替代 pip、pip-tools 和 virtualenv。它以其惊人的速度、严谨的兼容性和现代化功能，正迅速成为 Python 生态系统中的一个重要工具。  核心思想：提供一个单一、快速且可靠的命令行工具，覆盖 Python 包管理生命周期中的关键操作，从环境创建到依赖解析、安装和锁定。   一、引言：为什么需要 uv？Python 包管理长期以来面临着一些挑战，尤其是在性能和一致性方面：  pip 的局限性： 速度慢：pip 在解析大型项目或复杂依赖树时速度较慢，因为它每次都会重新计算依赖，且在网络请求和磁盘 I&#x2F;O 方面未高度优化。 依赖解析不确定性：pip 的解析器有时会出现非确定性行为，对于复杂的依赖冲突，不一定能给出最佳或唯一的解决方案。 缺乏锁定文件机制：pip 本身没有内置的锁定文件（requirements.txt 固然可以锁定，但不是通过 pip 自身的解析冲突机制而来）生成能力，需要 pip-tools 等额外工具。   virtualenv...</div></div></div></a><a class="pagination-related" href="/defab63c60ef/" title="Python with 语句深度详解：资源管理与上下文管理器"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-14</div><div class="info-item-2">Python with 语句深度详解：资源管理与上下文管理器</div></div><div class="info-2"><div class="info-item-1"> Python 的 with 语句 提供了一种更安全、简洁且可读性强的方式来管理资源，确保资源在使用完毕后能够正确地被清理或释放，即使在代码执行过程中发生异常。这个机制的核心是上下文管理器 (Context Manager) 协议，它定义了进入和退出某个代码块时需要执行的操作。  核心思想：with 语句允许你定义一个代码块，当这个代码块被进入时，一个资源会自动被准备好，并且无论代码块如何退出（正常结束或抛出异常），资源都会自动被清理。这大大简化了错误处理和资源管理的复杂性。   一、为什么需要 with 语句？传统资源管理的痛点在很多编程场景中，我们需要使用一些外部资源，例如：  文件操作：打开文件进行读写。 网络连接：建立 Socket 连接。 数据库连接：连接数据库，执行查询。 线程锁：获取和释放锁。 内存分配：比如一些临时的数据结构。  这些资源通常是有限的，并且在使用完毕后必须被正确地释放或清理，否则可能导致：  资源泄漏：文件句柄过多、数据库连接未关闭，最终耗尽系统资源。 数据损坏：文件未正确关闭可能导致数据丢失或不完整。 死锁：锁未正确释放可能导致程序挂起。  传统...</div></div></div></a><a class="pagination-related" href="/65ed4d3a4af3/" title="Python 自定义类的运算符重载详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-27</div><div class="info-item-2">Python 自定义类的运算符重载详解</div></div><div class="info-2"><div class="info-item-1"> 运算符重载 (Operator Overloading) 允许自定义类的实例对标准运算符（如 +, -, *, /, ==, &lt;, [] 等）作出响应。通过在自定义类中定义特定的魔术方法 (Magic Methods) 或称 双下划线方法 (Dunder Methods)，我们可以改变这些运算符的行为，使其适用于我们自己定义的对象。这使得自定义类的实例能够像内置类型一样自然地进行操作，提高了代码的可读性和表达力。  核心思想：通过实现 Python 的特殊方法 (以双下划线 __ 开头和结尾)，我们可以控制自定义对象如何响应内置运算符和函数。这些特殊方法是 Python 语言的“钩子”，允许我们自定义对象的行为。   一、为什么需要运算符重载？考虑一个场景：我们正在创建一个表示二维向量的 Vector 类。如果没有运算符重载，我们可能需要这样写： 12345678910111213141516class Vector:    def __init__(self, x, y):        self.x = x        self.y = y    def add(s...</div></div></div></a><a class="pagination-related" href="/5febe994b52e/" title="Java 构建工具 Maven 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-06-07</div><div class="info-item-2">Java 构建工具 Maven 详解</div></div><div class="info-2"><div class="info-item-1"> Apache Maven (Maven) 是一个强大的项目管理和构建自动化工具，主要服务于基于 Java 的项目。它遵循约定优于配置 (Convention over Configuration) 的原则，提供了一个标准化的项目结构和生命周期，用于编译、测试、打包、部署等任务。Maven 的核心目标是让项目构建过程标准化、可预测且易于维护，同时提供强大的依赖管理功能。  核心思想：Maven 将项目视为一系列相互依赖的模块，通过一个声明式的 XML 文件 (pom.xml) 来管理项目的构建、报告和文档。它推崇一套标准的项目布局和生命周期，从而减少开发者在配置上的工作量。   一、为什么需要 Maven？在 Maven 出现之前，Java 项目的构建和管理通常面临诸多挑战：  依赖管理混乱： 项目所需的所有第三方 JAR 包都需要手动下载并添加到项目的 classpath 中。 如果多个项目使用相同库的不同版本，容易引发冲突 (JAR Hell)。 依赖的依赖（传递性依赖）管理起来更加复杂。   构建过程非标准化： 不同的项目可能有不同的构建脚本 (如 Ant)，导致构建步骤不...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">472</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">230</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">82</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-pipx%EF%BC%9F"><span class="toc-text">一、为什么需要 pipx？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81pipx-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">二、pipx 的工作原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B%E7%A4%BA%E6%84%8F%E5%9B%BE"><span class="toc-text">工作流程示意图</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%85%B3%E9%94%AE%E6%A6%82%E5%BF%B5"><span class="toc-text">三、关键概念</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4"><span class="toc-text">四、常用命令</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%AE%89%E8%A3%85-pipx"><span class="toc-text">4.1 安装 pipx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%AE%89%E8%A3%85%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F"><span class="toc-text">4.2 安装应用程序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E8%BF%90%E8%A1%8C%E4%B8%80%E6%AC%A1%E6%80%A7%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F"><span class="toc-text">4.3 运行一次性应用程序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%88%97%E5%87%BA%E5%B7%B2%E5%AE%89%E8%A3%85%E7%9A%84%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F"><span class="toc-text">4.4 列出已安装的应用程序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E5%8D%87%E7%BA%A7%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F"><span class="toc-text">4.5 升级应用程序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E5%8D%B8%E8%BD%BD%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F"><span class="toc-text">4.6 卸载应用程序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-7-%E6%B3%A8%E5%85%A5-Inject-%E9%A2%9D%E5%A4%96%E4%BE%9D%E8%B5%96"><span class="toc-text">4.7 注入 (Inject) 额外依赖</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81pipx-%E4%B8%8E-pip-venv-%E7%9A%84%E6%AF%94%E8%BE%83"><span class="toc-text">五、pipx 与 pip&#x2F;venv 的比较</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E4%BC%98%E7%82%B9%E4%B8%8E%E7%BC%BA%E7%82%B9"><span class="toc-text">六、优点与缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9"><span class="toc-text">6.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">6.2 缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E8%99%91"><span class="toc-text">七、安全性考虑</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="传统命令行工具的现代补强与替代方案详解"/></a><div class="content"><a class="title" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解">传统命令行工具的现代补强与替代方案详解</a><time datetime="2026-01-06T22:24:00.000Z" title="发表于 2026-01-07 06:24:00">2026-01-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何防止 Golang Goroutine 泄漏"/></a><div class="content"><a class="title" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏">如何防止 Golang Goroutine 泄漏</a><time datetime="2025-12-30T22:24:00.000Z" title="发表于 2025-12-31 06:24:00">2025-12-31</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CFFI (C Foreign Function Interface for Python) 详解"/></a><div class="content"><a class="title" href="/0c48c5fa5942/" title="CFFI (C Foreign Function Interface for Python) 详解">CFFI (C Foreign Function Interface for Python) 详解</a><time datetime="2025-12-23T22:24:00.000Z" title="发表于 2025-12-24 06:24:00">2025-12-24</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-11.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
