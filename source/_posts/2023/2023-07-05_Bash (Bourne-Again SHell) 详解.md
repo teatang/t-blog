@@ -6,8 +6,10 @@ tags:
   - Linux
   - macOS
   - Shell
+  - 命令行
 categories:
-  - Linux
+  - 开发工具
+  - 命令行
 ---
 
 > **Bash (Bourne-Again SHell)** 是 Linux 和 macOS 等 Unix-like 操作系统中最流行、功能最强大的**命令行解释器 (Command Line Interpreter, CLI)** 和**脚本语言**。作为 GNU 项目的一部分，Bash 是 Bourne Shell (sh) 的增强版本，提供命令补全、历史记录、作业控制、更丰富的脚本编程特性等功能，极大地提高了用户在命令行环境下的工作效率。理解 Bash 是掌握 Unix-like 系统操作和自动化任务的关键。

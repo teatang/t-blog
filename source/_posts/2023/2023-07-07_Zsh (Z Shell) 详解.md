@@ -6,8 +6,10 @@ tags:
   - Linux
   - macOS
   - Shell
+  - 命令行
 categories:
-  - Linux
+  - 开发工具
+  - 命令行
 ---
 
 > **Zsh (Z Shell)** 是一款功能强大的 Unix Shell，与 Bash、Ksh、TCSH 等 Shell 类似，但它在功能和可定制性方面提供了显著的增强。Zsh 提供了更强大的命令补全、历史记录、参数展开、拼写纠正、主题和插件支持等功能，极大地提升了命令行用户的体验和效率。许多 macOS 和 Linux 用户选择 Zsh 作为他们的默认 Shell，特别是结合 `Oh My Zsh` 等框架使用时。
