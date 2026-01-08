@@ -2,14 +2,12 @@
 title: MathJax 详解：在 Web 上优雅地渲染数学公式
 date: 2024-03-01 06:24:00
 tags:
-  - MathJax
-  - LaTeX
-  - 数学公式
-  - Web开发
+  - 2024
+  - 前端技术
   - Markdown
 categories:
   - 前端技术
-  - 库
+  - Markdown
 mathjax: true
 ---
 
