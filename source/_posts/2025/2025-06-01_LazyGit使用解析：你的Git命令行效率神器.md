@@ -2,13 +2,15 @@
 title: LazyGit使用解析：你的Git命令行效率神器
 date: 2025-06-01 06:24:00
 tags:
-  - 2025
-  - 开发工具
-  - LazyGit
+  - 2024
+  - Linux
+  - macOS
+  - Windows
   - Git
+  - 命令行
 categories:
   - 开发工具
-  - Git
+  - 命令行
 ---
 
 > 本文将带你深入了解 LazyGit，一个简单直观的终端 UI Git 客户端。如果你厌倦了反复输入 Git 命令，又觉得 GUI 客户端不够灵活，那么 LazyGit 可能会成为你的新宠。它将终端的强大与 GUI 的便捷完美结合，让你的 Git 工作流变得前所未有的高效和愉悦。
