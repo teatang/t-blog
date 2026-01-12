@@ -1,27 +1,26 @@
-<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Go 语言协程设计与调度原理 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Goroutine 是 Go 语言并发编程的核心原语。它不是操作系统线程，而是 Go 运行时 (Runtime) 管理的轻量级协程 (coroutine)。Go 语言设计了一套独特的调度模型，能够高效地将数百万个 Goroutine 调度到有限的操作系统线程上运行，从而实现高并发和高性能。  核心思想：Go 运行时（Runtime）扮演着操作系统内核的角色，它负责 Go 应用程序内部的 Goro">
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Go 语言协程设计与调度原理 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Go 语言以其强大的并发特性而闻名，其核心是轻量级协程 (Goroutine) 和高效的调度器。理解 Goroutine 的设计理念以及 Go 运行时如何调度这些协程，对于编写高性能、高并发的 Go 应用程序至关重要。本文将深入探讨 Go 语言协程的设计哲学，并详细解析其背后支撑的 GMP 调度模型。  核心概念：  Goroutine：Go 语言的轻量级并发单元，用户态线程。 GMP 模型：G">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Go 语言协程设计与调度原理">
 <meta property="og:url" content="https://blog.tbf1211.xx.kg/98c39f8e2307/index.html">
 <meta property="og:site_name" content="1024 维度">
-<meta property="og:description" content="Goroutine 是 Go 语言并发编程的核心原语。它不是操作系统线程，而是 Go 运行时 (Runtime) 管理的轻量级协程 (coroutine)。Go 语言设计了一套独特的调度模型，能够高效地将数百万个 Goroutine 调度到有限的操作系统线程上运行，从而实现高并发和高性能。  核心思想：Go 运行时（Runtime）扮演着操作系统内核的角色，它负责 Go 应用程序内部的 Goro">
+<meta property="og:description" content="Go 语言以其强大的并发特性而闻名，其核心是轻量级协程 (Goroutine) 和高效的调度器。理解 Goroutine 的设计理念以及 Go 运行时如何调度这些协程，对于编写高性能、高并发的 Go 应用程序至关重要。本文将深入探讨 Go 语言协程的设计哲学，并详细解析其背后支撑的 GMP 调度模型。  核心概念：  Goroutine：Go 语言的轻量级并发单元，用户态线程。 GMP 模型：G">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-32.jpg">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg">
 <meta property="article:published_time" content="2025-09-04T22:24:00.000Z">
-<meta property="article:modified_time" content="2026-01-10T15:38:38.248Z">
+<meta property="article:modified_time" content="2026-01-12T09:40:22.790Z">
 <meta property="article:author" content="TeaTang">
 <meta property="article:tag" content="Golang">
 <meta property="article:tag" content="goroutine">
 <meta property="article:tag" content="2025">
-<meta property="article:tag" content="转载">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-32.jpg"><script type="application/ld+json">{
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg"><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "Go 语言协程设计与调度原理",
   "url": "https://blog.tbf1211.xx.kg/98c39f8e2307/",
-  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-32.jpg",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-07.jpg",
   "datePublished": "2025-09-04T22:24:00.000Z",
-  "dateModified": "2026-01-10T15:38:38.248Z",
+  "dateModified": "2026-01-12T09:40:22.790Z",
   "author": [
     {
       "@type": "Person",
@@ -181,193 +180,196 @@
   isToc: true,
   pageType: 'post'
 }</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
-</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">482</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">226</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">83</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-32.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Go 语言协程设计与调度原理</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Go 语言协程设计与调度原理</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-09-04T22:24:00.000Z" title="发表于 2025-09-05 06:24:00">2025-09-05</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/goroutine/">goroutine</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>9分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
-<p><strong>Goroutine</strong> 是 Go 语言并发编程的核心原语。它不是操作系统线程，而是 Go 运行时 (Runtime) 管理的<strong>轻量级协程 (coroutine)</strong>。Go 语言设计了一套独特的调度模型，能够高效地将数百万个 Goroutine 调度到有限的操作系统线程上运行，从而实现高并发和高性能。</p>
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">486</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">83</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-07.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Go 语言协程设计与调度原理</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Go 语言协程设计与调度原理</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-09-04T22:24:00.000Z" title="发表于 2025-09-05 06:24:00">2025-09-05</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/goroutine/">goroutine</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>Go 语言以其强大的并发特性而闻名，其核心是轻量级协程 (Goroutine) 和高效的调度器。理解 Goroutine 的设计理念以及 Go 运行时如何调度这些协程，对于编写高性能、高并发的 Go 应用程序至关重要。本文将深入探讨 Go 语言协程的设计哲学，并详细解析其背后支撑的 GMP 调度模型。</p>
 </blockquote>
-<div class="note info flat"><p>核心思想：Go 运行时（Runtime）扮演着操作系统内核的角色，它负责 Go 应用程序内部的 Goroutine 调度，以最低的成本实现高度并发。</p>
+<div class="note info flat"><p><strong>核心概念</strong>：</p>
+<ul>
+<li><strong>Goroutine</strong>：Go 语言的轻量级并发单元，用户态线程。</li>
+<li><strong>GMP 模型</strong>：Go 语言运行时调度 Goroutine 的核心模型，由 G (Goroutine)、M (Machine&#x2F;Thread)、P (Processor) 三要素组成。</li>
+</ul>
 </div>
+
 <hr>
-<h2 id="一、为什么-Go-要设计-Goroutine-而非直接使用线程？"><a href="#一、为什么-Go-要设计-Goroutine-而非直接使用线程？" class="headerlink" title="一、为什么 Go 要设计 Goroutine 而非直接使用线程？"></a>一、为什么 Go 要设计 Goroutine 而非直接使用线程？</h2><p>传统的操作系统线程，虽然也能实现并发，但在高性能和大规模并发场景下存在一些挑战：</p>
+<h2 id="一、Go-语言协程-Goroutine-的设计哲学"><a href="#一、Go-语言协程-Goroutine-的设计哲学" class="headerlink" title="一、Go 语言协程 (Goroutine) 的设计哲学"></a>一、Go 语言协程 (Goroutine) 的设计哲学</h2><p>传统的并发编程通常基于操作系统线程。虽然线程提供了并发能力，但它们也带来了不小的开销：</p>
+<ul>
+<li><strong>创建&#x2F;销毁开销大</strong>：创建和销毁线程需要向操作系统内核申请资源，涉及系统调用，开销较大。</li>
+<li><strong>上下文切换开销大</strong>：线程的上下文切换由操作系统内核完成，需要保存和恢复大量的寄存器信息，开销较大。</li>
+<li><strong>内存消耗大</strong>：每个线程通常需要 MB 级别的栈空间，大量线程会导致内存消耗巨大。</li>
+<li><strong>调度开销大</strong>：内核态调度涉及特权模式切换，开销较高，且调度算法复杂。</li>
+</ul>
+<p>为了解决这些问题，Go 语言引入了 Goroutine：</p>
 <ol>
-<li><strong>资源开销大</strong>：<ul>
-<li><strong>内存</strong>：操作系统线程栈空间通常较大（MB 级别），即便其中大部分未被使用，也会占用大量内存。创建数万个线程会导致巨大的内存消耗。</li>
-<li><strong>CPU</strong>：线程创建、销毁和上下文切换的开销相对较大，因为这涉及到内核态的参与，需要保存和恢复更多的寄存器、内存页表等信息。</li>
+<li><p><strong>轻量级 (Lightweight)</strong>：</p>
+<ul>
+<li><strong>栈空间小</strong>：Goroutine 启动时仅占用几 KB (通常 2KB) 的栈空间，并且可以根据需要动态伸缩 (称为分段栈 Segmented Stack)。这使得 Go 程序可以轻松创建成千上万甚至上百万个 Goroutine，而不会耗尽系统资源。</li>
+<li><strong>用户态管理</strong>：Goroutine 的创建、销毁和调度都发生在 Go 运行时 (Runtime) 的用户态，无需陷入内核，大大降低了开销。</li>
 </ul>
 </li>
-<li><strong>调度开销大</strong>：操作系统线程的调度由内核完成，其调度算法通常是通用的，难以针对特定应用场景进行优化，且用户态程序无法感知和影响线程调度。</li>
-<li><strong>开发复杂度高</strong>：直接使用线程进行并发编程，需要处理复杂的<strong>同步原语（如互斥锁、信号量）</strong>，容易引发死锁、活锁、数据竞态等问题，增加开发和调试难度。</li>
+<li><p><strong>并发而非并行</strong>：</p>
+<ul>
+<li>Go 语言强调的是<strong>并发 (Concurrency)</strong>，即能够同时处理多个任务的能力，而非严格意义上的<strong>并行 (Parallelism)</strong>，即多个任务在同一时刻真正在不同的处理器上运行。</li>
+<li>Go 调度器将多个 Goroutine 复用到少量 OS 线程上，实现了并发。当底层有多个 CPU 核心时，调度器会利用这些核心实现并行。</li>
+</ul>
+</li>
+<li><p><strong>通过通信共享内存 (Communicating Sequential Processes, CSP)</strong>：</p>
+<ul>
+<li>Go 语言鼓励通过 Channel (通道) 在 Goroutine 之间进行通信来共享内存，而不是通过共享内存加锁的方式。</li>
+<li>设计哲学是“<strong>不要通过共享内存来通信，而应该通过通信来共享内存</strong>”。这有助于避免复杂的锁机制、死锁和竞争条件。</li>
+</ul>
+</li>
 </ol>
-<p>Go 语言为了解决这些问题，引入了 Goroutine：</p>
-<ul>
-<li><strong>轻量级</strong>：Goroutine 的栈空间初始只有几 KB，而且能够根据需要动态扩容和收缩，大大降低了内存开销。</li>
-<li><strong>用户态调度</strong>：Goroutine 的调度由 Go 运行时在用户态完成，无需进入内核态，上下文切换成本极低（通常只需几纳秒）。</li>
-<li><strong>通信共享内存</strong>：Go 通过 Channel 机制提倡“通过通信来共享内存”，而不是“通过共享内存来通信”，从而简化了并发编程模型，降低了同步的复杂度。</li>
-</ul>
-<h2 id="二、Goroutine-的底层设计"><a href="#二、Goroutine-的底层设计" class="headerlink" title="二、Goroutine 的底层设计"></a>二、Goroutine 的底层设计</h2><h3 id="2-1-栈动态扩缩容"><a href="#2-1-栈动态扩缩容" class="headerlink" title="2.1 栈动态扩缩容"></a>2.1 栈动态扩缩容</h3><p>Goroutine 的栈是一个关键的设计。它并非固定大小，而是从一个很小的初始值（例如 2KB）开始，根据程序执行的需要进行动态扩缩容。当 Goroutine 函数调用深度增加，栈空间不够时，Go 运行时会自动分配一个新的更大的栈，并将旧栈内容复制过去。当函数返回，栈缩小，多余的内存也会被释放。</p>
-<ul>
-<li><strong>优点</strong>：<ul>
-<li>极大地节省了内存，尤其是在创建大量 Goroutine 时。</li>
-<li>开发者无需关心栈溢出问题，Go 运行时会自动处理。</li>
-</ul>
-</li>
-<li><strong>实现</strong>：Go 使用 Contiguous Stack (连续栈) 设计，而不是传统语言的 Segmented Stack (分段栈)。连续栈在扩容时需要复制，但其地址连续性对 CPU 缓存和垃圾回收器更友好。</li>
-</ul>
-<h3 id="2-2-Goroutine-状态"><a href="#2-2-Goroutine-状态" class="headerlink" title="2.2 Goroutine 状态"></a>2.2 Goroutine 状态</h3><p>一个 Goroutine 在其生命周期中会经历多种状态，Go 运行时会根据 Goroutine 的状态决定如何调度它：</p>
-<ul>
-<li><strong>_Gidle</strong>：初始状态。</li>
-<li><strong>_Grunnable</strong>：等待被 P 调度运行的状态，已被加入调度队列。</li>
-<li><strong>_Grunning</strong>：正在 M 上执行的状态。</li>
-<li><strong>_Gsyscall</strong>：正在执行系统调用（如文件 I&#x2F;O、网络 I&#x2F;O）的状态。此时 M 被阻塞，P 会寻找其他 G 执行或者和 M 解绑。</li>
-<li><strong>_Gwaiting</strong>：被阻塞，等待 Channel 操作、锁、网络事件或定时器等的 Goroutine。</li>
-<li><strong>_Gdead</strong>：已退出或还没有被创建的状态。</li>
-</ul>
-<h2 id="三、Go-调度器-GMP-模型详解"><a href="#三、Go-调度器-GMP-模型详解" class="headerlink" title="三、Go 调度器 - GMP 模型详解"></a>三、Go 调度器 - GMP 模型详解</h2><p>Go 调度器是连接 Goroutine 和操作系统线程的桥梁，它采用了 <strong>GMP (Goroutine - Machine&#x2F;Thread - Processor)</strong> 模型。</p>
-<h3 id="3-1-GMP-各组件的作用"><a href="#3-1-GMP-各组件的作用" class="headerlink" title="3.1 GMP 各组件的作用"></a>3.1 GMP 各组件的作用</h3><ul>
+<h3 id="1-1-Goroutine-的创建"><a href="#1-1-Goroutine-的创建" class="headerlink" title="1.1 Goroutine 的创建"></a>1.1 Goroutine 的创建</h3><p>通过 <code>go</code> 关键字即可轻松启动一个 Goroutine：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">sayHello</span><span class="params">()</span></span> &#123;</span><br><span class="line">	time.Sleep(<span class="number">1</span> * time.Second) <span class="comment">// 模拟耗时操作</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;Hello from Goroutine!&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">go</span> sayHello() <span class="comment">// 启动一个新的 Goroutine</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;Hello from main Goroutine!&quot;</span>)</span><br><span class="line">	time.Sleep(<span class="number">2</span> * time.Second) <span class="comment">// 等待 sayHello Goroutine 执行完成</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Hello from main Goroutine!</span><br><span class="line">Hello from Goroutine!</span><br></pre></td></tr></table></figure>
+<p>这里 <code>main</code> 函数本身也在一个 Goroutine 中运行。</p>
+<h2 id="二、GMP-调度模型详解"><a href="#二、GMP-调度模型详解" class="headerlink" title="二、GMP 调度模型详解"></a>二、GMP 调度模型详解</h2><p>Go 语言的运行时调度器采用了一种 M:N (M 个 OS 线程调度 N 个 Goroutine) 的混合调度模型，其核心是 <strong>GMP 模型</strong>。</p>
+<h3 id="2-1-GMP-三要素"><a href="#2-1-GMP-三要素" class="headerlink" title="2.1 GMP 三要素"></a>2.1 GMP 三要素</h3><ul>
 <li><p><strong>G (Goroutine)</strong>：</p>
 <ul>
-<li>Go 语言并发的执行单元。</li>
-<li>每个 Goroutine 封装了执行的代码、栈信息和运行时状态。</li>
-<li>轻量，由 Go 运行时自行管理其生命周期、调度和上下文切换。</li>
+<li>代表一个 Goroutine，是 Go 语言中最基本的执行单元。</li>
+<li>每个 Goroutine 封装了需要执行的函数、栈空间、Goroutine ID (gid) 以及其他调度相关信息。</li>
+<li>Goroutine 处于就绪态时，会被放置在运行队列中等待被调度。</li>
 </ul>
 </li>
 <li><p><strong>M (Machine&#x2F;Thread)</strong>：</p>
 <ul>
-<li>对应一个操作系统内核线程 (OS Thread)。</li>
-<li>M 是 Goroutine 真正运行的载体，负责执行 G 中的代码。</li>
-<li>M 拥有一个真实的 OS 线程栈。</li>
-<li>M 默认与 P 绑定，通过 P 获取待执行的 G。</li>
-<li>当 M 执行某个 G 发生阻塞性系统调用 (syscall) 时，该 M 会进入 <code>_Gsyscall</code> 状态并被 Go 调度器从 P 上解绑，P 会寻找新的 M 或创建一个新的 M 来继续执行调度队列中的其他 G。</li>
+<li>代表一个操作系统 (OS) 线程。</li>
+<li>它是 Goroutine 运行的载体，是 CPU 真正执行指令的单位。</li>
+<li>M 维护着一个或多个 Goroutine，当 M 空闲时，它会从 P (Processor) 的本地运行队列或全局运行队列中获取 G 来执行。</li>
+<li>M 是有数量限制的，通常默认为 10000 个，但通常只会运行少量 M (通常与 <code>GOMAXPROCS</code> 数量相关)。</li>
 </ul>
 </li>
 <li><p><strong>P (Processor)</strong>：</p>
 <ul>
-<li>一个逻辑处理器 (Context)。</li>
-<li>P 将 Goroutine 与 M 连接起来，是 Go 调度器的核心。</li>
-<li>每个 P 维护一个本地的 Goroutine 运行队列 (Local Run Queue, LRQ)。</li>
-<li>P 的数量由 <code>GOMAXPROCS</code> 环境变量控制（默认为 CPU 核心数），这决定了同时并行执行的 OS 线程 (M) 的最大数量。</li>
-<li>P 负责调度其 LRQ 中的 Goroutine 到绑定的 M 上执行。</li>
+<li>代表一个逻辑处理器 (或 CPU 核心)。</li>
+<li>P 的数量由环境变量 <code>GOMAXPROCS</code> 控制，默认值是 CPU 的核心数。</li>
+<li>P 是 Goroutine 调度的核心，它连接了 G 和 M。每个 P 维护一个本地 Goroutine 运行队列 (Local Run Queue)，存储着等待运行的 G。</li>
+<li>P 的主要作用是为 M 提供执行 Goroutine 所需的上下文。当 M 绑定了一个 P 时，它就可以从 P 的本地队列中获取 G 并执行。</li>
+<li>P 保证了 M 在执行 G 时不会被其他 M 抢占。</li>
 </ul>
 </li>
 </ul>
-<h3 id="3-2-调度器的运行机制"><a href="#3-2-调度器的运行机制" class="headerlink" title="3.2 调度器的运行机制"></a>3.2 调度器的运行机制</h3><ol>
-<li><p><strong>调度队列</strong>：</p>
+<h3 id="2-2-调度过程"><a href="#2-2-调度过程" class="headerlink" title="2.2 调度过程"></a>2.2 调度过程</h3><ol>
+<li><p><strong>创建 Goroutine</strong>：当 <code>go func()</code> 被调用时，一个新的 G 会被创建，并放入当前 P 的本地运行队列 (Local Run Queue, LRQ) 中。如果 LRQ 已满，则放入全局运行队列 (Global Run Queue, GRQ)。</p>
+</li>
+<li><p><strong>M 与 P 绑定</strong>：当一个 M 需要执行 Goroutine 时，它会尝试获取一个空闲的 P。</p>
+</li>
+<li><p><strong>G 的执行</strong>：M 从它绑定的 P 的 LRQ 中取出 G 并执行。</p>
+</li>
+<li><p><strong>G 的调度点</strong>：Goroutine 不会一直霸占 M。Go 调度器会在以下几种情况发生时进行调度：</p>
 <ul>
-<li><strong>全局运行队列 (Global Run Queue, GRQ)</strong>：存放等待调度的 Goroutine。</li>
-<li><strong>本地运行队列 (Local Run Queue, LRQ)</strong>：每个 P 都有一个 LRQ，通常容量为 256 个 Goroutine。新创建的 Goroutine 或从系统调用返回的 Goroutine 优先放入 P 的 LRQ。</li>
+<li><strong>系统调用 (Syscall)</strong>：当 Goroutine 执行阻塞的系统调用 (如文件 I&#x2F;O, 网络 I&#x2F;O) 时，当前的 M 会被阻塞。为了不阻塞整个程序，Go 运行时会将该 M 与 P 解绑，并将该 P 移交给一个空闲的 M 来继续执行其他 Goroutine。当系统调用返回时，原 Goroutine 会被唤醒并尝试重新获取一个 P 继续执行。</li>
+<li><strong>Channel 操作</strong>：当 Goroutine 在 Channel 上发送或接收阻塞时，它会被挂起，等待 Channel 变为可用。</li>
+<li><strong>网络 I&#x2F;O (Non-blocking I&#x2F;O)</strong>：Go 运行时会通过网络轮询器 (NetPoller，如 epoll&#x2F;kqueue) 异步处理网络 I&#x2F;O。当 Goroutine 发起网络 I&#x2F;O 时，它会注册到 NetPoller，然后 G 会被挂起，P 会调度其他 G。当 I&#x2F;O 完成时，NetPoller 会通知调度器，G 被唤醒并重新排队。</li>
+<li><strong>定时器 (Timer)</strong>：<code>time.Sleep</code> 或 <code>time.Timer</code> 会导致 Goroutine 挂起。</li>
+<li><strong>GC 停止</strong>：当垃圾回收器需要停止所有 Goroutine (STW, Stop-The-World) 时，也会涉及调度。</li>
+<li><strong>函数调用</strong>：编译器会在函数调用处插入一些指令，这些指令可能触发抢占式调度。尤其是在 Go 1.14 之后，Go 实现了<strong>非协作式抢占 (Asynchronous Preemption)</strong>，即使 Goroutine 没有主动放弃 M，运行时也可以在安全的点 (如函数调用入口或循环回跳处) 将其抢占，防止某个 Goroutine 长时间霸占 CPU。</li>
 </ul>
 </li>
-<li><p><strong>Goroutine 的创建</strong>：</p>
-<ul>
-<li>当 <code>go</code> 关键字创建一个新的 Goroutine 时，它会被调度器放入当前 Goroutine 所在 P 的 LRQ 中。如果 LRQ 已满，则放入 GRQ。</li>
-</ul>
-</li>
-<li><p><strong>Goroutine 的执行流程</strong>：</p>
-<ul>
-<li>P 维护着一个 <code>schedule</code> 循环，不断从 LRQ 中取出 Goroutine G。</li>
-<li>P 将 G 交给与之绑定的 M 来执行。</li>
-<li>M 执行 G 中的代码，直到：<ul>
-<li><strong>G 执行完成</strong>：G 被标记为 <code>_Gdead</code>，M 从 P 的 LRQ 中取下一个 G。</li>
-<li><strong>G 主动让出 CPU</strong>：如 <code>runtime.Gosched()</code>，G 重新回到 LRQ 末尾。</li>
-<li><strong>G 发生阻塞</strong>：<ul>
-<li><strong>非阻塞型 I&#x2F;O</strong> (如网络操作，由 Go 运行时实现成异步) 或 <strong>Channel 通信阻塞</strong>：G 进入 <code>_Gwaiting</code> 状态。调度器将 G 从 M 上移除， M 从 P 的 LRQ 中取下一个 G。当阻塞事件就绪时，G 会被放入 LRQ 重新等待调度。</li>
-<li><strong>阻塞型系统调用 (Blocking Syscall)</strong> (如文件 I&#x2F;O)：M 将 G 设置为 <code>_Gsyscall</code> 状态。此时，M 会阻塞，Go 调度器为了不让 P 闲置，会将当前 P 从 M 上解绑，并寻找一个空闲的 M（或创建一个新的 M）来绑定 P。当 M 完成 syscall 后，G 变为 <code>_Grunnable</code> 并被重新放入调度队列，M 则尝试重新绑定 P 或进入休眠。</li>
-</ul>
-</li>
-<li><strong>G 运行时间过长 (抢占式调度)</strong>：Go 1.14 引入了<strong>异步抢占式调度</strong>。当 Goroutine 运行超过一定时间（如 10ms），它不会主动让出 CPU 核心。Go 运行时会向 OS 发送信号，让 OS 暂停该 Goroutine，以便 M 可以切换到其他 Goroutine。这解决了早期版本中 Goroutine “霸占”CPU 的问题。</li>
-</ul>
-</li>
-</ul>
+<li><p><strong>P 的任务窃取 (Work Stealing)</strong>：如果一个 P 的 LRQ 为空，它会尝试从其他 P 的 LRQ 中窃取 Goroutine。如果所有 P 的 LRQ 都为空，它会尝试从 GRQ 中获取。如果 GRQ 也为空，M 可能会进入休眠状态，等待有新的 G 可用。</p>
 </li>
 </ol>
-<h3 id="3-3-调度器偷取-Work-Stealing"><a href="#3-3-调度器偷取-Work-Stealing" class="headerlink" title="3.3 调度器偷取 (Work Stealing)"></a>3.3 调度器偷取 (Work Stealing)</h3><p>当一个 P 的 LRQ 为空时，它并不会闲置。它会进行“工作窃取”：</p>
-<ol>
-<li><strong>从 GRQ 窃取</strong>：首先尝试从全局运行队列 (GRQ) 中批量获取 Goroutine。</li>
-<li><strong>从其他 P 窃取</strong>：如果 GRQ 也为空，P 会随机选择一个其他 P，并从其 LRQ 中窃取一半的 Goroutine。</li>
-<li><strong>进入网络轮询</strong>：如果仍然没有 Goroutine，P 会检查是否有 Goroutine 在等待网络 I&#x2F;O，如果有，则尝试运行它们。</li>
-<li><strong>最终 M 进入休眠</strong>：如果以上所有方式都无法找到可运行的 Goroutine，M 最终会进入休眠状态，等待新的 Goroutine 被创建或阻塞的 Goroutine 解除阻塞。</li>
-</ol>
-<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
-    graph TD
-    subgraph &quot;Goroutine (G)&quot;
-        G_new[New Goroutine]
-        G_ready[Runnable G]
-        G_running[Running G]
-        G_blocked_i[I&#x2F;O Blocked G]
-        G_blocked_chan[Channel Blocked G]
-        G_syscall[Syscall Blocked G]
-    end
+<h3 id="2-3-GMP-模型的状态转换"><a href="#2-3-GMP-模型的状态转换" class="headerlink" title="2.3 GMP 模型的状态转换"></a>2.3 GMP 模型的状态转换</h3><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    stateDiagram
+    [*] --&gt; 创建G
+    创建G --&gt; P队列: G加入P的本地队列&lt;br&gt;或全局队列
+    P队列 --&gt; M绑定P: M从P获取G
+    M绑定P --&gt; G运行: M在P上执行G
+    G运行 --&gt; G阻塞: G执行阻塞操作 (syscall, &lt;br&gt;channel, select, time.Sleep)
+    G阻塞 --&gt; 阻塞M解绑P: M被阻塞，P交给其他M
+    阻塞M解绑P --&gt; G唤醒: 阻塞操作完成，G被唤醒
+    G唤醒 --&gt; P队列: 唤醒的G加入P的本地&lt;br&gt;队列或全局队列
 
-    subgraph &quot;Logical Processor (P)&quot;
-        P1[P1]
-        P2[P2]
-        P_queue1{P1 LRQ}
-        P_queue2{P2 LRQ}
-    end
+    G运行 --&gt; P队列: G主动放弃CPU (例如：调度&lt;br&gt;器抢占、GOMAXPROCS切换)
+    G运行 --&gt; 结束G: G函数执行完毕
 
-    subgraph &quot;OS Thread (M)&quot;
-        M1[M1]
-        M2[M2]
-        M_syscall[&quot;M3 (Syscall Blocked)&quot;]
-    end
-
-    subgraph CPU Cores
-        CPU_Core1[CPU Core 1]
-        CPU_Core2[CPU Core 2]
-    end
-
-    G_new --&gt; P_queue1
-    G_new --&gt; P_queue2
-
-    P_queue1 --&gt; G_ready
-    P_queue2 --&gt; G_ready
-    G_ready --&gt; G_running
-
-    G_running -- Timeout or Gosched() --&gt; P_queue1
-    G_running -- Channel Block --&gt; G_blocked_chan
-    G_blocked_chan -- Channel Ready --&gt; P_queue1
-
-    G_running -- Async Network I&#x2F;O --&gt; G_blocked_i
-    G_blocked_i -- Network Ready --&gt; P_queue2
-
-    G_running -- Blocking Syscall --&gt; G_syscall
-    G_syscall --&gt; M_syscall
-
-    P1 -- Fetch G from LRQ --&gt; G_running
-    P2 -- Fetch G from LRQ --&gt; G_running
-
-    M1 -- Bind P1 --&gt; P1
-    M2 -- Bind P2 --&gt; P2
-
-    M1 --&gt; CPU_Core1
-    M2 --&gt; CPU_Core2
-
-    M_syscall -- Syscall --&gt; OS_Kernel[OS Kernel]
-
-    P1 -- LRQ Empty --&gt; Scheduler_Steal[Scheduler Stealing Logic]
-    Scheduler_Steal -- Steal from P2 LRQ --&gt; P_queue2
-    Scheduler_Steal -- Steal from Global Queue --&gt; GRQ_Global[Global Run Queue]
-
-    GRQ_Global --&gt; P_queue1
-    GRQ_Global --&gt; P_queue2
-
-    M_syscall -- Syscall End, G_syscall to G_ready --&gt; GRQ_Global
-
-    style G_syscall fill:#faa,stroke:#333,stroke-width:2px,color:#000
-    style M_syscall fill:#faa,stroke:#333,stroke-width:2px,color:#000
-    style CPU_Core1 fill:#bfb,stroke:#333,stroke-width:2px,color:#000
-    style CPU_Core2 fill:#bfb,stroke:#333,stroke-width:2px,color:#000
+    P队列 --&gt; M寻找P: P的本地队列为空，M尝试&lt;br&gt;从全局队列或其它P窃取G
+    M寻找P --&gt; M空闲: M长时间找不到G，进入休眠
   </pre></div>
 
-<h2 id="四、Go-调度器的优势"><a href="#四、Go-调度器的优势" class="headerlink" title="四、Go 调度器的优势"></a>四、Go 调度器的优势</h2><ol>
-<li><strong>高并发支持</strong>：轻量级 Goroutine 结合高效的 GMP 调度模型，使得 Go 程序能够轻松创建和管理数百万 Goroutine，实现高并发。</li>
-<li><strong>低上下文切换开销</strong>：用户态调度和 Goroutine 的小栈设计，使得上下文切换成本远低于操作系统线程，提升了整体性能。</li>
-<li><strong>良好的并行度</strong>：P 的数量通常设置为 CPU 核心数，确保了在多核 CPU 上 Goroutine 能够并行执行，充分利用硬件资源。</li>
-<li><strong>I&#x2F;O 复用</strong>：Go 运行时内置了 I&#x2F;O 多路复用机制。当 Goroutine 进行网络 I&#x2F;O 等操作时，不会阻塞整个 OS 线程，而是将其切换到 <code>_Gwaiting</code> 状态，对应的 M 可以继续执行其他 Goroutine。当 I&#x2F;O 完成时，Goroutine 会被唤醒并重新调度。</li>
-<li><strong>减少死锁&#x2F;竞态</strong>：Go 提倡通过 Channel 通信来共享数据，而不是通过共享内存加锁，这在很大程度上简化了并发逻辑，减少了死锁和数据竞态的发生几率。</li>
-<li><strong>异步抢占式调度</strong>：Go 1.14 引入的异步抢占式调度解决了传统协作式调度可能导致的 Goroutine 独占 CPU 问题，使得长时间运行的 Goroutine 也能够被公平调度。</li>
+<h3 id="2-4-GOMAXPROCS-的作用"><a href="#2-4-GOMAXPROCS-的作用" class="headerlink" title="2.4 GOMAXPROCS 的作用"></a>2.4 <code>GOMAXPROCS</code> 的作用</h3><p><code>GOMAXPROCS</code> 环境变量控制着 Go 程序能够同时使用的逻辑处理器 (P) 的数量。</p>
+<ul>
+<li><code>GOMAXPROCS = N</code> 意味着 Go 调度器最多会同时调度 N 个 Goroutine 在 N 个 OS 线程上运行 (并行执行)。</li>
+<li>如果 Goroutine 数量超过 N，它们将通过时间片轮转的方式在 N 个 P 上复用。</li>
+<li>默认值是机器的 CPU 核心数，这通常是最佳设置。手动调整 <code>GOMAXPROCS</code> 可能会影响性能，需要谨慎。</li>
+</ul>
+<h2 id="三、Goroutine-与操作系统线程、进程的对比"><a href="#三、Goroutine-与操作系统线程、进程的对比" class="headerlink" title="三、Goroutine 与操作系统线程、进程的对比"></a>三、Goroutine 与操作系统线程、进程的对比</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">进程 (Process)</th>
+<th align="left">线程 (Thread)</th>
+<th align="left">Goroutine</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>拥有资源</strong></td>
+<td align="left">独立地址空间，文件句柄等</td>
+<td align="left">共享进程地址空间，独立栈</td>
+<td align="left">共享进程地址空间，独立栈</td>
+</tr>
+<tr>
+<td align="left"><strong>上下文切换</strong></td>
+<td align="left">重量级，由内核调度</td>
+<td align="left">中量级，由内核调度</td>
+<td align="left"><strong>极轻量级，由 Go 运行时调度</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>内存消耗</strong></td>
+<td align="left">MB 级别</td>
+<td align="left">MB 级别 (默认 1-8MB)</td>
+<td align="left"><strong>KB 级别 (默认 2KB)</strong>，动态伸缩</td>
+</tr>
+<tr>
+<td align="left"><strong>调度</strong></td>
+<td align="left">内核态，抢占式</td>
+<td align="left">内核态，抢占式</td>
+<td align="left"><strong>用户态，协作式 + 抢占式</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>创建开销</strong></td>
+<td align="left">大</td>
+<td align="left">中</td>
+<td align="left"><strong>极小</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>通信方式</strong></td>
+<td align="left">IPC (管道、消息队列等)</td>
+<td align="left">共享内存加锁、条件变量</td>
+<td align="left"><strong>Channel (推荐)</strong>，共享内存加锁</td>
+</tr>
+<tr>
+<td align="left"><strong>数量</strong></td>
+<td align="left">较少</td>
+<td align="left">几百到几千</td>
+<td align="left"><strong>数十万到上百万</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>编程难度</strong></td>
+<td align="left">较复杂</td>
+<td align="left">中等，易出错 (死锁、竞态)</td>
+<td align="left"><strong>简单，语言内置支持</strong></td>
+</tr>
+</tbody></table>
+<h2 id="四、Go-调度器实现细节和优化"><a href="#四、Go-调度器实现细节和优化" class="headerlink" title="四、Go 调度器实现细节和优化"></a>四、Go 调度器实现细节和优化</h2><ol>
+<li><strong>分段栈 (Segmented Stack)</strong>：Goroutine 的栈不是固定大小的，它会根据需要动态增长和收缩。当栈空间不足时，运行时会自动分配更大的栈段；当栈空间空闲时，也会回收。这大大减少了内存占用。</li>
+<li><strong>网络轮询器 (NetPoller)</strong>：Go 运行时内置了高效的网络轮询器 (基于 <code>epoll</code>, <code>kqueue</code>, <code>iocp</code> 等)，用于处理非阻塞 I&#x2F;O。当 Goroutine 进行网络操作时，它不会阻塞底层的 OS 线程，而是将 I&#x2F;O 事件注册到 NetPoller，然后 P 可以调度其他 Goroutine。I&#x2F;O 完成后，NetPoller 会通知调度器唤醒原 Goroutine。</li>
+<li><strong>抢占式调度 (Preemptive Scheduling)</strong>：<ul>
+<li><strong>协作式抢占</strong>：在 Go 1.14 之前，Goroutine 只能在特定的“安全点” (如 Channel 操作、系统调用、函数调用) 主动放弃 M，如果一个 Goroutine 进入死循环或长时间计算，可能导致其他 Goroutine 饥饿。</li>
+<li><strong>非协作式抢占</strong>：从 Go 1.14 开始，引入了基于信号的异步抢占。即使 Goroutine 不主动放弃，运行时也可以在它执行一段代码后（例如，在循环的某个点）暂停它，让其他 Goroutine 有机会运行。这解决了长时间计算导致饥饿的问题，提高了调度的公平性。</li>
+</ul>
+</li>
+<li><strong>垃圾回收器 (GC)</strong>：Go 的 GC 也是调度器的一部分。在 GC 运行时，会进行 STW (Stop-The-World) 暂停所有 Goroutine，但这已被优化到非常短的时间。调度器会协助 GC 暂停和恢复 Goroutine。</li>
 </ol>
-<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>Goroutine 是 Go 语言在并发领域的一项卓越创新。通过设计轻量级的协程和高效的用户态调度器（GMP 模型），Go 语言成功地将硬件并行能力、操作系统线程管理和应用程序级别的并发需求有效地结合起来。它极大地降低了并发编程的复杂度和资源开销，使得开发者能够以更直观、更有效的方式编写出高性能、高并发的网络服务和分布式系统。理解 Goroutine 和 GMP 调度模型是掌握 Go 并发编程的关键。</p>
-</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/98c39f8e2307/">https://blog.tbf1211.xx.kg/98c39f8e2307/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/goroutine/">goroutine</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/%E8%BD%AC%E8%BD%BD/">转载</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-32.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/7a02193c3680/" title="React Native 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">React Native 详解</div></div><div class="info-2"><div class="info-item-1"> React Native 是 Facebook（现 Meta）于 2015 年推出的一个开源移动应用开发框架。它允许开发者使用 JavaScript 和 React 编写代码，同时将应用编译为原生 (Native) 的 iOS 和 Android 应用。其核心理念是“Learn once, write anywhere”——开发者只需学习一套技术栈（React 和 JavaScript），即可构建在多个平台运行的移动应用。  核心思想： React Native 并非将 Web 应用打包为移动应用（如 Cordova&#x2F;Ionic），而是通过 JavaScript 桥接，将 React 组件转换为真正的原生 UI 组件，从而提供接近原生应用的性能和用户体验，同时享受前端开发的高效率。   一、为什么选择 React Native？传统的移动应用开发通常需要为 iOS（使用 Swift&#x2F;Objective-C）和 Android（使用 Java&#x2F;Kotlin）分别编写两套代码，维护成本高昂。React Native 旨在解决这一痛点，提供以下核心优势：...</div></div></div></a><a class="pagination-related" href="/723e73a7d735/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用</div></div><div class="info-2"><div class="info-item-1"> 在 Golang 中，数组 (Array) 和 切片 (Slice) 是两种常用的、用于存储同类型数据序列的数据结构。虽然它们在表面上看起来相似，但其底层实现、特性和用法却有着本质的区别。理解它们之间的差异对于编写高效且符合 Go 惯例的代码至关重要。  核心思想：数组是固定长度的值类型数据结构，而切片是可变长度的引用类型数据结构，它引用了一个底层数组。切片提供了更灵活、更强大的序列操作能力，是 Go 语言中推荐的动态序列类型。   在 Go 语言的世界里，数组 (Array) 和切片 (Slice) 是我们日常编程中接触最频繁的两种数据结构。它们虽然在表面上有些相似，但骨子里却有着根本性的区别，深刻理解这些差异是写出高效、可靠 Go 代码的关键。本文将带你深入剖析 Array 和 Slice 的核心原理、实战中的使用场景、常见陷阱，以及如何做出最明智的选择。 1. 基础定义：Array vs Slice1.1 数组 (Array)：编译时确定的固定长度序列数组是一种固定长度的、连续存储的相同类型元素序列。它的长度在声明时就已确定，并且是其类型的一部分。这意味着 [3]int ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-12-31</div><div class="info-item-2">如何防止 Golang Goroutine 泄漏</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，Goroutine 是轻量级的并发执行单元，相比操作系统线程，其创建和销毁的开销极小。然而，这并不意味着我们可以随意创建 Goroutine 而不进行管理。当一个 Goroutine 启动后，如果它无法正常退出，就会一直占用内存和 CPU 资源，这种现象称为 Goroutine 泄漏 (Goroutine Leak)。Goroutine 泄漏会导致程序内存持续增长，最终耗尽系统资源，甚至引发 OOM (Out Of Memory) 错误，严重影响程序的稳定性和性能。  核心思想：Goroutine 泄漏的本质是，一个 Goroutine 完成了其预期的任务，但由于某种原因无法终止或被回收，持续占用资源。防止泄漏的关键在于确保每个 Goroutine 都有明确的退出条件和机制。   一、什么是 Goroutine 泄漏？Goroutine 泄漏是指 Goroutine 在其生命周期结束后未能被 Go 运行时回收，从而持续驻留在内存中。一个泄漏的 Goroutine 会一直占用：  栈内存：每个 Goroutine 都会分配栈空间 (初始 2KB 并动态伸缩)。大...</div></div></div></a><a class="pagination-related" href="/8f9f1342d7a2/" title="Golang 如何等待多个 Goroutine"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-10</div><div class="info-item-2">Golang 如何等待多个 Goroutine</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言轻量级并发的核心，它使得在程序中同时运行多个任务变得简单高效。然而，当启动多个 Goroutine 后，主程序或管理 Goroutine 常常需要知道这些并发任务何时完成，或者需要等待它们全部完成后再继续执行。这种“等待 Goroutine 完成”的机制是并发编程中至关重要的一环，确保了程序的正确性、资源的有序释放以及结果的汇总。  核心思想：管理 Goroutine 的生命周期是并发编程的关键。Go 提供了 sync.WaitGroup、Channels 以及 context.Context 结合 errgroup.Group 等多种机制，以适应不同复杂度和需求的 Goroutine 等待场景。   一、为什么需要等待 Goroutine？在 Go 语言中，main 函数的 Goroutine 启动后，即使它退出了，其他未完成的 Goroutine 也会继续运行。但通常情况下，我们希望：  确保任务完成：等待所有子 Goroutine 完成计算、I&#x2F;O 操作或数据处理，以避免数据丢失或不完整。 结果汇总：在所有 Goroutine ...</div></div></div></a><a class="pagination-related" href="/7601ab41dda6/" title="Go语言并发与并行详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-23</div><div class="info-item-2">Go语言并发与并行详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言（Golang） 被设计为一门天然支持并发的语言，其并发模型是基于 CSP (Communicating Sequential Processes) 理论的实现。Go 语言通过轻量级的 Goroutine (协程) 和原生的 Channel (管道) 机制，极大地简化了并发编程的复杂性，使得开发者能够更容易地编写出高并发、高性能的应用程序。  核心思想：不要通过共享内存来通信；相反，通过通信来共享内存。 这是 Go 并发哲学中的核心原则。   一、并发 (Concurrency) 与并行 (Parallelism)在深入 Go 语言的并发机制之前，理解并发与并行的区别至关重要。 1.1 并发 (Concurrency) 定义：并发是指系统能够同时处理多个任务的能力。这些任务不一定在同一时刻运行，它们可能在单个 CPU 核心上通过时间片轮转的方式快速切换执行，给人一种“同时进行”的错觉。 特性： 处理多个任务：关注如何设计程序来处理事件流，即使只有一个处理器。 任务切换：通过快速切换执行上下文来模拟同时执行。 目的：提高程序的吞吐量和响应速度。   类比：一个厨师可以在...</div></div></div></a><a class="pagination-related" href="/f93f336b1901/" title="Golang 底层的多路复用和调度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-21</div><div class="info-item-2">Golang 底层的多路复用和调度详解</div></div><div class="info-2"><div class="info-item-1"> 多路复用 (Multiplexing) 在计算机网络编程中，通常指的是 I&#x2F;O 多路复用 (I&#x2F;O Multiplexing)，它是一种允许单个进程或线程监视多个 I&#x2F;O 事件（如网络连接、文件描述符）并在任何一个 I&#x2F;O 事件准备就绪时通知应用程序的机制。相较于传统的“一个连接一个线程&#x2F;进程”模型，I&#x2F;O 多路复用能够以更低的资源消耗处理大量并发连接，是构建高性能网络服务的基础。  核心思想：Go 语言通过其独特的运行时 (Runtime) 调度器和轻量级协程 (Goroutine) 机制，巧妙地将底层操作系统的 I&#x2F;O 多路复用能力抽象化，为开发者提供了编写简洁、高效且易于并发的网络服务的能力，让 I&#x2F;O 操作看起来像阻塞的，实则在底层是非阻塞的。   一、为什么需要多路复用？在理解 Go 语言如何实现多路复用之前，我们首先需要理解为什么它如此重要，以及它解决了哪些传统网络编程模型的痛点。 1.1 传统模型的问题1.1.1 阻塞 I&#x2F;O (Blocking I&#x2F;O)传统的阻塞...</div></div></div></a><a class="pagination-related" href="/87ed4967ce21/" title="Golang Goroutine 同步方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-12</div><div class="info-item-2">Golang Goroutine 同步方法详解</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言并发编程的核心，它是一种轻量级的执行单元，由 Go 运行时调度。然而，当多个 Goroutine 并发执行并访问共享资源时，如果不加以适当的控制，就可能导致数据竞争 (Data Race)、死锁 (Deadlock) 或其他难以调试的并发问题。因此，Goroutine 同步是编写健壮、高效 Go 并发程序的关键。  核心思想：Go 语言推崇通过通信来共享内存，而不是通过共享内存来通信 (Don’t communicate by sharing memory; share memory by communicating)。这体现在其核心的同步机制——Channel 上。然而，Go 也提供了传统的共享内存同步原语，如 Mutex，以应对不同的并发场景。   一、为什么需要 Goroutine 同步？当多个 Goroutine 同时访问和修改同一块内存区域（共享资源）时，操作的顺序变得不确定。这可能导致：  数据竞争 (Data Race)：当至少两个 Goroutine 并发访问同一个内存位置，并且至少有一个是写操作，且没有同步机制来协调这些访问时...</div></div></div></a><a class="pagination-related" href="/5798c9959389/" title="Golang select 多路复用详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-22</div><div class="info-item-2">Golang select 多路复用详解</div></div><div class="info-2"><div class="info-item-1"> select 语句 是 Go 语言中专为并发通信设计的一种控制结构，它允许 Goroutine 在多个通信操作上等待，并在其中任意一个准备就绪时执行相应的代码块。它提供了一种强大的机制，可以监听多个 Channel 的发送和接收操作，实现通信多路复用。这使得 Go 语言能够优雅地处理并发模式，例如超时、取消、扇入 (fan-in) 和任务调度等。  核心思想：select 语句是 Go 语言实现 CSP (Communicating Sequential Processes) 并发模型的核心工具之一，它能够协调和同步多个 Goroutine 之间的通信，使其能够响应最先准备就绪的 Channel 操作，避免了传统多线程编程中复杂的锁和条件变量。   一、为什么需要 select？在 Go 语言中，Goroutine 和 Channel 是构建并发程序的基础。当一个 Goroutine 需要从多个 Channel 中接收数据，或向多个 Channel 发送数据，并且希望响应其中任意一个 Channel 上的第一个就绪事件时，就引入了等待多路通信的需求。 考虑以下场景：  超时处理...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">482</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">226</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">83</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88-Go-%E8%A6%81%E8%AE%BE%E8%AE%A1-Goroutine-%E8%80%8C%E9%9D%9E%E7%9B%B4%E6%8E%A5%E4%BD%BF%E7%94%A8%E7%BA%BF%E7%A8%8B%EF%BC%9F"><span class="toc-text">一、为什么 Go 要设计 Goroutine 而非直接使用线程？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Goroutine-%E7%9A%84%E5%BA%95%E5%B1%82%E8%AE%BE%E8%AE%A1"><span class="toc-text">二、Goroutine 的底层设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A0%88%E5%8A%A8%E6%80%81%E6%89%A9%E7%BC%A9%E5%AE%B9"><span class="toc-text">2.1 栈动态扩缩容</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Goroutine-%E7%8A%B6%E6%80%81"><span class="toc-text">2.2 Goroutine 状态</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Go-%E8%B0%83%E5%BA%A6%E5%99%A8-GMP-%E6%A8%A1%E5%9E%8B%E8%AF%A6%E8%A7%A3"><span class="toc-text">三、Go 调度器 - GMP 模型详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-GMP-%E5%90%84%E7%BB%84%E4%BB%B6%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="toc-text">3.1 GMP 各组件的作用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E8%B0%83%E5%BA%A6%E5%99%A8%E7%9A%84%E8%BF%90%E8%A1%8C%E6%9C%BA%E5%88%B6"><span class="toc-text">3.2 调度器的运行机制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E8%B0%83%E5%BA%A6%E5%99%A8%E5%81%B7%E5%8F%96-Work-Stealing"><span class="toc-text">3.3 调度器偷取 (Work Stealing)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Go-%E8%B0%83%E5%BA%A6%E5%99%A8%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">四、Go 调度器的优势</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fa3d796f3333/" title="MessagePack 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MessagePack 详解"/></a><div class="content"><a class="title" href="/fa3d796f3333/" title="MessagePack 详解">MessagePack 详解</a><time datetime="2026-01-08T22:24:00.000Z" title="发表于 2026-01-09 06:24:00">2026-01-09</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="传统命令行工具的现代补强与替代方案详解"/></a><div class="content"><a class="title" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解">传统命令行工具的现代补强与替代方案详解</a><time datetime="2026-01-06T22:24:00.000Z" title="发表于 2026-01-07 06:24:00">2026-01-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何防止 Golang Goroutine 泄漏"/></a><div class="content"><a class="title" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏">如何防止 Golang Goroutine 泄漏</a><time datetime="2025-12-30T22:24:00.000Z" title="发表于 2025-12-31 06:24:00">2025-12-31</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-32.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>Go 语言的并发模型，以其轻量级的 Goroutine 和高效的 GMP 调度器，极大地简化了并发编程的复杂性，并提供了强大的性能。</p>
+<ul>
+<li><strong>Goroutine</strong> 提供了一种比线程更轻量、更高效的并发单元，让开发者可以轻松构建高并发系统。</li>
+<li><strong>GMP 调度模型</strong> 通过 M:N 调度方式，将大量的 Goroutine 复用到有限的 OS 线程上，实现了高效的并发和并行。P 作为核心调度的上下文，有效地管理了 Goroutine 队列和调度逻辑，并通过任务窃取和非协作式抢占机制，确保了 Goroutine 的公平调度和系统资源的充分利用。</li>
+</ul>
+<p>理解并合理运用 Go 语言的协程和调度原理，是充分发挥 Go 语言并发优势、编写高性能、可伸缩应用程序的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/98c39f8e2307/">https://blog.tbf1211.xx.kg/98c39f8e2307/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/goroutine/">goroutine</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-07.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/7a02193c3680/" title="React Native 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">React Native 详解</div></div><div class="info-2"><div class="info-item-1"> React Native 是 Facebook（现 Meta）于 2015 年推出的一个开源移动应用开发框架。它允许开发者使用 JavaScript 和 React 编写代码，同时将应用编译为原生 (Native) 的 iOS 和 Android 应用。其核心理念是“Learn once, write anywhere”——开发者只需学习一套技术栈（React 和 JavaScript），即可构建在多个平台运行的移动应用。  核心思想： React Native 并非将 Web 应用打包为移动应用（如 Cordova&#x2F;Ionic），而是通过 JavaScript 桥接，将 React 组件转换为真正的原生 UI 组件，从而提供接近原生应用的性能和用户体验，同时享受前端开发的高效率。   一、为什么选择 React Native？传统的移动应用开发通常需要为 iOS（使用 Swift&#x2F;Objective-C）和 Android（使用 Java&#x2F;Kotlin）分别编写两套代码，维护成本高昂。React Native 旨在解决这一痛点，提供以下核心优势：...</div></div></div></a><a class="pagination-related" href="/723e73a7d735/" title="Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go 语言 Array 与 Slice 深度解析：核心区别、实战指南与高效运用</div></div><div class="info-2"><div class="info-item-1"> 在 Golang 中，数组 (Array) 和 切片 (Slice) 是两种常用的、用于存储同类型数据序列的数据结构。虽然它们在表面上看起来相似，但其底层实现、特性和用法却有着本质的区别。理解它们之间的差异对于编写高效且符合 Go 惯例的代码至关重要。  核心思想：数组是固定长度的值类型数据结构，而切片是可变长度的引用类型数据结构，它引用了一个底层数组。切片提供了更灵活、更强大的序列操作能力，是 Go 语言中推荐的动态序列类型。   在 Go 语言的世界里，数组 (Array) 和切片 (Slice) 是我们日常编程中接触最频繁的两种数据结构。它们虽然在表面上有些相似，但骨子里却有着根本性的区别，深刻理解这些差异是写出高效、可靠 Go 代码的关键。本文将带你深入剖析 Array 和 Slice 的核心原理、实战中的使用场景、常见陷阱，以及如何做出最明智的选择。 1. 基础定义：Array vs Slice1.1 数组 (Array)：编译时确定的固定长度序列数组是一种固定长度的、连续存储的相同类型元素序列。它的长度在声明时就已确定，并且是其类型的一部分。这意味着 [3]int ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/8f9f1342d7a2/" title="Golang 如何等待多个 Goroutine"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-10</div><div class="info-item-2">Golang 如何等待多个 Goroutine</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言轻量级并发的核心，它使得在程序中同时运行多个任务变得简单高效。然而，当启动多个 Goroutine 后，主程序或管理 Goroutine 常常需要知道这些并发任务何时完成，或者需要等待它们全部完成后再继续执行。这种“等待 Goroutine 完成”的机制是并发编程中至关重要的一环，确保了程序的正确性、资源的有序释放以及结果的汇总。  核心思想：管理 Goroutine 的生命周期是并发编程的关键。Go 提供了 sync.WaitGroup、Channels 以及 context.Context 结合 errgroup.Group 等多种机制，以适应不同复杂度和需求的 Goroutine 等待场景。   一、为什么需要等待 Goroutine？在 Go 语言中，main 函数的 Goroutine 启动后，即使它退出了，其他未完成的 Goroutine 也会继续运行。但通常情况下，我们希望：  确保任务完成：等待所有子 Goroutine 完成计算、I&#x2F;O 操作或数据处理，以避免数据丢失或不完整。 结果汇总：在所有 Goroutine ...</div></div></div></a><a class="pagination-related" href="/f93f336b1901/" title="Golang 底层的多路复用和调度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-21</div><div class="info-item-2">Golang 底层的多路复用和调度详解</div></div><div class="info-2"><div class="info-item-1"> 多路复用 (Multiplexing) 在计算机网络编程中，通常指的是 I&#x2F;O 多路复用 (I&#x2F;O Multiplexing)，它是一种允许单个进程或线程监视多个 I&#x2F;O 事件（如网络连接、文件描述符）并在任何一个 I&#x2F;O 事件准备就绪时通知应用程序的机制。相较于传统的“一个连接一个线程&#x2F;进程”模型，I&#x2F;O 多路复用能够以更低的资源消耗处理大量并发连接，是构建高性能网络服务的基础。  核心思想：Go 语言通过其独特的运行时 (Runtime) 调度器和轻量级协程 (Goroutine) 机制，巧妙地将底层操作系统的 I&#x2F;O 多路复用能力抽象化，为开发者提供了编写简洁、高效且易于并发的网络服务的能力，让 I&#x2F;O 操作看起来像阻塞的，实则在底层是非阻塞的。   一、为什么需要多路复用？在理解 Go 语言如何实现多路复用之前，我们首先需要理解为什么它如此重要，以及它解决了哪些传统网络编程模型的痛点。 1.1 传统模型的问题1.1.1 阻塞 I&#x2F;O (Blocking I&#x2F;O)传统的阻塞...</div></div></div></a><a class="pagination-related" href="/4e0d929e572f/" title="如何防止 Golang Goroutine 泄漏"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-12-31</div><div class="info-item-2">如何防止 Golang Goroutine 泄漏</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，Goroutine 是轻量级的并发执行单元，相比操作系统线程，其创建和销毁的开销极小。然而，这并不意味着我们可以随意创建 Goroutine 而不进行管理。当一个 Goroutine 启动后，如果它无法正常退出，就会一直占用内存和 CPU 资源，这种现象称为 Goroutine 泄漏 (Goroutine Leak)。Goroutine 泄漏会导致程序内存持续增长，最终耗尽系统资源，甚至引发 OOM (Out Of Memory) 错误，严重影响程序的稳定性和性能。  核心思想：Goroutine 泄漏的本质是，一个 Goroutine 完成了其预期的任务，但由于某种原因无法终止或被回收，持续占用资源。防止泄漏的关键在于确保每个 Goroutine 都有明确的退出条件和机制。   一、什么是 Goroutine 泄漏？Goroutine 泄漏是指 Goroutine 在其生命周期结束后未能被 Go 运行时回收，从而持续驻留在内存中。一个泄漏的 Goroutine 会一直占用：  栈内存：每个 Goroutine 都会分配栈空间 (初始 2KB 并动态伸缩)。大...</div></div></div></a><a class="pagination-related" href="/87ed4967ce21/" title="Golang Goroutine 同步方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-12</div><div class="info-item-2">Golang Goroutine 同步方法详解</div></div><div class="info-2"><div class="info-item-1"> Goroutine 是 Go 语言并发编程的核心，它是一种轻量级的执行单元，由 Go 运行时调度。然而，当多个 Goroutine 并发执行并访问共享资源时，如果不加以适当的控制，就可能导致数据竞争 (Data Race)、死锁 (Deadlock) 或其他难以调试的并发问题。因此，Goroutine 同步是编写健壮、高效 Go 并发程序的关键。  核心思想：Go 语言推崇通过通信来共享内存，而不是通过共享内存来通信 (Don’t communicate by sharing memory; share memory by communicating)。这体现在其核心的同步机制——Channel 上。然而，Go 也提供了传统的共享内存同步原语，如 Mutex，以应对不同的并发场景。   一、为什么需要 Goroutine 同步？当多个 Goroutine 同时访问和修改同一块内存区域（共享资源）时，操作的顺序变得不确定。这可能导致：  数据竞争 (Data Race)：当至少两个 Goroutine 并发访问同一个内存位置，并且至少有一个是写操作，且没有同步机制来协调这些访问时...</div></div></div></a><a class="pagination-related" href="/7601ab41dda6/" title="Go语言并发与并行详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-23</div><div class="info-item-2">Go语言并发与并行详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言（Golang） 被设计为一门天然支持并发的语言，其并发模型是基于 CSP (Communicating Sequential Processes) 理论的实现。Go 语言通过轻量级的 Goroutine (协程) 和原生的 Channel (管道) 机制，极大地简化了并发编程的复杂性，使得开发者能够更容易地编写出高并发、高性能的应用程序。  核心思想：不要通过共享内存来通信；相反，通过通信来共享内存。 这是 Go 并发哲学中的核心原则。   一、并发 (Concurrency) 与并行 (Parallelism)在深入 Go 语言的并发机制之前，理解并发与并行的区别至关重要。 1.1 并发 (Concurrency) 定义：并发是指系统能够同时处理多个任务的能力。这些任务不一定在同一时刻运行，它们可能在单个 CPU 核心上通过时间片轮转的方式快速切换执行，给人一种“同时进行”的错觉。 特性： 处理多个任务：关注如何设计程序来处理事件流，即使只有一个处理器。 任务切换：通过快速切换执行上下文来模拟同时执行。 目的：提高程序的吞吐量和响应速度。   类比：一个厨师可以在...</div></div></div></a><a class="pagination-related" href="/5798c9959389/" title="Golang select 多路复用详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-22</div><div class="info-item-2">Golang select 多路复用详解</div></div><div class="info-2"><div class="info-item-1"> select 语句 是 Go 语言中专为并发通信设计的一种控制结构，它允许 Goroutine 在多个通信操作上等待，并在其中任意一个准备就绪时执行相应的代码块。它提供了一种强大的机制，可以监听多个 Channel 的发送和接收操作，实现通信多路复用。这使得 Go 语言能够优雅地处理并发模式，例如超时、取消、扇入 (fan-in) 和任务调度等。  核心思想：select 语句是 Go 语言实现 CSP (Communicating Sequential Processes) 并发模型的核心工具之一，它能够协调和同步多个 Goroutine 之间的通信，使其能够响应最先准备就绪的 Channel 操作，避免了传统多线程编程中复杂的锁和条件变量。   一、为什么需要 select？在 Go 语言中，Goroutine 和 Channel 是构建并发程序的基础。当一个 Goroutine 需要从多个 Channel 中接收数据，或向多个 Channel 发送数据，并且希望响应其中任意一个 Channel 上的第一个就绪事件时，就引入了等待多路通信的需求。 考虑以下场景：  超时处理...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">486</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">225</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">83</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Go-%E8%AF%AD%E8%A8%80%E5%8D%8F%E7%A8%8B-Goroutine-%E7%9A%84%E8%AE%BE%E8%AE%A1%E5%93%B2%E5%AD%A6"><span class="toc-text">一、Go 语言协程 (Goroutine) 的设计哲学</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-Goroutine-%E7%9A%84%E5%88%9B%E5%BB%BA"><span class="toc-text">1.1 Goroutine 的创建</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81GMP-%E8%B0%83%E5%BA%A6%E6%A8%A1%E5%9E%8B%E8%AF%A6%E8%A7%A3"><span class="toc-text">二、GMP 调度模型详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-GMP-%E4%B8%89%E8%A6%81%E7%B4%A0"><span class="toc-text">2.1 GMP 三要素</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E8%B0%83%E5%BA%A6%E8%BF%87%E7%A8%8B"><span class="toc-text">2.2 调度过程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-GMP-%E6%A8%A1%E5%9E%8B%E7%9A%84%E7%8A%B6%E6%80%81%E8%BD%AC%E6%8D%A2"><span class="toc-text">2.3 GMP 模型的状态转换</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-GOMAXPROCS-%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="toc-text">2.4 GOMAXPROCS 的作用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Goroutine-%E4%B8%8E%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%BA%BF%E7%A8%8B%E3%80%81%E8%BF%9B%E7%A8%8B%E7%9A%84%E5%AF%B9%E6%AF%94"><span class="toc-text">三、Goroutine 与操作系统线程、进程的对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Go-%E8%B0%83%E5%BA%A6%E5%99%A8%E5%AE%9E%E7%8E%B0%E7%BB%86%E8%8A%82%E5%92%8C%E4%BC%98%E5%8C%96"><span class="toc-text">四、Go 调度器实现细节和优化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/fa3d796f3333/" title="MessagePack 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MessagePack 详解"/></a><div class="content"><a class="title" href="/fa3d796f3333/" title="MessagePack 详解">MessagePack 详解</a><time datetime="2026-01-08T22:24:00.000Z" title="发表于 2026-01-09 06:24:00">2026-01-09</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="传统命令行工具的现代补强与替代方案详解"/></a><div class="content"><a class="title" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解">传统命令行工具的现代补强与替代方案详解</a><time datetime="2026-01-06T22:24:00.000Z" title="发表于 2026-01-07 06:24:00">2026-01-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2e2570e368f1/" title="Golang 并发 Map 详解：sync.Mutex、sync.RWMutex 与 sync.Map 对比"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 并发 Map 详解：sync.Mutex、sync.RWMutex 与 sync.Map 对比"/></a><div class="content"><a class="title" href="/2e2570e368f1/" title="Golang 并发 Map 详解：sync.Mutex、sync.RWMutex 与 sync.Map 对比">Golang 并发 Map 详解：sync.Mutex、sync.RWMutex 与 sync.Map 对比</a><time datetime="2025-12-31T22:24:00.000Z" title="发表于 2026-01-01 06:24:00">2026-01-01</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-07.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
   const runMermaid = ele => {
     window.loadMermaid = true
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
