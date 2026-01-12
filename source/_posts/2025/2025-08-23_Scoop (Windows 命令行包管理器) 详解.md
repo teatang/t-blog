@@ -304,7 +304,27 @@ scoop cache show
 scoop cache rm * # 清理所有下载的安装包缓存
 ```
 
-### 4.11 `reset` - 版本管理
+### 4.11 `cleanup` - 清理版本
+
+**作用**：清理旧版本的软件（保留当前版本）。
+
+**语法**：
+*   `scoop cleanup --dry-run`：查看可清理的版本。
+*   `scoop cleanup <app_name>`：清理指定应用的旧版本（保留当前版本）。
+*   `scoop cache rm *`：清理所有应用的旧版本（保留当前版本）。
+
+**示例**：
+
+```powershell
+# 查看可清理的版本
+scoop cleanup --dry-run
+# 清理所有应用的旧版本（保留当前版本）
+scoop cleanup *
+# 清理指定应用的旧版本
+scoop cleanup python
+```
+
+### 4.12 `reset` - 版本管理
 
 **作用**：切换活动版本。
 

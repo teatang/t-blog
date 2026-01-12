@@ -1,8 +1,8 @@
 ---
 title: MathJax 详解：在 Web 上优雅地渲染数学公式
-date: 2024-03-01 06:24:00
+date: 2023-08-03 06:24:00
 tags:
-  - 2024
+  - 2023
   - 前端技术
   - Markdown
 categories:
