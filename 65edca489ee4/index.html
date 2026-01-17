@@ -1,0 +1,608 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="DNS over TLS (DoT) 和 DNS over HTTPS (DoH) 是旨在增强 DNS (Domain Name System) 查询和响应隐私性 (Privacy) 与安全性 (Security) 的两种协议。它们通过对 DNS 流量进行加密，防止网络中间方（如 ISP、政府机构或恶意攻击者）窥探用户的域名解析请求或篡改 DNS 响应，从而解决了传统 DNS 协议固有的安全和隐">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/65edca489ee4/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="DNS over TLS (DoT) 和 DNS over HTTPS (DoH) 是旨在增强 DNS (Domain Name System) 查询和响应隐私性 (Privacy) 与安全性 (Security) 的两种协议。它们通过对 DNS 流量进行加密，防止网络中间方（如 ISP、政府机构或恶意攻击者）窥探用户的域名解析请求或篡改 DNS 响应，从而解决了传统 DNS 协议固有的安全和隐">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg">
+<meta property="article:published_time" content="2023-03-19T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-17T08:09:09.079Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络协议">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解",
+  "url": "https://blog.tbf1211.xx.kg/65edca489ee4/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-01.jpg",
+  "datePublished": "2023-03-19T22:24:00.000Z",
+  "dateModified": "2026-01-17T08:09:09.079Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/65edca489ee4/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">499</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">226</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-01.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-03-19T22:24:00.000Z" title="发表于 2023-03-20 06:24:00">2023-03-20</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.1k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>DNS over TLS (DoT)</strong> 和 <strong>DNS over HTTPS (DoH)</strong> 是旨在增强 <strong>DNS (Domain Name System)</strong> 查询和响应<strong>隐私性 (Privacy)</strong> 与<strong>安全性 (Security)</strong> 的两种协议。它们通过对 DNS 流量进行加密，防止网络中间方（如 ISP、政府机构或恶意攻击者）窥探用户的域名解析请求或篡改 DNS 响应，从而解决了传统 DNS 协议固有的安全和隐私缺陷。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心思想</strong>：<strong>将明文传输的 DNS 查询封装到加密的传输层安全 (TLS) 或超文本传输安全 (HTTPS) 连接中，以保护用户隐私、防止 DNS 劫持和对抗网络审查。</strong></p>
+</div>
+<hr>
+<h2 id="一、传统-DNS-的隐私与安全痛点"><a href="#一、传统-DNS-的隐私与安全痛点" class="headerlink" title="一、传统 DNS 的隐私与安全痛点"></a>一、传统 DNS 的隐私与安全痛点</h2><p>传统的 DNS 协议通常通过 <strong>UDP (User Datagram Protocol)</strong> 或 <strong>TCP (Transmission Control Protocol)</strong> 的 <strong>53 号端口</strong>进行通信。这种通信方式存在以下固有的安全和隐私缺陷：</p>
+<ol>
+<li><p><strong>明文传输 (Plaintext Transmission)</strong>：DNS 查询和响应在网络上以明文形式传输。</p>
+<ul>
+<li><strong>隐私泄露</strong>：任何能够嗅探网络流量的中间方，都可以轻易地看到用户正在访问哪些网站。这使得 ISP、政府或其他实体可以收集用户的浏览历史，进行用户画像、行为分析或用于定向广告。</li>
+<li><strong>审查与监控</strong>：特定实体可以根据 DNS 查询内容进行审查，阻止用户访问某些网站，或对用户活动进行监控。</li>
+</ul>
+</li>
+<li><p><strong>易受篡改和劫持 (Vulnerable to Tampering&#x2F;Hijacking)</strong>：由于缺乏加密和认证机制，传统的 DNS 流量容易受到攻击：</p>
+<ul>
+<li><strong>DNS 劫持 (DNS Hijacking)</strong>：攻击者截获 DNS 查询，并返回虚假的 IP 地址，将用户重定向到恶意网站。</li>
+<li><strong>DNS 缓存投毒 (DNS Cache Poisoning)</strong>：攻击者向 DNS 解析器注入虚假信息，导致解析器缓存错误的域名到 IP 地址映射。</li>
+</ul>
+</li>
+<li><p><strong>流量可识别性高</strong>：传统的 DNS 流量（端口 53）具有高度可识别性，容易被网络防火墙或过滤器识别并阻断。</p>
+</li>
+</ol>
+<p>DoT 和 DoH 正是为了解决这些问题而提出，旨在将 DNS 查询的隐私和安全提升到与 HTTPS 网页浏览相同的水平。</p>
+<h2 id="二、DNS-over-TLS-DoT-详解"><a href="#二、DNS-over-TLS-DoT-详解" class="headerlink" title="二、DNS over TLS (DoT) 详解"></a>二、DNS over TLS (DoT) 详解</h2><h3 id="2-1-定义"><a href="#2-1-定义" class="headerlink" title="2.1 定义"></a>2.1 定义</h3><p><strong>DoT</strong> 将 DNS 协议直接包装在 <strong>TLS (Transport Layer Security)</strong> 协议之上。它在专门的端口上（通常是 <strong>TCP 853 端口</strong>）建立一个加密的 TLS 连接，然后在这个加密通道内传输标准的 DNS 查询和响应消息。</p>
+<h3 id="2-2-工作原理"><a href="#2-2-工作原理" class="headerlink" title="2.2 工作原理"></a>2.2 工作原理</h3><p>DoT 的工作流程与传统 DNS 类似，但在发送 DNS 查询之前，客户端会与 DoT 解析器建立一个安全的 TLS 连接。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant User as 用户
+    participant Client as 客户端 (OS&#x2F;App)
+    participant DoT_Resolver as DoT 解析器
+    participant Trad_DNS_Resolver as 传统 DNS 解析器
+    participant Auth_DNS as 权威 DNS 服务器
+
+    User-&gt;&gt;Client: 1. 请求解析 &#96;www.example.com&#96;
+    Client-&gt;&gt;Client: 2. 检查本地 DNS 缓存
+    alt 域名不在缓存中
+        Client-&gt;&gt;DoT_Resolver: 3. **建立 TLS 连接 (TCP 853)**
+        DoT_Resolver-&gt;&gt;Client: 4. TLS 握手完成，连接加密
+        Client-&gt;&gt;DoT_Resolver: 5. 发送加密的 DNS 查询 (&#96;www.example.com&#96;)
+        Note over DoT_Resolver: 6. 解密 DNS 查询
+        DoT_Resolver-&gt;&gt;Trad_DNS_Resolver: 7. 发送传统 DNS 查询 (UDP&#x2F;TCP 53)
+        Trad_DNS_Resolver-&gt;&gt;Auth_DNS: 8. 递归查询 &#96;www.example.com&#96;
+        Auth_DNS--&gt;&gt;Trad_DNS_Resolver: 9. 返回 &#96;www.example.com&#96; 的 IP 地址
+        Trad_DNS_Resolver--&gt;&gt;DoT_Resolver: 10. 返回 &#96;www.example.com&#96; 的 IP 地址
+        Note over DoT_Resolver: 11. 将 IP 地址加密
+        DoT_Resolver--&gt;&gt;Client: 12. 返回加密的 DNS 响应
+        Client-&gt;&gt;Client: 13. 解密 DNS 响应，获取 IP 地址
+    end
+    Client-&gt;&gt;www.example.com: 14. 连接到 &#96;www.example.com&#96;
+  </pre></div>
+
+<p><strong>详细步骤解析：</strong></p>
+<ol>
+<li><strong>用户发起请求</strong>：用户或应用程序请求解析域名。</li>
+<li><strong>建立 TLS 连接</strong>：客户端尝试与预配置的 DoT 解析器（例如 Cloudflare 的 1.1.1.1 或 Google 的 8.8.8.8）在 TCP 853 端口上建立 TLS 连接。</li>
+<li><strong>TLS 握手</strong>：客户端和 DoT 解析器执行 TLS 握手，协商加密算法，并验证服务器证书。一旦握手成功，通信通道即被加密。</li>
+<li><strong>发送加密 DNS 查询</strong>：客户端通过这个加密的 TLS 连接发送 DNS 查询请求。</li>
+<li><strong>DoT 解析器处理</strong>：DoT 解析器接收加密请求，解密后执行标准的 DNS 递归查询。</li>
+<li><strong>返回加密 DNS 响应</strong>：DoT 解析器将查询结果封装成 DNS 响应，再次通过加密的 TLS 连接发送回客户端。</li>
+<li><strong>客户端解密</strong>：客户端解密响应，获取 IP 地址。</li>
+</ol>
+<h3 id="2-3-DoT-的优势"><a href="#2-3-DoT-的优势" class="headerlink" title="2.3 DoT 的优势"></a>2.3 DoT 的优势</h3><ol>
+<li><strong>强加密保护</strong>：DNS 查询和响应在整个传输过程中都受到 TLS 的加密保护，防止窃听。</li>
+<li><strong>数据完整性</strong>：TLS 确保 DNS 消息在传输过程中未被篡改。</li>
+<li><strong>身份验证</strong>：客户端通过验证 DoT 解析器的 TLS 证书，可以确认连接到的是合法的服务器。</li>
+<li><strong>协议简洁</strong>：直接在 DNS 协议上应用 TLS，实现相对直接。</li>
+</ol>
+<h3 id="2-4-DoT-的缺点"><a href="#2-4-DoT-的缺点" class="headerlink" title="2.4 DoT 的缺点"></a>2.4 DoT 的缺点</h3><ol>
+<li><strong>专用端口易识别</strong>：使用 TCP 853 这一专用端口，使得 DoT 流量容易被网络中间设备（如防火墙、审查设备）识别和阻断。</li>
+<li><strong>流量可识别性</strong>：尽管内容加密，但其行为模式（连接到 853 端口）仍然可以被用来识别和区分 DNS 流量。</li>
+<li><strong>依赖底层网络</strong>：如果 853 端口被阻止，DoT 就无法工作。</li>
+</ol>
+<h3 id="2-5-Go-语言-DoT-客户端示例-概念性"><a href="#2-5-Go-语言-DoT-客户端示例-概念性" class="headerlink" title="2.5 Go 语言 DoT 客户端示例 (概念性)"></a>2.5 Go 语言 DoT 客户端示例 (概念性)</h3><p>Go 语言标准库 <code>net</code> 和 <code>crypto/tls</code> 可以构建 DoT 客户端。实际应用中通常会使用第三方库如 <code>miekg/dns</code>。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;net&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;github.com/miekg/dns&quot;</span> <span class="comment">// 一个流行的DNS库</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">// DoT 服务器地址和端口</span></span><br><span class="line">	dotServer := <span class="string">&quot;1.1.1.1:853&quot;</span> <span class="comment">// Cloudflare DoT Resolver</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 构造 DNS 查询消息</span></span><br><span class="line">	m := <span class="built_in">new</span>(dns.Msg)</span><br><span class="line">	m.SetQuestion(dns.Fqdn(<span class="string">&quot;www.example.com&quot;</span>), dns.TypeA)</span><br><span class="line">	m.RecursionDesired = <span class="literal">true</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 创建 DoT 客户端</span></span><br><span class="line">	c := <span class="built_in">new</span>(dns.Client)</span><br><span class="line">	c.Net = <span class="string">&quot;tcp-tls&quot;</span> <span class="comment">// 指定使用 TCP with TLS</span></span><br><span class="line">	c.TLSConfig = <span class="literal">nil</span> <span class="comment">// 默认使用系统CA验证，若需自定义，可配置 crypto/tls.Config</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 发送查询并接收响应</span></span><br><span class="line">	r, _, err := c.Exchange(m, dotServer)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;DoT 查询失败: %s\n&quot;</span>, err.Error())</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> r.Rcode != dns.RcodeSuccess &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;DNS 查询失败，Rcode: %d\n&quot;</span>, r.Rcode)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 解析响应</span></span><br><span class="line">	<span class="keyword">for</span> _, ans := <span class="keyword">range</span> r.Answer &#123;</span><br><span class="line">		<span class="keyword">if</span> a, ok := ans.(*dns.A); ok &#123;</span><br><span class="line">			fmt.Printf(<span class="string">&quot;DoT 查询结果: www.example.com -&gt; %s\n&quot;</span>, a.A.String())</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、DNS-over-HTTPS-DoH-详解"><a href="#三、DNS-over-HTTPS-DoH-详解" class="headerlink" title="三、DNS over HTTPS (DoH) 详解"></a>三、DNS over HTTPS (DoH) 详解</h2><h3 id="3-1-定义"><a href="#3-1-定义" class="headerlink" title="3.1 定义"></a>3.1 定义</h3><p><strong>DoH</strong> 将 DNS 查询和响应封装在标准的 <strong>HTTPS (Hypertext Transfer Protocol Secure)</strong> 请求和响应中。它使用 <strong>HTTP&#x2F;2</strong> 或 <strong>HTTP&#x2F;3</strong> 协议，通过标准的 <strong>TCP 443 端口</strong>进行通信，与正常的网页浏览流量混合在一起。</p>
+<h3 id="3-2-工作原理"><a href="#3-2-工作原理" class="headerlink" title="3.2 工作原理"></a>3.2 工作原理</h3><p>DoH 的核心在于将 DNS 查询作为 HTTP 请求的负载 (payload)，通过 HTTPS 连接发送到 DoH 解析器。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant User as 用户
+    participant Client as 客户端 (浏览器&#x2F;OS)
+    participant DoH_Resolver as DoH 解析器
+    participant Trad_DNS_Resolver as 传统 DNS 解析器
+    participant Auth_DNS as 权威 DNS 服务器
+
+    User-&gt;&gt;Client: 1. 请求解析 &#96;www.example.com&#96;
+    Client-&gt;&gt;Client: 2. 检查本地 DNS 缓存
+    alt 域名不在缓存中
+        Client-&gt;&gt;DoH_Resolver: 3. **建立 HTTPS 连接 (TCP 443)**
+        DoH_Resolver-&gt;&gt;Client: 4. HTTPS 握手完成，连接加密
+        Client-&gt;&gt;DoH_Resolver: 5. **HTTPS POST&#x2F;GET 请求** &lt;br&#x2F;&gt;携带加密的 DNS 查询 (&#96;www.example.com&#96;)
+        Note over DoH_Resolver: 6. 解密 HTTPS 请求，提取 DNS 查询
+        DoH_Resolver-&gt;&gt;Trad_DNS_Resolver: 7. 发送传统 DNS 查询 (UDP&#x2F;TCP 53)
+        Trad_DNS_Resolver-&gt;&gt;Auth_DNS: 8. 递归查询 &#96;www.example.com&#96;
+        Auth_DNS--&gt;&gt;Trad_DNS_Resolver: 9. 返回 &#96;www.example.com&#96; 的 IP 地址
+        Trad_DNS_Resolver--&gt;&gt;DoH_Resolver: 10. 返回 &#96;www.example.com&#96; 的 IP 地址
+        Note over DoH_Resolver: 11. 将 IP 地址封装并加密到 HTTPS 响应中
+        DoH_Resolver--&gt;&gt;Client: 12. **HTTPS 响应** &lt;br&#x2F;&gt;携带加密的 IP 地址
+        Client-&gt;&gt;Client: 13. 解密 HTTPS 响应，获取 IP 地址
+    end
+    Client-&gt;&gt;www.example.com: 14. 连接到 &#96;www.example.com&#96;
+  </pre></div>
+
+<p><strong>详细步骤解析：</strong></p>
+<ol>
+<li><strong>用户发起请求</strong>：用户或应用程序请求解析域名。</li>
+<li><strong>建立 HTTPS 连接</strong>：客户端与 DoH 解析器在 TCP 443 端口上建立标准的 HTTPS 连接。</li>
+<li><strong>HTTPS 握手</strong>：客户端和 DoH 解析器执行 HTTPS 握手（内部包含 TLS 握手），建立加密通道。</li>
+<li><strong>发送 HTTPS 请求</strong>：客户端构造一个包含 DNS 查询的 HTTP 请求（通常是 GET 或 POST），通过加密的 HTTPS 连接发送给 DoH 解析器。</li>
+<li><strong>DoH 解析器处理</strong>：DoH 解析器接收加密的 HTTPS 请求，解密后提取原始 DNS 查询，并执行标准的 DNS 递归查询。</li>
+<li><strong>返回 HTTPS 响应</strong>：DoH 解析器将查询结果封装在 HTTP 响应中，再次通过加密的 HTTPS 连接发送回客户端。</li>
+<li><strong>客户端解密</strong>：客户端解密响应，获取 IP 地址。</li>
+</ol>
+<h3 id="3-3-DoH-的优势"><a href="#3-3-DoH-的优势" class="headerlink" title="3.3 DoH 的优势"></a>3.3 DoH 的优势</h3><ol>
+<li><strong>更强的流量混淆</strong>：DoH 流量与普通 HTTPS 网页浏览流量混合在一起，都通过 TCP 443 端口传输。这使得网络中间方很难区分 DNS 查询和常规网页流量，从而提高隐私性，更有效地对抗基于端口的审查。</li>
+<li><strong>绕过传统限制</strong>：由于使用标准 HTTPS 端口，DoH 可以更容易地穿透一些网络防火墙或代理服务器，这些设备通常允许 HTTPS 流量通过。</li>
+<li><strong>利用现有 HTTPS 基础设施</strong>：DoH 可以利用现有的 HTTPS CDN 和代理网络，可能带来更好的性能和可靠性。</li>
+<li><strong>端到端加密和认证</strong>：与 DoT 类似，提供加密、数据完整性和服务器身份验证。</li>
+</ol>
+<h3 id="3-4-DoH-的缺点"><a href="#3-4-DoH-的缺点" class="headerlink" title="3.4 DoH 的缺点"></a>3.4 DoH 的缺点</h3><ol>
+<li><strong>可能绕过本地网络策略</strong>：对于企业、学校或家庭网络管理员来说，DoH 可能会绕过他们设置的本地 DNS 过滤器（用于内容过滤、恶意软件防护或访问控制），使得网络管理和安全审计变得复杂。</li>
+<li><strong>DNS 流量集中化</strong>：DoH 倾向于促使用户将 DNS 查询重定向到少数几家大型 DoH 提供商，可能导致 DNS 解析服务的集中化，引发对这些大型公司数据收集能力的担忧。</li>
+<li><strong>性能开销</strong>：HTTP 协议头和 TLS 握手的开销理论上可能比 DoT 略大，但由于连接复用和现代优化，通常对用户体验影响不大。</li>
+<li><strong>调试难度增加</strong>：由于流量加密并混淆在 HTTPS 中，网络管理员难以使用传统的 DNS 抓包工具直接调试 DNS 问题。</li>
+</ol>
+<h3 id="3-5-curl-DoH-客户端示例"><a href="#3-5-curl-DoH-客户端示例" class="headerlink" title="3.5 curl DoH 客户端示例"></a>3.5 <code>curl</code> DoH 客户端示例</h3><p>使用 <code>curl</code> 可以方便地向公共 DoH 解析器发送查询。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用 Cloudflare DoH 解析器查询 example.com 的 A 记录，返回 JSON 格式</span></span><br><span class="line">curl -H <span class="string">&#x27;accept: application/dns-json&#x27;</span> <span class="string">&#x27;https://cloudflare-dns.com/dns-query?name=example.com&amp;type=A&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 也可以使用 POST 方法和 DNS wireformat，但需要更复杂的构造</span></span><br><span class="line"><span class="comment"># curl -H &#x27;content-type: application/dns-message&#x27; --data-binary &quot;$(dig +dnssec +bufsize=1232 +norecurse +short example.com A)&quot; https://cloudflare-dns.com/dns-query</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、DoT-与-DoH-的比较"><a href="#四、DoT-与-DoH-的比较" class="headerlink" title="四、DoT 与 DoH 的比较"></a>四、DoT 与 DoH 的比较</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">DNS over TLS (DoT)</th>
+<th align="left">DNS over HTTPS (DoH)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>传输层协议</strong></td>
+<td align="left">TLS 直接封装 DNS 消息</td>
+<td align="left">HTTPS 封装 DNS 消息 (即 TLS over HTTP)</td>
+</tr>
+<tr>
+<td align="left"><strong>默认端口</strong></td>
+<td align="left"><strong>TCP 853</strong></td>
+<td align="left"><strong>TCP 443</strong> (与标准 HTTPS 流量共享)</td>
+</tr>
+<tr>
+<td align="left"><strong>流量可识别性</strong></td>
+<td align="left">易于识别 (专用端口)，内容加密</td>
+<td align="left">难以识别 (与普通 HTTPS 流量混淆)，内容加密</td>
+</tr>
+<tr>
+<td align="left"><strong>加密级别</strong></td>
+<td align="left">端到端加密 (客户端到解析器)</td>
+<td align="left">端到端加密 (客户端到解析器)</td>
+</tr>
+<tr>
+<td align="left"><strong>数据完整性</strong></td>
+<td align="left">是</td>
+<td align="left">是</td>
+</tr>
+<tr>
+<td align="left"><strong>服务器身份验证</strong></td>
+<td align="left">是</td>
+<td align="left">是</td>
+</tr>
+<tr>
+<td align="left"><strong>网络中间设备处理</strong></td>
+<td align="left">容易被基于端口的防火墙或过滤器阻断</td>
+<td align="left">较难被基于端口的防火墙或过滤器阻断，易于穿透</td>
+</tr>
+<tr>
+<td align="left"><strong>绕过本地控制</strong></td>
+<td align="left">较难绕过，因为有专用端口</td>
+<td align="left">容易绕过本地 DNS 策略和内容过滤</td>
+</tr>
+<tr>
+<td align="left"><strong>性能开销</strong></td>
+<td align="left">相对较低 (直接 TLS 连接)</td>
+<td align="left">相对较高 (HTTP&#x2F;2或HTTP&#x2F;3协议头开销)，但通常可忽略</td>
+</tr>
+<tr>
+<td align="left"><strong>调试难度</strong></td>
+<td align="left">相对容易 (专用端口，可通过 TLS 解密工具查看 DNS 消息)</td>
+<td align="left">相对困难 (与 HTTPS 流量混合，需要解密 HTTP 才能查看 DNS)</td>
+</tr>
+<tr>
+<td align="left"><strong>部署复杂性</strong></td>
+<td align="left">相对简单，客户端直接连接 TLS 服务器</td>
+<td align="left">相对复杂，需要构建 HTTP 请求和处理响应，但可利用现有 Web 基础设施</td>
+</tr>
+<tr>
+<td align="left"><strong>主要优势</strong></td>
+<td align="left">协议简洁、高效，安全性高，易于网络管理员控制</td>
+<td align="left">隐私性极高，抗审查能力强，易于穿透防火墙</td>
+</tr>
+<tr>
+<td align="left"><strong>主要劣势</strong></td>
+<td align="left">易被识别和阻断</td>
+<td align="left">可能绕过本地策略，导致 DNS 集中化，调试困难</td>
+</tr>
+</tbody></table>
+<h2 id="五、部署与使用现状"><a href="#五、部署与使用现状" class="headerlink" title="五、部署与使用现状"></a>五、部署与使用现状</h2><p>两种协议都在主流浏览器和操作系统中得到广泛支持：</p>
+<h3 id="5-1-DoT-客户端支持"><a href="#5-1-DoT-客户端支持" class="headerlink" title="5.1 DoT 客户端支持"></a>5.1 DoT 客户端支持</h3><ul>
+<li><strong>Android</strong>：自 Android 9 (Pie) 起，支持系统级的 DoT 配置。</li>
+<li><strong>iOS&#x2F;macOS</strong>：通过配置文件或第三方应用支持系统级 DoT。</li>
+<li><strong>Linux</strong>：<code>systemd-resolved</code> 和一些其他 DNS 客户端支持 DoT。</li>
+<li><strong>路由器</strong>：部分高端路由器或自定义固件 (如 OpenWrt) 支持配置 DoT。</li>
+</ul>
+<h3 id="5-2-DoH-客户端支持"><a href="#5-2-DoH-客户端支持" class="headerlink" title="5.2 DoH 客户端支持"></a>5.2 DoH 客户端支持</h3><ul>
+<li><strong>Firefox</strong>：自 2019 年起默认在美国等地区启用 DoH。</li>
+<li><strong>Google Chrome &#x2F; Microsoft Edge</strong>：支持 DoH，用户可以在设置中手动启用。</li>
+<li><strong>Windows</strong>：自 Windows 11 起，已原生支持 DoH 配置。</li>
+<li><strong>macOS &#x2F; iOS</strong>：通过配置文件或第三方应用支持 DoH。</li>
+</ul>
+<h3 id="5-3-公共-DoT-DoH-解析器"><a href="#5-3-公共-DoT-DoH-解析器" class="headerlink" title="5.3 公共 DoT&#x2F;DoH 解析器"></a>5.3 公共 DoT&#x2F;DoH 解析器</h3><ul>
+<li><strong>Cloudflare</strong>：<code>1.1.1.1</code> (DoT: <code>tls://1.1.1.1</code>, DoH: <code>https://1.1.1.1/dns-query</code>)</li>
+<li><strong>Google Public DNS</strong>：<code>8.8.8.8</code>, <code>8.8.4.4</code> (DoT: <code>tls://dns.google</code>, DoH: <code>https://dns.google/dns-query</code>)</li>
+<li><strong>Quad9</strong>：<code>9.9.9.9</code> (DoT: <code>tls://9.9.9.9</code>, DoH: <code>https://dns.quad9.net/dns-query</code>)</li>
+</ul>
+<h2 id="六、安全与隐私考量"><a href="#六、安全与隐私考量" class="headerlink" title="六、安全与隐私考量"></a>六、安全与隐私考量</h2><ol>
+<li><strong>信任解析器</strong>：无论是 DoT 还是 DoH，用户都必须信任其选择的加密 DNS 解析器。这些解析器能够看到所有的 DNS 查询。选择一个声誉良好、承诺保护隐私的提供商至关重要。</li>
+<li><strong>启动问题 (Bootstrapping Problem)</strong>：客户端首次连接 DoT&#x2F;DoH 解析器时，通常需要通过传统的明文 DNS 查询来获取解析器的 IP 地址。这个初始查询仍然可能被中间人攻击或窃听。<strong>DNSSEC (DNS Security Extensions)</strong> 可以为传统 DNS 阶段提供一定程度的保护。</li>
+<li><strong>审查与指纹识别</strong>：虽然 DoH 在混淆流量方面做得更好，但高级的深度包检测 (DPI) 或流量分析技术仍可能通过其他侧信道信息（如 TLS 握手特征、流量模式、证书指纹）来推断用户行为或识别 DoH 流量。</li>
+<li><strong>本地网络管理</strong>：对于企业或机构而言，DoH 绕过本地 DNS 策略的能力，要求网络管理员重新评估和调整其安全和过滤策略。</li>
+<li><strong>集中化风险</strong>：DoH 加剧了 DNS 流量向少数大型提供商集中的趋势，这可能对互联网的去中心化特性构成挑战。</li>
+</ol>
+<h2 id="七、展望：Oblivious-DoH-ODoH"><a href="#七、展望：Oblivious-DoH-ODoH" class="headerlink" title="七、展望：Oblivious DoH (ODoH)"></a>七、展望：Oblivious DoH (ODoH)</h2><p>为了解决 DoH 带来的 DNS 集中化和解析器能够看到所有查询的隐私问题，<strong>Oblivious DNS over HTTPS (ODoH)</strong> 应运而生。ODoH 在客户端和 DoH 解析器之间引入了一个<strong>代理服务器 (Proxy)</strong>。客户端将加密的 DNS 查询发送给代理，代理将查询转发给 DoH 解析器。代理不知道查询内容，DoH 解析器不知道查询源 IP，从而进一步增强了查询的匿名性。</p>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>DoT 和 DoH 都是旨在提升 DNS 流量隐私和安全的重要协议。DoT 提供了一个简洁、直接的 DNS 加密方案，但其专用端口使其易于被识别和阻断。DoH 则将 DNS 流量隐藏在普通的 HTTPS 流量中，具有更强的抗审查和流量混淆能力，但也可能绕过本地网络策略并引发 DNS 集中化问题。</p>
+<p>选择哪种协议取决于具体的威胁模型和需求。对于注重易用性和通用性的普通用户，DoH 通常是更简单的选择，尤其是在浏览器和操作系统层面。对于网络管理员，DoT 可能提供更好的控制。未来，ODoH 等更先进的协议有望进一步提升 DNS 服务的隐私和安全性，构建一个更加健壮、开放和私密的互联网。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/65edca489ee4/">https://blog.tbf1211.xx.kg/65edca489ee4/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-01.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/832eaf04ac40/" title="Python多线程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Python多线程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的同步问题。在 Python 中，由于全局解释器锁 (GIL) 的存在，多线程在 CPU 密集型任务上并不能真正并行，但在 I&#x2F;O 密集型任务上，多线程仍然可以有效地提高程序的效率和响应速度。本篇将详细介绍如何使用 Python 的 threading 模块和 queue 模块实现多线程版的生产者-消费者模式。  核心思想：利用线程安全的共享队列作为缓冲，实现生产者与消费者解耦，并通过队列自带的互斥锁和条件变量进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式与多线程概述1.1 生产者-消费者模式参考 Python 多进程生产者-消费者模式详解 中的概述，其核心构成和解决的问题在多线程场景下是相同的：  生产者 (Producer)：生成数据并放入队列。 消费者 (Consumer)：从队列取出数据并处理。 缓冲区 (Queue)：共享的、线程安全的数据容器。  1.2 Python 多线程与 GIL threading 模块：Python 标...</div></div></div></a><a class="pagination-related" href="/18f2ce1e9660/" title="DNS (Domain Name System) 协议详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">DNS (Domain Name System) 协议详解</div></div><div class="info-2"><div class="info-item-1"> DNS (Domain Name System) 是互联网的一项核心服务，它将人类可读的域名（如 www.example.com）转换为机器可读的 IP 地址（如 192.168.1.1 或 2001:0db8::1）。这种翻译功能使得用户可以方便地通过记忆友好的域名来访问网站和其他网络资源，而无需记住复杂的数字 IP 地址。DNS 本质上是一个分布式数据库系统，运行在应用层，通常使用 UDP 的 53 端口进行查询，TCP 53 端口用于区域传输 (zone transfer)。  核心思想：将域名映射到 IP 地址，提供一套全球性的、分层的、分布式数据库系统，从而实现互联网资源的定位和访问。   一、为什么需要 DNS？在互联网的早期，少量的计算机通过一个名为 HOSTS.TXT 的静态文件来完成主机名到 IP 地址的映射。然而，随着计算机数量的爆发式增长，这种中心化的、静态的管理方式变得不可行，主要原因如下：  人类记忆限制：用户难以记住大量复杂且不断变化的 IP 地址。 管理困难：集中式文件更新和同步的效率低下，无法适应全球范围内的网络变化。 扩展性差：集中式系统无法承...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/dff8568b9553/" title="UDP (用户数据报协议) 深度详解：轻量、高效、无连接的传输基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-12</div><div class="info-item-2">UDP (用户数据报协议) 深度详解：轻量、高效、无连接的传输基石</div></div><div class="info-2"><div class="info-item-1"> 用户数据报协议 (UDP - User Datagram Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中位于传输层的一个简单而高效的协议。与复杂的 TCP 不同，UDP 提供了一种无连接 (Connectionless)、不可靠 (Unreliable) 的数据报服务，强调传输速度和资源效率，而非数据的完整性和顺序性。它不对数据包进行排序、不保证送达、不进行错误重传、不提供流量控制和拥塞控制。  核心思想：UDP 就像邮局的平信服务。你把信投进去，邮局尽力送达，但不保证一定能送到，也不告诉你有没有送到。它不操心信的顺序，不提供回执，也不管你的信封里装了多少页纸。   一、UDP 的核心特性与设计哲学UDP 的设计目标是提供一个最小化的传输层协议，只做传输层最基本的事情——多路复用和少量的错误校验。它将大部分的可靠性职责留给应用程序自行处理。  无连接 (Connectionless)：  在数据传输之前，通信双方无需建立或维护任何连接状态。 发送方可以直接向目的端发送数据报。 每个数据报都是独立的，包含完整的源地址和目的地址信息。   不可靠传输 (Unr...</div></div></div></a><a class="pagination-related" href="/22aa4c322dbd/" title="TLS (传输层安全协议) 深度详解：网络通信的守护者"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-02</div><div class="info-item-2">TLS (传输层安全协议) 深度详解：网络通信的守护者</div></div><div class="info-2"><div class="info-item-1"> TLS (Transport Layer Security)，即传输层安全性协议，是用于在计算机网络上提供端到端安全通信的加密协议。它是 SSL (Secure Sockets Layer) 协议的继任者，两者常被混用，但技术上，现代网络浏览器及服务器都已使用 TLS 协议。TLS 主要提供数据隐私、数据完整性以及通信双方的身份认证，是互联网上最广泛使用的安全协议，例如 HTTPS (HTTP over TLS)、SMTPS、LDAPS 等都依赖于 TLS。  核心思想：在不可信的网络上，通过加密、认证和完整性校验，建立一个可信的加密通信通道。   一、为什么需要 TLS？互联网的早期（例如纯 HTTP 时代），数据在传输过程中是明文的。这意味着：  窃听 (Eavesdropping)：任何中间人（如 ISP、路由器管理员、恶意攻击者）都可以截获并读取传输中的数据，包括用户密码、银行卡信息、私人消息等。 篡改 (Tampering)：中间人不仅可以读取数据，还可以修改数据，例如在网页中植入恶意代码，或者更改用户提交的表单内容。 身份伪装 (Impersonation)：客户端...</div></div></div></a><a class="pagination-related" href="/058452c6e7a6/" title="TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-10</div><div class="info-item-2">TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石</div></div><div class="info-2"><div class="info-item-1"> 传输控制协议 (TCP - Transmission Control Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中最重要的协议之一，位于传输层。它提供了一种可靠 (Reliable)、面向连接 (Connection-Oriented)、基于字节流 (Byte Stream-Oriented) 的传输服务，确保数据能够准确、完整且按序地从一个应用程序传输到另一个应用程序。几乎所有对数据完整性有严格要求的应用，如网页浏览、文件传输、电子邮件等，都构建在 TCP 之上。  核心思想：TCP 致力于在不可靠的 IP 网络之上，构建起一个端到端的高度可靠的虚拟链路，通过复杂的机制来保障数据不丢、不重、不乱序，并有效地管理网络资源。   一、TCP 的核心特性与设计哲学TCP 的设计目标是克服底层 IP 网络的不可靠性，为应用程序提供一个稳定、可靠的数据传输通道。其核心特性包括：  面向连接 (Connection-Oriented)：  在数据传输之前，通信双方必须通过三次握手建立一个逻辑上的连接。 连接建立后，双方才能开始交换数据。 数据传输完成后，通过四次挥...</div></div></div></a><a class="pagination-related" href="/8fad93ea4f62/" title="ALPN (Application-Layer Protocol Negotiation) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-11</div><div class="info-item-2">ALPN (Application-Layer Protocol Negotiation) 详解</div></div><div class="info-2"><div class="info-item-1"> ALPN (Application-Layer Protocol Negotiation)，即应用层协议协商，是 TLS (传输层安全) 协议的一个扩展，允许客户端和服务器在进行 TLS 握手时，协商决定在加密连接上使用哪个应用层协议。它在 RFC 7301 中被定义。ALPN 的出现，极大地简化了现代网络协议的部署和使用，尤其是对于 HTTP&#x2F;2 和未来的 QUIC 等协议。  核心思想：ALPN 将应用层协议的选择过程集成到 TLS 握手阶段，使得在建立加密连接的同时，也完成了应用层协议的确定，避免了额外的往返延迟，并允许在同一端口上运行多种应用层协议。   一、为什么需要 ALPN？在 ALPN 出现之前，协商应用层协议通常面临以下挑战：  端口绑定：传统的做法是为不同的应用层协议使用不同的端口。例如，HTTP 使用 80 端口，HTTPS 使用 443 端口，FTP 使用 21 端口。当引入新的协议（如 HTTP&#x2F;2 或 SPDY）时，如果想与现有协议共存，就必须使用新的端口，这会增加防火墙配置、负载均衡设置的复杂性，并且用户可能需要记住非标准的端口...</div></div></div></a><a class="pagination-related" href="/7bd4a820ad36/" title="TCP&#x2F;IP协议栈深度详解：因特网的核心基石"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-11</div><div class="info-item-2">TCP&#x2F;IP协议栈深度详解：因特网的核心基石</div></div><div class="info-2"><div class="info-item-1"> TCP&#x2F;IP 协议栈 (Transmission Control Protocol&#x2F;Internet Protocol Suite) 并不是一个单一的协议，而是一个由一系列网络协议组成的协议族。它是因特网的基石和核心，定义了数据如何在网络中进行封装、传输和路由的规则。TCP&#x2F;IP 协议栈的设计目标是提供一个鲁棒、可靠并且能够跨异构网络工作的通信框架。  核心思想：TCP&#x2F;IP 协议栈通过标准化的分层结构和一系列协议（最著名的是 TCP 和 IP），解决了在复杂、异构的网络环境中，如何实现不同设备之间可靠、高效、互通的端到端通信问题。   一、TCP&#x2F;IP 协议栈的起源与重要性TCP&#x2F;IP 协议栈最早起源于 20 世纪 70 年代初美国国防部高级研究计划局（ARPA）开发的 ARPANET 项目。随着 ARPANET 演变为今天的因特网，TCP&#x2F;IP 也逐渐成为全球计算机网络的通用标准。 为什么它如此重要？  因特网的基石：没有 TCP&#x2F;IP 协议，就没有今天的因特网。世界上几乎所有的网络设备都支持 ...</div></div></div></a><a class="pagination-related" href="/2dc209b3606e/" title="OSI 七层模型详解 (The OSI 7-Layer Model Explained)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-12-12</div><div class="info-item-2">OSI 七层模型详解 (The OSI 7-Layer Model Explained)</div></div><div class="info-2"><div class="info-item-1"> OSI (Open Systems Interconnection) 参考模型 是由国际标准化组织 (ISO) 于 1980 年代初期推出的一套概念性框架，旨在提供一个开放、标准化的通信协议分层结构。它将网络通信过程划分为七个不同的功能层，每个层级负责特定的网络通信任务，并向上层提供服务，向下层请求服务。OSI 模型是一个重要的理论基石，帮助人们理解和设计复杂的网络系统，尽管在实际应用中更常见的是 TCP&#x2F;IP 四层或五层模型，但 OSI 模型的分层思想对网络学科产生了深远影响。  核心思想：将复杂的网络通信过程分解为七个逻辑上独立的功能层，每层只关注自己的职责，通过标准接口与相邻层交互，从而简化网络设计、实现和故障排除。   一、为什么需要 OSI 模型？在早期，计算机网络发展非常混乱，各个厂商都有自己独有的网络架构和协议，导致不同厂商的设备之间无法通信。为了解决这种“信息孤岛”的问题，急需一个统一的标准来指导网络系统的设计和实现。OSI 模型应运而生，其主要目标包括：  标准化：提供一个通用的框架，使得不同厂商、不同系统之间可以进行互操作。 模块化：将复杂的网络通...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">499</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">226</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BC%A0%E7%BB%9F-DNS-%E7%9A%84%E9%9A%90%E7%A7%81%E4%B8%8E%E5%AE%89%E5%85%A8%E7%97%9B%E7%82%B9"><span class="toc-text">一、传统 DNS 的隐私与安全痛点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81DNS-over-TLS-DoT-%E8%AF%A6%E8%A7%A3"><span class="toc-text">二、DNS over TLS (DoT) 详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89"><span class="toc-text">2.1 定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">2.2 工作原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-DoT-%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">2.3 DoT 的优势</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-DoT-%E7%9A%84%E7%BC%BA%E7%82%B9"><span class="toc-text">2.4 DoT 的缺点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-Go-%E8%AF%AD%E8%A8%80-DoT-%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%A4%BA%E4%BE%8B-%E6%A6%82%E5%BF%B5%E6%80%A7"><span class="toc-text">2.5 Go 语言 DoT 客户端示例 (概念性)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81DNS-over-HTTPS-DoH-%E8%AF%A6%E8%A7%A3"><span class="toc-text">三、DNS over HTTPS (DoH) 详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89"><span class="toc-text">3.1 定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">3.2 工作原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-DoH-%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">3.3 DoH 的优势</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-DoH-%E7%9A%84%E7%BC%BA%E7%82%B9"><span class="toc-text">3.4 DoH 的缺点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-curl-DoH-%E5%AE%A2%E6%88%B7%E7%AB%AF%E7%A4%BA%E4%BE%8B"><span class="toc-text">3.5 curl DoH 客户端示例</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81DoT-%E4%B8%8E-DoH-%E7%9A%84%E6%AF%94%E8%BE%83"><span class="toc-text">四、DoT 与 DoH 的比较</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%83%A8%E7%BD%B2%E4%B8%8E%E4%BD%BF%E7%94%A8%E7%8E%B0%E7%8A%B6"><span class="toc-text">五、部署与使用现状</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-DoT-%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%94%AF%E6%8C%81"><span class="toc-text">5.1 DoT 客户端支持</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-DoH-%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%94%AF%E6%8C%81"><span class="toc-text">5.2 DoH 客户端支持</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%85%AC%E5%85%B1-DoT-DoH-%E8%A7%A3%E6%9E%90%E5%99%A8"><span class="toc-text">5.3 公共 DoT&#x2F;DoH 解析器</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%AE%89%E5%85%A8%E4%B8%8E%E9%9A%90%E7%A7%81%E8%80%83%E9%87%8F"><span class="toc-text">六、安全与隐私考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%B1%95%E6%9C%9B%EF%BC%9AOblivious-DoH-ODoH"><span class="toc-text">七、展望：Oblivious DoH (ODoH)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="AI 辅助编程的关键要点与代码幻觉防范"/></a><div class="content"><a class="title" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范">AI 辅助编程的关键要点与代码幻觉防范</a><time datetime="2026-01-15T22:24:00.000Z" title="发表于 2026-01-16 06:24:00">2026-01-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fa3d796f3333/" title="MessagePack 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MessagePack 详解"/></a><div class="content"><a class="title" href="/fa3d796f3333/" title="MessagePack 详解">MessagePack 详解</a><time datetime="2026-01-08T22:24:00.000Z" title="发表于 2026-01-09 06:24:00">2026-01-09</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="传统命令行工具的现代补强与替代方案详解"/></a><div class="content"><a class="title" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解">传统命令行工具的现代补强与替代方案详解</a><time datetime="2026-01-06T22:24:00.000Z" title="发表于 2026-01-07 06:24:00">2026-01-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-01.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
