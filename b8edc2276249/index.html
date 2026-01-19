@@ -1,0 +1,507 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>雪花算法 (Snowflake Algorithm) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="雪花算法 (Snowflake Algorithm) 是 Twitter 公司开源的一种分布式唯一 ID 生成算法。它旨在解决在分布式系统中生成全局唯一、递增（但非严格递增）且高性能 ID 的需求。其生成的 ID 是一个 64 位的整数，具有时间有序性，并且不依赖于数据库，易于扩展。  核心思想：将 64 位的 Long 型 ID 拆分为多个字段，分别存储时间戳、数据中心 ID、机器 ID 和序">
+<meta property="og:type" content="article">
+<meta property="og:title" content="雪花算法 (Snowflake Algorithm) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/b8edc2276249/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="雪花算法 (Snowflake Algorithm) 是 Twitter 公司开源的一种分布式唯一 ID 生成算法。它旨在解决在分布式系统中生成全局唯一、递增（但非严格递增）且高性能 ID 的需求。其生成的 ID 是一个 64 位的整数，具有时间有序性，并且不依赖于数据库，易于扩展。  核心思想：将 64 位的 Long 型 ID 拆分为多个字段，分别存储时间戳、数据中心 ID、机器 ID 和序">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-18.jpg">
+<meta property="article:published_time" content="2024-02-18T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-19T01:57:35.869Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络技术">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-18.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "雪花算法 (Snowflake Algorithm) 详解",
+  "url": "https://blog.tbf1211.xx.kg/b8edc2276249/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-18.jpg",
+  "datePublished": "2024-02-18T22:24:00.000Z",
+  "dateModified": "2026-01-19T01:57:35.869Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/b8edc2276249/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '雪花算法 (Snowflake Algorithm) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">500</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">226</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-18.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">雪花算法 (Snowflake Algorithm) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">雪花算法 (Snowflake Algorithm) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-02-18T22:24:00.000Z" title="发表于 2024-02-19 06:24:00">2024-02-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>14分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>雪花算法 (Snowflake Algorithm)</strong> 是 Twitter 公司开源的一种分布式唯一 ID 生成算法。它旨在解决在分布式系统中生成全局唯一、递增（但非严格递增）且高性能 ID 的需求。其生成的 ID 是一个 64 位的整数，具有时间有序性，并且不依赖于数据库，易于扩展。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>将 64 位的 Long 型 ID 拆分为多个字段，分别存储时间戳、数据中心 ID、机器 ID 和序列号，通过位运算拼接以保证全局唯一性和大致的时间有序性。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要雪花算法？"><a href="#一、为什么需要雪花算法？" class="headerlink" title="一、为什么需要雪花算法？"></a>一、为什么需要雪花算法？</h2><p>在分布式系统中，传统的单点自增 ID 方案面临巨大挑战：</p>
+<ol>
+<li><strong>唯一性问题</strong>：不同的数据库实例或服务节点可能生成相同的 ID。</li>
+<li><strong>性能瓶颈</strong>：为了保证唯一性，可能需要引入中心化的 ID 生成服务或数据库锁，成为系统瓶颈。</li>
+<li><strong>可用性问题</strong>：中心化服务一旦宕机，整个系统的 ID 生成将受影响。</li>
+</ol>
+<p>虽然 UUID 能够保证全局唯一性，但它存在一些缺点：</p>
+<ol>
+<li><strong>存储和传输效率低</strong>：128 位，比 64 位 ID 更占用空间，索引性能较差。</li>
+<li><strong>无序性</strong>：UUID 是无序的，插入数据库时会导致 B+ 树索引频繁分裂和重建，影响数据库性能。</li>
+</ol>
+<p>雪花算法旨在提供一个兼顾<strong>高性能、高可用、全局唯一且大致有序</strong>的分布式 ID 解决方案。</p>
+<h2 id="二、雪花算法的-ID-结构"><a href="#二、雪花算法的-ID-结构" class="headerlink" title="二、雪花算法的 ID 结构"></a>二、雪花算法的 ID 结构</h2><p>雪花算法生成的 ID 是一个 64 位的 <code>long</code> 型整数（在 Go 中是 <code>int64</code>），其结构被划分为以下几个部分：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">| 1 位 (Unused) | 41 位 (时间戳) | 10 位 (工作节点 ID) | 12 位 (序列号) |</span><br><span class="line">|---------------|----------------|---------------------|----------------|</span><br></pre></td></tr></table></figure>
+
+<p>各部分的详细说明如下：</p>
+<h3 id="2-1-1-位：未用-符号位"><a href="#2-1-1-位：未用-符号位" class="headerlink" title="2.1 1 位：未用 (符号位)"></a>2.1 1 位：未用 (符号位)</h3><ul>
+<li>在 Java 等语言中，最高位是符号位。由于生成的 ID 总是正数，所以这一位固定为 0，不参与 ID 的计算，也为了保证 ID 永远为正。</li>
+</ul>
+<h3 id="2-2-41-位：时间戳-Timestamp"><a href="#2-2-41-位：时间戳-Timestamp" class="headerlink" title="2.2 41 位：时间戳 (Timestamp)"></a>2.2 41 位：时间戳 (Timestamp)</h3><ul>
+<li><strong>含义</strong>: 自定义的一个起始时间（<code>Epoch</code>）以来的毫秒数。</li>
+<li><strong>作用</strong>: 保证 ID 的时间有序性，并且在分布式环境中避免时钟同步问题。</li>
+<li><strong>计算方式</strong>: 当前时间戳 - 自定义 <code>Epoch</code> 时间戳。</li>
+<li><strong>可使用时间</strong>: 41 位二进制数最大值是 2^41 - 1 &#x3D; 2199023255551 毫秒，大约可以使用 69 年。<ul>
+<li><code>2199023255551 ms ≈ 2199023255.551 s ≈ 36650387.59 min ≈ 610839.79 h ≈ 25451.65 days ≈ 69.73 years</code></li>
+</ul>
+</li>
+<li><strong>自定义 Epoch</strong>: 选择一个时间点作为 <code>Epoch</code>，例如 Twitter 选择了 <code>2010-11-04 01:42:54 UTC</code>。这使得我们不必担心 ID 的有效期限在短期内耗尽。</li>
+</ul>
+<h3 id="2-3-10-位：工作节点-ID-Worker-ID"><a href="#2-3-10-位：工作节点-ID-Worker-ID" class="headerlink" title="2.3 10 位：工作节点 ID (Worker ID)"></a>2.3 10 位：工作节点 ID (Worker ID)</h3><ul>
+<li>10 位又可以细分为：<ul>
+<li><strong>5 位：数据中心 ID (Datacenter ID)</strong>：<ul>
+<li><strong>含义</strong>: 标识不同的数据中心。</li>
+<li><strong>最大值</strong>: 2^5 - 1 &#x3D; 31。意味着最多可以支持 32 个数据中心。</li>
+</ul>
+</li>
+<li><strong>5 位：机器 ID (Worker ID)</strong>：<ul>
+<li><strong>含义</strong>: 标识数据中心内的不同机器（或进程）。</li>
+<li><strong>最大值</strong>: 2^5 - 1 &#x3D; 31。意味着每个数据中心最多可以支持 32 台机器。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>作用</strong>: 结合数据中心 ID 和机器 ID，共 10 位 <code>2^10 - 1 = 1023</code>，最多可支持 1024 个分布式节点。这确保了在同一个毫秒内，不同机器生成的 ID 不会重复。</li>
+</ul>
+<h3 id="2-4-12-位：序列号-Sequence-Number"><a href="#2-4-12-位：序列号-Sequence-Number" class="headerlink" title="2.4 12 位：序列号 (Sequence Number)"></a>2.4 12 位：序列号 (Sequence Number)</h3><ul>
+<li><strong>含义</strong>: 在同一个毫秒内，同一个工作节点上生成 ID 的序号。</li>
+<li><strong>最大值</strong>: 2^12 - 1 &#x3D; 4095。意味着在同一个毫秒内，单个工作节点最多可以生成 4096 个不同的 ID。</li>
+<li><strong>作用</strong>: 当同一个毫秒内有大量 ID 生成请求时，通过序列号递增来保证 ID 的唯一性。如果当前毫秒的序列号已达到最大值，系统会等待下一个毫秒再生成 ID。</li>
+</ul>
+<h2 id="三、算法实现与原理"><a href="#三、算法实现与原理" class="headerlink" title="三、算法实现与原理"></a>三、算法实现与原理</h2><p>生成雪花 ID 的核心原理是位运算，将上述各个部分拼接起来。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ID = (timestamp - epoch) &lt;&lt; (datacenterIdBits + workerIdBits + sequenceBits)</span><br><span class="line">   | (datacenterId &lt;&lt; (workerIdBits + sequenceBits))</span><br><span class="line">   | (workerId &lt;&lt; sequenceBits)</span><br><span class="line">   | sequence</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-1-关键变量定义"><a href="#3-1-关键变量定义" class="headerlink" title="3.1 关键变量定义"></a>3.1 关键变量定义</h3><p>在实现中需要定义一些常量：</p>
+<ul>
+<li><code>EPOCH</code>：自定义的起始时间戳（毫秒）。</li>
+<li><code>WORKER_ID_BITS</code>：机器 ID 所占位数 (5)。</li>
+<li><code>DATACENTER_ID_BITS</code>：数据中心 ID 所占位数 (5)。</li>
+<li><code>SEQUENCE_BITS</code>：序列号所占位数 (12)。</li>
+<li><code>MAX_WORKER_ID</code>：机器 ID 的最大值 (2^5 - 1 &#x3D; 31)。</li>
+<li><code>MAX_DATACENTER_ID</code>：数据中心 ID 的最大值 (2^5 - 1 &#x3D; 31)。</li>
+<li><code>MAX_SEQUENCE</code>：序列号的最大值 (2^12 - 1 &#x3D; 4095)。</li>
+</ul>
+<h3 id="3-2-Go-语言实现示例"><a href="#3-2-Go-语言实现示例" class="headerlink" title="3.2 Go 语言实现示例"></a>3.2 Go 语言实现示例</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> snowflake</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;errors&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义各部分的位数</span></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	workerIDBits     <span class="type">uint8</span> = <span class="number">5</span>  <span class="comment">// 机器ID占5位</span></span><br><span class="line">	datacenterIDBits <span class="type">uint8</span> = <span class="number">5</span>  <span class="comment">// 数据中心ID占5位</span></span><br><span class="line">	sequenceBits     <span class="type">uint8</span> = <span class="number">12</span> <span class="comment">// 序列号占12位</span></span><br><span class="line"></span><br><span class="line">	maxWorkerID     <span class="type">int64</span> = <span class="number">-1</span> ^ (<span class="number">-1</span> &lt;&lt; workerIDBits)     <span class="comment">// 机器ID最大值 (31)</span></span><br><span class="line">	maxDatacenterID <span class="type">int64</span> = <span class="number">-1</span> ^ (<span class="number">-1</span> &lt;&lt; datacenterIDBits) <span class="comment">// 数据中心ID最大值 (31)</span></span><br><span class="line">	maxSequence     <span class="type">int64</span> = <span class="number">-1</span> ^ (<span class="number">-1</span> &lt;&lt; sequenceBits)     <span class="comment">// 序列号最大值 (4095)</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 左移位数</span></span><br><span class="line">	workerIDShift     <span class="type">uint8</span> = sequenceBits                                  <span class="comment">// 机器ID左移12位</span></span><br><span class="line">	datacenterIDShift <span class="type">uint8</span> = sequenceBits + workerIDBits                   <span class="comment">// 数据中心ID左移12+5=17位</span></span><br><span class="line">	timestampShift    <span class="type">uint8</span> = sequenceBits + workerIDBits + datacenterIDBits <span class="comment">// 时间戳左移12+5+5=22位</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 初始时间戳，可以根据实际情况修改为一个过去的日期，例如 2020-01-01 00:00:00 UTC</span></span><br><span class="line">	<span class="comment">// 避免在 2079 年左右溢出</span></span><br><span class="line">	epoch <span class="type">int64</span> = <span class="number">1577836800000</span> <span class="comment">// 2020-01-01 00:00:00 UTC 的毫秒时间戳</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Snowflake 结构体</span></span><br><span class="line"><span class="keyword">type</span> Snowflake <span class="keyword">struct</span> &#123;</span><br><span class="line">	sync.Mutex         <span class="comment">// 保护并发访问</span></span><br><span class="line">	timestamp    <span class="type">int64</span> <span class="comment">// 上次生成ID的时间戳</span></span><br><span class="line">	workerID     <span class="type">int64</span> <span class="comment">// 机器ID</span></span><br><span class="line">	datacenterID <span class="type">int64</span> <span class="comment">// 数据中心ID</span></span><br><span class="line">	sequence     <span class="type">int64</span> <span class="comment">// 当前毫秒内的序列号</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// NewSnowflake 创建一个新的 Snowflake 实例</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewSnowflake</span><span class="params">(workerID, datacenterID <span class="type">int64</span>)</span></span> (*Snowflake, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="keyword">if</span> workerID &lt; <span class="number">0</span> || workerID &gt; maxWorkerID &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, errors.New(<span class="string">&quot;worker ID invalid&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> datacenterID &lt; <span class="number">0</span> || datacenterID &gt; maxDatacenterID &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, errors.New(<span class="string">&quot;datacenter ID invalid&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> &amp;Snowflake&#123;</span><br><span class="line">		workerID:     workerID,</span><br><span class="line">		datacenterID: datacenterID,</span><br><span class="line">		timestamp:    <span class="number">0</span>,</span><br><span class="line">		sequence:     <span class="number">0</span>,</span><br><span class="line">	&#125;, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// GenerateID 生成一个唯一的 ID</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sf *Snowflake)</span></span> GenerateID() <span class="type">int64</span> &#123;</span><br><span class="line">	sf.Lock()</span><br><span class="line">	<span class="keyword">defer</span> sf.Unlock()</span><br><span class="line"></span><br><span class="line">	now := time.Now().UnixMilli() <span class="comment">// 获取当前毫秒时间戳</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> now &lt; sf.timestamp &#123;</span><br><span class="line">		<span class="comment">// 如果当前时间小于上次生成ID的时间，说明时钟回拨，抛出错误或等待</span></span><br><span class="line">		<span class="comment">// 严谨的生产环境应该直接抛出错误或根据策略处理</span></span><br><span class="line">		<span class="built_in">panic</span>(errors.New(<span class="string">&quot;clock moved backwards, refusing to generate ID&quot;</span>))</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> now == sf.timestamp &#123;</span><br><span class="line">		<span class="comment">// 在同一个毫秒内，序列号递增</span></span><br><span class="line">		sf.sequence = (sf.sequence + <span class="number">1</span>) &amp; maxSequence</span><br><span class="line">		<span class="keyword">if</span> sf.sequence == <span class="number">0</span> &#123;</span><br><span class="line">			<span class="comment">// 当前毫秒内的序列号已用完，等待下一个毫秒</span></span><br><span class="line">			now = sf.untilNextMilli(now)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="comment">// 不同毫秒，序列号重置为0</span></span><br><span class="line">		sf.sequence = <span class="number">0</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	sf.timestamp = now <span class="comment">// 更新上次生成ID的时间戳</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 组合各部分生成最终ID</span></span><br><span class="line">	id := ((now - epoch) &lt;&lt; timestampShift) |</span><br><span class="line">		(sf.datacenterID &lt;&lt; datacenterIDShift) |</span><br><span class="line">		(sf.workerID &lt;&lt; workerIDShift) |</span><br><span class="line">		sf.sequence</span><br><span class="line">	<span class="keyword">return</span> id</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// untilNextMilli 等待到下一个毫秒</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sf *Snowflake)</span></span> untilNextMilli(lastTimestamp <span class="type">int64</span>) <span class="type">int64</span> &#123;</span><br><span class="line">	now := time.Now().UnixMilli()</span><br><span class="line">	<span class="keyword">for</span> now &lt;= lastTimestamp &#123;</span><br><span class="line">		now = time.Now().UnixMilli()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> now</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">// 示例用法:</span></span><br><span class="line"><span class="comment">func main() &#123;</span></span><br><span class="line"><span class="comment">	// 创建一个数据中心ID为1，机器ID为1的Snowflake实例</span></span><br><span class="line"><span class="comment">	node, err := NewSnowflake(1, 1)</span></span><br><span class="line"><span class="comment">	if err != nil &#123;</span></span><br><span class="line"><span class="comment">		fmt.Println(&quot;Error creating snowflake:&quot;, err)</span></span><br><span class="line"><span class="comment">		return</span></span><br><span class="line"><span class="comment">	&#125;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">	for i := 0; i &lt; 10; i++ &#123;</span></span><br><span class="line"><span class="comment">		id := node.GenerateID()</span></span><br><span class="line"><span class="comment">		fmt.Printf(&quot;Generated ID: %d\n&quot;, id)</span></span><br><span class="line"><span class="comment">	&#125;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">	// 模拟并发生成</span></span><br><span class="line"><span class="comment">	var wg sync.WaitGroup</span></span><br><span class="line"><span class="comment">	ids := make(chan int64, 1000)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">	for i := 0; i &lt; 100; i++ &#123;</span></span><br><span class="line"><span class="comment">		wg.Add(1)</span></span><br><span class="line"><span class="comment">		go func() &#123;</span></span><br><span class="line"><span class="comment">			defer wg.Done()</span></span><br><span class="line"><span class="comment">			for j := 0; j &lt; 10; j++ &#123;</span></span><br><span class="line"><span class="comment">				ids &lt;- node.GenerateID()</span></span><br><span class="line"><span class="comment">			&#125;</span></span><br><span class="line"><span class="comment">		&#125;()</span></span><br><span class="line"><span class="comment">	&#125;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">	wg.Wait()</span></span><br><span class="line"><span class="comment">	close(ids)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">	uniqueIDs := make(map[int64]struct&#123;&#125;)</span></span><br><span class="line"><span class="comment">	for id := range ids &#123;</span></span><br><span class="line"><span class="comment">		if _, ok := uniqueIDs[id]; ok &#123;</span></span><br><span class="line"><span class="comment">			fmt.Printf(&quot;Duplicate ID found: %d\n&quot;, id)</span></span><br><span class="line"><span class="comment">		&#125;</span></span><br><span class="line"><span class="comment">		uniqueIDs[id] = struct&#123;&#125;&#123;&#125;</span></span><br><span class="line"><span class="comment">	&#125;</span></span><br><span class="line"><span class="comment">	fmt.Printf(&quot;Generated %d unique IDs concurrently.\n&quot;, len(uniqueIDs))</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment">*/</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-Python-语言实现示例"><a href="#3-3-Python-语言实现示例" class="headerlink" title="3.3 Python 语言实现示例"></a>3.3 Python 语言实现示例</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> threading</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义各部分的位数</span></span><br><span class="line">WORKER_ID_BITS = <span class="number">5</span></span><br><span class="line">DATACENTER_ID_BITS = <span class="number">5</span></span><br><span class="line">SEQUENCE_BITS = <span class="number">12</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 最大值</span></span><br><span class="line">MAX_WORKER_ID = -<span class="number">1</span> ^ (-<span class="number">1</span> &lt;&lt; WORKER_ID_BITS)  <span class="comment"># 31</span></span><br><span class="line">MAX_DATACENTER_ID = -<span class="number">1</span> ^ (-<span class="number">1</span> &lt;&lt; DATACENTER_ID_BITS)  <span class="comment"># 31</span></span><br><span class="line">MAX_SEQUENCE = -<span class="number">1</span> ^ (-<span class="number">1</span> &lt;&lt; SEQUENCE_BITS)  <span class="comment"># 4095</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 左移位数</span></span><br><span class="line">WORKER_ID_SHIFT = SEQUENCE_BITS  <span class="comment"># 12</span></span><br><span class="line">DATACENTER_ID_SHIFT = SEQUENCE_BITS + WORKER_ID_BITS  <span class="comment"># 12 + 5 = 17</span></span><br><span class="line">TIMESTAMP_SHIFT = SEQUENCE_BITS + WORKER_ID_BITS + DATACENTER_ID_BITS  <span class="comment"># 12 + 5 + 5 = 22</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始时间戳 (2020-01-01 00:00:00 UTC 的毫秒时间戳)</span></span><br><span class="line"><span class="comment"># Unix epoch 1970-01-01 00:00:00 UTC</span></span><br><span class="line"><span class="comment"># time.time() 返回浮点秒，需乘以1000变为毫秒</span></span><br><span class="line">EPOCH = <span class="number">1577836800000</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Snowflake</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, worker_id, datacenter_id</span>):</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> (<span class="number">0</span> &lt;= worker_id &lt;= MAX_WORKER_ID):</span><br><span class="line">            <span class="keyword">raise</span> ValueError(<span class="string">f&quot;Worker ID must be between 0 and <span class="subst">&#123;MAX_WORKER_ID&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> (<span class="number">0</span> &lt;= datacenter_id &lt;= MAX_DATACENTER_ID):</span><br><span class="line">            <span class="keyword">raise</span> ValueError(<span class="string">f&quot;Datacenter ID must be between 0 and <span class="subst">&#123;MAX_DATACENTER_ID&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.worker_id = worker_id</span><br><span class="line">        <span class="variable language_">self</span>.datacenter_id = datacenter_id</span><br><span class="line">        <span class="variable language_">self</span>.sequence = <span class="number">0</span></span><br><span class="line">        <span class="variable language_">self</span>.last_timestamp = -<span class="number">1</span></span><br><span class="line">        <span class="variable language_">self</span>.lock = threading.Lock()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_get_timestamp</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;获取当前毫秒时间戳&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">int</span>(time.time() * <span class="number">1000</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_until_next_milli</span>(<span class="params">self, last_timestamp</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;等待到下一个毫秒&quot;&quot;&quot;</span></span><br><span class="line">        timestamp = <span class="variable language_">self</span>._get_timestamp()</span><br><span class="line">        <span class="keyword">while</span> timestamp &lt;= last_timestamp:</span><br><span class="line">            timestamp = <span class="variable language_">self</span>._get_timestamp()</span><br><span class="line">        <span class="keyword">return</span> timestamp</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">generate_id</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">with</span> <span class="variable language_">self</span>.lock:</span><br><span class="line">            timestamp = <span class="variable language_">self</span>._get_timestamp()</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> timestamp &lt; <span class="variable language_">self</span>.last_timestamp:</span><br><span class="line">                <span class="keyword">raise</span> RuntimeError(<span class="string">&quot;Clock moved backwards. Refusing to generate id for %d milliseconds&quot;</span> % (<span class="variable language_">self</span>.last_timestamp - timestamp))</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> timestamp == <span class="variable language_">self</span>.last_timestamp:</span><br><span class="line">                <span class="variable language_">self</span>.sequence = (<span class="variable language_">self</span>.sequence + <span class="number">1</span>) &amp; MAX_SEQUENCE</span><br><span class="line">                <span class="keyword">if</span> <span class="variable language_">self</span>.sequence == <span class="number">0</span>:  <span class="comment"># 序列号用完，等待下一个毫秒</span></span><br><span class="line">                    timestamp = <span class="variable language_">self</span>._until_next_milli(<span class="variable language_">self</span>.last_timestamp)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="variable language_">self</span>.sequence = <span class="number">0</span>  <span class="comment"># 新的毫秒，序列号重置</span></span><br><span class="line"></span><br><span class="line">            <span class="variable language_">self</span>.last_timestamp = timestamp</span><br><span class="line"></span><br><span class="line">            <span class="comment"># 组合各部分生成最终ID</span></span><br><span class="line">            new_id = (</span><br><span class="line">                ((timestamp - EPOCH) &lt;&lt; TIMESTAMP_SHIFT)</span><br><span class="line">                | (<span class="variable language_">self</span>.datacenter_id &lt;&lt; DATACENTER_ID_SHIFT)</span><br><span class="line">                | (<span class="variable language_">self</span>.worker_id &lt;&lt; WORKER_ID_SHIFT)</span><br><span class="line">                | <span class="variable language_">self</span>.sequence</span><br><span class="line">            )</span><br><span class="line">            <span class="keyword">return</span> new_id</span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string"># 示例用法:</span></span><br><span class="line"><span class="string">if __name__ == &quot;__main__&quot;:</span></span><br><span class="line"><span class="string">    # 创建一个数据中心ID为1，机器ID为1的Snowflake实例</span></span><br><span class="line"><span class="string">    node = Snowflake(1, 1)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    # 生成少量ID</span></span><br><span class="line"><span class="string">    for _ in range(10):</span></span><br><span class="line"><span class="string">        print(f&quot;Generated ID: &#123;node.generate_id()&#125;&quot;)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    # 模拟并发生成ID</span></span><br><span class="line"><span class="string">    num_threads = 100</span></span><br><span class="line"><span class="string">    ids = []</span></span><br><span class="line"><span class="string">  </span></span><br><span class="line"><span class="string">    def generate_many_ids():</span></span><br><span class="line"><span class="string">        for _ in range(100):</span></span><br><span class="line"><span class="string">            ids.append(node.generate_id())</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    threads = []</span></span><br><span class="line"><span class="string">    for _ in range(num_threads):</span></span><br><span class="line"><span class="string">        thread = threading.Thread(target=generate_many_ids)</span></span><br><span class="line"><span class="string">        threads.append(thread)</span></span><br><span class="line"><span class="string">        thread.start()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    for thread in threads:</span></span><br><span class="line"><span class="string">        thread.join()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    print(f&quot;\nGenerated &#123;len(ids)&#125; IDs concurrently.&quot;)</span></span><br><span class="line"><span class="string">    print(f&quot;Number of unique IDs: &#123;len(set(ids))&#125;&quot;)</span></span><br><span class="line"><span class="string">    if len(ids) != len(set(ids)):</span></span><br><span class="line"><span class="string">        print(&quot;Warning: Duplicate IDs found!&quot;)</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、工作流程图"><a href="#四、工作流程图" class="headerlink" title="四、工作流程图"></a>四、工作流程图</h2><p>下面是一个简化的雪花算法工作流程图，展示了核心的 ID 生成逻辑：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[收到生成ID请求] -- 获取当前毫秒时间戳 &#96;now&#96; --&gt; B{&#96;now&#96; &lt; &#96;lastTimestamp&#96;?}
+
+    B -- 是 (时钟回拨) --&gt; C[抛出异常或等待]
+    B -- 否 --&gt; D{&#96;now&#96; &#x3D;&#x3D; &#96;lastTimestamp&#96;?}
+
+    D -- 是 (同一毫秒内) --&gt; E[序列号 &#96;sequence&#96; 自增]
+    E --&gt; F{&#96;sequence&#96; &gt; &#96;MAX_SEQUENCE&#96;?}
+
+    F -- 是 (序列号用尽) --&gt; G[等待直到 &#96;now&#96; &gt; &#96;lastTimestamp&#96;]
+    G --&gt; H[将 &#96;now&#96; 更新为新时间]
+    H --&gt; I[序列号 &#96;sequence&#96; 置为 0]
+
+    F -- 否 --&gt; K[将 &#96;lastTimestamp&#96; 更新为 &#96;now&#96;]
+    I --&gt; K
+    D -- 否 (新的毫秒) --&gt; I
+
+    K --&gt; L[通过位运算组合 ID]
+    L --&gt; M[返回 64位 ID]
+  </pre></div>
+
+<h2 id="五、优缺点"><a href="#五、优缺点" class="headerlink" title="五、优缺点"></a>五、优缺点</h2><h3 id="5-1-优点"><a href="#5-1-优点" class="headerlink" title="5.1 优点"></a>5.1 优点</h3><ol>
+<li><strong>全局唯一</strong>: 结合时间戳、数据中心 ID、机器 ID 和序列号，保证了生成的 ID 在分布式环境下的全局唯一性。</li>
+<li><strong>时间有序</strong>: 由于 ID 的高位是时间戳，生成的 ID 大致是趋势递增的。这对于数据库索引非常友好，相比 UUID 能提高写性能。</li>
+<li><strong>高性能</strong>: ID 生成过程不涉及数据库或网络请求，纯内存计算，每秒可生成数十万甚至数百万个 ID。</li>
+<li><strong>高可用</strong>: 不依赖于任何中心化服务，每个节点都可以独立生成 ID。只要单个节点正常运行，就能提供 ID 生成服务。</li>
+<li><strong>信息内聚</strong>: ID 中包含了时间信息，可以通过解析 ID 粗略地知道 ID 的生成时间。</li>
+<li><strong>长度适中</strong>: 64 位整数，比 UUID（128 位）更短，更易于存储和传输。</li>
+</ol>
+<h3 id="5-2-缺点"><a href="#5-2-缺点" class="headerlink" title="5.2 缺点"></a>5.2 缺点</h3><ol>
+<li><strong>依赖系统时间</strong>: 严重依赖机器的系统时钟。如果发生时钟回拨（系统时间被调回），可能导致生成重复 ID。虽然算法内部有解决机制（抛出异常或等待），但这仍然是一个潜在的风险点。</li>
+<li><strong>ID 不够随机</strong>: 由于 ID 是大致有序的，对外暴露的 ID 可能会包含一些信息（如生成时间、机器信息），对于某些对外提供服务的 ID 场景，这或许不是最佳选择。</li>
+<li><strong>配置管理</strong>: <code>datacenterId</code> 和 <code>workerId</code> 需要为每个节点进行唯一配置。在大型集群中，如何高效、自动化地分配和管理这些 ID 是一项挑战。</li>
+<li><strong>单点限制</strong>: 虽然算法本身是分布式的，但如果在同一毫秒内某个节点产生了超过 4096 个 ID，它将不得不等待下一个毫秒，这会形成一个短暂的性能瓶颈。</li>
+</ol>
+<h2 id="六、配置管理与时钟问题"><a href="#六、配置管理与时钟问题" class="headerlink" title="六、配置管理与时钟问题"></a>六、配置管理与时钟问题</h2><h3 id="6-1-Worker-ID-和-Datacenter-ID-的分配"><a href="#6-1-Worker-ID-和-Datacenter-ID-的分配" class="headerlink" title="6.1 Worker ID 和 Datacenter ID 的分配"></a>6.1 Worker ID 和 Datacenter ID 的分配</h3><p>这是雪花算法实施的关键挑战之一。常见的分配策略包括：</p>
+<ul>
+<li><strong>静态配置</strong>: 手动为每个机器或服务配置固定的 <code>workerID</code> 和 <code>datacenterID</code>。简单直接，但管理复杂，不适合弹性伸缩的场景。</li>
+<li><strong>Zookeeper&#x2F;Etcd 等分布式协调服务</strong>: 在服务启动时，通过这些服务注册并获取唯一的 <code>workerID</code>。服务下线时释放 ID。这种方式自动化程度高，但增加了对外部服务的依赖。</li>
+<li><strong>K8s Pod 名称或 IP 地址解析</strong>: 在 Kubernetes 环境中，可以根据 Pod 的名称或 IP 地址进行哈希计算，生成 <code>workerID</code> 或 <code>datacenterID</code>。</li>
+</ul>
+<h3 id="6-2-时钟回拨-Clock-Rollback"><a href="#6-2-时钟回拨-Clock-Rollback" class="headerlink" title="6.2 时钟回拨 (Clock Rollback)"></a>6.2 时钟回拨 (Clock Rollback)</h3><p>时钟回拨是雪花算法面临的最严重问题。如果系统时间被人工修改或 NTP 同步导致时间向后跳，可能会生成重复的 ID。</p>
+<p><strong>处理策略</strong>:</p>
+<ol>
+<li><strong>抛出异常</strong>: 这是最严格也最安全的处理方式，一旦检测到时钟回拨，立即停止服务并报错。 (如 Go&#x2F;Python 示例所示)</li>
+<li><strong>等待校准</strong>: 让程序等待，直到时钟前进到上次生成 ID 的时间之后。这种方式避免了错误，但可能导致服务短时间不可用。</li>
+<li><strong>使用备用 ID 生成策略</strong>: 在时钟回拨期间，切换到另一个临时的、可能性能稍差但能保证唯一性的 ID 生成方案（例如 UUID）。</li>
+</ol>
+<h3 id="6-3-Epoch-时间选择"><a href="#6-3-Epoch-时间选择" class="headerlink" title="6.3 Epoch 时间选择"></a>6.3 Epoch 时间选择</h3><p>选择一个合适的 <code>Epoch</code> 时间非常重要。</p>
+<ul>
+<li>如果选择太早的时间（如 <code>1970-01-01</code>），ID 中的时间戳部分可能会很快耗尽 41 位，导致在几十年后溢出。</li>
+<li>选择一个接近当前时间的 <code>Epoch</code>，可以有效延长雪花 ID 的使用寿命。但请注意，一旦确定，<strong><code>Epoch</code> 值不应再改变</strong>，否则会影响已生成 ID 的解析。</li>
+</ul>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>雪花算法是一个高效、可靠的分布式 ID 生成方案，广泛应用于高性能、高可用要求的分布式系统。它通过巧妙地组合时间戳、数据中心 ID、机器 ID 和序列号，在保证 ID 全局唯一性的同时，实现了大致的时间有序性和极高的生成效率。</p>
+<p>然而，在使用雪花算法时，必须充分理解其原理和潜在风险，尤其是对系统时钟的依赖和 <code>workerID</code> 与 <code>datacenterID</code> 的管理。合理的配置、严谨的实现以及对时钟回拨等异常情况的妥善处理，是确保雪花算法稳定可靠运行的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/b8edc2276249/">https://blog.tbf1211.xx.kg/b8edc2276249/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-18.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/b8afac30c52e/" title="开源协议详解：理解与选择的艺术"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">开源协议详解：理解与选择的艺术</div></div><div class="info-2"><div class="info-item-1"> 在开源软件的世界里，开源协议 (Open Source License) 扮演着至关重要的角色。它定义了你对开源代码的权利和义务：你可以做什么，不能做什么，以及当你修改或分发代码时需要遵守哪些规则。理解这些协议对于开发者、公司和代码使用者来说都至关重要，它不仅关乎合法合规，更影响着项目的成长、社区的形成以及商业模式的选择。  “开源协议是开源世界的宪法，明确了游戏规则，确保了开放与合作的平衡。”   一、什么是开源协议？为什么需要它？开源协议是一份法律文件，它授予用户使用、修改和分发开源软件的权利，但同时也会施加一定的条件和限制。 为什么需要开源协议？  界定权利与义务：明确使用者可以对代码做什么（使用、修改、分发），以及必须做什么（保留版权信息、公开源码等）。 保护贡献者：允许贡献者保留版权，同时授权他人使用，确保其辛勤工作不会被恶意独占。 促进创新：降低了他人基于现有代码进行二次开发和创新的门槛。 建立信任：协议的公开透明有助于社区形成共识，促进协作。 避免法律纠纷：明确的协议条款可以减少因代码使用引起的所有权、责任和版权争议。  核心问题：任何没有明确开源协议的代码，默认...</div></div></div></a><a class="pagination-related" href="/25dabaebd519/" title="JUnit (单元测试框架) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">JUnit (单元测试框架) 详解</div></div><div class="info-2"><div class="info-item-1"> JUnit 是一个开源的 Java 语言单元测试框架，也是 Java 开发中最常用、最具影响力的测试框架之一。它提供了一套用于编写和运行可重复测试的工具集，旨在帮助开发者实现测试驱动开发 (TDD) 和确保代码质量。JUnit 是 xUnit 家族的一员，它的核心理念是：先编写测试，再编写业务代码，并确保测试能够通过，从而验证代码的正确性。  核心思想：JUnit 提供了一套标准化的注解和断言方法，使得开发者能够以结构化、可自动化执行的方式，对程序中的最小可测试单元（通常是方法）进行验证，确保其行为符合预期。    一、为什么需要单元测试与 JUnit？在软件开发过程中，测试是不可或缺的一环。单元测试尤其重要，它专注于测试程序中最小的功能模块（例如一个类的一个方法）。没有单元测试，开发者会面临以下挑战：  代码质量难以保证：无法及时发现代码中的逻辑错误、边界条件问题。 回归测试困难：修改现有代码后，很难确保没有引入新的 Bug 到原有功能中。 重构风险高：缺乏测试覆盖的代码，在重构时容易引入新的问题，因为无法快速验证重构后的代码是否依然正确。 调试成本高：问题往往在集成测试或生...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/da4a047de713/" title="中国电信 CN2 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-19</div><div class="info-item-2">中国电信 CN2 网络详解</div></div><div class="info-2"><div class="info-item-1"> CN2 (ChinaNet Next Generation Carrying Network)，即中国电信下一代承载网络，是中国电信于 2005 年推出的新一代骨干网络。它旨在提供高质量、高可靠、低延迟的网络服务，主要面向政府、企业和高端个人用户。CN2 与传统的 ChinaNet (AS4134，163骨干网) 在架构和技术上都有显著区别，以提供更优质的国际互联体验。  核心思想：将互联网流量分为“优质”和“普通”两类通道，CN2 提供优质通道，通过更少的跳数、更小的丢包率和更低的延迟，显著提升国际互联的稳定性和速度。   一、为什么需要 CN2？1.1 ChinaNet (163骨干网) 的局限性传统的中国电信互联网骨干网，通常被称为 163 网（因其 AS 号为 4134，而 163 是其常用接入号），是国内用户最广泛使用的网络。然而，163 网在国际互联方面存在一些固有的问题：  链路拥堵：作为最常用的骨干网，163 网承载了大量流量，尤其在国际出口处容易出现拥堵，导致延迟高、丢包率大。 路由跳数多：在国际互联时，163 网的路由路径通常较长，经过的中间节点和运营商较多...</div></div></div></a><a class="pagination-related" href="/eae983954311/" title="NAT (Network Address Translation) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-03</div><div class="info-item-2">NAT (Network Address Translation) 详解</div></div><div class="info-2"><div class="info-item-1"> NAT (Network Address Translation，网络地址转换) 是一种在 IP 数据包通过路由器或防火墙时，修改其 IP 地址信息（有时也包括端口号）的技术。NAT 是 IPv4 时代的核心网络技术之一，它在缓解 IPv4 地址枯竭和提高内部网络安全性方面发挥了不可或缺的作用。  核心思想：NAT 允许一个拥有私有 IP 地址的内部网络通过一个或几个公共 IP 地址与外部网络（如互联网）通信，从而实现地址共享和隐藏内部拓扑。    一、NAT 的背景与重要性1.1 IPv4 地址枯竭原始的 IPv4 地址空间大约为 40 亿个地址。随着互联网和智能设备的普及，全球对 IP 地址的需求爆炸式增长，远超 IPv4 的设计容量。NAT 的出现使得多个设备可以共享一个公有 IP 地址，极大地延缓了 IPv4 地址耗尽的速度。 1.2 网络安全考量通过 NAT，内部网络的私有 IP 地址空间对外部网络是不可见的。外部攻击者无法直接访问内部主机，因为他们只看到 NAT 设备的公共 IP 地址。这为内部网络提供了一层基本的安全屏障。 1.3 灵活的网络设计NAT 允许企业和...</div></div></div></a><a class="pagination-related" href="/56d360e5bda1/" title="SNAT 与 DNAT 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-23</div><div class="info-item-2">SNAT 与 DNAT 详解</div></div><div class="info-2"><div class="info-item-1"> NAT (Network Address Translation，网络地址转换) 是 IPv4 网络中一项基本而关键的技术，它在数据包流经网络设备（如路由器或防火墙）时修改其 IP 地址信息（有时也包括端口号）。NAT 根据修改方向和目的主要分为两大类型：源网络地址转换 (SNAT - Source Network Address Translation) 和 目的网络地址转换 (DNAT - Destination Network Address Translation)。理解这两种机制对于网络设计、故障排查和安全性至关重要。  核心思想：  SNAT：解决“内部网络中主机如何安全地、共享地访问外部网络资源”的问题，修改出站数据包的源地址。 DNAT：解决“外部网络中主机如何安全地访问内部提供的服务”的问题，修改入站数据包的目的地址。     一、网络地址转换 (NAT) 概述NAT 技术最初是为了缓解 IPv4 地址枯竭问题而设计，它允许一个内部私有 IP 网络通过一个或几个公共 IP 地址与外部网络（如互联网）通信。除了地址共享，NAT 也为内部网络提供了一层基本的安全隔...</div></div></div></a><a class="pagination-related" href="/19a6c2b992d7/" title="IPv6 (Internet Protocol Version 6) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-20</div><div class="info-item-2">IPv6 (Internet Protocol Version 6) 详解</div></div><div class="info-2"><div class="info-item-1"> IPv6 (Internet Protocol Version 6) 是互联网协议 (IP) 的最新版本，旨在取代其前身 IPv4。它解决了 IPv4 长期存在的地址枯竭问题，并引入了多项设计改进，以更好地适应现代互联网的需求，包括支持更简单的头部处理、增强的安全性、更好的服务质量 (QoS) 和更强大的移动性功能。  核心思想：从根本上解决 IPv4 地址短缺问题，同时优化协议设计，为万物互联 (IoT)、5G 和未来网络应用提供坚实基础。    一、为什么需要 IPv6？IPv4 (Internet Protocol Version 4) 作为互联网的核心协议已成功运行数十年，但随着互联网的爆炸式增长，其固有的设计局限性日益凸显：  地址枯竭 (Address Exhaustion)：IPv4 地址空间为 32 位，最多有约 43 亿个地址。尽管采取了无类别域间路由 (CIDR) 和网络地址转换 (NAT) 等技术来延缓地址枯竭，但根源问题并未解决。全球各区域的 IPv4 地址池已基本分配完毕，成为互联网进一步发展的瓶颈。 NAT 的复杂性与限制：网络地址转换 (NAT) ...</div></div></div></a><a class="pagination-related" href="/62ea6394243a/" title="RPC(Remote Procedure Call)远程过程调用详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-03</div><div class="info-item-2">RPC(Remote Procedure Call)远程过程调用详解</div></div><div class="info-2"><div class="info-item-1"> RPC (Remote Procedure Call)，即远程过程调用，是一种分布式计算技术，它允许程序调用位于不同地址空间（通常是不同计算机上）的子程序或函数，就像调用本地子程序一样。RPC 屏蔽了底层网络通信的复杂性，让开发者可以专注于业务逻辑，提高开发效率。  核心思想： RPC 的目标是透明化 (Transparency) 远程服务的调用过程，让客户端感觉就像在调用本地方法，而实际上调用的请求被序列化并通过网络传输到远程服务，远程服务执行后将结果序列化并返回给客户端。   一、为什么需要 RPC？在传统的单体应用中，所有功能都运行在同一个进程中，方法调用直接发生在内存中。然而，随着业务复杂性和系统规模的增长，单体应用面临诸多挑战：  扩展性差：难以针对不同模块的负载压力独立扩展。 开发效率低：团队协作困难，代码冲突多。 容错性差：单个模块故障可能导致整个系统崩溃。 技术栈限制：难以在不同模块中使用最佳技术栈。  为了解决这些问题，系统架构逐渐向分布式系统和微服务架构演进。在这种架构中，一个大型应用被拆分成多个独立的服务，每个服务运行在不同的进程中，甚至不同的物理机器上。...</div></div></div></a><a class="pagination-related" href="/45a8b220c3e8/" title="中国移动 CMI 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-18</div><div class="info-item-2">中国移动 CMI 网络详解</div></div><div class="info-2"><div class="info-item-1"> CMI (China Mobile International)，即中国移动国际网络，是中国移动的国际出口骨干网络。与中国电信的 CN2 和中国联通的 AS4837&#x2F;AS9929 类似，CMI 专注于提供中国移动用户的高质量国际互联服务。它随着中国移动国际业务的扩张而迅速发展，成为连接中国大陆与全球各地的重要网络基础设施之一。  核心思想：CMI 是中国移动为提升其用户国际访问体验而建立的国际骨干网络。它通过建设自有海缆和海外节点，提供相对稳定、大带宽的国际互联通道。   一、为什么需要 CMI？1.1 中国移动网络的挑战在早期的国际互联方面，中国移动（China Mobile）主要依靠租用其他运营商的国际出口带宽，或者将流量转接到中国电信或中国联通的网络进行国际互联。这种方式存在一些固有的问题：  网络质量不稳定：路由路径通常较长，经过的中间运营商和节点多，导致延迟高、丢包率大。 带宽不足：租用带宽的成本和可用性限制，使得在国际流量高峰期容易出现拥堵。 服务不可控：缺乏对国际链路的端到端控制，难以保证服务质量 (QoS)。 成本高昂：长期租用国际带宽的成本较高。  ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">500</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">226</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E9%9B%AA%E8%8A%B1%E7%AE%97%E6%B3%95%EF%BC%9F"><span class="toc-text">一、为什么需要雪花算法？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E9%9B%AA%E8%8A%B1%E7%AE%97%E6%B3%95%E7%9A%84-ID-%E7%BB%93%E6%9E%84"><span class="toc-text">二、雪花算法的 ID 结构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-1-%E4%BD%8D%EF%BC%9A%E6%9C%AA%E7%94%A8-%E7%AC%A6%E5%8F%B7%E4%BD%8D"><span class="toc-text">2.1 1 位：未用 (符号位)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-41-%E4%BD%8D%EF%BC%9A%E6%97%B6%E9%97%B4%E6%88%B3-Timestamp"><span class="toc-text">2.2 41 位：时间戳 (Timestamp)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-10-%E4%BD%8D%EF%BC%9A%E5%B7%A5%E4%BD%9C%E8%8A%82%E7%82%B9-ID-Worker-ID"><span class="toc-text">2.3 10 位：工作节点 ID (Worker ID)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-12-%E4%BD%8D%EF%BC%9A%E5%BA%8F%E5%88%97%E5%8F%B7-Sequence-Number"><span class="toc-text">2.4 12 位：序列号 (Sequence Number)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E7%AE%97%E6%B3%95%E5%AE%9E%E7%8E%B0%E4%B8%8E%E5%8E%9F%E7%90%86"><span class="toc-text">三、算法实现与原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%85%B3%E9%94%AE%E5%8F%98%E9%87%8F%E5%AE%9A%E4%B9%89"><span class="toc-text">3.1 关键变量定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Go-%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E7%A4%BA%E4%BE%8B"><span class="toc-text">3.2 Go 语言实现示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-Python-%E8%AF%AD%E8%A8%80%E5%AE%9E%E7%8E%B0%E7%A4%BA%E4%BE%8B"><span class="toc-text">3.3 Python 语言实现示例</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B%E5%9B%BE"><span class="toc-text">四、工作流程图</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">五、优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%BC%98%E7%82%B9"><span class="toc-text">5.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">5.2 缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86%E4%B8%8E%E6%97%B6%E9%92%9F%E9%97%AE%E9%A2%98"><span class="toc-text">六、配置管理与时钟问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-Worker-ID-%E5%92%8C-Datacenter-ID-%E7%9A%84%E5%88%86%E9%85%8D"><span class="toc-text">6.1 Worker ID 和 Datacenter ID 的分配</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E6%97%B6%E9%92%9F%E5%9B%9E%E6%8B%A8-Clock-Rollback"><span class="toc-text">6.2 时钟回拨 (Clock Rollback)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-Epoch-%E6%97%B6%E9%97%B4%E9%80%89%E6%8B%A9"><span class="toc-text">6.3 Epoch 时间选择</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="AI 辅助编程的关键要点与代码幻觉防范"/></a><div class="content"><a class="title" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范">AI 辅助编程的关键要点与代码幻觉防范</a><time datetime="2026-01-15T22:24:00.000Z" title="发表于 2026-01-16 06:24:00">2026-01-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fa3d796f3333/" title="MessagePack 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MessagePack 详解"/></a><div class="content"><a class="title" href="/fa3d796f3333/" title="MessagePack 详解">MessagePack 详解</a><time datetime="2026-01-08T22:24:00.000Z" title="发表于 2026-01-09 06:24:00">2026-01-09</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="传统命令行工具的现代补强与替代方案详解"/></a><div class="content"><a class="title" href="/82bf00e3828f/" title="传统命令行工具的现代补强与替代方案详解">传统命令行工具的现代补强与替代方案详解</a><time datetime="2026-01-06T22:24:00.000Z" title="发表于 2026-01-07 06:24:00">2026-01-07</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IPC (Inter-Process Communication) 详解"/></a><div class="content"><a class="title" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解">IPC (Inter-Process Communication) 详解</a><time datetime="2026-01-04T22:24:00.000Z" title="发表于 2026-01-05 06:24:00">2026-01-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/3059cdc5f529/" title="Golang sqlc 框架详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sqlc 框架详解"/></a><div class="content"><a class="title" href="/3059cdc5f529/" title="Golang sqlc 框架详解">Golang sqlc 框架详解</a><time datetime="2026-01-01T22:24:00.000Z" title="发表于 2026-01-02 06:24:00">2026-01-02</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-18.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
