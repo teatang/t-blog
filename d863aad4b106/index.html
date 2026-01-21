@@ -1,0 +1,524 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Trivy (通用安全扫描器) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Trivy 是由 Aqua Security 开发的一款开源通用安全扫描器 (Universal Security Scanner)。它专为云原生环境设计，能够高效、全面地扫描各种目标，以查找漏洞、错误配置、敏感信息、许可证违规等安全问题。Trivy 以其易用性、快速扫描能力和广泛的扫描范围，成为DevSecOps实践中不可或缺的工具。  Trivy 的目标是提供一个简单易用但功能强大的安全扫描">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Trivy (通用安全扫描器) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/d863aad4b106/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Trivy 是由 Aqua Security 开发的一款开源通用安全扫描器 (Universal Security Scanner)。它专为云原生环境设计，能够高效、全面地扫描各种目标，以查找漏洞、错误配置、敏感信息、许可证违规等安全问题。Trivy 以其易用性、快速扫描能力和广泛的扫描范围，成为DevSecOps实践中不可或缺的工具。  Trivy 的目标是提供一个简单易用但功能强大的安全扫描">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-31.jpg">
+<meta property="article:published_time" content="2026-01-10T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-21T01:29:47.904Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="CI&#x2F;CD">
+<meta property="article:tag" content="网络安全">
+<meta property="article:tag" content="2026">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-31.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Trivy (通用安全扫描器) 详解",
+  "url": "https://blog.tbf1211.xx.kg/d863aad4b106/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-31.jpg",
+  "datePublished": "2026-01-10T22:24:00.000Z",
+  "dateModified": "2026-01-21T01:29:47.904Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/d863aad4b106/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Trivy (通用安全扫描器) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">507</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-31.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Trivy (通用安全扫描器) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Trivy (通用安全扫描器) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-01-10T22:24:00.000Z" title="发表于 2026-01-11 06:24:00">2026-01-11</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>12分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Trivy</strong> 是由 <strong>Aqua Security</strong> 开发的一款开源<strong>通用安全扫描器 (Universal Security Scanner)</strong>。它专为云原生环境设计，能够高效、全面地扫描各种目标，以查找漏洞、错误配置、敏感信息、许可证违规等安全问题。Trivy 以其易用性、快速扫描能力和广泛的扫描范围，成为DevSecOps实践中不可或缺的工具。</p>
+</blockquote>
+<div class="note info flat"><p>Trivy 的目标是提供一个简单易用但功能强大的安全扫描解决方案，帮助开发者和运维人员在软件开发生命周期 (SDLC) 的早期阶段（“左移”）识别并修复安全风险，从而降低最终部署环境中的安全漏洞暴露面。</p>
+</div>
+<hr>
+<h2 id="一、为什么需要-Trivy？"><a href="#一、为什么需要-Trivy？" class="headerlink" title="一、为什么需要 Trivy？"></a>一、为什么需要 Trivy？</h2><p>在现代云原生和DevOps环境中，软件供应链的复杂性日益增加。传统的手动安全审计和后期渗透测试已经无法满足快速迭代和持续部署的需求。面临的挑战包括：</p>
+<ol>
+<li><strong>快速迭代下的安全盲点</strong>：容器镜像、Kubernetes 配置、IaC 模板等组件更新频繁，手动审查容易遗漏。</li>
+<li><strong>供应链安全风险</strong>：所使用的基础镜像、第三方库可能包含已知漏洞，需要持续监控。</li>
+<li><strong>配置错误</strong>：Kubernetes 集群、云基础设施和应用程序配置不当常常是导致数据泄露或服务中断的常见原因。</li>
+<li><strong>敏感信息泄露</strong>：代码库、镜像或配置文件中意外包含了API密钥、密码等敏感信息。</li>
+<li><strong>缺乏自动化检查</strong>：安全检查未能有效地集成到CI&#x2F;CD流程中，导致安全问题“流向”生产环境。</li>
+</ol>
+<p>Trivy 旨在解决这些问题，提供一个集成的、自动化的安全扫描解决方案：</p>
+<ul>
+<li><strong>全面的扫描范围</strong>：覆盖从代码到容器、到运行时环境的多个层面。</li>
+<li><strong>左移安全 (Shift-Left Security)</strong>：在开发和构建阶段捕获安全问题，降低修复成本。</li>
+<li><strong>自动化与CI&#x2F;CD集成</strong>：无缝融入现有CI&#x2F;CD管道，实现自动化安全门禁。</li>
+<li><strong>易用性</strong>：单一的二进制文件，简单的命令行接口，快速上手。</li>
+<li><strong>速度与效率</strong>：优化扫描性能，减少对开发流程的阻碍。</li>
+</ul>
+<h2 id="二、Trivy-核心功能与概念"><a href="#二、Trivy-核心功能与概念" class="headerlink" title="二、Trivy 核心功能与概念"></a>二、Trivy 核心功能与概念</h2><p>Trivy 提供了一系列丰富的扫描功能，支持多种目标和安全检查类型。</p>
+<h3 id="2-1-漏洞扫描-Vulnerability-Scanning"><a href="#2-1-漏洞扫描-Vulnerability-Scanning" class="headerlink" title="2.1 漏洞扫描 (Vulnerability Scanning)"></a>2.1 漏洞扫描 (Vulnerability Scanning)</h3><p>这是 Trivy 最核心的功能，用于在操作系统包、应用程序依赖项（如Go Modules, npm, pip, Maven等）中发现已知的安全漏洞。</p>
+<ul>
+<li><strong>漏洞数据库</strong>：Trivy 维护一个庞大的漏洞数据库，整合了来自全球各地的公共漏洞信息 (如NVD - 国家漏洞数据库) 和各发行版、语言生态系统的特定漏洞数据。此数据库会定期更新。</li>
+<li><strong>扫描对象</strong>：容器镜像、本地文件系统、Git 仓库、虚拟机镜像等。</li>
+</ul>
+<h3 id="2-2-错误配置扫描-Misconfiguration-Scanning"><a href="#2-2-错误配置扫描-Misconfiguration-Scanning" class="headerlink" title="2.2 错误配置扫描 (Misconfiguration Scanning)"></a>2.2 错误配置扫描 (Misconfiguration Scanning)</h3><p>Trivy 可以扫描Infrastructure as Code (IaC) 文件（如Terraform, Kubernetes manifest, Dockerfile, CloudFormation, Ansible）和Kubernetes集群，以发现不符合安全最佳实践或存在潜在风险的配置。</p>
+<ul>
+<li><strong>扫描对象</strong>：<ul>
+<li><strong>IaC 文件</strong>：Dockerfile, Kubernetes (YAML), Helm Charts, Terraform, CloudFormation, Ansible, ARM 等。</li>
+<li><strong>运行时环境</strong>：Kubernetes 集群的配置对象。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-3-敏感信息扫描-Secret-Scanning"><a href="#2-3-敏感信息扫描-Secret-Scanning" class="headerlink" title="2.3 敏感信息扫描 (Secret Scanning)"></a>2.3 敏感信息扫描 (Secret Scanning)</h3><p>检测代码库、容器镜像、文件系统中的硬编码敏感信息，如API密钥、密码、私钥等。</p>
+<h3 id="2-4-软件物料清单-SBOM-Software-Bill-of-Materials-生成"><a href="#2-4-软件物料清单-SBOM-Software-Bill-of-Materials-生成" class="headerlink" title="2.4 软件物料清单 (SBOM - Software Bill of Materials) 生成"></a>2.4 软件物料清单 (SBOM - Software Bill of Materials) 生成</h3><p>生成关于软件组件的清单，提供了构成应用程序的开源和第三方组件的详细信息。这对于供应链安全和合规性审计至关重要。</p>
+<h3 id="2-5-许可证扫描-License-Scanning"><a href="#2-5-许可证扫描-License-Scanning" class="headerlink" title="2.5 许可证扫描 (License Scanning)"></a>2.5 许可证扫描 (License Scanning)</h3><p>识别代码库或镜像中使用的各种开源许可证，帮助用户遵守法律和合规性要求。</p>
+<h3 id="2-6-Kubernetes-集群扫描"><a href="#2-6-Kubernetes-集群扫描" class="headerlink" title="2.6 Kubernetes 集群扫描"></a>2.6 Kubernetes 集群扫描</h3><p>直接扫描运行中的Kubernetes集群，检查部署的工作负载 (Pod, Deployment) 以及集群配置 (RBAC, Network Policies) 中的漏洞和错误配置。</p>
+<h3 id="2-7-云基础设施扫描-Cloud-Infrastructure-Scanning"><a href="#2-7-云基础设施扫描-Cloud-Infrastructure-Scanning" class="headerlink" title="2.7 云基础设施扫描 (Cloud Infrastructure Scanning)"></a>2.7 云基础设施扫描 (Cloud Infrastructure Scanning)</h3><p>扫描云账户中的配置，发现不安全或不合规的设置。目前主要支持AWS。</p>
+<h2 id="三、安装-Trivy"><a href="#三、安装-Trivy" class="headerlink" title="三、安装 Trivy"></a>三、安装 Trivy</h2><p>Trivy 是一个单一的二进制文件，安装非常简单。</p>
+<p><strong>Docker Desktop 用户 (Linux)：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker pull aquasec/trivy:latest</span><br></pre></td></tr></table></figure>
+
+<p><strong>macOS (使用 Homebrew)：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">brew install trivy</span><br></pre></td></tr></table></figure>
+
+<p><strong>Linux (使用 apt&#x2F;yum)：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Debian/Ubuntu</span></span><br><span class="line"><span class="built_in">sudo</span> apt-get install wget apt-transport-https gnupg</span><br><span class="line">wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | <span class="built_in">sudo</span> apt-key add -</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;deb https://aquasecurity.github.io/trivy-repo/deb <span class="subst">$(lsb_release -sc)</span> main&quot;</span> | <span class="built_in">sudo</span> <span class="built_in">tee</span> -a /etc/apt/sources.list.d/trivy.list</span><br><span class="line"><span class="built_in">sudo</span> apt-get update</span><br><span class="line"><span class="built_in">sudo</span> apt-get install trivy</span><br><span class="line"></span><br><span class="line"><span class="comment"># RHEL/CentOS</span></span><br><span class="line"><span class="built_in">sudo</span> rpm --import https://aquasecurity.github.io/trivy-repo/rpm/public.key</span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">tee</span> /etc/yum.repos.d/trivy.repo &lt;&lt; <span class="string">EOF</span></span><br><span class="line"><span class="string">[trivy]</span></span><br><span class="line"><span class="string">name=Trivy repository</span></span><br><span class="line"><span class="string">baseurl=https://aquasecurity.github.io/trivy-repo/rpm/\$releasever/base/\$basearch/</span></span><br><span class="line"><span class="string">gpgcheck=0</span></span><br><span class="line"><span class="string">enabled=1</span></span><br><span class="line"><span class="string">EOF</span></span><br><span class="line"><span class="built_in">sudo</span> yum install trivy</span><br></pre></td></tr></table></figure>
+
+<p><strong>或者下载二进制文件：</strong></p>
+<p>访问 <a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/aquasecurity/trivy/releases">Trivy GitHub Release 页面</a> 下载适合您操作系统的最新二进制文件，然后将其添加到您的 <code>$PATH</code>。</p>
+<h2 id="四、Trivy-使用示例"><a href="#四、Trivy-使用示例" class="headerlink" title="四、Trivy 使用示例"></a>四、Trivy 使用示例</h2><h3 id="4-1-容器镜像漏洞扫描"><a href="#4-1-容器镜像漏洞扫描" class="headerlink" title="4.1 容器镜像漏洞扫描"></a>4.1 容器镜像漏洞扫描</h3><p>扫描指定Docker镜像中的操作系统包和应用依赖项漏洞。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描一个公共的Nginx镜像</span></span><br><span class="line">trivy image nginx:latest</span><br><span class="line"></span><br><span class="line"><span class="comment"># 扫描本地Docker守护进程中的镜像 (如果没指定tag，默认latest)</span></span><br><span class="line">trivy image &lt;IMAGE_ID_OR_NAME&gt;</span><br></pre></td></tr></table></figure>
+
+<p><strong>过滤结果：</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 只显示严重性为 CRITICAL 和 HIGH 的漏洞</span></span><br><span class="line">trivy image --severity CRITICAL,HIGH alpine:3.15</span><br><span class="line"></span><br><span class="line"><span class="comment"># 将输出保存为JSON格式</span></span><br><span class="line">trivy image --format json -o vulnerabilities.json alpine:3.15</span><br></pre></td></tr></table></figure>
+<p><strong>示例输出片段 (表格格式):</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Running on Amazon Linux 2 (kernel 5.10.162-144.675.amzn2.x86_64)</span><br><span class="line">...</span><br><span class="line">┌───────────────────┬───────────────────┬───────────┬───────────────────────────────────┬───────────────────────────────────────────────────────────────┐</span><br><span class="line">│ Library           │ Vulnerability ID  │ Severity  │ Installed Version                 │ Fixed Version                                                 │</span><br><span class="line">├───────────────────┼───────────────────┼───────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────────┤</span><br><span class="line">│ glibc             │ CVE-2023-33434    │ HIGH      │ 2.26-64.amzn2.0.4                 │ 2.26-64.amzn2.0.5                                             │</span><br><span class="line">│ openssl           │ CVE-2023-0464     │ HIGH      │ 1:1.0.2k-25.amzn2.0.7             │ 1:1.0.2k-25.amzn2.0.8                                         │</span><br><span class="line">│ expat             │ CVE-2022-43680    │ MEDIUM    │ 2.1.0-12.amzn2.0.3                │ 2.1.0-12.amzn2.0.4                                            │</span><br><span class="line">└───────────────────┴───────────────────┴───────────┴───────────────────────────────────┴───────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-文件系统漏洞扫描"><a href="#4-2-文件系统漏洞扫描" class="headerlink" title="4.2 文件系统漏洞扫描"></a>4.2 文件系统漏洞扫描</h3><p>扫描本地目录或文件中的操作系统包和应用依赖项漏洞。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描当前目录下的文件和依赖</span></span><br><span class="line">trivy fs .</span><br><span class="line"></span><br><span class="line"><span class="comment"># 扫描指定的应用程序目录</span></span><br><span class="line">trivy fs /path/to/my/app</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-Git-仓库扫描-IaC-错误配置与敏感信息"><a href="#4-3-Git-仓库扫描-IaC-错误配置与敏感信息" class="headerlink" title="4.3 Git 仓库扫描 (IaC 错误配置与敏感信息)"></a>4.3 Git 仓库扫描 (IaC 错误配置与敏感信息)</h3><p>Trivy 可以直接扫描Git仓库，查找IaC错误配置和敏感信息。<br>需要注意的是，对于 IaC 扫描，Trivy 依靠其 Aqua Security 的内置策略引擎。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描本地Git仓库中的错误配置和敏感信息</span></span><br><span class="line">trivy repo .</span><br><span class="line"></span><br><span class="line"><span class="comment"># 扫描远程Git仓库中的错误配置和敏感信息 (Trivy 会先克隆)</span></span><br><span class="line"><span class="comment"># 注意：这需要网络连接和可能的认证</span></span><br><span class="line">trivy repo https://github.com/aquasecurity/tfsec-example.git</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-Kubernetes-集群扫描"><a href="#4-4-Kubernetes-集群扫描" class="headerlink" title="4.4 Kubernetes 集群扫描"></a>4.4 Kubernetes 集群扫描</h3><p>直接扫描运行中的 Kubernetes 集群，发现工作负载和配置中的漏洞及错误配置。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描整个Kubernetes集群</span></span><br><span class="line">trivy k8s cluster</span><br><span class="line"></span><br><span class="line"><span class="comment"># 扫描指定Namespace下的所有工作负载</span></span><br><span class="line">trivy k8s namespace my-app-namespace</span><br><span class="line"></span><br><span class="line"><span class="comment"># 扫描单个Deployment</span></span><br><span class="line">trivy k8s deployment my-deployment -n my-app-namespace</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-5-云账户扫描-AWS-示例"><a href="#4-5-云账户扫描-AWS-示例" class="headerlink" title="4.5 云账户扫描 (AWS 示例)"></a>4.5 云账户扫描 (AWS 示例)</h3><p>扫描云账户中的配置错误。需要配置AWS凭证 (通过环境变量、AWS CLI配置或IAM角色)。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描默认AWS账户的配置</span></span><br><span class="line">trivy aws</span><br><span class="line"></span><br><span class="line"><span class="comment"># 扫描指定AWS Region的EC2实例配置</span></span><br><span class="line">trivy aws --region us-east-1 ec2</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-6-SBOM-软件物料清单-生成"><a href="#4-6-SBOM-软件物料清单-生成" class="headerlink" title="4.6 SBOM (软件物料清单) 生成"></a>4.6 SBOM (软件物料清单) 生成</h3><p>生成指定容器镜像的CycloneDX或SPDX格式的SBOM。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 生成CycloneDX JSON格式的SBOM</span></span><br><span class="line">trivy image --format cyclonedx --output sbom.json alpine:latest</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成SPDX JSON格式的SBOM</span></span><br><span class="line">trivy image --format spdx-json --output sbom.spdx.json python:3.9-slim</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-7-敏感信息扫描"><a href="#4-7-敏感信息扫描" class="headerlink" title="4.7 敏感信息扫描"></a>4.7 敏感信息扫描</h3><p>扫描文件中是否存在敏感信息。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描当前目录下的所有文件中的敏感信息</span></span><br><span class="line">trivy fs --scanners secret .</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-8-许可证扫描"><a href="#4-8-许可证扫描" class="headerlink" title="4.8 许可证扫描"></a>4.8 许可证扫描</h3><p>扫描文件中存在的开源许可证。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 扫描当前目录下的所有文件中的许可证信息</span></span><br><span class="line">trivy fs --scanners license .</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、与-CI-CD-的集成"><a href="#五、与-CI-CD-的集成" class="headerlink" title="五、与 CI&#x2F;CD 的集成"></a>五、与 CI&#x2F;CD 的集成</h2><p>将 Trivy 集成到 CI&#x2F;CD 管道是实现 “Shift-Left Security” 的关键。它可以在构建、测试或部署阶段自动扫描新提交的代码、生成的容器镜像或部署配置文件。</p>
+<p><strong>集成流程示例：</strong></p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Dev as 开发者
+    participant Git as Git仓库 (GitHub&#x2F;GitLab)
+    participant CI as CI&#x2F;CD系统 (e.g., Jenkins, GitLab CI, GitHub Actions)
+    participant Trivy as Trivy扫描器
+    participant Reg as 容器镜像仓库 (e.g., Docker Hub, ECR)
+
+    Dev-&gt;&gt;Git: 1. 提交代码 (Dockerfile, K8s Manifest, App Code)
+    Git-&gt;&gt;CI: 2. 触发CI&#x2F;CD流水线
+    CI-&gt;&gt;CI: 3. 构建应用 (编译, 打包)
+    CI-&gt;&gt;CI: 4. 构建容器镜像 (docker build)
+    CI-&gt;&gt;Trivy: 5. 扫描容器镜像 (trivy image &lt;image_name&gt;)
+    alt Trivy发现高危漏洞&#x2F;错误配置
+        Trivy-&gt;&gt;CI: 6a. 返回非零退出码及扫描报告
+        CI-&gt;&gt;Dev: 7a. 构建失败, 通知开发者修复
+    else Trivy没有发现严重问题
+        Trivy-&gt;&gt;CI: 6b. 返回零退出码
+        CI-&gt;&gt;Reg: 7b. 推送镜像到镜像仓库
+        CI-&gt;&gt;Trivy: 8b. 扫描部署配置文件 (trivy config &lt;k8s_manifest.yaml&gt;)
+        alt Trivy发现高危配置错误
+            Trivy-&gt;&gt;CI: 9a. 返回非零退出码及报告
+            CI-&gt;&gt;Dev: 10a. 部署失败, 通知开发者修复
+        else Trivy没有发现严重问题
+            Trivy-&gt;&gt;CI: 9b. 返回零退出码
+            CI-&gt;&gt;CI: 10b. 继续部署到开发&#x2F;测试环境
+            CI-&gt;&gt;Reg: 11b. (可选) 扫描已部署的K8s集群 (trivy k8s cluster)
+            CI-&gt;&gt;Dev: 12b. (可选) 定期报告安全风险
+        end
+    end
+  </pre></div>
+
+<p><strong>GitHub Actions 示例 (扫描Docker镜像)：</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">name:</span> <span class="string">Trivy</span> <span class="string">Image</span> <span class="string">Scan</span></span><br><span class="line"></span><br><span class="line"><span class="attr">on:</span></span><br><span class="line">  <span class="attr">push:</span></span><br><span class="line">    <span class="attr">branches:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">main</span></span><br><span class="line">  <span class="attr">pull_request:</span></span><br><span class="line">    <span class="attr">branches:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">main</span></span><br><span class="line"></span><br><span class="line"><span class="attr">jobs:</span></span><br><span class="line">  <span class="attr">build-and-scan:</span></span><br><span class="line">    <span class="attr">runs-on:</span> <span class="string">ubuntu-latest</span></span><br><span class="line">    <span class="attr">steps:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Checkout</span> <span class="string">code</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">actions/checkout@v3</span></span><br><span class="line"></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Build</span> <span class="string">Docker</span> <span class="string">image</span></span><br><span class="line">      <span class="attr">run:</span> <span class="string">docker</span> <span class="string">build</span> <span class="string">-t</span> <span class="string">my-app:latest</span> <span class="string">.</span></span><br><span class="line"></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Run</span> <span class="string">Trivy</span> <span class="string">scan</span> <span class="string">on</span> <span class="string">Docker</span> <span class="string">image</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">aquasecurity/trivy-action@master</span></span><br><span class="line">      <span class="attr">with:</span></span><br><span class="line">        <span class="attr">image-ref:</span> <span class="string">&#x27;my-app:latest&#x27;</span></span><br><span class="line">        <span class="attr">format:</span> <span class="string">&#x27;table&#x27;</span></span><br><span class="line">        <span class="attr">output:</span> <span class="string">&#x27;trivy-results.txt&#x27;</span></span><br><span class="line">        <span class="attr">exit-code:</span> <span class="string">&#x27;1&#x27;</span> <span class="comment"># 如果发现任何 HIGH 或 CRITICAL 漏洞，则退出码为1</span></span><br><span class="line">        <span class="attr">severity:</span> <span class="string">&#x27;CRITICAL,HIGH&#x27;</span></span><br><span class="line">        <span class="attr">ignore-unfixed:</span> <span class="literal">true</span> <span class="comment"># 只显示已修复的漏洞</span></span><br><span class="line">        <span class="comment"># # For IaC scans as part of image scan, to check Dockerfile misconfigurations</span></span><br><span class="line">        <span class="comment"># scan-type: &#x27;image,config&#x27; </span></span><br><span class="line">  </span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Upload</span> <span class="string">Trivy</span> <span class="string">scan</span> <span class="string">results</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">actions/upload-artifact@v3</span></span><br><span class="line">      <span class="attr">if:</span> <span class="string">always()</span></span><br><span class="line">      <span class="attr">with:</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">trivy-results</span></span><br><span class="line">        <span class="attr">path:</span> <span class="string">trivy-results.txt</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="六、Trivy-的优缺点"><a href="#六、Trivy-的优缺点" class="headerlink" title="六、Trivy 的优缺点"></a>六、Trivy 的优缺点</h2><h3 id="6-1-优点"><a href="#6-1-优点" class="headerlink" title="6.1 优点"></a>6.1 优点</h3><ol>
+<li><strong>易用性</strong>：单一的二进制文件，简单的命令行接口，学习曲线平缓。</li>
+<li><strong>速度快</strong>：通过优化漏洞数据库和高效的扫描算法，扫描速度通常非常快。</li>
+<li><strong>扫描范围广</strong>：支持多种目标（镜像、文件系统、Git、K8s、云）和多种扫描类型（漏洞、错误配置、敏感信息、SBOM、许可证）。</li>
+<li><strong>CI&#x2F;CD 友好</strong>：设计时考虑了自动化集成，可以轻松融入DevOps管道。</li>
+<li><strong>高精度</strong>：提供可靠的漏洞和配置问题检测，减少误报。</li>
+<li><strong>活跃的社区和持续维护</strong>：作为Aqua Security的开源项目，有强大的支持和快速的功能更新。</li>
+<li><strong>免费和开源</strong>：降低了安全工具的采购成本。</li>
+</ol>
+<h3 id="6-2-缺点"><a href="#6-2-缺点" class="headerlink" title="6.2 缺点"></a>6.2 缺点</h3><ol>
+<li><strong>资源消耗</strong>：对于非常大的镜像或文件系统，首次扫描下载漏洞数据库可能需要一定时间，且扫描过程会占用CPU和内存资源。</li>
+<li><strong>误报&#x2F;漏报</strong>：尽管精度高，但任何自动化扫描工具都无法完全避免误报（报告了不存在的漏洞）和漏报（未能发现实际存在的漏洞）。需要人工复查。</li>
+<li><strong>漏洞数据库更新延迟</strong>：漏洞数据库的更新总是滞后于实际漏洞的发现，即“0-day”漏洞可能无法立即识别。</li>
+<li><strong>配置复杂性</strong>：在特定场景下（如复杂的云环境集成、高级过滤规则），配置和自动化可能需要更深入的理解。</li>
+</ol>
+<h2 id="七、安全性考虑与最佳实践"><a href="#七、安全性考虑与最佳实践" class="headerlink" title="七、安全性考虑与最佳实践"></a>七、安全性考虑与最佳实践</h2><ol>
+<li><strong>定期更新 Trivy</strong>：确保您的Trivy版本始终是最新，以获取最新的功能、性能改进和漏洞数据库支持。</li>
+<li><strong>定期更新漏洞数据库</strong>：Trivy 数据库会定期更新，务必确保在扫描前执行 <code>trivy sbom --update</code> 或让CI&#x2F;CD流程自动更新数据库。</li>
+<li><strong>在SDLC早期阶段集成</strong>：贯彻“左移”安全理念，在代码提交、镜像构建等早期阶段运行Trivy，尽早发现问题。</li>
+<li><strong>设置合理的安全策略</strong>：根据组织的风险承受能力，配置Trivy的<code>--severity</code>（严重等级）和<code>--exit-code</code>（退出码），使其在发现特定严重性问题时中断CI&#x2F;CD流程。</li>
+<li><strong>减少基础镜像攻击面</strong>：使用轻量级的、最小化的基础镜像 (如 <code>alpine</code> 或 <code>distroless</code>) 可以显著减少Trivy需要扫描的组件数量，从而降低发现漏洞的概率。</li>
+<li><strong>审查和忽略误报</strong>：对于确认为误报的项，可以通过 <code>.trivyignore</code> 文件、命令行参数或CI&#x2F;CD配置来忽略特定漏洞或配置警告。但应谨慎操作，并记录原因。</li>
+<li><strong>不要过度依赖自动化</strong>：Trivy 是一种强大的辅助工具，但不能完全替代人工安全审查和更深层次的渗透测试。它提供了快速的初步反馈。</li>
+<li><strong>保护敏感信息</strong>：Trivy 可以扫描敏感信息，但在运行扫描时，确保其运行环境本身是安全的，扫描报告的输出也应妥善处理，避免进一步泄露敏感信息。</li>
+<li><strong>输出报告管理</strong>：将扫描结果输出为JSON、SARIF等格式，便于机器解析、存储和集成到安全信息和事件管理 (SIEM) 系统或漏洞管理平台中。</li>
+</ol>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>Trivy 作为一款通用的安全扫描器，以其全面的功能、卓越的性能和极佳的易用性，已成为云原生时代DevSecOps工具链中的重要组成部分。它有效地帮助团队在整个软件开发生命周期中，从代码到容器，再到云基础设施，持续地识别和管理安全风险。通过将Trivy深度集成到CI&#x2F;CD流程中，组织可以显著提升其安全态势，实现更快速、更安全地交付软件的目标。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/d863aad4b106/">https://blog.tbf1211.xx.kg/d863aad4b106/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/CI-CD/">CI/CD</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><a class="post-meta__tags" href="/tags/2026/">2026</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-31.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">AI 辅助编程的关键要点与代码幻觉防范</div></div><div class="info-2"><div class="info-item-1"> AI 辅助编程，通常指利用大型语言模型 (LLM) 如 GPT、Claude、Copilot 等来帮助开发者完成代码生成、代码补全、错误检查、文档编写等任务。它极大地提高了开发效率，但同时也引入了新的挑战，其中最突出的就是 “代码幻觉 (Code Hallucinations)”。代码幻觉是指 AI 生成了看似合理但实际上错误、不存在、或与需求不符的代码、API 调用或概念。  核心思想：AI 是强大的工具而非万能的替代品。在使用 AI 辅助编程时，开发者必须保持批判性思维，通过有效的“提示工程”和严谨的“人工验证”来驾驭 AI，防止其产生误导性的“代码幻觉”。   一、AI 辅助编程的核心优势与风险1.1 核心优势 提高效率：快速生成样板代码、函数骨架、测试用例等，减少重复劳动。 知识获取：作为“超级Stack Overflow”，快速查询 API 用法、框架最佳实践、算法实现等。 学习辅助：解释复杂代码、概念，帮助新手快速理解。 跨语言&#x2F;框架能力：在不熟悉的语言或框架中提供初步帮助。 重构与优化建议：提出改进代码结构、性能或可读性的建议。  1.2 主要风险 代码...</div></div></div></a><a class="pagination-related" href="/fa3d796f3333/" title="MessagePack 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">MessagePack 详解</div></div><div class="info-2"><div class="info-item-1"> MessagePack 是一个高效的二进制序列化格式，它允许你在多种语言之间交换数据，就像 JSON 一样。但与 JSON 不同的是，MessagePack 以更紧凑的二进制形式表示数据，这通常使其具有更小的消息大小和更快的编码&#x2F;解码速度。它被设计为一个“像 JSON 但更快更小”的替代品，特别适用于网络协议、数据存储以及低功耗设备等对性能和带宽敏感的场景。  核心思想：将结构化数据（如对象、数组、基本类型）编码成紧凑的二进制流，以实现高效的数据传输和存储。   一、什么是 MessagePack？MessagePack 是一种基于二进制的数据交换格式，其设计目标是高效、紧凑和跨语言兼容。它通过一种优化的二进制表示来序列化各种数据类型，包括整数、浮点数、字符串、二进制数据、数组和映射。其官方网站将其描述为“一个整洁、紧凑的二进制序列化格式”。 与文本格式（如 JSON）相比，MessagePack 的主要优势在于：  更小的消息尺寸：通过减少冗余信息并直接使用二进制表示数据类型，MessagePack 生成的数据通常比同等 JSON 数据小。 更快的处理速度：由于节省...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/340c8b6e7b0a/" title="SAST (Static Application Security Testing) 工具详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-30</div><div class="info-item-2">SAST (Static Application Security Testing) 工具详解</div></div><div class="info-2"><div class="info-item-1"> SAST (Static Application Security Testing，静态应用安全测试) 是一种白盒 (White-box) 安全测试方法，它通过不执行代码的方式，对应用程序的源代码、字节码或二进制代码进行分析，以识别潜在的安全漏洞和缺陷。SAST 工具旨在开发生命周期 (SDLC) 的早期阶段（“左移”）发现问题，使得开发者可以在发布前修复这些漏洞。  SAST 工具通过深入分析代码逻辑、数据流和控制流，识别出可能导致安全问题的编码模式、配置错误或不安全的API使用。它是 DevSecOps 实践中不可或缺的一部分，能够帮助团队在开发早期以自动化方式持续保障软件质量和安全性。   一、为什么需要 SAST？在现代软件开发流程中，应用程序的复杂性不断增加，发布周期日益缩短。传统的后期安全测试（例如渗透测试）往往在开发周期的末尾进行，此时发现的漏洞修复成本高昂，且可能延误发布。SAST 旨在解决以下问题：  “左移”安全 (Shift-Left Security)：在编码阶段就发现并修复漏洞，避免其进入后续开发阶段，从而降低修复成本和时间。 早期漏洞检测：在不运行代...</div></div></div></a><a class="pagination-related" href="/9186b4c4e58d/" title="重放攻击 (Replay Attack) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-21</div><div class="info-item-2">重放攻击 (Replay Attack) 详解</div></div><div class="info-2"><div class="info-item-1"> 重放攻击 (Replay Attack)，又称回放攻击或重播攻击，是计算机网络安全领域中的一种常见攻击方式。其基本原理是攻击者通过窃听（截获）合法的网络通信数据包，然后将这些截获到的数据包原封不动地重新发送给一个或多个目标系统，以此来欺骗系统或获得未授权的效应。即使攻击者不知道数据包内容的具体含义，也可以通过重放这些合法的数据包来达到攻击目的。  核心思想：攻击者窃取一次成功的会话或请求，并在之后的时间里重复发送这段数据，以冒充合法用户获得同样的权限或发起相同的操作。   一、重放攻击的工作原理重放攻击的步骤通常如下：  窃听 (Eavesdropping)：攻击者使用网络嗅探工具（如 Wireshark）在网络上监听和截获合法用户与服务器之间的通信。这可能包括登录凭证（尽管通常是哈希或加密的）、交易请求、授权令牌等。 截获 (Interception)：攻击者捕获到完整的、有效的通信数据包或消息序列。 重放 (Replay)：在一段时间之后，攻击者将这些截获到的数据包原封不动地重新发送给目标服务器。 欺骗 (Deception)：如果目标服务器没有有效的机制来验证请求的新鲜性...</div></div></div></a><a class="pagination-related" href="/1c9fa79b93e5/" title="Msfvenom 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-26</div><div class="info-item-2">Msfvenom 详解</div></div><div class="info-2"><div class="info-item-1"> Msfvenom 是 Metasploit 框架中的一个强大而独立的命令行工具，它结合了 msfpayload（载荷生成器）和 msfencode（编码器）的功能，旨在生成各种格式的恶意载荷（Payload）并对其进行编码，以规避安全检测。它是渗透测试人员和红队成员创建自定义后门和绕过防御机制的利器。  核心思想：将攻击载荷（Shellcode）和输出格式（如 EXE、ELF、ASPX 等）分离，允许用户自由组合并按需编码，生成高度定制化的恶意文件。   一、Msfvenom 简介1.1 什么是 Msfvenom？msfvenom 是一个命令行工具，属于 Metasploit Framework 的一部分。它的主要功能是：  载荷生成 (Payload Generation)：创建各种操作系统（Windows, Linux, macOS, Android 等）和架构（x86, x64 等）的恶意载荷。 编码 (Encoding)：对生成的载荷进行编码，以尝试绕过杀毒软件的签名检测或处理特殊字符（如 NUL \x00）。 格式化 (Formatting)：将生成的载荷输出为多种文...</div></div></div></a><a class="pagination-related" href="/fc0a62ae56f9/" title="OAuth2.0详解：现代授权框架的核心原理与应用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-09</div><div class="info-item-2">OAuth2.0详解：现代授权框架的核心原理与应用</div></div><div class="info-2"><div class="info-item-1"> OAuth 2.0（Open Authorization）是一个开放标准，定义了一套授权流程，允许用户（资源所有者）授权第三方应用访问他们在另一个服务提供者（授权服务器）上的受保护资源（资源服务器），而无需将自己的用户名和密码直接提供给第三方应用。它主要解决的是委托授权的问题，即“我授权应用A去访问我在服务B上的某些数据”。  核心区分：OAuth 2.0 是一个授权（Authorization）框架，而不是用来做认证（Authentication）。尽管它常常与认证机制（如 OpenID Connect）结合使用，但其核心职责是授予对资源的访问权限，而非验证用户身份。   一、OAuth 2.0 产生的背景与解决的问题在 OAuth 出现之前，如果一个第三方应用需要访问用户在其他服务（如 Google 相册、GitHub 代码库）上的数据，用户通常需要将自己的账号密码直接告知第三方应用。这种做法带来了严重的安全和便捷性问题：  凭据泄露风险：第三方应用一旦被攻破，或恶意使用，用户的完整凭据就会泄露，导致所有关联服务面临风险。 权限过大：第三方应用获得的是用户的完全控制权，无法...</div></div></div></a><a class="pagination-related" href="/f6138d30a597/" title="常见网络攻击详解与预防：构建数字安全防线"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-12</div><div class="info-item-2">常见网络攻击详解与预防：构建数字安全防线</div></div><div class="info-2"><div class="info-item-1"> 随着数字化时代的深入发展，网络已成为我们工作和生活中不可或缺的一部分。然而，伴随而来的网络攻击也日益猖獗，形式多样且破坏力巨大。理解常见的网络攻击类型及其防御方法，对于个人、企业乃至国家层面的网络安全防护至关重要。  核心思想：网络攻击的本质是利用系统、网络、应用或人为的漏洞，破坏信息资产的机密性、完整性、可用性。有效的防御需要结合技术防护、安全管理和人员意识培训。    一、网络攻击概述网络攻击是指以获取、破坏、更改、禁用、窃取或秘密访问计算机系统、基础设施、计算机网络或链接设备为目的的恶意行为。攻击者利用各种技术手段，针对不同层面的漏洞发起攻击，以达到其非法目的。 1.1 攻击目标 数据 (Data)：窃取敏感信息（用户数据、商业机密、知识产权），篡改数据，删除数据。 系统&#x2F;应用 (Systems&#x2F;Applications)：破坏服务可用性（拒绝服务）、获取系统控制权、植入恶意代码。 网络 (Network)：瘫痪网络基础设施、监听网络流量、劫持通信。 用户 (Users)：欺骗、诱导用户泄露信息（钓鱼）、传播谣言或虚假信息。  1.2 攻击动机 经济利...</div></div></div></a><a class="pagination-related" href="/08a7bab723f9/" title="Metasploit exploit&#x2F;multi&#x2F;handler 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-14</div><div class="info-item-2">Metasploit exploit&#x2F;multi&#x2F;handler 模块详解</div></div><div class="info-2"><div class="info-item-1"> exploit/multi/handler 是 Metasploit 框架中一个极其重要且应用广泛的模块。它本身并不是一个漏洞利用模块，而是一个通用的监听器（Listener），用于接收由 Metasploit 或 msfvenom 生成的各种 Payload 发起的反向连接（Reverse Shell）。它提供了一个灵活且强大的平台，用于管理渗透测试过程中获取的 Shell 会话，特别是 Meterpreter 会话。  核心思想：提供一个通用的、模块化的监听接口，等待远程目标系统主动连接，从而建立一个控制通道。它与用于生成Payload的msfvenom紧密配合，实现无缝的端到端攻击链。   一、exploit/multi/handler 简介1.1 什么是 exploit/multi/handler？exploit/multi/handler 是 Metasploit 中的一个混合型模块 (Auxiliary&#x2F;Exploit)。它被归类为 exploit，因为它最终目的是“利用”系统并获得 Shell，但它实际上不包含任何漏洞利用代码。它的主要功能是：  监听反...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">507</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-Trivy%EF%BC%9F"><span class="toc-text">一、为什么需要 Trivy？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Trivy-%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E4%B8%8E%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Trivy 核心功能与概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F-Vulnerability-Scanning"><span class="toc-text">2.1 漏洞扫描 (Vulnerability Scanning)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E9%94%99%E8%AF%AF%E9%85%8D%E7%BD%AE%E6%89%AB%E6%8F%8F-Misconfiguration-Scanning"><span class="toc-text">2.2 错误配置扫描 (Misconfiguration Scanning)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E6%95%8F%E6%84%9F%E4%BF%A1%E6%81%AF%E6%89%AB%E6%8F%8F-Secret-Scanning"><span class="toc-text">2.3 敏感信息扫描 (Secret Scanning)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E8%BD%AF%E4%BB%B6%E7%89%A9%E6%96%99%E6%B8%85%E5%8D%95-SBOM-Software-Bill-of-Materials-%E7%94%9F%E6%88%90"><span class="toc-text">2.4 软件物料清单 (SBOM - Software Bill of Materials) 生成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E8%AE%B8%E5%8F%AF%E8%AF%81%E6%89%AB%E6%8F%8F-License-Scanning"><span class="toc-text">2.5 许可证扫描 (License Scanning)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-Kubernetes-%E9%9B%86%E7%BE%A4%E6%89%AB%E6%8F%8F"><span class="toc-text">2.6 Kubernetes 集群扫描</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-7-%E4%BA%91%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E6%89%AB%E6%8F%8F-Cloud-Infrastructure-Scanning"><span class="toc-text">2.7 云基础设施扫描 (Cloud Infrastructure Scanning)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AE%89%E8%A3%85-Trivy"><span class="toc-text">三、安装 Trivy</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Trivy-%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B"><span class="toc-text">四、Trivy 使用示例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%AE%B9%E5%99%A8%E9%95%9C%E5%83%8F%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F"><span class="toc-text">4.1 容器镜像漏洞扫描</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F"><span class="toc-text">4.2 文件系统漏洞扫描</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Git-%E4%BB%93%E5%BA%93%E6%89%AB%E6%8F%8F-IaC-%E9%94%99%E8%AF%AF%E9%85%8D%E7%BD%AE%E4%B8%8E%E6%95%8F%E6%84%9F%E4%BF%A1%E6%81%AF"><span class="toc-text">4.3 Git 仓库扫描 (IaC 错误配置与敏感信息)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-Kubernetes-%E9%9B%86%E7%BE%A4%E6%89%AB%E6%8F%8F"><span class="toc-text">4.4 Kubernetes 集群扫描</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E4%BA%91%E8%B4%A6%E6%88%B7%E6%89%AB%E6%8F%8F-AWS-%E7%A4%BA%E4%BE%8B"><span class="toc-text">4.5 云账户扫描 (AWS 示例)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-SBOM-%E8%BD%AF%E4%BB%B6%E7%89%A9%E6%96%99%E6%B8%85%E5%8D%95-%E7%94%9F%E6%88%90"><span class="toc-text">4.6 SBOM (软件物料清单) 生成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-7-%E6%95%8F%E6%84%9F%E4%BF%A1%E6%81%AF%E6%89%AB%E6%8F%8F"><span class="toc-text">4.7 敏感信息扫描</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-8-%E8%AE%B8%E5%8F%AF%E8%AF%81%E6%89%AB%E6%8F%8F"><span class="toc-text">4.8 许可证扫描</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%B8%8E-CI-CD-%E7%9A%84%E9%9B%86%E6%88%90"><span class="toc-text">五、与 CI&#x2F;CD 的集成</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Trivy-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">六、Trivy 的优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9"><span class="toc-text">6.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">6.2 缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%AE%89%E5%85%A8%E6%80%A7%E8%80%83%E8%99%91%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">七、安全性考虑与最佳实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/1d2a942bda1e/" title="Terraform 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Terraform 详解"/></a><div class="content"><a class="title" href="/1d2a942bda1e/" title="Terraform 详解">Terraform 详解</a><time datetime="2026-01-19T22:24:00.000Z" title="发表于 2026-01-20 06:24:00">2026-01-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/26cdb2447b3d/" title="WebView 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebView 详解"/></a><div class="content"><a class="title" href="/26cdb2447b3d/" title="WebView 详解">WebView 详解</a><time datetime="2026-01-17T22:24:00.000Z" title="发表于 2026-01-18 06:24:00">2026-01-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="AI 辅助编程的关键要点与代码幻觉防范"/></a><div class="content"><a class="title" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范">AI 辅助编程的关键要点与代码幻觉防范</a><time datetime="2026-01-15T22:24:00.000Z" title="发表于 2026-01-16 06:24:00">2026-01-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d863aad4b106/" title="Trivy (通用安全扫描器) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Trivy (通用安全扫描器) 详解"/></a><div class="content"><a class="title" href="/d863aad4b106/" title="Trivy (通用安全扫描器) 详解">Trivy (通用安全扫描器) 详解</a><time datetime="2026-01-10T22:24:00.000Z" title="发表于 2026-01-11 06:24:00">2026-01-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fa3d796f3333/" title="MessagePack 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MessagePack 详解"/></a><div class="content"><a class="title" href="/fa3d796f3333/" title="MessagePack 详解">MessagePack 详解</a><time datetime="2026-01-08T22:24:00.000Z" title="发表于 2026-01-09 06:24:00">2026-01-09</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-31.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>

