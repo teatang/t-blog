@@ -1,0 +1,501 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Git 核心对象：Commit, Tree, Blob 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Git 作为一个分布式版本控制系统，其强大的能力和高效的存储机制离不开其底层对象模型。理解 Git 的核心对象——Commit (提交)、Tree (树) 和 Blob (二进制大对象)，是深入理解 Git 工作原理的关键。这些对象共同构成了 Git 存储库的骨架，以内容寻址 (Content-Addressable) 的方式，确保了版本历史的完整性和数据的不可篡改性。  Git 的宗旨是：一次">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Git 核心对象：Commit, Tree, Blob 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/0b52cb819619/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Git 作为一个分布式版本控制系统，其强大的能力和高效的存储机制离不开其底层对象模型。理解 Git 的核心对象——Commit (提交)、Tree (树) 和 Blob (二进制大对象)，是深入理解 Git 工作原理的关键。这些对象共同构成了 Git 存储库的骨架，以内容寻址 (Content-Addressable) 的方式，确保了版本历史的完整性和数据的不可篡改性。  Git 的宗旨是：一次">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg">
+<meta property="article:published_time" content="2026-01-21T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-23T09:57:33.223Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2026">
+<meta property="article:tag" content="开发工具">
+<meta property="article:tag" content="Git">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Git 核心对象：Commit, Tree, Blob 详解",
+  "url": "https://blog.tbf1211.xx.kg/0b52cb819619/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg",
+  "datePublished": "2026-01-21T22:24:00.000Z",
+  "dateModified": "2026-01-23T09:57:33.223Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/0b52cb819619/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Git 核心对象：Commit, Tree, Blob 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">514</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">228</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-24.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Git 核心对象：Commit, Tree, Blob 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Git 核心对象：Commit, Tree, Blob 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-01-21T22:24:00.000Z" title="发表于 2026-01-22 06:24:00">2026-01-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/Git/">Git</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.9k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>15分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>Git 作为一个分布式版本控制系统，其强大的能力和高效的存储机制离不开其底层对象模型。理解 Git 的核心对象——<strong>Commit (提交)</strong>、<strong>Tree (树)</strong> 和 <strong>Blob (二进制大对象)</strong>，是深入理解 Git 工作原理的关键。这些对象共同构成了 Git 存储库的骨架，以<strong>内容寻址 (Content-Addressable)</strong> 的方式，确保了版本历史的完整性和数据的不可篡改性。</p>
+</blockquote>
+<div class="note info flat"><p>Git 的宗旨是：<strong>一次只存储数据，而不是差异。</strong> 每个版本都是一个完整的快照，而非基于前一个版本的增量。这通过其核心对象模型高效实现。</p>
+</div>
+<hr>
+<h2 id="一、Git-对象模型概述"><a href="#一、Git-对象模型概述" class="headerlink" title="一、Git 对象模型概述"></a>一、Git 对象模型概述</h2><p>Git 存储库的核心是一个键值对数据库，其中“键”是内容的 SHA-1 校验和，而“值”则是 Git 对象。这些对象存储在 <code>.git/objects</code> 目录下。当 Git 添加或修改文件时，它不会直接存储文件的差异，而是将文件的完整内容作为对象存储起来，并根据其内容计算出一个唯一的 SHA-1 值作为标识符。</p>
+<p>Git 对象主要分为四种类型，其中最核心的是 <code>Blob</code>、<code>Tree</code> 和 <code>Commit</code>：</p>
+<ol>
+<li><strong>Blob (Binary Large Object)</strong>：存储文件的内容。</li>
+<li><strong>Tree (树)</strong>：存储目录的结构和内容，包含指向 Blob 和其他 Tree 对象的指针。</li>
+<li><strong>Commit (提交)</strong>：记录一次快照，包含指向根 Tree 对象的指针、父 Commit 对象的指针、作者、提交者信息以及提交消息。</li>
+<li><strong>Tag (标签)</strong>：指向一个 Git 提交对象的指针，用于标记重要的时间点（如发布版本）。</li>
+</ol>
+<p>以下我们将详细探讨 Blob, Tree, Commit 这三个核心对象。</p>
+<h2 id="二、Blob-对象-Blob-Object"><a href="#二、Blob-对象-Blob-Object" class="headerlink" title="二、Blob 对象 (Blob Object)"></a>二、Blob 对象 (Blob Object)</h2><h3 id="2-1-定义与特性"><a href="#2-1-定义与特性" class="headerlink" title="2.1 定义与特性"></a>2.1 定义与特性</h3><p><strong>Blob 对象</strong>是 Git 中最基本的数据存储单元，它直接存储了文件的全部内容。</p>
+<ul>
+<li><strong>文件内容快照</strong>：一个 Blob 对象就代表了某一时刻一个文件的完整内容快照。</li>
+<li><strong>无元数据</strong>：Blob 对象不存储文件名、文件路径、权限等文件元数据，只存储纯粹的文件内容。</li>
+<li><strong>SHA-1 命名</strong>：每个 Blob 对象的名称是其内容（以及类型、大小等信息）经过 SHA-1 哈希算法计算得出的唯一值。这意味着，如果两个文件内容完全相同，即使它们在文件系统中是不同的文件或在不同的路径，Git 也只会存储一个 Blob 对象，并通过相同的 SHA-1 引用它。</li>
+<li><strong>不可变性</strong>：一旦创建，Blob 对象的内容就不可更改。如果文件内容发生变化，Git 会创建一个新的 Blob 对象来存储新的内容。</li>
+</ul>
+<h3 id="2-2-示例：文件的-Blob-化"><a href="#2-2-示例：文件的-Blob-化" class="headerlink" title="2.2 示例：文件的 Blob 化"></a>2.2 示例：文件的 Blob 化</h3><p>假设我们有一个文件 <code>hello.txt</code>，内容为 <code>Hello, Git!\n</code>。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ <span class="built_in">echo</span> <span class="string">&quot;Hello, Git!&quot;</span> &gt; hello.txt</span><br><span class="line">$ git add hello.txt</span><br><span class="line">$ git hash-object -w hello.txt</span><br><span class="line">b1c59bb7e68fa707ef4f83b276fc80df24488344</span><br></pre></td></tr></table></figure>
+<p>这里的 <code>b1c59bb7e68fa707ef4f83b276fc80df24488344</code> 就是 <code>hello.txt</code> 内容对应的 Blob 对象的 SHA-1 值。我们通过 <code>git cat-file -p</code> 命令查看其内容：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git cat-file -p b1c59bb7e68fa707ef4f83b276fc80df24488344</span><br><span class="line">Hello, Git!</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-3-Python-模拟-Blob-创建"><a href="#2-3-Python-模拟-Blob-创建" class="headerlink" title="2.3 Python 模拟 Blob 创建"></a>2.3 Python 模拟 Blob 创建</h3><p>我们可以使用 Python 来模拟 Git 计算文件内容 SHA-1 的过程。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> hashlib</span><br><span class="line"><span class="keyword">import</span> zlib</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">create_git_blob</span>(<span class="params">content: <span class="built_in">bytes</span></span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    模拟Git创建Blob对象的过程，并返回其SHA-1哈希值。</span></span><br><span class="line"><span class="string">    Git Blob对象的存储格式是：&quot;blob &lt;size&gt;\0&lt;content&gt;&quot;</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    header = <span class="string">f&quot;blob <span class="subst">&#123;<span class="built_in">len</span>(content)&#125;</span>\0&quot;</span>.encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line">    store_content = header + content</span><br><span class="line">    sha1_hash = hashlib.sha1(store_content).hexdigest()</span><br><span class="line">  </span><br><span class="line">    <span class="comment"># 实际Git会将这个数据压缩后存储，这里只计算hash</span></span><br><span class="line">    <span class="comment"># compressed_content = zlib.compress(store_content)</span></span><br><span class="line">    <span class="comment"># 存储到 .git/objects/xx/xxxxxxxxxxxxxxxxxxxxxxxxxxxxx</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> sha1_hash</span><br><span class="line"></span><br><span class="line"><span class="comment"># 示例文件内容</span></span><br><span class="line">file_content = <span class="string">&quot;Hello, Git!\n&quot;</span>.encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line">blob_hash = create_git_blob(file_content)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;File content: &#x27;<span class="subst">&#123;file_content.decode(<span class="string">&#x27;utf-8&#x27;</span>).strip()&#125;</span>&#x27;&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Calculated Blob SHA-1: <span class="subst">&#123;blob_hash&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 验证与实际Git命令输出（可能因换行符、文本编码等细微差异导致不同，但原理一致）</span></span><br><span class="line"><span class="comment"># 如果 &#x27;hello.txt&#x27; 实际内容就是 &quot;Hello, Git!\n&quot;（带一个Unix换行），则hash应匹配</span></span><br><span class="line"><span class="comment"># 实际操作时，确保内容完全一致才能匹配Git命令的hash</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="三、Tree-对象-Tree-Object"><a href="#三、Tree-对象-Tree-Object" class="headerlink" title="三、Tree 对象 (Tree Object)"></a>三、Tree 对象 (Tree Object)</h2><h3 id="3-1-定义与特性"><a href="#3-1-定义与特性" class="headerlink" title="3.1 定义与特性"></a>3.1 定义与特性</h3><p><strong>Tree 对象</strong>用于表示一个目录的快照。它包含了一系列条目 (entries)，每个条目指向一个 Blob 对象（文件）或另一个 Tree 对象（子目录）。</p>
+<ul>
+<li><strong>目录结构快照</strong>：一个 Tree 对象代表了某一时刻某个目录的完整结构和其包含的文件及子目录。</li>
+<li><strong>层级结构</strong>：Tree 对象通过嵌套引用其他 Tree 对象，从而构建出整个文件系统的目录层级结构。</li>
+<li><strong>包含元数据</strong>：每个条目包含：<ul>
+<li><strong>文件模式 (Mode)</strong>：文件类型和权限（例如 100644 for regular file, 100755 for executable, 040000 for directory）。</li>
+<li><strong>对象类型 (Type)</strong>：<code>blob</code> 或 <code>tree</code>。</li>
+<li><strong>SHA-1 哈希值</strong>：指向对应的 Blob 或 Tree 对象的 SHA-1 值。</li>
+<li><strong>文件名&#x2F;目录名 (Name)</strong>：当前目录下的文件或子目录的名称。</li>
+</ul>
+</li>
+<li><strong>SHA-1 命名</strong>：与 Blob 类似，Tree 对象的名称也是由其内容（所有条目信息）计算出的 SHA-1 值。任何文件名、模式或其中一个 Blob&#x2F;Tree 引用的变化都会导致一个新的 Tree 对象被创建。</li>
+</ul>
+<h3 id="3-2-示例：目录的-Tree-化"><a href="#3-2-示例：目录的-Tree-化" class="headerlink" title="3.2 示例：目录的 Tree 化"></a>3.2 示例：目录的 Tree 化</h3><p>假设我们有一个目录结构如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">└── src/</span><br><span class="line">    ├── main.go</span><br><span class="line">    └── utils.go</span><br></pre></td></tr></table></figure>
+
+<p><code>main.go</code> 内容：<code>package main\nfunc main() &#123;&#125;\n</code><br><code>utils.go</code> 内容：<code>package utils\nfunc Helper() &#123;&#125;\n</code></p>
+<p>首先，将文件内容转换为 Blob：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ <span class="built_in">echo</span> -e <span class="string">&quot;package main\nfunc main() &#123;&#125;&quot;</span> &gt; src/main.go</span><br><span class="line">$ <span class="built_in">echo</span> -e <span class="string">&quot;package utils\nfunc Helper() &#123;&#125;&quot;</span> &gt; src/utils.go</span><br><span class="line">$ git add src/main.go src/utils.go</span><br><span class="line"><span class="comment"># 假设main.go的blob_hash为 aabbccddeeff...</span></span><br><span class="line"><span class="comment"># 假设utils.go的blob_hash为 112233445566...</span></span><br></pre></td></tr></table></figure>
+
+<p>使用 <code>git ls-files -s</code> 可以查看暂存区中的文件信息：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ git ls-files -s</span><br><span class="line">100644 aabbccddeeff... 0   src/main.go</span><br><span class="line">100644 112233445566... 0   src/utils.go</span><br></pre></td></tr></table></figure>
+
+<p>现在，创建 <code>src</code> 目录的 Tree 对象：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git write-tree</span><br><span class="line"><span class="comment"># 假设返回的tree_hash为 fedcba987654...</span></span><br></pre></td></tr></table></figure>
+
+<p>查看这个 <code>src</code> Tree 对象的内部：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ git cat-file -p fedcba987654...</span><br><span class="line">100644 blob aabbccddeeff...   main.go</span><br><span class="line">100644 blob 112233445566...   utils.go</span><br></pre></td></tr></table></figure>
+<p>如果顶层目录还有其他文件或子目录，将会有另一个 Tree 对象指向这个 <code>src</code> Tree。</p>
+<h3 id="3-3-Python-模拟-Tree-条目"><a href="#3-3-Python-模拟-Tree-条目" class="headerlink" title="3.3 Python 模拟 Tree 条目"></a>3.3 Python 模拟 Tree 条目</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> hashlib</span><br><span class="line"><span class="keyword">import</span> zlib</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">create_git_tree_entry</span>(<span class="params">mode: <span class="built_in">str</span>, <span class="built_in">type</span>: <span class="built_in">str</span>, sha1_hash: <span class="built_in">str</span>, name: <span class="built_in">str</span></span>) -&gt; <span class="built_in">bytes</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    构造Tree对象的一个条目字符串。</span></span><br><span class="line"><span class="string">    Git Tree条目格式：&lt;mode&gt; &lt;type&gt; &lt;sha1&gt;    &lt;name&gt;\n</span></span><br><span class="line"><span class="string">    在计算Tree哈希时，所有条目会按文件名/目录名排序，然后拼接起来。</span></span><br><span class="line"><span class="string">    SHA-1是在内部以20字节原始二进制形式存储。</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="comment"># 模式和类型通常是十进制，这里为了演示简化为字符串</span></span><br><span class="line">    <span class="comment"># 实际Git内部存储的SHA1是20字节的二进制值</span></span><br><span class="line">    <span class="keyword">return</span> <span class="string">f&quot;<span class="subst">&#123;mode&#125;</span> <span class="subst">&#123;<span class="built_in">type</span>&#125;</span> <span class="subst">&#123;sha1_hash&#125;</span>\t<span class="subst">&#123;name&#125;</span>&quot;</span>.encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">create_git_tree</span>(<span class="params">entries: <span class="built_in">list</span>[<span class="built_in">tuple</span>]</span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    根据条目列表创建Tree对象并返回其SHA-1哈希。</span></span><br><span class="line"><span class="string">    entries: list of (mode, type, sha1_hash_str, name)</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="comment"># 将哈希从十六进制字符串转换为原始二进制</span></span><br><span class="line">    sorted_entries_data = []</span><br><span class="line">  </span><br><span class="line">    <span class="comment"># Git按名称对条目进行排序，然后将它们的原始 bytes 形式拼接在一起</span></span><br><span class="line">    <span class="comment"># 每个条目格式为：&lt;mode&gt; &lt;name&gt;\0&lt;sha1_binary_20_bytes&gt;</span></span><br><span class="line">    <span class="comment"># 注意：这里的示例是一个简化版本，实际Git的Tree对象内部存储格式更复杂，</span></span><br><span class="line">    <span class="comment"># sha1是原始二进制，不是字符串。这里为了演示方便，用字符串简化。</span></span><br><span class="line">  </span><br><span class="line">    <span class="comment"># 真实git tree的数据结构更像是：</span></span><br><span class="line">    <span class="comment"># entry1_str = f&quot;&#123;mode&#125; &#123;name&#125;\0&quot;.encode(&#x27;utf-8&#x27;) + bytes.fromhex(sha1_hash)</span></span><br><span class="line">    <span class="comment"># entry2_str = ...</span></span><br><span class="line">    <span class="comment"># 将这些entry_str按字典序排序后拼接。</span></span><br><span class="line">  </span><br><span class="line">    <span class="comment"># 模拟简化版：</span></span><br><span class="line">    sorted_entries = <span class="built_in">sorted</span>(entries, key=<span class="keyword">lambda</span> x: x[<span class="number">3</span>]) <span class="comment"># 按名称排序</span></span><br><span class="line">    <span class="keyword">for</span> mode, type_name, sha1_hex, name <span class="keyword">in</span> sorted_entries:</span><br><span class="line">        <span class="comment"># 这个字符串形式只是为了方便人类阅读，实际Git会用原始二进制SHA1和特定编码</span></span><br><span class="line">        sorted_entries_data.append(<span class="string">f&quot;<span class="subst">&#123;mode&#125;</span> <span class="subst">&#123;type_name&#125;</span> <span class="subst">&#123;sha1_hex&#125;</span>\t<span class="subst">&#123;name&#125;</span>&quot;</span>.encode(<span class="string">&#x27;utf-8&#x27;</span>))</span><br><span class="line">      </span><br><span class="line">    tree_content = <span class="string">b&quot;&quot;</span>.join(sorted_entries_data)</span><br><span class="line">  </span><br><span class="line">    header = <span class="string">f&quot;tree <span class="subst">&#123;<span class="built_in">len</span>(tree_content)&#125;</span>\0&quot;</span>.encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line">    store_content = header + tree_content</span><br><span class="line">    sha1_hash = hashlib.sha1(store_content).hexdigest()</span><br><span class="line">    <span class="keyword">return</span> sha1_hash</span><br><span class="line"></span><br><span class="line"><span class="comment"># 假设已经有了两个Blob的SHA-1哈希</span></span><br><span class="line">main_go_blob_hash = <span class="string">&quot;aabbccddeeff0123456789aabbccddeeff01234567&quot;</span> <span class="comment"># 虚拟哈希</span></span><br><span class="line">utils_go_blob_hash = <span class="string">&quot;1122334455667788990011223344556677889900&quot;</span> <span class="comment"># 虚拟哈希</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建src目录下的Tree条目</span></span><br><span class="line">src_entries = [</span><br><span class="line">    (<span class="string">&quot;100644&quot;</span>, <span class="string">&quot;blob&quot;</span>, main_go_blob_hash, <span class="string">&quot;main.go&quot;</span>),</span><br><span class="line">    (<span class="string">&quot;100644&quot;</span>, <span class="string">&quot;blob&quot;</span>, utils_go_blob_hash, <span class="string">&quot;utils.go&quot;</span>),</span><br><span class="line">]</span><br><span class="line"></span><br><span class="line">src_tree_hash = create_git_tree(src_entries)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Calculated &#x27;src&#x27; Tree SHA-1: <span class="subst">&#123;src_tree_hash&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 如果有更上层的目录，可以包含这个src_tree</span></span><br><span class="line"><span class="comment"># root_entries = [</span></span><br><span class="line"><span class="comment">#     (&quot;040000&quot;, &quot;tree&quot;, src_tree_hash, &quot;src&quot;),</span></span><br><span class="line"><span class="comment">#     # ... 其他文件或目录</span></span><br><span class="line"><span class="comment"># ]</span></span><br><span class="line"><span class="comment"># root_tree_hash = create_git_tree(root_entries)</span></span><br><span class="line"><span class="comment"># print(f&quot;Calculated Root Tree SHA-1: &#123;root_tree_hash&#125;&quot;)</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="四、Commit-对象-Commit-Object"><a href="#四、Commit-对象-Commit-Object" class="headerlink" title="四、Commit 对象 (Commit Object)"></a>四、Commit 对象 (Commit Object)</h2><h3 id="4-1-定义与特性"><a href="#4-1-定义与特性" class="headerlink" title="4.1 定义与特性"></a>4.1 定义与特性</h3><p><strong>Commit 对象</strong>是 Git 版本历史的核心，它记录了一次完整的版本快照。一个 Commit 对象代表了项目在某个时间点上的一个确定的状态。</p>
+<ul>
+<li><strong>项目快照</strong>：Commit 对象通过指向一个<strong>根 Tree 对象</strong>来捕获整个工作目录的快照。这个根 Tree 对象通常是从文件系统根目录 (<code>.</code> 或工作区目录) 计算出的 SHA-1 值。</li>
+<li><strong>版本历史</strong>：每个 Commit 对象都包含一个或多个<strong>父 Commit 对象</strong>的 SHA-1 值，这构建了 Git 的版本历史图（一个有向无环图 DAG）。<ul>
+<li>普通提交有一个父 Commit。</li>
+<li>初始提交（第一个提交）没有父 Commit。</li>
+<li>合并提交 (Merge Commit) 有两个或更多父 Commit。</li>
+</ul>
+</li>
+<li><strong>元数据</strong>：除了结构信息，Commit 还包含了关于这次提交的元数据：<ul>
+<li><strong>Author (作者)</strong>：提交的真正创作者的姓名、电子邮件和时间戳。</li>
+<li><strong>Committer (提交者)</strong>：将此次更改应用到仓库的人的姓名、电子邮件和时间戳。在 <code>git rebase</code> 或 <code>git cherry-pick</code> 等操作中，作者和提交者可能会不同。</li>
+<li><strong>Commit Message (提交消息)</strong>：描述这次提交所做的工作。</li>
+</ul>
+</li>
+<li><strong>SHA-1 命名</strong>：与 Blob 和 Tree 对象一样，Commit 对象的名称也是由其所有内容（根 Tree 引用、所有父 Commit 引用、作者&#x2F;提交者信息、提交消息）计算出的 SHA-1 值。任何元数据的更改都会导致一个新的 Commit 对象被创建。</li>
+</ul>
+<h3 id="4-2-示例：Commit-对象的结构"><a href="#4-2-示例：Commit-对象的结构" class="headerlink" title="4.2 示例：Commit 对象的结构"></a>4.2 示例：Commit 对象的结构</h3><p>在 Git 仓库中创建一个新文件并提交：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ git init my_repo</span><br><span class="line">$ <span class="built_in">cd</span> my_repo</span><br><span class="line">$ <span class="built_in">echo</span> <span class="string">&quot;Initial content&quot;</span> &gt; first.txt</span><br><span class="line">$ git add first.txt</span><br><span class="line">$ git config user.name <span class="string">&quot;Your Name&quot;</span></span><br><span class="line">$ git config user.email <span class="string">&quot;your.email@example.com&quot;</span></span><br><span class="line">$ git commit -m <span class="string">&quot;Initial commit of first.txt&quot;</span></span><br><span class="line">[main (root-commit) 6e3ddc6] Initial commit of first.txt</span><br><span class="line"> 1 file changed, 1 insertion(+)</span><br><span class="line"> create mode 100644 first.txt</span><br></pre></td></tr></table></figure>
+<p>这里的 <code>6e3ddc6</code> 就是这个 Commit 对象的 SHA-1 值。我们通过 <code>git cat-file -p</code> 命令查看其内部：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ git cat-file -p 6e3ddc6</span><br><span class="line">tree 5b5d7d3d0f04ea26fc54045f4423028c31023a6c</span><br><span class="line">author Your Name &lt;your.email@example.com&gt; 1678234567 +0800</span><br><span class="line">committer Your Name &lt;your.email@example.com&gt; 1678234567 +0800</span><br><span class="line"></span><br><span class="line">Initial commit of first.txt</span><br></pre></td></tr></table></figure>
+<p>从输出中可以看到：</p>
+<ul>
+<li>它指向了一个 <code>tree</code> 对象 (<code>5b5d7d3d0f04ea26fc54045f4423028c31023a6c</code>)，这是当前仓库根目录的快照。</li>
+<li>它没有 <code>parent</code> 字段，因为它是初始提交。</li>
+<li>它包含了作者和提交者的信息及时间戳。</li>
+<li>它包含了提交消息 <code>Initial commit of first.txt</code>。</li>
+</ul>
+<p>当进行下一个提交时，该 Commit 对象就会有一个 <code>parent</code> 字段指向 <code>6e3ddc6</code> 这个 Commit。</p>
+<h3 id="4-3-Python-模拟-Commit-创建"><a href="#4-3-Python-模拟-Commit-创建" class="headerlink" title="4.3 Python 模拟 Commit 创建"></a>4.3 Python 模拟 Commit 创建</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> hashlib</span><br><span class="line"><span class="keyword">import</span> zlib</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">create_git_commit</span>(<span class="params">tree_sha1: <span class="built_in">str</span>, parents_sha1: <span class="built_in">list</span>[<span class="built_in">str</span>], author: <span class="built_in">str</span>, committer: <span class="built_in">str</span>, message: <span class="built_in">str</span></span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    模拟Git创建Commit对象的过程，并返回其SHA-1哈希值。</span></span><br><span class="line"><span class="string">    Commit对象的存储格式：</span></span><br><span class="line"><span class="string">    tree &lt;tree_sha1&gt;</span></span><br><span class="line"><span class="string">    parent &lt;parent1_sha1&gt; (可选，可多个)</span></span><br><span class="line"><span class="string">    author &lt;author_name&gt; &lt;author_email&gt; &lt;timestamp&gt; &lt;timezone&gt;</span></span><br><span class="line"><span class="string">    committer &lt;committer_name&gt; &lt;committer_email&gt; &lt;timestamp&gt; &lt;timezone&gt;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    &lt;commit_message&gt;</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    commit_lines = [<span class="string">f&quot;tree <span class="subst">&#123;tree_sha1&#125;</span>&quot;</span>]</span><br><span class="line">    <span class="keyword">for</span> parent_sha1 <span class="keyword">in</span> parents_sha1:</span><br><span class="line">        commit_lines.append(<span class="string">f&quot;parent <span class="subst">&#123;parent_sha1&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 获取当前时间戳和时区</span></span><br><span class="line">    current_time = <span class="built_in">int</span>(time.time())</span><br><span class="line">    <span class="comment"># 获取本地时区偏移量，例如 +0800</span></span><br><span class="line">    timezone_offset = time.strftime(<span class="string">&#x27;%z&#x27;</span>, time.gmtime()).replace(<span class="string">&#x27;+&#x27;</span>, <span class="string">&#x27;+&#x27;</span>).replace(<span class="string">&#x27;-&#x27;</span>, <span class="string">&#x27;-&#x27;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 假设author和committer格式为 &quot;Name &lt;email&gt;&quot;</span></span><br><span class="line">    author_info = <span class="string">f&quot;<span class="subst">&#123;author&#125;</span> <span class="subst">&#123;current_time&#125;</span> <span class="subst">&#123;timezone_offset&#125;</span>&quot;</span></span><br><span class="line">    committer_info = <span class="string">f&quot;<span class="subst">&#123;committer&#125;</span> <span class="subst">&#123;current_time&#125;</span> <span class="subst">&#123;timezone_offset&#125;</span>&quot;</span></span><br><span class="line">  </span><br><span class="line">    commit_lines.append(<span class="string">f&quot;author <span class="subst">&#123;author_info&#125;</span>&quot;</span>)</span><br><span class="line">    commit_lines.append(<span class="string">f&quot;committer <span class="subst">&#123;committer_info&#125;</span>&quot;</span>)</span><br><span class="line">  </span><br><span class="line">    <span class="comment"># Commit message 之前有一个空行</span></span><br><span class="line">    commit_content_bytes = <span class="string">&quot;\n&quot;</span>.join(commit_lines).encode(<span class="string">&#x27;utf-8&#x27;</span>) + <span class="string">b&quot;\n\n&quot;</span> + message.encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line">  </span><br><span class="line">    header = <span class="string">f&quot;commit <span class="subst">&#123;<span class="built_in">len</span>(commit_content_bytes)&#125;</span>\0&quot;</span>.encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line">    store_content = header + commit_content_bytes</span><br><span class="line">  </span><br><span class="line">    sha1_hash = hashlib.sha1(store_content).hexdigest()</span><br><span class="line">    <span class="keyword">return</span> sha1_hash</span><br><span class="line"></span><br><span class="line"><span class="comment"># 示例：假设我们有一个根Tree对象的SHA-1</span></span><br><span class="line">root_tree_hash = <span class="string">&quot;5b5d7d3d0f04ea26fc54045f4423028c31023a6c&quot;</span> <span class="comment"># 虚拟前面创建的Tree哈希</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始提交没有父Commit</span></span><br><span class="line">initial_commit_hash = create_git_commit(</span><br><span class="line">    tree_sha1=root_tree_hash,</span><br><span class="line">    parents_sha1=[],</span><br><span class="line">    author=<span class="string">&quot;Your Name &lt;your.email@example.com&gt;&quot;</span>,</span><br><span class="line">    committer=<span class="string">&quot;Your Name &lt;your.email@example.com&gt;&quot;</span>,</span><br><span class="line">    message=<span class="string">&quot;Initial commit of first.txt&quot;</span></span><br><span class="line">)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Calculated Initial Commit SHA-1: <span class="subst">&#123;initial_commit_hash&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 假设再进行一次提交，修改了文件，生成了新的root_tree</span></span><br><span class="line">new_root_tree_hash = <span class="string">&quot;aaddbbeeccff0123456789aabbccddeeff01234567&quot;</span> <span class="comment"># 虚拟新的Tree哈希</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 下一个提交的父Commit就是上一个Commit</span></span><br><span class="line">second_commit_hash = create_git_commit(</span><br><span class="line">    tree_sha1=new_root_tree_hash,</span><br><span class="line">    parents_sha1=[initial_commit_hash], <span class="comment"># 指向父Commit</span></span><br><span class="line">    author=<span class="string">&quot;Your Name &lt;your.email@example.com&gt;&quot;</span>,</span><br><span class="line">    committer=<span class="string">&quot;Your Name &lt;your.email@example.com&gt;&quot;</span>,</span><br><span class="line">    message=<span class="string">&quot;Update first.txt&quot;</span></span><br><span class="line">)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Calculated Second Commit SHA-1: <span class="subst">&#123;second_commit_hash&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、Commit-Tree-Blob-之间的关系"><a href="#五、Commit-Tree-Blob-之间的关系" class="headerlink" title="五、Commit, Tree, Blob 之间的关系"></a>五、Commit, Tree, Blob 之间的关系</h2><p>Git 的核心就是通过这三种对象及其之间的引用关系，构建出一个完整且不可篡改的版本历史记录。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    subgraph &quot;Repository History (DAG of Commits)&quot;
+        C0[Commit 0] --&gt; C1[Commit 1]
+        C1 --&gt; C2_A[&quot;Commit 2 (Branch A)&quot;]
+        C1 --&gt; C2_B[&quot;Commit 2 (Branch B)&quot;]
+        C2_A --&gt; C3[&quot;Commit 3 (Merge)&quot;]
+        C2_B --&gt; C3
+    end
+
+    subgraph Object Structure
+        C1 -- points to --&gt; T_root_C1[&quot;Tree (Root Directory) for C1&quot;]
+        T_root_C1 -- contains entries for --&gt; B_file1_C1[&quot;Blob (File: file1.txt content v1)&quot;]
+        T_root_C1 -- contains entries for --&gt; T_subdir_C1[&quot;Tree (Subdirectory: sub_dir)&quot;]
+        T_subdir_C1 -- contains entries for --&gt; B_file2_C1[&quot;Blob (File: sub_dir&#x2F;file2.txt content v1)&quot;]
+    end
+  </pre></div>
+
+<p><strong>Git 对象模型的层级关系总结：</strong></p>
+<ul>
+<li><strong>Commit 对象</strong>：是顶层对象，代表一个版本快照。它包含指向一个 <strong>Tree 对象</strong>的指针，这个 Tree 对象是整个仓库根目录的快照。同时，Commit 也包含指向其<strong>父 Commit 对象</strong>的指针，形成历史链条。</li>
+<li><strong>Tree 对象</strong>：表示一个目录。它包含指向 <strong>Blob 对象</strong>（对应文件内容）和&#x2F;或<strong>其他 Tree 对象</strong>（对应子目录）的指针。</li>
+<li><strong>Blob 对象</strong>：表示一个文件的具体内容。</li>
+</ul>
+<p>这种设计使得 Git 非常强大和灵活：</p>
+<ul>
+<li><strong>高效存储</strong>：如果两个提交中某个文件的内容相同，它们会指向同一个 Blob 对象，节省存储空间。</li>
+<li><strong>数据完整性</strong>：所有对象都通过 SHA-1 哈希值引用，任何内容的改动都会导致哈希值变化，从而破坏引用链，使得篡改历史变得困难。</li>
+<li><strong>快速切换版本</strong>：因为每个 Commit 都指向一个完整的根 Tree 快照，所以切换到任何版本都只需要更新工作目录到该 Commit 所指向的 Tree 结构即可，无需复杂的差异计算。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>Git 的 Commit, Tree, Blob 对象共同构建了一个高效、健壮、内容寻址的分布式版本控制系统。Blob 存储文件内容，Tree 存储目录结构，Commit 将两者整合并通过时间线串联起来。深入理解这些底层构造不仅能帮助我们更好地使用 Git，还能在遇到复杂问题时提供解决问题的思路。Git 的一切皆对象，其内容寻址的特性是其安全性和可追溯性的根本保障。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/0b52cb819619/">https://blog.tbf1211.xx.kg/0b52cb819619/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2026/">2026</a><a class="post-meta__tags" href="/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><a class="post-meta__tags" href="/tags/Git/">Git</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-24.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/1d2a942bda1e/" title="Terraform 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Terraform 详解</div></div><div class="info-2"><div class="info-item-1"> Terraform 是由 HashiCorp 公司开发的一款开源基础设施即代码 (Infrastructure as Code, IaC) 工具。它允许用户通过声明式配置文件来定义、预置和管理云服务及其他基础设施资源，从而实现基础设施的自动化部署、版本控制和可重复性。  利用 Terraform，可以将基础设施（例如虚拟机、存储、网络、数据库等）编码为配置文件，然后通过统一的流程对这些基础设施进行部署、更新和销毁。这不仅提高了效率，减少了手动操作带来的错误，还使基础设施的变更可追踪、可审计，极大地改善了团队协作和运维能力。   一、为什么需要 Terraform？传统的IT基础设施管理通常涉及大量的人工操作，例如通过云服务提供商的控制台手动创建和配置资源。这种方式存在诸多问题：  效率低下且易出错：手动操作费时费力，且难以保证一致性，容易因人为失误导致配置漂移。 缺乏版本控制：基础设施的配置无法像应用代码一样进行版本管理，难以追踪历史变更和进行回滚。 环境不一致：在开发、测试和生产环境之间保持配置一致性成为难题。 难以扩展：面对大规模的基础设施部署和快速变化的需求时，手动管理模...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/1d2a942bda1e/" title="Terraform 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-20</div><div class="info-item-2">Terraform 详解</div></div><div class="info-2"><div class="info-item-1"> Terraform 是由 HashiCorp 公司开发的一款开源基础设施即代码 (Infrastructure as Code, IaC) 工具。它允许用户通过声明式配置文件来定义、预置和管理云服务及其他基础设施资源，从而实现基础设施的自动化部署、版本控制和可重复性。  利用 Terraform，可以将基础设施（例如虚拟机、存储、网络、数据库等）编码为配置文件，然后通过统一的流程对这些基础设施进行部署、更新和销毁。这不仅提高了效率，减少了手动操作带来的错误，还使基础设施的变更可追踪、可审计，极大地改善了团队协作和运维能力。   一、为什么需要 Terraform？传统的IT基础设施管理通常涉及大量的人工操作，例如通过云服务提供商的控制台手动创建和配置资源。这种方式存在诸多问题：  效率低下且易出错：手动操作费时费力，且难以保证一致性，容易因人为失误导致配置漂移。 缺乏版本控制：基础设施的配置无法像应用代码一样进行版本管理，难以追踪历史变更和进行回滚。 环境不一致：在开发、测试和生产环境之间保持配置一致性成为难题。 难以扩展：面对大规模的基础设施部署和快速变化的需求时，手动管理模...</div></div></div></a><a class="pagination-related" href="/a8310012f32b/" title="Git 从开发测试到上线的流程详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-25</div><div class="info-item-2">Git 从开发测试到上线的流程详解</div></div><div class="info-2"><div class="info-item-1"> Git 作为一个分布式版本控制系统，在现代软件开发中扮演着核心角色。它不仅能追踪代码变更、协调团队协作，还能支撑复杂的开发、测试到上线的全流程管理。本文将详细阐述基于 Git 的标准开发、测试到上线流程，旨在提供一个清晰、可操作的实践指南。  核心思想：利用 Git 的分支管理能力，清晰地划分开发阶段，确保代码质量，并实现高效、可追溯的部署。   一、Git 分支模型选择在开始流程之前，选择一个合适的分支模型至关重要。常见的分支模型包括 Git Flow 和 GitHub Flow (或 GitLab Flow)。 1.1 Git FlowGit Flow 是一种较为复杂的、结构化的分支模型，适用于发布周期较长、版本发布严格的项目。它定义了五种主要分支：  main (或 master) 分支：用于存放生产环境稳定代码。只有当代码准备好发布时，才合并到此分支。每次合并到 main 都应该打上版本标签。 develop 分支：用于存放最新开发完成的代码，是所有功能开发分支的集成点。 feature 分支：用于开发新功能。通常从 develop 分支创建，完成功能开发后合并回 de...</div></div></div></a><a class="pagination-related" href="/25324aef0ab0/" title="Git Merge vs. Rebase 对比详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-15</div><div class="info-item-2">Git Merge vs. Rebase 对比详解</div></div><div class="info-2"><div class="info-item-1"> 在 Git 版本控制系统中，git merge 和 git rebase 是两种常用的代码集成命令，它们都用于将一个分支的更改合并到另一个分支。尽管目的相同，但它们实现这一目标的方式截然不同，对项目的历史记录产生的影响也大相径庭。理解这两种策略的优缺点及适用场景，对于维护清晰、可追溯的 Git 历史以及高效的团队协作至关重要。  核心思想：git merge 通过创建新的合并提交来集成更改，保留了所有分支的历史；git rebase 通过重写提交历史将一个分支的提交应用到另一个分支的顶部，从而创建线性的历史记录。   一、Git Merge (合并)1.1 定义git merge 命令用于将来自一个或多个分支的独立开发历史合并到当前分支。它通过创建一个新的合并提交 (merge commit) 来实现这一点，这个合并提交的父提交指向两个被合并分支的最新提交。这意味着 git merge 会保留所有分支的原始提交历史，并显式地记录合并发生的时间和地点。 1.2 工作原理当执行 git merge &lt;branch_name&gt; 时：  Git 找到当前分支 (HEAD) ...</div></div></div></a><a class="pagination-related" href="/876a758cde0d/" title=".gitignore 与 .gitattributes 文件详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-31</div><div class="info-item-2">.gitignore 与 .gitattributes 文件详解</div></div><div class="info-2"><div class="info-item-1"> .gitignore 和 .gitattributes 是 Git 版本控制系统中两个重要的配置文件，它们帮助开发者精细地控制 Git 如何处理工作目录中的文件。gitignore 主要用于忽略不应该被版本控制的文件，而 gitattributes 则用于定义不同文件的属性，影响 Git 存储和比较文件的方式。理解和正确使用这两个文件对于维护干净、高效且一致的 Git 仓库至关重要。  核心思想：  .gitignore 告诉 Git 哪些文件或目录应该被忽略，不纳入版本控制。 .gitattributes 告诉 Git 如何对待特定类型的文件，例如行尾符、合并策略、文本转换等。    一、.gitignore 文件详解.gitignore 文件用于指定 Git 应该忽略哪些文件或目录。 这些被忽略的文件不会被 Git 跟踪，也不会被添加到仓库中。这对于排除构建产物、日志文件、敏感配置、IDE 特定文件等内容非常有用，可以保持仓库的整洁，避免提交不必要的文件，并减少仓库大小。 1.1 工作原理Git 在执行 git add 或 git commit 等命令时，会检查工作目录中是...</div></div></div></a><a class="pagination-related" href="/fa69350b38ad/" title="Git Submodules 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-07-16</div><div class="info-item-2">Git Submodules 详解</div></div><div class="info-2"><div class="info-item-1"> Git Submodule (子模块) 是 Git 版本控制系统提供的一种机制，允许一个 Git 仓库 (称为主仓库或 superproject) 将另一个完整的 Git 仓库 (称为子模块) 作为其子目录嵌入。主仓库会记录子模块的特定提交 (specific commit)，而不是其最新的 HEAD 状态。这意味着，当你克隆主仓库时，你并不会自动获得子模块的所有历史，而是获得其在主仓库中被记录的那个确切版本。  核心思想：将一个独立的 Git 仓库作为另一个 Git 仓库的子目录进行管理，并追踪子模块的特定提交，以实现外部依赖管理、模块化或代码复用，同时保持各仓库的独立性。   一、为什么需要 Git Submodules？在软件开发中，经常会遇到以下场景：  管理外部依赖：你的项目依赖于一个由第三方维护的库或框架，你希望将其代码包含在自己的仓库中，但又不想复制粘贴或手动更新。 模块化大型项目：一个大型项目由多个相对独立的组件构成，这些组件各自有独立的开发生命周期和版本控制，但需要在一个主项目中统一协调。 代码复用：多个项目共享同一段代码或一个公共库，你希望这段共享代码能够独...</div></div></div></a><a class="pagination-related" href="/be852baa9322/" title="Git命令详解与实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-11-02</div><div class="info-item-2">Git命令详解与实践</div></div><div class="info-2"><div class="info-item-1"> Git 作为一个分布式版本控制系统，是现代软件开发中不可或缺的工具。它允许开发者追踪代码变更、协调团队协作，并管理项目版本。本文旨在对 Git 的核心命令进行详尽解析，涵盖从初始化仓库到高级操作的各个方面，帮助开发者更深入地理解和高效地利用 Git。  核心思想：理解 Git 的工作区、暂存区和仓库之间的关系，以及每个命令如何操作这些区域，是掌握 Git 的关键。   一、Git 核心概念回顾在深入 Git 命令之前，理解几个核心概念对于后续的学习至关重要。 1.1 工作区 (Working Directory)你正在编辑和修改的文件所在的目录，也是你肉眼可见的目录。 1.2 暂存区 (Staging Area &#x2F; Index)一个轻量级的中间区域，用于存放你准备提交的文件快照。当执行 git add 命令时，文件就从工作区被添加到暂存区。 1.3 本地仓库 (Local Repository)存放项目的所有版本历史记录（即一系列提交）。当你执行 git commit 命令时，暂存区的文件快照就会被永久保存到本地仓库。 1.4 远程仓库 (Remote Reposit...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">514</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">228</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Git-%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B%E6%A6%82%E8%BF%B0"><span class="toc-text">一、Git 对象模型概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Blob-%E5%AF%B9%E8%B1%A1-Blob-Object"><span class="toc-text">二、Blob 对象 (Blob Object)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%89%B9%E6%80%A7"><span class="toc-text">2.1 定义与特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E7%A4%BA%E4%BE%8B%EF%BC%9A%E6%96%87%E4%BB%B6%E7%9A%84-Blob-%E5%8C%96"><span class="toc-text">2.2 示例：文件的 Blob 化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Python-%E6%A8%A1%E6%8B%9F-Blob-%E5%88%9B%E5%BB%BA"><span class="toc-text">2.3 Python 模拟 Blob 创建</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Tree-%E5%AF%B9%E8%B1%A1-Tree-Object"><span class="toc-text">三、Tree 对象 (Tree Object)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%89%B9%E6%80%A7"><span class="toc-text">3.1 定义与特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E7%A4%BA%E4%BE%8B%EF%BC%9A%E7%9B%AE%E5%BD%95%E7%9A%84-Tree-%E5%8C%96"><span class="toc-text">3.2 示例：目录的 Tree 化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-Python-%E6%A8%A1%E6%8B%9F-Tree-%E6%9D%A1%E7%9B%AE"><span class="toc-text">3.3 Python 模拟 Tree 条目</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Commit-%E5%AF%B9%E8%B1%A1-Commit-Object"><span class="toc-text">四、Commit 对象 (Commit Object)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%89%B9%E6%80%A7"><span class="toc-text">4.1 定义与特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E7%A4%BA%E4%BE%8B%EF%BC%9ACommit-%E5%AF%B9%E8%B1%A1%E7%9A%84%E7%BB%93%E6%9E%84"><span class="toc-text">4.2 示例：Commit 对象的结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Python-%E6%A8%A1%E6%8B%9F-Commit-%E5%88%9B%E5%BB%BA"><span class="toc-text">4.3 Python 模拟 Commit 创建</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Commit-Tree-Blob-%E4%B9%8B%E9%97%B4%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">五、Commit, Tree, Blob 之间的关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/0b52cb819619/" title="Git 核心对象：Commit, Tree, Blob 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Git 核心对象：Commit, Tree, Blob 详解"/></a><div class="content"><a class="title" href="/0b52cb819619/" title="Git 核心对象：Commit, Tree, Blob 详解">Git 核心对象：Commit, Tree, Blob 详解</a><time datetime="2026-01-21T22:24:00.000Z" title="发表于 2026-01-22 06:24:00">2026-01-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1d2a942bda1e/" title="Terraform 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Terraform 详解"/></a><div class="content"><a class="title" href="/1d2a942bda1e/" title="Terraform 详解">Terraform 详解</a><time datetime="2026-01-19T22:24:00.000Z" title="发表于 2026-01-20 06:24:00">2026-01-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/26cdb2447b3d/" title="WebView 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebView 详解"/></a><div class="content"><a class="title" href="/26cdb2447b3d/" title="WebView 详解">WebView 详解</a><time datetime="2026-01-17T22:24:00.000Z" title="发表于 2026-01-18 06:24:00">2026-01-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="AI 辅助编程的关键要点与代码幻觉防范"/></a><div class="content"><a class="title" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范">AI 辅助编程的关键要点与代码幻觉防范</a><time datetime="2026-01-15T22:24:00.000Z" title="发表于 2026-01-16 06:24:00">2026-01-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d863aad4b106/" title="Trivy (通用安全扫描器) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Trivy (通用安全扫描器) 详解"/></a><div class="content"><a class="title" href="/d863aad4b106/" title="Trivy (通用安全扫描器) 详解">Trivy (通用安全扫描器) 详解</a><time datetime="2026-01-10T22:24:00.000Z" title="发表于 2026-01-11 06:24:00">2026-01-11</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-24.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.7/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.3"></script></div></div></body></html>
