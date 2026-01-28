@@ -1,0 +1,817 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在计算机网络中，MTU (Maximum Transmission Unit - 最大传输单元) 和 MSS (Maximum Segment Size - 最大报文段长度) 是两个至关重要的概念，它们直接影响着网络数据传输的效率、链路的健壮性以及应用程序的性能。理解这两个参数的区别、它们如何协同工作以及它们在网络通信中的作用，对于优化网络配置、诊断性能问题具有深远的意义。简而言之，MTU 关注">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/72a99447fbd9/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在计算机网络中，MTU (Maximum Transmission Unit - 最大传输单元) 和 MSS (Maximum Segment Size - 最大报文段长度) 是两个至关重要的概念，它们直接影响着网络数据传输的效率、链路的健壮性以及应用程序的性能。理解这两个参数的区别、它们如何协同工作以及它们在网络通信中的作用，对于优化网络配置、诊断性能问题具有深远的意义。简而言之，MTU 关注">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2024-11-21T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-01-28T09:11:10.470Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络技术">
+<meta property="article:tag" content="2024">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解",
+  "url": "https://blog.tbf1211.xx.kg/72a99447fbd9/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2024-11-21T22:24:00.000Z",
+  "dateModified": "2026-01-28T09:11:10.470Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/72a99447fbd9/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">527</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">229</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-11-21T22:24:00.000Z" title="发表于 2024-11-22 06:24:00">2024-11-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>11分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>在计算机网络中，<strong>MTU (Maximum Transmission Unit - 最大传输单元)</strong> 和 <strong>MSS (Maximum Segment Size - 最大报文段长度)</strong> 是两个至关重要的概念，它们直接影响着网络数据传输的效率、链路的健壮性以及应用程序的性能。理解这两个参数的区别、它们如何协同工作以及它们在网络通信中的作用，对于优化网络配置、诊断性能问题具有深远的意义。简而言之，MTU 关注网络层及以下的最大数据帧大小，而 MSS 则关注传输层 TCP 报文段中应用数据的最大大小。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：MTU 限制了IP数据包在物理链路上的最大尺寸，而 MSS 限制了TCP数据段的大小，以避免在IP层发生分片，从而提高网络传输效率和减少重传开销。</p>
+</div>
+<hr>
+<h2 id="一、MTU-Maximum-Transmission-Unit"><a href="#一、MTU-Maximum-Transmission-Unit" class="headerlink" title="一、MTU (Maximum Transmission Unit)"></a>一、MTU (Maximum Transmission Unit)</h2><h3 id="1-1-定义"><a href="#1-1-定义" class="headerlink" title="1.1 定义"></a>1.1 定义</h3><p><strong>MTU (Maximum Transmission Unit - 最大传输单元)</strong> 是指<strong>网络层</strong>可以一次性发送的最大 IP 数据包大小（包括 IP 头部和数据部分），但不包括数据链路层（如以太网）的帧头和帧尾。它是一个<strong>链路层特性</strong>，由网络接口或链路类型决定。</p>
+<h3 id="1-2-为什么存在-MTU？"><a href="#1-2-为什么存在-MTU？" class="headerlink" title="1.2 为什么存在 MTU？"></a>1.2 为什么存在 MTU？</h3><ul>
+<li><strong>资源限制</strong>：早期的网络设备内存和处理能力有限，无法处理过大的数据块。</li>
+<li><strong>并发性</strong>：大数据包会长时间占用链路，导致其他数据包等待，增加延迟。小数据包可以提高链路的并发性。</li>
+<li><strong>差错控制</strong>：数据包越大，在传输过程中发生错误导致整个数据包重传的概率就越高。小数据包可以缩小重传的粒度。</li>
+</ul>
+<h3 id="1-3-常见的-MTU-值"><a href="#1-3-常见的-MTU-值" class="headerlink" title="1.3 常见的 MTU 值"></a>1.3 常见的 MTU 值</h3><ul>
+<li><strong>以太网 (Ethernet)</strong>：<code>1500 字节</code> (最常见)。</li>
+<li><strong>PPPoE (Point-to-Point Protocol over Ethernet)</strong>：由于 PPP 头部和 PPPoE 头部会占用 IP 包的一部分，因此在标准以太网 1500 字节 MTU 的基础上，PPPoE 的有效 MTU 通常是 <code>1492 字节</code> (1500 - 8 字节 PPPoE 头 - 6 字节 PPP 头)。</li>
+<li><strong>IPv6 Jumbo Frames</strong>：支持更大的 MTU，例如 9000 字节，适用于高性能网络。</li>
+<li><strong>光纤网络</strong>：通常使用比以太网更大的 MTU，但也可能被中间设备限制。</li>
+</ul>
+<h3 id="1-4-IP-分片-IP-Fragmentation"><a href="#1-4-IP-分片-IP-Fragmentation" class="headerlink" title="1.4 IP 分片 (IP Fragmentation)"></a>1.4 IP 分片 (IP Fragmentation)</h3><p>当一个 IP 数据包的大小超过了其传输路径上任何一个链路的 MTU 时，路由器会将其切割成更小的片段 (Fragments)，每个片段的大小都不超过该链路的 MTU。这个过程称为<strong>IP 分片</strong>。</p>
+<ul>
+<li><strong>分片过程</strong>：<ol>
+<li>发送主机或中间路由器检查数据包大小是否大于下一跳接口的 MTU。</li>
+<li>如果大于，则将原始 IP 数据包分成多个独立的片段。</li>
+<li>每个片段都有独立的 IP 头部，其中包含源 IP、目的 IP、标识符 (Identification)、片偏移 (Fragment Offset) 和标志 (Flags - MF 位，表示“更多片段”或“最后一个片段”)。所有片段共享相同的标识符。</li>
+<li>这些片段独立地在网络中传输，并通过目的 IP 地址路由。</li>
+</ol>
+</li>
+<li><strong>重组过程</strong>：<ol>
+<li>只有<strong>目的主机</strong>负责将所有接收到的片段重新组装成原始的 IP 数据包。</li>
+<li>如果任何一个片段丢失，目的主机将无法重组完整的 IP 数据包，并会丢弃所有接收到的片段（需要上层协议重传）。</li>
+</ol>
+</li>
+</ul>
+<h4 id="1-4-1-IP-分片的优缺点"><a href="#1-4-1-IP-分片的优缺点" class="headerlink" title="1.4.1 IP 分片的优缺点"></a>1.4.1 IP 分片的优缺点</h4><ul>
+<li><strong>优点</strong>：<ul>
+<li><strong>适应异构网络</strong>：允许不同 MTU 值的网络之间传输数据。</li>
+<li><strong>灵活性</strong>：无需所有链路都具有相同的 MTU。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>增加开销</strong>：每个片段都有 IP 头部，增加了网络带宽的消耗。</li>
+<li><strong>增加处理器负担</strong>：路由器和目的主机需要额外的处理来分片和重组。</li>
+<li><strong>降低可靠性</strong>：任何一个片段的丢失都会导致整个原始数据包的重传，效率低下。</li>
+<li><strong>防火墙问题</strong>：防火墙可能会因为无法识别分片所属的完整数据包而丢弃分片，或者在进行状态检测时遇到困难。</li>
+<li><strong>安全风险</strong>：分片攻击可能被滥用来绕过防火墙或入侵检测系统。</li>
+</ul>
+</li>
+</ul>
+<h3 id="1-5-PMTUD-Path-MTU-Discovery"><a href="#1-5-PMTUD-Path-MTU-Discovery" class="headerlink" title="1.5 PMTUD (Path MTU Discovery)"></a>1.5 PMTUD (Path MTU Discovery)</h3><p>为了避免 IP 分片带来的问题，现代网络通常采用 <strong>PMTUD (Path MTU Discovery - 路径 MTU 发现)</strong> 机制。</p>
+<ul>
+<li><p><strong>工作原理</strong>：</p>
+<ol>
+<li>源主机发送数据包时，将 IP 头部中的 <strong>DF (Don’t Fragment - 不要分片)</strong> 标志位设置为 1。</li>
+<li>当数据包经过一个 MTU 小于数据包大小的路由器时，该路由器不会对数据包进行分片，而是<strong>丢弃</strong>它。</li>
+<li>同时，该路由器会向源主机发送一个 <strong>ICMP “Destination Unreachable - Fragmentation Needed and DF Set” (需要分片但 DF 标志位已设置)</strong> 消息，其中包含该路由器接口的 MTU 值。</li>
+<li>源主机收到 ICMP 消息后，会减小其发送数据包的大小（或调整 TCP MSS），并重传数据包。</li>
+<li>这个过程重复进行，直到找到达到目的地的最小 MTU 值，即<strong>路径 MTU (Path MTU)</strong>。</li>
+</ol>
+</li>
+<li><p><strong>PMTUD 的作用</strong>：在整个数据传输路径上动态地找到最小 MTU，并调整发送数据包的大小，从而避免不必要的 IP 分片，提高传输效率和可靠性。</p>
+</li>
+</ul>
+<h2 id="二、MSS-Maximum-Segment-Size"><a href="#二、MSS-Maximum-Segment-Size" class="headerlink" title="二、MSS (Maximum Segment Size)"></a>二、MSS (Maximum Segment Size)</h2><h3 id="2-1-定义"><a href="#2-1-定义" class="headerlink" title="2.1 定义"></a>2.1 定义</h3><p><strong>MSS (Maximum Segment Size - 最大报文段长度)</strong> 是指 TCP 连接的每一端愿意接收的、<strong>不包含 TCP 头部和 IP 头部</strong>的<strong>最大 TCP 报文段的大小</strong>。它是<strong>传输层 (TCP) 的概念</strong>。</p>
+<h3 id="2-2-为什么存在-MSS？"><a href="#2-2-为什么存在-MSS？" class="headerlink" title="2.2 为什么存在 MSS？"></a>2.2 为什么存在 MSS？</h3><p>MSS 的引入是为了<strong>避免 IP 分片</strong>。TCP 协议在建立连接时会进行 MSS 协商，双方告知对方自己能接收的最大数据段长度，从而确保发送的数据报文段不会超过链路的 MTU。</p>
+<h3 id="2-3-MSS-的计算"><a href="#2-3-MSS-的计算" class="headerlink" title="2.3 MSS 的计算"></a>2.3 MSS 的计算</h3><p>MSS 是根据 MTU 计算得出的：</p>
+<p><code>MSS = MTU - IP 头部长度 - TCP 头部长度</code></p>
+<ul>
+<li><strong>IP 头部长度</strong>：通常是 20 字节 (IPv4)，如果包含选项则会更长。</li>
+<li><strong>TCP 头部长度</strong>：通常是 20 字节，如果包含选项则会更长。</li>
+</ul>
+<p><strong>示例：</strong></p>
+<ul>
+<li><strong>标准以太网 (MTU &#x3D; 1500 字节) 的 MSS</strong>：<br><code>MSS = 1500 - 20 (IP头) - 20 (TCP头) = 1460 字节</code></li>
+<li><strong>PPPoE (MTU &#x3D; 1492 字节) 的 MSS</strong>：<br><code>MSS = 1492 - 20 (IP头) - 20 (TCP头) = 1452 字节</code></li>
+</ul>
+<h3 id="2-4-MSS-的协商过程"><a href="#2-4-MSS-的协商过程" class="headerlink" title="2.4 MSS 的协商过程"></a>2.4 MSS 的协商过程</h3><ul>
+<li><strong>三次握手</strong>：MSS 协商发生在 TCP 连接建立的<strong>三次握手 (Three-Way Handshake)</strong> 过程中。</li>
+<li><strong>SYN 标志位</strong>：在 TCP SYN 和 SYN-ACK 报文段中，都会有一个 MSS 选项。</li>
+<li><strong>各自声明</strong>：客户端在发送 SYN 时，声明自己能够接收的 MSS 大小。服务器在发送 SYN-ACK 时，也声明自己能够接收的 MSS 大小。</li>
+<li><strong>取最小值</strong>：双方会根据对方声明的 MSS 值、自身 MTU 和路径 MTU 发现 (PMTUD) 的结果，最终选择一个合适的 MSS 值。通常是取双方声明的 MSS 和路径 MTU 派生出的 MSS 中的最小值，作为该 TCP 连接的实际 MSS。</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant Client
+    participant Server
+
+    Client-&gt;&gt;Server: SYN (MSS&#x3D;1460)
+    Server-&gt;&gt;Client: SYN, ACK (MSS&#x3D;1460)
+    Note over Client,Server: 双方协商的MSS通常为1460 (如果路径MTU为1500)
+    Client-&gt;&gt;Server: ACK
+    Note over Client,Server: TCP连接建立完成，双方将发送MSS不超过1460字节的数据
+  </pre></div>
+
+<h3 id="2-5-MSS-和-IP-分片的区别"><a href="#2-5-MSS-和-IP-分片的区别" class="headerlink" title="2.5 MSS 和 IP 分片的区别"></a>2.5 MSS 和 IP 分片的区别</h3><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">MTU (Maximum Transmission Unit)</th>
+<th align="left">MSS (Maximum Segment Size)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>协议层</strong></td>
+<td align="left">网络层及以下 (数据链路层协议特性)</td>
+<td align="left">传输层 (TCP 协议特性)</td>
+</tr>
+<tr>
+<td align="left"><strong>包含内容</strong></td>
+<td align="left">IP 头部 + 数据 (包括传输层头部和应用数据)</td>
+<td align="left">仅指应用数据部分 (不含 IP 头部、TCP 头部)</td>
+</tr>
+<tr>
+<td align="left"><strong>作用</strong></td>
+<td align="left">限制 IP 数据包在特定链路上的最大传输大小</td>
+<td align="left">限制 TCP 报文段在 IP 层<strong>不分片</strong>的最大数据量</td>
+</tr>
+<tr>
+<td align="left"><strong>协商</strong></td>
+<td align="left">非协商，由链路物理特性决定，通常通过 PMTUD 发现路径最小 MTU。</td>
+<td align="left">在 TCP 连接建立时（三次握手）协商确定。</td>
+</tr>
+<tr>
+<td align="left"><strong>处理</strong></td>
+<td align="left">若超过链路 MTU，则发生 IP 分片或丢弃 (若设置 DF)。</td>
+<td align="left">报文段大小永远不会超过 MSS，因此避免了 IP 分片。</td>
+</tr>
+<tr>
+<td align="left"><strong>单位</strong></td>
+<td align="left">字节</td>
+<td align="left">字节</td>
+</tr>
+</tbody></table>
+<h3 id="2-6-TCP-MSS-Clamping"><a href="#2-6-TCP-MSS-Clamping" class="headerlink" title="2.6 TCP MSS Clamping"></a>2.6 TCP MSS Clamping</h3><p>在一些网络设备（如路由器、防火墙）上，为了解决 PPPoE 等场景下 MTU 不匹配导致的问题（例如 PMTUD 失败），会使用 <strong>TCP MSS Clamping (TCP MSS 钳制)</strong> 技术。</p>
+<ul>
+<li><strong>工作原理</strong>：当 TCP 连接的 SYN 请求经过这些设备时，设备会检查报文中的 MSS 选项。如果 MSS 值大于预设的最大值（例如为 PPPoE 链路设置 1452），设备会<strong>强制修改</strong>报文中的 MSS 值为一个较小的值（例如 1452），然后转发。</li>
+<li><strong>作用</strong>：主动确保 TCP 连接双方协商的 MSS 小于或等于 PMTU 减去 IP&#x2F;TCP 头部开销，从而强制避免 IP 分片，提高传输效率。</li>
+</ul>
+<h2 id="三、MTU-和-MSS-对网络性能的影响"><a href="#三、MTU-和-MSS-对网络性能的影响" class="headerlink" title="三、MTU 和 MSS 对网络性能的影响"></a>三、MTU 和 MSS 对网络性能的影响</h2><ul>
+<li><strong>过小的 MTU&#x2F;MSS</strong>：<ul>
+<li><strong>增加头部开销</strong>：每个数据包的头部相对数据部分的比例增加。例如，传输 14600 字节数据，如果 MSS 是 1460，需要 10 个数据包；如果 MSS 是 146，则需要 100 个数据包，头部开销增加 10 倍。</li>
+<li><strong>增加处理负担</strong>：发送方和接收方需要处理更多的数据包（比如更频繁的上下文切换、定时器事件）。</li>
+<li><strong>ACK 延迟</strong>：TCP 拥塞控制和流量控制机制会受到影响。</li>
+</ul>
+</li>
+<li><strong>过大的 MTU&#x2F;MSS</strong>：<ul>
+<li><strong>导致 IP 分片</strong>：如果 MTU 太大，但在路径上遭遇了更小的 MTU 链路，就会导致 IP 分片。分片会降低可靠性（一个片段丢失导致整个重传）、增加 CPU 负担、可能被防火墙丢弃。</li>
+<li><strong>PMTUD 失败</strong>：有些防火墙或糟糕的路由器可能会阻止 ICMP 错误消息，导致 PMTUD 失败。此时，源主机无法得知正确的路径 MTU，会一直尝试发送过大的数据包，最终导致“黑洞”现象（数据包被默默丢弃，连接陷入停滞）。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-1-最佳实践"><a href="#3-1-最佳实践" class="headerlink" title="3.1 最佳实践"></a>3.1 最佳实践</h3><ul>
+<li><strong>标准以太网环境</strong>：默认 MTU 1500 字节，MSS 1460 字节通常工作良好。</li>
+<li><strong>PPPoE 环境</strong>：将 MTU 设置为 1492 字节，MSS 设置为 1452 字节，或启用 TCP MSS Clamping。</li>
+<li><strong>光纤、隧道等特殊环境</strong>：根据具体情况调整 MTU。例如，在 VPN 隧道或其他封装协议中，原始 IP 包会被添加额外的头部而变大，需要相应减小内部的 MTU&#x2F;MSS 以避免隧道内分片。</li>
+<li><strong>确保 ICMP 消息畅通</strong>：不要在防火墙中盲目禁用所有 ICMP 消息，特别是 PMTUD 所需的 ICMP “Fragmentation Needed” 消息。</li>
+</ul>
+<h2 id="四、代码示例-Linux-系统命令"><a href="#四、代码示例-Linux-系统命令" class="headerlink" title="四、代码示例 (Linux 系统命令)"></a>四、代码示例 (Linux 系统命令)</h2><p>虽然 MTU&#x2F;MSS 是协议层的概念，但它们可以通过系统命令进行查看和配置。</p>
+<h3 id="4-1-查看网卡-MTU-Linux"><a href="#4-1-查看网卡-MTU-Linux" class="headerlink" title="4.1 查看网卡 MTU (Linux)"></a>4.1 查看网卡 MTU (Linux)</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看所有网卡 MTU</span></span><br><span class="line">ip <span class="built_in">link</span> show</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看特定网卡（例如 eth0 或 ens33）的 MTU</span></span><br><span class="line">ip <span class="built_in">link</span> show eth0</span><br><span class="line"><span class="comment"># 或</span></span><br><span class="line">ifconfig eth0 | grep MTU <span class="comment"># ifconfig 已被 ip 命令取代，但仍广泛使用</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>示例输出：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000</span><br><span class="line">    link/ether 00:0c:29:ab:cd:ef brd ff:ff:ff:ff:ff:ff</span><br></pre></td></tr></table></figure>
+<p>这里 <code>mtu 1500</code> 表示该网卡的 MTU 是 1500 字节。</p>
+<h3 id="4-2-设置网卡-MTU-Linux"><a href="#4-2-设置网卡-MTU-Linux" class="headerlink" title="4.2 设置网卡 MTU (Linux)"></a>4.2 设置网卡 MTU (Linux)</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 临时设置 MTU (立即生效，重启后失效)</span></span><br><span class="line"><span class="built_in">sudo</span> ip <span class="built_in">link</span> <span class="built_in">set</span> eth0 mtu 1492</span><br><span class="line"></span><br><span class="line"><span class="comment"># 使配置永久生效（取决于 Linux 发行版）：</span></span><br><span class="line"><span class="comment"># Debian/Ubuntu (修改 /etc/network/interfaces)</span></span><br><span class="line"><span class="comment"># auto eth0</span></span><br><span class="line"><span class="comment"># iface eth0 inet dhcp</span></span><br><span class="line"><span class="comment">#    mtu 1492</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># CentOS/RHEL (修改 /etc/sysconfig/network-scripts/ifcfg-eth0)</span></span><br><span class="line"><span class="comment"># MTU=&quot;1492&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-查看-TCP-MSS-Linux"><a href="#4-3-查看-TCP-MSS-Linux" class="headerlink" title="4.3 查看 TCP MSS (Linux)"></a>4.3 查看 TCP MSS (Linux)</h3><p>MSS 是在 TCP 连接建立时协商的，无法直接通过系统命令查看一个通用值。但可以通过抓包工具（如 Wireshark）查看特定 TCP 连接的 SYN&#x2F;SYN-ACK 报文中的 MSS 选项。</p>
+<p>例如，通过 <code>netstat</code> 或 <code>ss</code> 命令可以查看当前活动的 TCP 连接信息，但通常不直接显示 MSS。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看网络统计信息，不包含 MSS</span></span><br><span class="line">netstat -s</span><br><span class="line">ss -s</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-配置-TCP-MSS-Clamping-Linux-路由器"><a href="#4-4-配置-TCP-MSS-Clamping-Linux-路由器" class="headerlink" title="4.4 配置 TCP MSS Clamping (Linux 路由器)"></a>4.4 配置 TCP MSS Clamping (Linux 路由器)</h3><p>在 Linux 作为路由器时，可以使用 <code>iptables</code> 来实现 TCP MSS Clamping。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 假设 eth0 是内部 LAN 接口，eth1 是连接 PPPoE 的 WAN 接口</span></span><br><span class="line"><span class="comment"># 将出站流量的 MSS 钳制到 1452，以适应 PPPoE 链路 MTU 1492</span></span><br><span class="line"><span class="built_in">sudo</span> iptables -t mangle -A FORWARD -o eth1 -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1452</span><br><span class="line"></span><br><span class="line"><span class="comment"># 对于入站流量，将 MSS 也钳制到 1452</span></span><br><span class="line"><span class="built_in">sudo</span> iptables -t mangle -A FORWARD -i eth1 -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1452</span><br><span class="line"></span><br><span class="line"><span class="comment"># 保存 iptables 规则 (根据发行版而异)</span></span><br><span class="line"><span class="comment"># sudo service netfilter-persistent save</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>MTU 和 MSS 是网络通信中相互关联且至关重要的两个参数。MTU 决定了IP数据包在特定链路上的总大小限制，而 MSS 则在 TCP 层面规范了数据报文段的有效载荷大小，旨在完美适配链路 MTU，避免 IP 分片。理想情况下，通过 PMTUD 机制或 MSS 钳制技术，TCP 连接的 MSS 总是能够调整到最优值，确保数据包在整个路径上无需分片就能高效传输。合理配置和理解 MTU&#x2F;MSS 对于诊断网络性能瓶颈、保障数据传输的可靠性以及构建健壮的网络架构具有不可替代的价值。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/72a99447fbd9/">https://blog.tbf1211.xx.kg/72a99447fbd9/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/865012842955/" title="JavaScript特殊运算符的使用"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">JavaScript特殊运算符的使用</div></div><div class="info-2"><div class="info-item-1"> JavaScript 语言不断演进，引入了许多新的运算符来提升开发效率、代码可读性和健壮性。本文将重点深入解析一些在现代 JavaScript 开发中非常实用且常见的特殊运算符，包括展开&#x2F;剩余运算符 (...)、逻辑赋值运算符 (||=, &amp;&amp;=, ??=)、可选链运算符 (?.) 和空值合并运算符 (??)。理解这些运算符的细微差别和最佳实践，是编写高质量 JavaScript 代码的关键。  核心思想：这些特殊运算符旨在提供更简洁、更安全的语法来处理数据集合、对象属性访问、条件赋值和默认值设定，从而显著简化常见编程模式。   一、Spread Syntax (...) - 展开&#x2F;剩余运算符... 符号在 JavaScript 中是一个多功能操作符，其具体行为取决于它出现的上下文。它主要扮演展开运算符 (Spread Operator) 和剩余运算符 (Rest Parameters) 两种角色。 1.1 展开运算符 (Spread Operator)当 ... 用于可迭代对象（如数组、字符串、Set、Map）时，它会将这些对象的元素“展开...</div></div></div></a><a class="pagination-related" href="/19a6c2b992d7/" title="IPv6 (Internet Protocol Version 6) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">IPv6 (Internet Protocol Version 6) 详解</div></div><div class="info-2"><div class="info-item-1"> IPv6 (Internet Protocol Version 6) 是互联网协议 (IP) 的最新版本，旨在取代其前身 IPv4。它解决了 IPv4 长期存在的地址枯竭问题，并引入了多项设计改进，以更好地适应现代互联网的需求，包括支持更简单的头部处理、增强的安全性、更好的服务质量 (QoS) 和更强大的移动性功能。  核心思想：从根本上解决 IPv4 地址短缺问题，同时优化协议设计，为万物互联 (IoT)、5G 和未来网络应用提供坚实基础。    一、为什么需要 IPv6？IPv4 (Internet Protocol Version 4) 作为互联网的核心协议已成功运行数十年，但随着互联网的爆炸式增长，其固有的设计局限性日益凸显：  地址枯竭 (Address Exhaustion)：IPv4 地址空间为 32 位，最多有约 43 亿个地址。尽管采取了无类别域间路由 (CIDR) 和网络地址转换 (NAT) 等技术来延缓地址枯竭，但根源问题并未解决。全球各区域的 IPv4 地址池已基本分配完毕，成为互联网进一步发展的瓶颈。 NAT 的复杂性与限制：网络地址转换 (NAT) ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/19a6c2b992d7/" title="IPv6 (Internet Protocol Version 6) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-20</div><div class="info-item-2">IPv6 (Internet Protocol Version 6) 详解</div></div><div class="info-2"><div class="info-item-1"> IPv6 (Internet Protocol Version 6) 是互联网协议 (IP) 的最新版本，旨在取代其前身 IPv4。它解决了 IPv4 长期存在的地址枯竭问题，并引入了多项设计改进，以更好地适应现代互联网的需求，包括支持更简单的头部处理、增强的安全性、更好的服务质量 (QoS) 和更强大的移动性功能。  核心思想：从根本上解决 IPv4 地址短缺问题，同时优化协议设计，为万物互联 (IoT)、5G 和未来网络应用提供坚实基础。    一、为什么需要 IPv6？IPv4 (Internet Protocol Version 4) 作为互联网的核心协议已成功运行数十年，但随着互联网的爆炸式增长，其固有的设计局限性日益凸显：  地址枯竭 (Address Exhaustion)：IPv4 地址空间为 32 位，最多有约 43 亿个地址。尽管采取了无类别域间路由 (CIDR) 和网络地址转换 (NAT) 等技术来延缓地址枯竭，但根源问题并未解决。全球各区域的 IPv4 地址池已基本分配完毕，成为互联网进一步发展的瓶颈。 NAT 的复杂性与限制：网络地址转换 (NAT) ...</div></div></div></a><a class="pagination-related" href="/45a8b220c3e8/" title="中国移动 CMI 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-18</div><div class="info-item-2">中国移动 CMI 网络详解</div></div><div class="info-2"><div class="info-item-1"> CMI (China Mobile International)，即中国移动国际网络，是中国移动的国际出口骨干网络。与中国电信的 CN2 和中国联通的 AS4837&#x2F;AS9929 类似，CMI 专注于提供中国移动用户的高质量国际互联服务。它随着中国移动国际业务的扩张而迅速发展，成为连接中国大陆与全球各地的重要网络基础设施之一。  核心思想：CMI 是中国移动为提升其用户国际访问体验而建立的国际骨干网络。它通过建设自有海缆和海外节点，提供相对稳定、大带宽的国际互联通道。   一、为什么需要 CMI？1.1 中国移动网络的挑战在早期的国际互联方面，中国移动（China Mobile）主要依靠租用其他运营商的国际出口带宽，或者将流量转接到中国电信或中国联通的网络进行国际互联。这种方式存在一些固有的问题：  网络质量不稳定：路由路径通常较长，经过的中间运营商和节点多，导致延迟高、丢包率大。 带宽不足：租用带宽的成本和可用性限制，使得在国际流量高峰期容易出现拥堵。 服务不可控：缺乏对国际链路的端到端控制，难以保证服务质量 (QoS)。 成本高昂：长期租用国际带宽的成本较高。  ...</div></div></div></a><a class="pagination-related" href="/b8edc2276249/" title="雪花算法 (Snowflake Algorithm) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-19</div><div class="info-item-2">雪花算法 (Snowflake Algorithm) 详解</div></div><div class="info-2"><div class="info-item-1"> 雪花算法 (Snowflake Algorithm) 是 Twitter 公司开源的一种分布式唯一 ID 生成算法。它旨在解决在分布式系统中生成全局唯一、递增（但非严格递增）且高性能 ID 的需求。其生成的 ID 是一个 64 位的整数，具有时间有序性，并且不依赖于数据库，易于扩展。  核心思想：将 64 位的 Long 型 ID 拆分为多个字段，分别存储时间戳、数据中心 ID、机器 ID 和序列号，通过位运算拼接以保证全局唯一性和大致的时间有序性。   一、为什么需要雪花算法？在分布式系统中，传统的单点自增 ID 方案面临巨大挑战：  唯一性问题：不同的数据库实例或服务节点可能生成相同的 ID。 性能瓶颈：为了保证唯一性，可能需要引入中心化的 ID 生成服务或数据库锁，成为系统瓶颈。 可用性问题：中心化服务一旦宕机，整个系统的 ID 生成将受影响。  虽然 UUID 能够保证全局唯一性，但它存在一些缺点：  存储和传输效率低：128 位，比 64 位 ID 更占用空间，索引性能较差。 无序性：UUID 是无序的，插入数据库时会导致 B+ 树索引频繁分裂和重建，影响数据库性能。...</div></div></div></a><a class="pagination-related" href="/dec2dcdddd31/" title="单播、组播、广播、任播 (Unicast, Multicast, Broadcast, Anycast) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-14</div><div class="info-item-2">单播、组播、广播、任播 (Unicast, Multicast, Broadcast, Anycast) 详解</div></div><div class="info-2"><div class="info-item-1"> 在计算机网络中，数据包从一个源发送到多个目的地的策略被称为通信模式。理解这些模式——单播 (Unicast)、组播 (Multicast)、广播 (Broadcast) 和任播 (Anycast)——对于网络设计、数据传输优化以及故障排除至关重要。它们定义了数据如何寻址和如何在网络中传播，各自适用于不同的应用场景，并对网络性能和资源消耗有着显著影响。  核心思想：根据数据包的目的地数量和选择策略，将网络通信划分为四种基本模式，每种模式都有其独特的传输效率、资源利用和应用场景。   一、传输模式概述   传输模式 描述 接收方数量 IP 地址类型 传输效率 主要应用    单播 一对一传输。最常见的模式。 1 普通 IP 地址 高 (点对点) HTTP, TCP, Telnet, SSH, FTP   广播 一对所有传输，限于同一广播域内。 所有 广播地址 (255.255.255.255) 低 (网络泛洪) ARP, DHCP, OLPC, 唤醒局域网   组播 一对多传输，发送给特定组中的成员。 多个 组播地址 (224.0.0.0/4) 高 (路由支持) 视频直播, 在线游...</div></div></div></a><a class="pagination-related" href="/ba096d7d0780/" title="虚拟局域网 (VLAN) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-06</div><div class="info-item-2">虚拟局域网 (VLAN) 详解</div></div><div class="info-2"><div class="info-item-1"> 虚拟局域网 (VLAN - Virtual Local Area Network) 是一种在物理上共享同一网络基础设施（如交换机、网线）的局域网中，通过逻辑划分而不是物理划分来创建多个独立广播域的技术。它允许网络管理员将一个物理局域网划分成多个逻辑上独立的网络，每个 VLAN 都是一个独立的广播域。VLAN 技术是现代企业网络设计中不可或缺的组成部分，它极大地增强了网络的安全性、性能、灵活性和可管理性。  核心思想：在不改变物理连接的情况下，将一个物理交换机划分出多个逻辑隔离的广播域，实现设备间的逻辑分段通信。   一、什么是 VLAN？在传统的以太网中，所有连接到同一个交换机或集线器的设备都属于同一个广播域 (Broadcast Domain)。这意味着当任何一台设备发送一个广播帧（例如 ARP 请求），这个广播帧会到达该域内的所有其他设备。随着网络规模的扩大，广播流量会显著增加，导致网络性能下降并带来安全隐患。 VLAN 技术应运而生，它通过在数据链路层（OSI 模型第二层）对以太网帧进行标识和处理，从而实现：  逻辑隔离：即使设备物理上连接在同一台交换机上，如果它们属于不...</div></div></div></a><a class="pagination-related" href="/c70453d6b6cb/" title="CIDR和子网掩码详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-28</div><div class="info-item-2">CIDR和子网掩码详解</div></div><div class="info-2"><div class="info-item-1"> CIDR (Classless Inter-Domain Routing，无类别域间路由) 和子网掩码 (Subnet Mask) 是 IP 地址管理和路由技术中的两个核心概念。它们共同解决了传统 IP 地址分类的局限性，实现了更高效的 IP 地址分配和更灵活的网络划分。理解这两个概念对于构建和管理现代 IP 网络至关重要。  核心思想：CIDR 使用“IP 地址&#x2F;前缀长度”的格式，通过前缀长度直接表示网络部分和主机部分，从而废除了传统的 A&#x2F;B&#x2F;C 类地址概念。子网掩码则是这种前缀长度的二进制表示，用于在 IP 地址中区分网络地址和主机地址。   一、IP 地址基础回顾在深入 CIDR 和子网掩码之前，我们先快速回顾一下 IP 地址的基础知识：  IP 地址 (IPv4)：一个 32 位的二进制数字，通常表示为四个十进制数（0-255）由点分隔的形式，例如 192.168.1.1。 网络地址 (Network Address)：用于标识一个 IP 子网，所有在该子网内的主机都共享相同的网络地址。 主机地址 (Host Address)：用于标识子...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">527</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">229</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81MTU-Maximum-Transmission-Unit"><span class="toc-text">一、MTU (Maximum Transmission Unit)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89"><span class="toc-text">1.1 定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%AD%98%E5%9C%A8-MTU%EF%BC%9F"><span class="toc-text">1.2 为什么存在 MTU？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E5%B8%B8%E8%A7%81%E7%9A%84-MTU-%E5%80%BC"><span class="toc-text">1.3 常见的 MTU 值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-4-IP-%E5%88%86%E7%89%87-IP-Fragmentation"><span class="toc-text">1.4 IP 分片 (IP Fragmentation)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-4-1-IP-%E5%88%86%E7%89%87%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">1.4.1 IP 分片的优缺点</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-5-PMTUD-Path-MTU-Discovery"><span class="toc-text">1.5 PMTUD (Path MTU Discovery)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81MSS-Maximum-Segment-Size"><span class="toc-text">二、MSS (Maximum Segment Size)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89"><span class="toc-text">2.1 定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%AD%98%E5%9C%A8-MSS%EF%BC%9F"><span class="toc-text">2.2 为什么存在 MSS？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-MSS-%E7%9A%84%E8%AE%A1%E7%AE%97"><span class="toc-text">2.3 MSS 的计算</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-MSS-%E7%9A%84%E5%8D%8F%E5%95%86%E8%BF%87%E7%A8%8B"><span class="toc-text">2.4 MSS 的协商过程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-MSS-%E5%92%8C-IP-%E5%88%86%E7%89%87%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-text">2.5 MSS 和 IP 分片的区别</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-TCP-MSS-Clamping"><span class="toc-text">2.6 TCP MSS Clamping</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81MTU-%E5%92%8C-MSS-%E5%AF%B9%E7%BD%91%E7%BB%9C%E6%80%A7%E8%83%BD%E7%9A%84%E5%BD%B1%E5%93%8D"><span class="toc-text">三、MTU 和 MSS 对网络性能的影响</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">3.1 最佳实践</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B-Linux-%E7%B3%BB%E7%BB%9F%E5%91%BD%E4%BB%A4"><span class="toc-text">四、代码示例 (Linux 系统命令)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%9F%A5%E7%9C%8B%E7%BD%91%E5%8D%A1-MTU-Linux"><span class="toc-text">4.1 查看网卡 MTU (Linux)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E8%AE%BE%E7%BD%AE%E7%BD%91%E5%8D%A1-MTU-Linux"><span class="toc-text">4.2 设置网卡 MTU (Linux)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%9F%A5%E7%9C%8B-TCP-MSS-Linux"><span class="toc-text">4.3 查看 TCP MSS (Linux)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E9%85%8D%E7%BD%AE-TCP-MSS-Clamping-Linux-%E8%B7%AF%E7%94%B1%E5%99%A8"><span class="toc-text">4.4 配置 TCP MSS Clamping (Linux 路由器)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/5341a0037256/" title="CSS-in-JS 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CSS-in-JS 详解"/></a><div class="content"><a class="title" href="/5341a0037256/" title="CSS-in-JS 详解">CSS-in-JS 详解</a><time datetime="2026-01-25T22:24:00.000Z" title="发表于 2026-01-26 06:24:00">2026-01-26</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0b52cb819619/" title="Git 核心对象：Commit, Tree, Blob 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Git 核心对象：Commit, Tree, Blob 详解"/></a><div class="content"><a class="title" href="/0b52cb819619/" title="Git 核心对象：Commit, Tree, Blob 详解">Git 核心对象：Commit, Tree, Blob 详解</a><time datetime="2026-01-21T22:24:00.000Z" title="发表于 2026-01-22 06:24:00">2026-01-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1d2a942bda1e/" title="Terraform 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Terraform 详解"/></a><div class="content"><a class="title" href="/1d2a942bda1e/" title="Terraform 详解">Terraform 详解</a><time datetime="2026-01-19T22:24:00.000Z" title="发表于 2026-01-20 06:24:00">2026-01-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/26cdb2447b3d/" title="WebView 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="WebView 详解"/></a><div class="content"><a class="title" href="/26cdb2447b3d/" title="WebView 详解">WebView 详解</a><time datetime="2026-01-17T22:24:00.000Z" title="发表于 2026-01-18 06:24:00">2026-01-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="AI 辅助编程的关键要点与代码幻觉防范"/></a><div class="content"><a class="title" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范">AI 辅助编程的关键要点与代码幻觉防范</a><time datetime="2026-01-15T22:24:00.000Z" title="发表于 2026-01-16 06:24:00">2026-01-16</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (true) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
