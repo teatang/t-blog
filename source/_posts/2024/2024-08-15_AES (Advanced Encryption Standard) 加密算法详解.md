@@ -12,7 +12,12 @@ categories:
 mathjax: true
 ---
 
-> **AES (Advanced Encryption Standard)**，即高级加密标准，是目前应用最广泛的对称密钥分组加密算法。它于 2001 年由美国国家标准与技术研究院 (NIST) 发布，取代了 DES (Data Encryption Standard) 成为联邦政府推荐的加密标准。AES 的设计基于**替代-置换网络 (Substitution-Permutation Network, SPN)** 结构，具有高效、安全和易于实现的特点，被广泛应用于网络通信、数据存储、文件加密等各种场景。
+> **AES (Advanced Encryption Standard)**，即**高级加密标准**，是当今最广泛使用的对称密钥分组密码算法之一。它由比利时密码学家 Joan Daemen 和 Vincent Rijmen 设计，原名为 **Rijndael 算法**。2001 年，美国国家标准与技术研究院 (NIST) 选定 Rijndael 算法作为新的联邦信息处理标准 (FIPS 197)，取代了 DES (Data Encryption Standard)，并将其命名为 AES。AES 具有出色的安全性、高效的性能和广泛的硬件及软件支持，已成为保护敏感数据的事实标准。
+
+{% note info %}
+核心思想：AES 是一种**对称密钥分组密码**，它采用 **SPN (Substitution-Permutation Network)** 结构，通过反复迭代四种基本操作：`SubBytes` (替换)、`ShiftRows` (行移位)、`MixColumns` (列混合) 和 `AddRoundKey` (密钥加)，将固定大小的明文块加密成相同大小的密文块，并支持 128、192 或 256 位密钥，从而提供强大的安全性。
+{% endnote %}
+------
 
 ## 一、引言：对称加密的王者
 
