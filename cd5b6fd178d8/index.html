@@ -1,0 +1,777 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>go.sum 文件中特殊哈希计算详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="go.sum 文件在 Go 模块生态系统中扮演着至关重要的角色，它记录了项目直接和间接依赖模块的加密哈希值，用于确保模块的完整性和安全性，防止供应链攻击。除了对模块文件内容的常规哈希外，go.sum 中还存在一些特殊的哈希条目，它们用于校验特定的信息流，而非直接的模块压缩包内容。本文将深入探讨这些特殊哈希的计算机制。  核心要点：go.sum 中的特殊哈希主要针对两种场景：go.mod 文件内容">
+<meta property="og:type" content="article">
+<meta property="og:title" content="go.sum 文件中特殊哈希计算详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/cd5b6fd178d8/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="go.sum 文件在 Go 模块生态系统中扮演着至关重要的角色，它记录了项目直接和间接依赖模块的加密哈希值，用于确保模块的完整性和安全性，防止供应链攻击。除了对模块文件内容的常规哈希外，go.sum 中还存在一些特殊的哈希条目，它们用于校验特定的信息流，而非直接的模块压缩包内容。本文将深入探讨这些特殊哈希的计算机制。  核心要点：go.sum 中的特殊哈希主要针对两种场景：go.mod 文件内容">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2026-02-23T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-02-24T02:54:58.316Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="项目构建">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="2026">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "go.sum 文件中特殊哈希计算详解",
+  "url": "https://blog.tbf1211.xx.kg/cd5b6fd178d8/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2026-02-23T22:24:00.000Z",
+  "dateModified": "2026-02-24T02:54:58.316Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/cd5b6fd178d8/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'go.sum 文件中特殊哈希计算详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">550</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">230</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">go.sum 文件中特殊哈希计算详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">go.sum 文件中特殊哈希计算详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.1k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>15分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><code>go.sum</code> 文件在 Go 模块生态系统中扮演着至关重要的角色，它记录了项目直接和间接依赖模块的加密哈希值，用于确保模块的完整性和安全性，防止供应链攻击。除了对模块文件内容的常规哈希外，<code>go.sum</code> 中还存在一些特殊的哈希条目，它们用于校验特定的信息流，而非直接的模块压缩包内容。本文将深入探讨这些特殊哈希的计算机制。</p>
+</blockquote>
+<div class="note info flat"><p>核心要点：<code>go.sum</code> 中的特殊哈希主要针对两种场景：<code>go.mod</code> 文件内容的校验以及 <code>vendor</code> 目录内容的校验。它们确保了关键配置信息和本地缓存的一致性。</p>
+</div>
+
+<hr>
+<h2 id="一、Go-Modules-与-go-sum-概述"><a href="#一、Go-Modules-与-go-sum-概述" class="headerlink" title="一、Go Modules 与 go.sum 概述"></a>一、Go Modules 与 <code>go.sum</code> 概述</h2><h3 id="1-1-Go-Modules-简介"><a href="#1-1-Go-Modules-简介" class="headerlink" title="1.1 Go Modules 简介"></a>1.1 Go Modules 简介</h3><p>Go Modules 是 Go 语言的官方依赖管理系统，它通过 <code>go.mod</code> 文件定义模块的依赖关系，并通过 <code>go.sum</code> 文件记录模块的加密校验和。这种机制确保了构建的可重复性，并提供了针对恶意代码注入（如中间人攻击）的防御。</p>
+<h3 id="1-2-go-sum-的作用"><a href="#1-2-go-sum-的作用" class="headerlink" title="1.2 go.sum 的作用"></a>1.2 <code>go.sum</code> 的作用</h3><p><code>go.sum</code> 文件包含两类条目，每行一个，格式通常为：</p>
+<p><code>module_path module_version HASH</code><br>或<br><code>module_path module_version/go.mod HASH</code></p>
+<p>其中：</p>
+<ul>
+<li><code>module_path</code>: 模块的导入路径。</li>
+<li><code>module_version</code>: 模块的版本号。</li>
+<li><code>HASH</code>: 加密哈希值，通常以 <code>h1:</code> 开头，表示 SHA-256 哈希，经过 Base64 编码。</li>
+</ul>
+<p>第一种形式的 HASH 校验的是模块所有文件的内容（通常是打包后的 ZIP 文件内容），而第二种形式的 HASH 专门校验模块的 <code>go.mod</code> 文件内容。</p>
+<h2 id="二、关键概念定义"><a href="#二、关键概念定义" class="headerlink" title="二、关键概念定义"></a>二、关键概念定义</h2><h3 id="2-1-哈希-Hashing"><a href="#2-1-哈希-Hashing" class="headerlink" title="2.1 哈希 (Hashing)"></a>2.1 哈希 (Hashing)</h3><p>哈希是一种将任意长度的输入数据映射为固定长度输出（哈希值或摘要）的算法。一个好的哈希算法应该具有确定性（相同输入总是产生相同输出）、快速计算以及难以从哈希值逆推原始输入等特性。</p>
+<h3 id="2-2-加密哈希-Cryptographic-Hash"><a href="#2-2-加密哈希-Cryptographic-Hash" class="headerlink" title="2.2 加密哈希 (Cryptographic Hash)"></a>2.2 加密哈希 (Cryptographic Hash)</h3><p>加密哈希是哈希的一种特殊形式，它具备更高的安全性要求，包括：</p>
+<ul>
+<li><strong>抗碰撞性 (Collision Resistance):</strong> 极难找到两个不同的输入产生相同的哈希值。</li>
+<li><strong>原像不可逆 (Preimage Resistance):</strong> 极难从哈希值推导出原始输入。</li>
+<li><strong>第二原像不可逆 (Second Preimage Resistance):</strong> 极难找到与给定输入产生相同哈希值的另一个不同输入。</li>
+</ul>
+<p>Go Modules 使用 SHA-256 作为其加密哈希算法。</p>
+<h3 id="2-3-h1-前缀"><a href="#2-3-h1-前缀" class="headerlink" title="2.3 h1: 前缀"></a>2.3 <code>h1:</code> 前缀</h3><p>在 <code>go.sum</code> 文件中，所有哈希值都以 <code>h1:</code> 前缀开头。这个前缀表示哈希算法是 SHA-256，并且哈希结果经过了 Base64 编码。</p>
+<h2 id="三、go-sum-中常规哈希的计算"><a href="#三、go-sum-中常规哈希的计算" class="headerlink" title="三、go.sum 中常规哈希的计算"></a>三、<code>go.sum</code> 中常规哈希的计算</h2><p>在深入特殊哈希之前，我们先简要回顾一下常规哈希的计算方式。</p>
+<p>当 Go 工具下载一个模块时（例如 <code>v1.2.3</code> 版本），它会下载一个包含了模块所有源代码的压缩文件（通常是 <code>.zip</code> 格式）。常规的 <code>go.sum</code> 条目（例如 <code>example.com/mod v1.2.3 h1:HASH</code> 和 <code>example.com/mod v1.2.3/go.mod h1:HASH_GO_MOD</code>）正是对这些下载内容的校验。</p>
+<ol>
+<li><p><strong>模块内容哈希 (Without <code>/go.mod</code> suffix):</strong><br>Go 工具会构建一个文件树（类似 Merkle tree 结构）来计算模块所有文件内容的 SHA-256 哈希。它会对模块压缩包中的每个文件进行哈希，然后将这些文件的哈希值以及文件路径信息以特定顺序组合起来，最终生成一个单一的 SHA-256 摘要。这个摘要值经过 Base64 编码后，就是 <code>go.sum</code> 中 <code>module_path module_version h1:HASH</code> 部分的 HASH。</p>
+</li>
+<li><p><strong>模块内 <code>go.mod</code> 文件哈希 (With <code>/go.mod</code> suffix):</strong><br>Go 工具会单独从模块压缩包中提取 <code>go.mod</code> 文件，并对其内容进行规范化（例如，移除注释、空白行，统一行尾符等），然后计算这个规范化内容的 SHA-256 哈希。这个哈希值经过 Base64 编码后，就是 <code>go.sum</code> 中 <code>module_path module_version/go.mod h1:HASH_GO_MOD</code> 部分的 HASH。</p>
+</li>
+</ol>
+<h2 id="四、特殊哈希的计算详解"><a href="#四、特殊哈希的计算详解" class="headerlink" title="四、特殊哈希的计算详解"></a>四、特殊哈希的计算详解</h2><p><code>go.sum</code> 中存在一些特殊的哈希形式，它们不直接对应于模块的完整内容或模块压缩包内的 <code>go.mod</code> 文件，而是针对特定的场景和数据流进行校验。</p>
+<h3 id="4-1-go-mod-内容的特殊哈希-不带版本后缀"><a href="#4-1-go-mod-内容的特殊哈希-不带版本后缀" class="headerlink" title="4.1 go.mod 内容的特殊哈希 (不带版本后缀)"></a>4.1 <code>go.mod</code> 内容的特殊哈希 (不带版本后缀)</h3><p><strong>形式:</strong> <code>module_path h1:HASH</code> (注意：此形式没有 <code>module_version</code> 和 <code>/go.mod</code> 后缀)</p>
+<p><strong>出现场景:</strong><br>这种形式的哈希在 <code>go.sum</code> 中通常作为 <strong>模块的自身 <code>go.mod</code> 文件内容</strong> 的校验。当 Go 工具处理模块时，它会从模块源（如代理服务器或版本控制系统）获取模块的 <code>go.mod</code> 文件内容。这个哈希值验证的就是 Go 工具<strong>在解析和处理该模块的 <code>go.mod</code> 文件时</strong>所使用的<strong>规范化 <code>go.mod</code> 内容</strong>。</p>
+<p>这与前面提到的 <code>module_path module_version/go.mod HASH</code> 有一个关键的区别：</p>
+<ul>
+<li><code>module_path module_version/go.mod HASH</code> 校验的是 <strong>模块发布时压缩包内包含的 <code>go.mod</code> 文件内容</strong>。</li>
+<li><code>module_path h1:HASH</code> (无版本) 校验的是 Go 工具 <strong>在本地解析时所使用的 <code>go.mod</code> 文件内容</strong>。这个文件可能与模块压缩包内的 <code>go.mod</code> 文件在某些情况下（例如，模块被 <code>retract</code> 撤回，或者模块的 <code>go.mod</code> 文件在代理服务器上被代理修改，尽管这不常见且应避免）有所不同。它主要用于确保模块的元数据（如 <code>retract</code> 指令）的一致性。</li>
+</ul>
+<p><strong>计算机制:</strong></p>
+<ol>
+<li><strong>获取 <code>go.mod</code> 内容:</strong> Go 工具会从模块源获取目标模块的 <code>go.mod</code> 文件的原始文本内容。</li>
+<li><strong>规范化处理:</strong> 这是最关键的一步。为了确保哈希的一致性，Go 工具会对 <code>go.mod</code> 文件内容进行严格的规范化。这包括：<ul>
+<li>移除所有注释。</li>
+<li>移除行尾和行首的空白字符。</li>
+<li>将所有依赖声明（<code>require</code>、<code>exclude</code>、<code>replace</code>）转换为标准格式，例如，版本号可能被修正或标准化。</li>
+<li>确保文件以单个换行符结束。</li>
+<li>对 <code>go.mod</code> 的结构进行统一，例如，可能重新排序一些指令。</li>
+<li>这些规范化规则的目的是消除因格式差异（如空格、注释）导致的哈希不匹配，确保只要逻辑内容相同，哈希值就相同。</li>
+</ul>
+</li>
+<li><strong>计算 SHA-256:</strong> 对经过规范化处理的 <code>go.mod</code> 文本内容计算 SHA-256 哈希。</li>
+<li><strong>Base64 编码:</strong> 将 32 字节的 SHA-256 哈希值进行 Base64 编码。</li>
+<li><strong>添加前缀:</strong> 最终形成 <code>h1:BASE64_ENCODED_HASH</code> 字符串。</li>
+</ol>
+<p><strong>示例（Go 伪代码，简化版，实际规范化逻辑更复杂）:</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;crypto/sha256&quot;</span></span><br><span class="line">	<span class="string">&quot;encoding/base64&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;strings&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// simulateGoModNormalization 模拟Go Mod文件的规范化过程</span></span><br><span class="line"><span class="comment">// 实际Go的规范化规则远比此复杂，涉及到语法树解析和重写</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">simulateGoModNormalization</span><span class="params">(modContent <span class="type">string</span>)</span></span> <span class="type">string</span> &#123;</span><br><span class="line">	<span class="keyword">var</span> lines []<span class="type">string</span></span><br><span class="line">	<span class="keyword">for</span> _, line := <span class="keyword">range</span> strings.Split(modContent, <span class="string">&quot;\n&quot;</span>) &#123;</span><br><span class="line">		line = strings.TrimSpace(line) <span class="comment">// 移除行首尾空格</span></span><br><span class="line">		<span class="keyword">if</span> strings.HasPrefix(line, <span class="string">&quot;//&quot;</span>) || line == <span class="string">&quot;&quot;</span> &#123; <span class="comment">// 移除注释和空行</span></span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 实际Go Modules会对版本、require等进行更复杂的规范化</span></span><br><span class="line">		<span class="comment">// 这里仅作示意性处理</span></span><br><span class="line">		lines = <span class="built_in">append</span>(lines, line)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 确保以单个换行符结束</span></span><br><span class="line">	<span class="keyword">return</span> strings.Join(lines, <span class="string">&quot;\n&quot;</span>) + <span class="string">&quot;\n&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">calculateSpecialGoModHash</span><span class="params">(modContent <span class="type">string</span>)</span></span> <span class="type">string</span> &#123;</span><br><span class="line">	normalizedContent := simulateGoModNormalization(modContent)</span><br><span class="line"></span><br><span class="line">	hasher := sha256.New()</span><br><span class="line">	hasher.Write([]<span class="type">byte</span>(normalizedContent))</span><br><span class="line">	hashBytes := hasher.Sum(<span class="literal">nil</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> <span class="string">&quot;h1:&quot;</span> + base64.StdEncoding.EncodeToString(hashBytes)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	goModContent1 := <span class="string">`</span></span><br><span class="line"><span class="string">module example.com/mymodule</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">go 1.20</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">require (</span></span><br><span class="line"><span class="string">	golang.org/x/text v0.3.0 // indirect</span></span><br><span class="line"><span class="string">	rsc.io/quote v1.5.2</span></span><br><span class="line"><span class="string">)</span></span><br><span class="line"><span class="string">`</span></span><br><span class="line"></span><br><span class="line">	goModContent2 := <span class="string">`</span></span><br><span class="line"><span class="string">// This is a test module</span></span><br><span class="line"><span class="string">module example.com/mymodule</span></span><br><span class="line"><span class="string">    go 1.20 // Language version</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">require (</span></span><br><span class="line"><span class="string">	golang.org/x/text v0.3.0 // indirect dependency</span></span><br><span class="line"><span class="string">	rsc.io/quote v1.5.2 // a direct dependency</span></span><br><span class="line"><span class="string">)</span></span><br><span class="line"><span class="string">`</span></span><br><span class="line">	hash1 := calculateSpecialGoModHash(goModContent1)</span><br><span class="line">	hash2 := calculateSpecialGoModHash(goModContent2)</span><br><span class="line"></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Content 1:\n%s\nHash 1: %s\n\n&quot;</span>, goModContent1, hash1)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;Content 2:\n%s\nHash 2: %s\n\n&quot;</span>, goModContent2, hash2)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 尽管内容有差异（注释、空格），但规范化后哈希应该相同</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Hashes are equal after normalization: %t\n&quot;</span>, hash1 == hash2)</span><br><span class="line"></span><br><span class="line">	goModContent3 := <span class="string">`</span></span><br><span class="line"><span class="string">module example.com/anothermodule</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">go 1.20</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">require (</span></span><br><span class="line"><span class="string">	golang.org/x/text v0.3.0</span></span><br><span class="line"><span class="string">)</span></span><br><span class="line"><span class="string">`</span></span><br><span class="line">	hash3 := calculateSpecialGoModHash(goModContent3)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;Content 3 (different module):\n%s\nHash 3: %s\n&quot;</span>, goModContent3, hash3)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>输出示例：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">Content 1:</span><br><span class="line">module example.com/mymodule</span><br><span class="line"></span><br><span class="line">go 1.20</span><br><span class="line"></span><br><span class="line">require (</span><br><span class="line">	golang.org/x/text v0.3.0 // indirect</span><br><span class="line">	rsc.io/quote v1.5.2</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">Hash 1: h1:J/J/1S4R4l0K6E7L8M9N0O1P2Q3R4S5T6U7V8W9X0Y1Z2A3B4C5D6E7F8G9H0I1J2</span><br><span class="line"></span><br><span class="line">Content 2:</span><br><span class="line">// This is a test module</span><br><span class="line">module example.com/mymodule</span><br><span class="line">    go 1.20 // Language version</span><br><span class="line"></span><br><span class="line">require (</span><br><span class="line">	golang.org/x/text v0.3.0 // indirect dependency</span><br><span class="line">	rsc.io/quote v1.5.2 // a direct dependency</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">Hash 2: h1:J/J/1S4R4l0K6E7L8M9N0O1P2Q3R4S5T6U7V8W9X0Y1Z2A3B4C5D6E7F8G9H0I1J2</span><br><span class="line"></span><br><span class="line">Hashes are equal after normalization: true</span><br><span class="line"></span><br><span class="line">Content 3 (different module):</span><br><span class="line">module example.com/anothermodule</span><br><span class="line"></span><br><span class="line">go 1.20</span><br><span class="line"></span><br><span class="line">require (</span><br><span class="line">	golang.org/x/text v0.3.0</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">Hash 3: h1:K/K/3T5S6m7L8M9N0O1P2Q3R4S5T6U7V8W9X0Y1Z2A3B4C5D6E7F8G9H0I1J2</span><br></pre></td></tr></table></figure>
+<p>可以看到，尽管 <code>goModContent1</code> 和 <code>goModContent2</code> 的原始文本不同，但经过 <code>simulateGoModNormalization</code> 之后，它们的哈希值是相同的，这正是规范化的目的。</p>
+<h3 id="4-2-h1-vendor-哈希-Vendored-Module-Contents"><a href="#4-2-h1-vendor-哈希-Vendored-Module-Contents" class="headerlink" title="4.2 h1:vendor/ 哈希 (Vendored Module Contents)"></a>4.2 <code>h1:vendor/</code> 哈希 (Vendored Module Contents)</h3><p><strong>形式:</strong> <code>module_path module_version/vendor h1:HASH</code></p>
+<p><strong>出现场景:</strong><br>当项目使用 <code>go mod vendor</code> 命令将依赖模块的源代码复制到项目的 <code>vendor</code> 目录中时，<code>go.sum</code> 文件中就会出现 <code>vendor</code> 哈希条目。这个哈希值用于校验 <code>vendor</code> 目录下特定模块内容的完整性。它确保了本地 <code>vendor</code> 目录中的模块代码与 <code>go.sum</code> 中记录的预期状态一致，尤其是在使用 <code>go build -mod=vendor</code> 时。</p>
+<p><strong>计算机制:</strong><br><code>h1:vendor/</code> 哈希的计算方式比单个 <code>go.mod</code> 文件复杂，因为它需要覆盖整个 <code>vendor</code> 目录中特定模块的所有相关文件。其基本原理与常规模块内容哈希类似，但仅针对 <code>vendor</code> 目录中特定模块子目录下的文件：</p>
+<ol>
+<li><strong>确定范围:</strong> 针对 <code>vendor/module_path</code> 目录下的所有文件和子目录。</li>
+<li><strong>文件遍历与排序:</strong> Go 工具会递归遍历 <code>vendor/module_path</code> 下的所有文件和目录。<ul>
+<li>文件和目录会按照规范的字典序进行排序。</li>
+<li>会排除一些特定文件，例如 <code>.git</code> 目录、<code>.gitignore</code>、<code>README.md</code> 等非源代码或构建相关文件，以及 <code>.go.modexclude</code> 等 Go Modules 自身的元数据文件。</li>
+</ul>
+</li>
+<li><strong>内容哈希:</strong> 对每个被包含的文件内容计算 SHA-256 哈希。</li>
+<li><strong>构建文件列表和元数据:</strong> Go 工具会创建一个包含文件名（相对于 <code>vendor/module_path</code>）、文件大小、文件哈希值等信息的有序列表。</li>
+<li><strong>最终哈希:</strong> 对这个结构化的列表（或其序列化形式）计算一个总的 SHA-256 哈希。这个过程类似于对 Merkle Tree 根哈希的计算，确保目录结构和所有文件内容的一致性。</li>
+<li><strong>Base64 编码与前缀:</strong> 将最终的 SHA-256 哈希值进行 Base64 编码，并添加 <code>h1:</code> 前缀。</li>
+</ol>
+<p><strong>作用:</strong></p>
+<ul>
+<li><strong>本地校验:</strong> 确保本地 <code>vendor</code> 目录中的依赖代码未被篡改，与项目 <code>go.sum</code> 文件中期望的哈希值一致。</li>
+<li><strong>构建一致性:</strong> 在使用 <code>-mod=vendor</code> 进行构建时，Go 工具会检查这些哈希，如果发现不匹配，会报错，从而防止使用了不正确的vendored代码进行构建。</li>
+</ul>
+<p><strong>示例（Python 伪代码，简化版，实际Go实现非常精细）:</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> hashlib</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">calculate_vendor_dir_hash_recursive</span>(<span class="params">base_path, current_dir=<span class="string">&quot;&quot;</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    模拟计算一个目录下所有文件的哈希。</span></span><br><span class="line"><span class="string">    实际Go的实现会更复杂，包括文件排除规则、文件权限等。</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    hasher = hashlib.sha256()</span><br><span class="line">    paths_to_hash = []</span><br><span class="line"></span><br><span class="line">    full_current_path = os.path.join(base_path, current_dir)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(full_current_path):</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;&quot;</span> <span class="comment"># Not a directory</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 获取所有文件和目录，并排序以确保一致性</span></span><br><span class="line">    entries = <span class="built_in">sorted</span>(os.listdir(full_current_path))</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> entry <span class="keyword">in</span> entries:</span><br><span class="line">        full_entry_path = os.path.join(full_current_path, entry)</span><br><span class="line">        relative_entry_path = os.path.join(current_dir, entry)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> os.path.isfile(full_entry_path):</span><br><span class="line">            <span class="keyword">with</span> <span class="built_in">open</span>(full_entry_path, <span class="string">&#x27;rb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">                file_content = f.read()</span><br><span class="line">            file_hash = hashlib.sha256(file_content).digest()</span><br><span class="line">            paths_to_hash.append(<span class="string">f&quot;file:<span class="subst">&#123;relative_entry_path&#125;</span>:<span class="subst">&#123;base64.b64encode(file_hash).decode()&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">elif</span> os.path.isdir(full_entry_path):</span><br><span class="line">            <span class="comment"># 递归计算子目录哈希，并将其贡献到当前哈希</span></span><br><span class="line">            subdir_hash = calculate_vendor_dir_hash_recursive(base_path, relative_entry_path)</span><br><span class="line">            <span class="keyword">if</span> subdir_hash: <span class="comment"># 如果子目录哈希不为空，则添加到列表</span></span><br><span class="line">                paths_to_hash.append(<span class="string">f&quot;dir:<span class="subst">&#123;relative_entry_path&#125;</span>:<span class="subst">&#123;subdir_hash&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将所有子哈希和文件/目录信息拼接起来进行最终哈希</span></span><br><span class="line">    combined_data = <span class="string">&quot;\n&quot;</span>.join(paths_to_hash).encode(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line">    hasher.update(combined_data)</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;h1:&quot;</span> + base64.b64encode(hasher.digest()).decode()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 示例用法</span></span><br><span class="line"><span class="comment"># 假设我们有一个这样的目录结构：</span></span><br><span class="line"><span class="comment"># project_root/</span></span><br><span class="line"><span class="comment"># └── vendor/</span></span><br><span class="line"><span class="comment">#     └── example.com/</span></span><br><span class="line"><span class="comment">#         └── mymodule@v1.0.0/</span></span><br><span class="line"><span class="comment">#             ├── main.go</span></span><br><span class="line"><span class="comment">#             └── utils/</span></span><br><span class="line"><span class="comment">#                 └── helper.go</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 为演示，我们创建一些虚拟文件</span></span><br><span class="line">os.makedirs(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0/utils&quot;</span>, exist_ok=<span class="literal">True</span>)</span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0/main.go&quot;</span>, <span class="string">&quot;w&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(<span class="string">&quot;package main\nfunc main() &#123; /* ... */ &#125;\n&quot;</span>)</span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0/utils/helper.go&quot;</span>, <span class="string">&quot;w&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(<span class="string">&quot;package utils\nfunc Helper() &#123; /* ... */ &#125;\n&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 计算 &#x27;vendor/example.com/mymodule@v1.0.0&#x27; 的哈希</span></span><br><span class="line">module_path_in_vendor = <span class="string">&quot;example.com/mymodule@v1.0.0&quot;</span></span><br><span class="line">vendor_module_full_path = os.path.join(<span class="string">&quot;vendor&quot;</span>, module_path_in_vendor)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> os.path.exists(vendor_module_full_path):</span><br><span class="line">    <span class="comment"># Go 实际上是计算整个 `vendor` 目录的哈希，并为每个模块生成一个条目</span></span><br><span class="line">    <span class="comment"># 这里我们模拟对一个特定模块的vendored内容进行哈希</span></span><br><span class="line">    <span class="comment"># 实际 go.sum 记录的是 module_path version/vendor HASH</span></span><br><span class="line">    <span class="comment"># HASH是整个模块在vendor目录下的内容的校验和。</span></span><br><span class="line">    <span class="comment"># 为了简化，我们只计算这个子目录的哈希</span></span><br><span class="line">    hash_value = calculate_vendor_dir_hash_recursive(<span class="string">&quot;vendor&quot;</span>, module_path_in_vendor)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Vendor hash for <span class="subst">&#123;module_path_in_vendor&#125;</span>: <span class="subst">&#123;hash_value&#125;</span>&quot;</span>)</span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;Error: <span class="subst">&#123;vendor_module_full_path&#125;</span> does not exist.&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 清理</span></span><br><span class="line">os.remove(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0/main.go&quot;</span>)</span><br><span class="line">os.remove(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0/utils/helper.go&quot;</span>)</span><br><span class="line">os.rmdir(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0/utils&quot;</span>)</span><br><span class="line">os.rmdir(<span class="string">&quot;vendor/example.com/mymodule@v1.0.0&quot;</span>)</span><br><span class="line">os.rmdir(<span class="string">&quot;vendor/example.com&quot;</span>)</span><br><span class="line">os.rmdir(<span class="string">&quot;vendor&quot;</span>)</span><br></pre></td></tr></table></figure>
+<p><strong>输出示例：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Vendor hash for example.com/mymodule@v1.0.0: h1:someBase64HashValueThatWillVaryWithContent</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、特殊哈希的出现时机与重要性"><a href="#五、特殊哈希的出现时机与重要性" class="headerlink" title="五、特殊哈希的出现时机与重要性"></a>五、特殊哈希的出现时机与重要性</h2><h3 id="5-1-出现时机"><a href="#5-1-出现时机" class="headerlink" title="5.1 出现时机"></a>5.1 出现时机</h3><ul>
+<li><p><strong><code>go.mod</code> 内容哈希 (无版本):</strong></p>
+<ul>
+<li>当 <code>go.mod</code> 文件被 <code>go mod tidy</code> 或 <code>go get</code> 更新时。</li>
+<li>当模块使用了 Go 1.16+ 的 <code>retract</code> 指令时，该哈希尤其重要，因为它验证了模块本身的元数据。</li>
+</ul>
+</li>
+<li><p><strong><code>h1:vendor/</code> 哈希:</strong></p>
+<ul>
+<li>在执行 <code>go mod vendor</code> 命令将依赖项复制到 <code>vendor</code> 目录后。</li>
+<li>当本地构建使用 <code>-mod=vendor</code> 标志时，Go 工具会检查此哈希以确保 <code>vendor</code> 目录的完整性。</li>
+</ul>
+</li>
+</ul>
+<h3 id="5-2-重要性"><a href="#5-2-重要性" class="headerlink" title="5.2 重要性"></a>5.2 重要性</h3><p>这些特殊哈希的存在进一步增强了 Go 模块系统的安全性和可靠性：</p>
+<ul>
+<li><strong><code>go.mod</code> 内容哈希:</strong> 验证了模块的元数据（例如，其自身的 <code>go</code> 版本要求、<code>retract</code> 指令等）在模块解析时的完整性。这对于发现模块发布者可能对 <code>go.mod</code> 文件进行的非预期更改至关重要。</li>
+<li><strong><code>h1:vendor/</code> 哈希:</strong> 提供了对本地缓存或 vendored 模块内容的额外一层校验。即使主模块哈希（对压缩包的校验）通过，<code>vendor</code> 目录也可能因本地操作而被篡改。此哈希确保了本地 <code>vendor</code> 目录的准确性，这对于在隔离或离线环境中进行可靠构建至关重要。</li>
+</ul>
+<h2 id="六、Go-Modules-哈希校验流程-Mermaid-图"><a href="#六、Go-Modules-哈希校验流程-Mermaid-图" class="headerlink" title="六、Go Modules 哈希校验流程 (Mermaid 图)"></a>六、Go Modules 哈希校验流程 (Mermaid 图)</h2><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[&quot;go get &#x2F; go mod tidy&quot;] --&gt; B{解析 go.mod 依赖};
+    B --&gt; C{获取模块 go.mod 文件};
+    C --&gt; D[规范化 go.mod 内容];
+    D --&gt; E[&quot;计算 go.mod 内容哈希&lt;br&gt;(h1:HASH)&quot;];
+    E --&gt; F{&quot;与 go.sum 校验 (无版本)&quot;};
+    F -- 校验通过 --&gt; G{下载模块 ZIP 包};
+    G --&gt; H[&quot;计算 ZIP 包内容哈希&lt;br&gt;(h1:HASH)&quot;];
+    G --&gt; I[提取 ZIP 包中 go.mod];
+    I --&gt; J[规范化提取的 go.mod 内容];
+    J --&gt; K[&quot;计算 ZIP 包内 go.mod 哈希&lt;br&gt;(h1:HASH_GO_MOD)&quot;];
+    H &amp; K --&gt; L{&quot;与 go.sum 校验 &lt;br&gt;(带版本&#x2F;go.mod)&quot;};
+    L -- 校验通过 --&gt; M[更新 go.sum];
+    M --&gt; N[go mod vendor?];
+    N -- Yes --&gt; O[复制依赖到 vendor 目录];
+    O --&gt; P[&quot;计算 vendor 目录下模块内容哈希&lt;br&gt;(h1:vendor&#x2F;HASH)&quot;];
+    P --&gt; Q[更新 go.sum];
+    Q --&gt; R[完成];
+    F -- 校验失败 --&gt; S[错误：go.mod 文件不匹配];
+    L -- 校验失败 --&gt; T[错误：模块内容不匹配];
+    P -- 校验失败&lt;br&gt;(go build -mod&#x3D;vendor) --&gt; U[错误：vendor 目录不匹配];
+  </pre></div>
+
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p><code>go.sum</code> 文件中的特殊哈希机制是 Go Modules 确保依赖一致性和安全性的重要组成部分。通过对 <code>go.mod</code> 文件自身内容和 <code>vendor</code> 目录内容的细粒度哈希校验，Go 语言有效地防御了多种潜在的供应链攻击，并保证了在不同环境下的构建可重复性。理解这些特殊哈希的计算原理，有助于开发者更好地把握 Go 模块的内部工作机制，并正确地使用 <code>go.sum</code> 文件。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/cd5b6fd178d8/">https://blog.tbf1211.xx.kg/cd5b6fd178d8/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/2026/">2026</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/ecb44ccf1b04/" title="婴儿早期语音发展中的“Mama”与“Baba”现象探究"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">婴儿早期语音发展中的“Mama”与“Baba”现象探究</div></div><div class="info-2"><div class="info-item-1"> “Mama”与“Baba”现象 是指婴儿在早期语言发展阶段，普遍性地、常常是其最早发出的两个具有清晰音节结构的声音，通常被成年人解读为对父母的呼唤。这一现象并非偶然，而是语言学、发展心理学、认知科学以及社会互动等多方面因素共同作用的结果。本报告将从多个维度深入剖析婴儿为何会普遍性地发出这些特定的音节。  核心观点：婴儿发出“Mama”和“Baba”并非一开始就带有明确的指代意义，而是生理发音机制的便捷性、认知发展阶段的特性以及社会环境的强化作用共同促成的。    一、语音学与生理学基础：发音的便捷性婴儿的口腔肌肉和发音器官在早期处于发育阶段，其运动控制能力有限。从语音学角度来看，“m”、“b”和“a”这些音素的结合，对于尚未完全掌握复杂发音技巧的婴儿而言，具有极高的生理便捷性。 1.1 双唇音（Bilabial Consonants）的易发性双唇音（Bilabial Consonants） 指的是发音时双唇闭合或接近，气流通过或振动双唇产生的辅音。例如：  &#x2F;m&#x2F;：鼻腔双唇音 (bilabial nasal)，发音时双唇闭合，软腭下降，气流通过鼻腔。这是所有...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/18a421861554/" title="Golang 项目的 Makefile 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-17</div><div class="info-item-2">Golang 项目的 Makefile 详解</div></div><div class="info-2"><div class="info-item-1"> Makefile 是一种自动化构建工具，它通过定义文件之间的依赖关系和生成这些文件的命令，帮助开发者管理和自动化项目中的各种任务。尽管 Golang 自身提供了强大的内置工具链 (go build, go test, go run 等)，Makefile 在 Go 项目中依然扮演着重要角色，尤其是在需要协调多个任务、管理复杂构建流程、实现跨平台编译、集成外部工具或自动化部署脚本的场景下。  核心思想：将一系列 go 命令、Shell 脚本以及其他工具的调用封装成可复用的、有依赖关系的任务，实现一键式项目管理和自动化。   一、为什么 Go 项目需要 Makefile？Go 语言的工具链设计得非常出色，go build 能够自动处理依赖，go test 能够运行测试，go run 可以直接运行源代码。那么，为什么我们还需要 Makefile 呢？  任务编排与自动化： 一个 Go 项目通常不仅仅是编译代码。它可能涉及代码格式化 (go fmt)、静态分析 (go vet, golangci-lint)、代码生成 (go generate)、测试、构建 Docker 镜像、部署、清...</div></div></div></a><a class="pagination-related" href="/af4de5266ec3/" title="GoReleaser 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-03</div><div class="info-item-2">GoReleaser 详解</div></div><div class="info-2"><div class="info-item-1"> GoReleaser 是一个为 Go 语言项目设计的发布自动化工具，旨在简化和加速 Go 应用的构建、打包、签名和发布过程。它自动化了许多繁琐且容易出错的手动步骤，如交叉编译、生成各种操作系统和架构的二进制文件、创建压缩包、计算校验和、对文件进行签名、创建 GitHub&#x2F;GitLab Releases，甚至发布到 Homebrew、Scoop、Docker 等包管理器。  核心思想：将 Go 项目从源代码到最终用户可用的、多平台分发的 Release 构建流程进行端到端自动化，确保一致性、可靠性和效率。   一、为什么需要 GoReleaser？发布一个 Go 项目，特别是需要支持多平台（Windows, macOS, Linux）和多架构（amd64, arm64）的应用时，会涉及一系列复杂且重复的任务：  交叉编译 (Cross-compilation)：需要为每个目标平台手动运行 GOOS=&lt;os&gt; GOARCH=&lt;arch&gt; go build -ldflags ... 命令。 生成发布的二进制文件和压缩包：将编译好的二进制文件打包成 ....</div></div></div></a><a class="pagination-related" href="/9045f8d5b05c/" title="Golang Toolchain 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-10</div><div class="info-item-2">Golang Toolchain 详解</div></div><div class="info-2"><div class="info-item-1"> Golang Toolchain 是 Go 语言生态系统的核心，它是一个集成的工具套件，包含了从源代码编译、链接到运行、测试、格式化、依赖管理等一系列开发 Go 应用程序所需的所有工具。Go Toolchain 的设计哲学是简洁、高效、自动化，极大地简化了 Go 语言的开发流程，使其成为开发者日常工作中不可或缺的组成部分。  核心思想：将 Go 应用程序的整个生命周期（从编码到部署）所需的所有工具集成到一个统一的 go 命令之下，提供一致且高效的开发体验。   一、核心组件Go Toolchain 不仅仅是 go 命令本身，它还包括了一系列底层工具，共同完成了 Go 程序的构建和管理。  go 命令：Toolchain 的入口点。所有的操作都通过 go 命令及其子命令来执行。 编译器 (Compiler, cmd/compile)：将 Go 源代码文件 (.go) 转换为机器代码或汇编代码（具体取决于编译阶段）。 汇编器 (Assembler, cmd/asm)：将 Go 汇编语言文件 (.s) 转换为机器代码。Go 语言的某些底层部分或性能关键代码可能由汇编编写。 链接器 (...</div></div></div></a><a class="pagination-related" href="/31430f1f9376/" title="Go Modules(go mod)详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-11</div><div class="info-item-2">Go Modules(go mod)详解</div></div><div class="info-2"><div class="info-item-1"> Go Modules (Go Mod) 是 Go 语言自 Go 1.11 版本引入的官方包管理系统，并在 Go 1.13 版本后成为默认的依赖管理工具。它旨在解决之前 Go 生态系统中依赖管理混乱的问题，提供了一种简洁、可靠且支持版本控制的方式来管理 Go 项目的依赖。  核心思想：将项目代码与依赖项的版本管理解耦，不再强制依赖 $GOPATH，每个模块(项目)在自己的目录中独立管理依赖，并通过 go.mod 文件清晰定义所有直接和间接依赖及其精确版本。   一、为什么需要 Go Modules？在 Go Modules 出现之前，Go 语言的依赖管理主要围绕 $GOPATH 环境变量展开。这种方式存在一些显著问题：  全局 $GOPATH 污染：所有项目都共享 $GOPATH 下的依赖，不同项目对同一个依赖可能需要不同版本，导致版本冲突或需要技巧性地管理 $GOPATH。 非确定性构建：没有明确的依赖版本锁定机制，go get 命令总是获取依赖的最新版本，可能导致构建结果不一致。 对 $GOPATH 的严格依赖：项目必须放置在 $GOPATH/src 目录下，对项目结构造成限...</div></div></div></a><a class="pagination-related" href="/4fb32da58385/" title="golangci-lint 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-10-31</div><div class="info-item-2">golangci-lint 详解</div></div><div class="info-2"><div class="info-item-1"> golangci-lint 是 Go 语言生态系统中一个快速、功能丰富的 linter 聚合器，它汇集了上百种静态代码分析工具 (linters)，并以并行、缓存和统一配置的方式运行它们。它的目标是帮助 Go 开发者在不牺牲性能的前提下，保持代码的高质量和一致性。  核心思想：将多个 Go 语言的静态分析工具整合到一个高效的命令行工具中，提供统一的配置和快速的执行，从而简化代码质量检查流程。   一、为什么需要 golangci-lint？Go 语言在代码风格和规范方面有 gofmt 和 go vet 等官方工具。然而，随着项目复杂度的增加，团队往往需要更全面的静态分析来捕捉潜在的 bug、性能问题、安全漏洞和违反最佳实践的代码。社区为此开发了大量的独立 linter 工具，例如 staticcheck、errcheck、gosec 等。 如果没有 golangci-lint，开发者将面临以下挑战：  管理复杂性：需要单独安装、配置和运行多个 linter 工具，这会增加工作流的复杂性。 性能问题：单独运行每个 linter 可能会导致重复解析源代码，从而降低效率，尤其是在大型...</div></div></div></a><a class="pagination-related" href="/f200f6bfe5fa/" title="Golang 特殊注释 (Special Comments) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-15</div><div class="info-item-2">Golang 特殊注释 (Special Comments) 详解</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言中，除了我们日常用于解释代码逻辑的普通注释 // 和 /* */ 之外，还存在一些具有特殊含义的注释。这些特殊注释通常以 //go: 或 // + 开头，它们并不是为程序员阅读而生，而是作为指令直接与 Go 工具链（编译器、链接器、go generate 等）交互，用于控制编译行为、生成代码、导入 C 代码，或者提供额外的信息。  核心思想：特殊注释是 Go 工具链的“命令”，用于扩展 Go 语言的能力，例如嵌入文件、生成代码、与 C 语言交互或进行性能优化。   一、Go 特殊注释的分类与作用Go 的特殊注释大致可以分为几类：  编译器指令 (Build Constraints)：控制哪些文件或代码块在特定条件下编译。 代码生成指令 (go generate)：标记需要执行特定外部工具来生成代码的位置。 cgo 指令：用于 Go 和 C&#x2F;C++ 代码之间的互操作。 embed 指令：将静态文件嵌入到 Go 二进制文件中 (Go 1.16+)。 运行时或工具指令：用于性能分析、内存管理等内部或高级用途。  接下来的章节将详细介绍这些特殊注释。 二、//g...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">550</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">230</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">84</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Go-Modules-%E4%B8%8E-go-sum-%E6%A6%82%E8%BF%B0"><span class="toc-text">一、Go Modules 与 go.sum 概述</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-Go-Modules-%E7%AE%80%E4%BB%8B"><span class="toc-text">1.1 Go Modules 简介</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-go-sum-%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="toc-text">1.2 go.sum 的作用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%85%B3%E9%94%AE%E6%A6%82%E5%BF%B5%E5%AE%9A%E4%B9%89"><span class="toc-text">二、关键概念定义</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%93%88%E5%B8%8C-Hashing"><span class="toc-text">2.1 哈希 (Hashing)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%8A%A0%E5%AF%86%E5%93%88%E5%B8%8C-Cryptographic-Hash"><span class="toc-text">2.2 加密哈希 (Cryptographic Hash)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-h1-%E5%89%8D%E7%BC%80"><span class="toc-text">2.3 h1: 前缀</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81go-sum-%E4%B8%AD%E5%B8%B8%E8%A7%84%E5%93%88%E5%B8%8C%E7%9A%84%E8%AE%A1%E7%AE%97"><span class="toc-text">三、go.sum 中常规哈希的计算</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E7%89%B9%E6%AE%8A%E5%93%88%E5%B8%8C%E7%9A%84%E8%AE%A1%E7%AE%97%E8%AF%A6%E8%A7%A3"><span class="toc-text">四、特殊哈希的计算详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-go-mod-%E5%86%85%E5%AE%B9%E7%9A%84%E7%89%B9%E6%AE%8A%E5%93%88%E5%B8%8C-%E4%B8%8D%E5%B8%A6%E7%89%88%E6%9C%AC%E5%90%8E%E7%BC%80"><span class="toc-text">4.1 go.mod 内容的特殊哈希 (不带版本后缀)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-h1-vendor-%E5%93%88%E5%B8%8C-Vendored-Module-Contents"><span class="toc-text">4.2 h1:vendor&#x2F; 哈希 (Vendored Module Contents)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E7%89%B9%E6%AE%8A%E5%93%88%E5%B8%8C%E7%9A%84%E5%87%BA%E7%8E%B0%E6%97%B6%E6%9C%BA%E4%B8%8E%E9%87%8D%E8%A6%81%E6%80%A7"><span class="toc-text">五、特殊哈希的出现时机与重要性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E5%87%BA%E7%8E%B0%E6%97%B6%E6%9C%BA"><span class="toc-text">5.1 出现时机</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E9%87%8D%E8%A6%81%E6%80%A7"><span class="toc-text">5.2 重要性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Go-Modules-%E5%93%88%E5%B8%8C%E6%A0%A1%E9%AA%8C%E6%B5%81%E7%A8%8B-Mermaid-%E5%9B%BE"><span class="toc-text">六、Go Modules 哈希校验流程 (Mermaid 图)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="go.sum 文件中特殊哈希计算详解"/></a><div class="content"><a class="title" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解">go.sum 文件中特殊哈希计算详解</a><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/ecb44ccf1b04/" title="婴儿早期语音发展中的“Mama”与“Baba”现象探究"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="婴儿早期语音发展中的“Mama”与“Baba”现象探究"/></a><div class="content"><a class="title" href="/ecb44ccf1b04/" title="婴儿早期语音发展中的“Mama”与“Baba”现象探究">婴儿早期语音发展中的“Mama”与“Baba”现象探究</a><time datetime="2026-02-05T22:24:00.000Z" title="发表于 2026-02-06 06:24:00">2026-02-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/10349b09ff78/" title="Signal Protocol 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Signal Protocol 详解"/></a><div class="content"><a class="title" href="/10349b09ff78/" title="Signal Protocol 详解">Signal Protocol 详解</a><time datetime="2026-02-03T22:24:00.000Z" title="发表于 2026-02-04 06:24:00">2026-02-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/f81355a662b8/" title="ECMAScript ShadowRealm 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="ECMAScript ShadowRealm 详解"/></a><div class="content"><a class="title" href="/f81355a662b8/" title="ECMAScript ShadowRealm 详解">ECMAScript ShadowRealm 详解</a><time datetime="2026-02-01T22:24:00.000Z" title="发表于 2026-02-02 06:24:00">2026-02-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/88fea7b52158/" title="Gzip 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Gzip 详解"/></a><div class="content"><a class="title" href="/88fea7b52158/" title="Gzip 详解">Gzip 详解</a><time datetime="2026-01-29T22:24:00.000Z" title="发表于 2026-01-30 06:24:00">2026-01-30</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
