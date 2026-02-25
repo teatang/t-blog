@@ -1,0 +1,789 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>通过 PostgreSQL 触发器设计可靠的消息队列 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PostgreSQL 作为一款功能强大的关系型数据库管理系统 (RDBMS)，其事务特性、数据持久性以及对并发处理的良好支持，使其在特定场景下能够被用来构建可靠的消息队列。虽然专用的消息队列系统（如 Kafka, RabbitMQ, Redis Streams）在吞吐量、扩展性和复杂路由方面表现更优，但对于中低流量、对事务一致性要求高，且希望复用现有数据库基础设施的应用而言，使用 Postgre">
+<meta property="og:type" content="article">
+<meta property="og:title" content="通过 PostgreSQL 触发器设计可靠的消息队列">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/89df00bae124/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="PostgreSQL 作为一款功能强大的关系型数据库管理系统 (RDBMS)，其事务特性、数据持久性以及对并发处理的良好支持，使其在特定场景下能够被用来构建可靠的消息队列。虽然专用的消息队列系统（如 Kafka, RabbitMQ, Redis Streams）在吞吐量、扩展性和复杂路由方面表现更优，但对于中低流量、对事务一致性要求高，且希望复用现有数据库基础设施的应用而言，使用 Postgre">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-27.jpg">
+<meta property="article:published_time" content="2025-04-08T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-02-25T10:07:56.071Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="数据库">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="PostgreSQL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-27.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "通过 PostgreSQL 触发器设计可靠的消息队列",
+  "url": "https://blog.tbf1211.xx.kg/89df00bae124/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-27.jpg",
+  "datePublished": "2025-04-08T22:24:00.000Z",
+  "dateModified": "2026-02-25T10:07:56.071Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/89df00bae124/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const isNight = hour <= 6 || hour >= 18
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', () => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '通过 PostgreSQL 触发器设计可靠的消息队列',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">555</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">232</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">86</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-27.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">通过 PostgreSQL 触发器设计可靠的消息队列</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">通过 PostgreSQL 触发器设计可靠的消息队列</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-04-08T22:24:00.000Z" title="发表于 2025-04-09 06:24:00">2025-04-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/">中间件</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/PostgreSQL/">PostgreSQL</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.6k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>17分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>PostgreSQL</strong> 作为一款功能强大的关系型数据库管理系统 (RDBMS)，其事务特性、数据持久性以及对并发处理的良好支持，使其在特定场景下能够被用来构建<strong>可靠的消息队列</strong>。虽然专用的消息队列系统（如 Kafka, RabbitMQ, Redis Streams）在吞吐量、扩展性和复杂路由方面表现更优，但对于中低流量、对事务一致性要求高，且希望复用现有数据库基础设施的应用而言，使用 PostgreSQL 触发器和 <code>LISTEN/NOTIFY</code> 机制实现消息队列是一种可行且成本效益高的方案。本文将详细探讨如何利用 PostgreSQL 的核心特性来设计一个具备事务保障和至少一次交付能力的消息队列。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：利用 PostgreSQL 的<strong>事务性写入</strong>确保消息的原子性入队，通过 <code>AFTER INSERT</code> <strong>触发器</strong>结合 <code>NOTIFY</code> 机制实现对新增消息的即时通知，同时消费者利用 <strong><code>SELECT FOR UPDATE SKIP LOCKED</code></strong> 在事务中安全地获取并处理消息，最终通过<strong>事务提交或回滚</strong>来保证消息的至少一次交付。</p>
+</div>
+<hr>
+<h2 id="一、背景与动机"><a href="#一、背景与动机" class="headerlink" title="一、背景与动机"></a>一、背景与动机</h2><p>在分布式系统中，消息队列是实现服务解耦、异步通信和流量削峰填谷的关键组件。虽然有许多成熟的专用消息队列产品，但在以下情况下，考虑使用 PostgreSQL 作为消息队列具有独特的优势：</p>
+<ol>
+<li><strong>现有基础设施复用</strong>：如果项目已经重度依赖 PostgreSQL，且不希望引入新的运维复杂性，使用现有数据库可以简化架构。</li>
+<li><strong>事务一致性要求高</strong>：对于某些业务逻辑，消息的入队必须与业务数据的更新处于同一数据库事务中，以确保数据一致性。例如，下单成功后才发送订单处理消息。PostgreSQL 可以原生支持这种原子性。</li>
+<li><strong>流量不高或可接受的延迟</strong>：对于中低吞吐量的场景，PostgreSQL 能够提供足够的性能。</li>
+<li><strong>至少一次交付 (At-Least-Once Delivery)</strong>：PostgreSQL 的事务机制天然支持消息的至少一次交付语义。</li>
+</ol>
+<p>然而，这种设计也存在局限性，例如在高吞吐量场景下可能面临性能瓶颈，扩展性不如分布式消息队列，以及 <code>LISTEN/NOTIFY</code> 机制的连接数限制。因此，它适用于特定场景而非所有情况。</p>
+<h2 id="二、核心组件与机制"><a href="#二、核心组件与机制" class="headerlink" title="二、核心组件与机制"></a>二、核心组件与机制</h2><p>利用 PostgreSQL 构建消息队列主要依赖以下几个核心机制：</p>
+<ol>
+<li><strong>消息表 (Message Table)</strong>：用于持久化存储待处理的消息。</li>
+<li><strong><code>INSERT</code> 操作</strong>：生产者将消息原子性地写入消息表。</li>
+<li><strong>触发器 (Trigger)</strong>：在消息写入（<code>INSERT</code>）后自动执行，发出通知。</li>
+<li><strong><code>LISTEN/NOTIFY</code> 机制</strong>：生产者通过触发器发出通知，消费者通过 <code>LISTEN</code> 监听通道以获取消息提醒。</li>
+<li><strong><code>SELECT FOR UPDATE SKIP LOCKED</code></strong>：消费者在事务中并发安全地获取消息，防止多个消费者处理同一条消息。</li>
+<li><strong>事务 (Transactions)</strong>：确保消息处理的原子性，即要么成功处理并删除，要么未成功处理并留待重试。</li>
+</ol>
+<h2 id="三、消息队列设计"><a href="#三、消息队列设计" class="headerlink" title="三、消息队列设计"></a>三、消息队列设计</h2><h3 id="3-1-消息表结构设计"><a href="#3-1-消息表结构设计" class="headerlink" title="3.1 消息表结构设计"></a>3.1 消息表结构设计</h3><p>首先，我们需要一个表来存储消息。一个典型的消息表结构可能如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE TABLE</span> IF <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> messages (</span><br><span class="line">    id BIGSERIAL <span class="keyword">PRIMARY KEY</span>,           <span class="comment">-- 消息唯一ID</span></span><br><span class="line">    payload JSONB <span class="keyword">NOT NULL</span>,             <span class="comment">-- 消息内容，使用JSONB存储复杂结构</span></span><br><span class="line">    created_at TIMESTAMPTZ <span class="keyword">DEFAULT</span> NOW(), <span class="comment">-- 消息创建时间</span></span><br><span class="line">    processed_at TIMESTAMPTZ,           <span class="comment">-- 消息处理时间 (可选，用于软删除或审计)</span></span><br><span class="line">    status TEXT <span class="keyword">DEFAULT</span> <span class="string">&#x27;pending&#x27;</span>       <span class="comment">-- 消息状态 (可选，&#x27;pending&#x27;, &#x27;processing&#x27;, &#x27;completed&#x27;, &#x27;failed&#x27;)</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 添加索引，优化按创建时间查询或按状态查询</span></span><br><span class="line"><span class="keyword">CREATE</span> INDEX IF <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> idx_messages_created_at <span class="keyword">ON</span> messages (created_at);</span><br><span class="line"><span class="comment">-- 如果使用status，则该索引也有用</span></span><br><span class="line"><span class="comment">-- CREATE INDEX IF NOT EXISTS idx_messages_status_created_at ON messages (status, created_at) WHERE status = &#x27;pending&#x27;;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>说明：</strong></p>
+<ul>
+<li><code>id</code>：<code>BIGSERIAL</code> 提供自动递增的唯一 ID。</li>
+<li><code>payload</code>：<code>JSONB</code> 是 PostgreSQL 特有的高效 JSON 存储类型，支持索引和查询，非常适合存储灵活的消息数据。</li>
+<li><code>created_at</code>：记录消息入队时间，常用于消息排序和清理。</li>
+<li><code>processed_at</code>, <code>status</code>：这些字段是可选的。如果采取“硬删除”策略（处理成功即删除），则不需要。如果需要“软删除”（更新状态而非删除，以便审计、重试或延迟清理），则它们非常有用。在本文中，为了简化，我们将主要关注“硬删除”模式，但在消费者部分会提及软删除的替代方案。</li>
+</ul>
+<h3 id="3-2-触发器与-NOTIFY-机制"><a href="#3-2-触发器与-NOTIFY-机制" class="headerlink" title="3.2 触发器与 NOTIFY 机制"></a>3.2 触发器与 <code>NOTIFY</code> 机制</h3><p>为了实现消息的即时通知，我们会在 <code>messages</code> 表的 <code>INSERT</code> 操作上定义一个触发器。这个触发器会向一个特定的 <code>channel</code> 发送 <code>NOTIFY</code> 信号，并可以附带消息的 ID 作为 payload。</p>
+<p>首先，定义一个触发器函数：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">OR</span> REPLACE <span class="keyword">FUNCTION</span> notify_message_queue()</span><br><span class="line"><span class="keyword">RETURNS</span> <span class="keyword">TRIGGER</span> <span class="keyword">AS</span> $$</span><br><span class="line"><span class="keyword">BEGIN</span></span><br><span class="line">    <span class="comment">-- 通知 channel &#x27;message_queue&#x27;，payload 为新插入消息的 ID</span></span><br><span class="line">    <span class="comment">-- NEW.id 包含新插入行的 ID</span></span><br><span class="line">    PERFORM pg_notify(<span class="string">&#x27;message_queue_channel&#x27;</span>, NEW.id::text);</span><br><span class="line">    <span class="keyword">RETURN</span> <span class="keyword">NEW</span>;</span><br><span class="line"><span class="keyword">END</span>;</span><br><span class="line">$$ <span class="keyword">LANGUAGE</span> plpgsql;</span><br></pre></td></tr></table></figure>
+
+<p>接着，创建触发器并将其绑定到 <code>messages</code> 表的 <code>INSERT</code> 事件：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TRIGGER</span> messages_notify_trigger</span><br><span class="line">AFTER <span class="keyword">INSERT</span> <span class="keyword">ON</span> messages</span><br><span class="line"><span class="keyword">FOR</span> <span class="keyword">EACH</span> <span class="type">ROW</span></span><br><span class="line"><span class="keyword">EXECUTE</span> <span class="keyword">FUNCTION</span> notify_message_queue();</span><br></pre></td></tr></table></figure>
+
+<p><strong>说明：</strong></p>
+<ul>
+<li><code>pg_notify(&#39;channel&#39;, &#39;payload&#39;)</code>：这是 PostgreSQL 内置的函数，用于发送通知。<code>&#39;channel&#39;</code> 是通道名称，<code>&#39;payload&#39;</code> 是一个字符串，通常用于携带少量关键信息（如消息 ID）。</li>
+<li><code>AFTER INSERT FOR EACH ROW</code>：表示在每次插入操作成功后，对每一行执行触发器函数。</li>
+<li><code>NEW.id::text</code>：<code>NEW</code> 是一个特殊变量，表示刚刚插入的行。我们将 <code>id</code> 字段转换为文本作为通知的 payload。</li>
+</ul>
+<h3 id="3-3-生产者-Producer"><a href="#3-3-生产者-Producer" class="headerlink" title="3.3 生产者 (Producer)"></a>3.3 生产者 (Producer)</h3><p>生产者向消息表中插入消息。由于 <code>INSERT</code> 操作本身是事务性的，如果生产者在同一个事务中执行其他业务逻辑和消息插入，那么消息的入队将与业务逻辑的成功或失败保持原子一致。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">BEGIN</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 业务逻辑操作...</span></span><br><span class="line"><span class="comment">-- 例如：INSERT INTO orders (...) VALUES (...);</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 插入消息到消息队列</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> messages (payload) <span class="keyword">VALUES</span> (<span class="string">&#x27;&#123;&quot;order_id&quot;: 123, &quot;event&quot;: &quot;order_created&quot;&#125;&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">COMMIT</span>; <span class="comment">-- 事务提交，消息才会被持久化并触发NOTIFY</span></span><br></pre></td></tr></table></figure>
+
+<p>如果 <code>COMMIT</code> 成功，消息将安全入队并发出 <code>NOTIFY</code>。如果 <code>ROLLBACK</code>，则消息不会入队。</p>
+<h3 id="3-4-消费者-Consumer"><a href="#3-4-消费者-Consumer" class="headerlink" title="3.4 消费者 (Consumer)"></a>3.4 消费者 (Consumer)</h3><p>消费者负责监听消息通道，并在收到通知时获取并处理消息。关键在于如何并发安全地获取消息并保证至少一次交付。</p>
+<p><strong>消费者逻辑流程图 (Mermaid):</strong></p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    A[Consumer Start] --&gt; B{&quot;LISTEN &#39;message_queue_channel&#39;&quot;};
+    B --&gt; C{Wait for NOTIFY or Timeout};
+    C -- NOTIFY received --&gt; D[&quot;Parse Notification Payload (e.g., message ID)&quot;];
+    C -- Timeout --&gt; E[&quot;Poll for messages (optional, robustness)&quot;];
+    D --&gt; F{Start Transaction};
+    E --&gt; F;
+    F --&gt; G{SELECT id, payload FROM messages WHERE id &#x3D; notified_id_or_oldest_pending FOR UPDATE SKIP LOCKED LIMIT 1;};
+    G -- Message acquired --&gt; H{Process Message};
+    H --&gt; I{DELETE FROM messages WHERE id &#x3D; acquired_id;};
+    I --&gt; J{COMMIT Transaction};
+    J --&gt; B;
+    G -- No message or locked --&gt; K{&quot;ROLLBACK Transaction (if an explicit selection was made)&quot;};
+    K --&gt; B;
+    H -- Processing Error --&gt; L{ROLLBACK Transaction};
+    L --&gt; M[Handle Error: Log, Re-insert&#x2F;Update Status for Retry];
+    M --&gt; B;
+  </pre></div>
+
+<p><strong>解释：</strong></p>
+<ol>
+<li><strong><code>LISTEN</code></strong>：消费者首先连接到 PostgreSQL 数据库，并执行 <code>LISTEN &#39;message_queue_channel&#39;</code> 命令。一旦有 <code>NOTIFY</code> 消息发送到这个通道，PostgreSQL 会通知所有监听该通道的客户端。</li>
+<li><strong><code>NOTIFY</code> 或轮询</strong>：<ul>
+<li>收到 <code>NOTIFY</code> 后，消费者知道有新消息可用，可以立即尝试获取。payload 携带的消息 ID 可以用于定向获取，提高效率。</li>
+<li>为了健壮性，即使没有收到 <code>NOTIFY</code>（例如，<code>NOTIFY</code> 可能由于网络问题丢失或消费者重启后错过），消费者也应该定期（例如，每隔几秒）进行轮询，以确保不会漏掉任何消息。</li>
+</ul>
+</li>
+<li><strong><code>SELECT FOR UPDATE SKIP LOCKED</code></strong>：<ul>
+<li>这是确保并发安全和至少一次交付的核心。当多个消费者同时尝试获取消息时：<ul>
+<li><code>FOR UPDATE</code> 会在选定的行上放置行级排他锁。</li>
+<li><code>SKIP LOCKED</code> 告诉 PostgreSQL，如果遇到已经被其他事务锁定的行，则跳过这些行并返回未锁定的行。这避免了消费者之间的相互阻塞。</li>
+<li><code>LIMIT 1</code> 确保每次只获取一条消息进行处理。</li>
+<li>消息选择条件 (<code>WHERE id = notified_id_or_oldest_pending</code>)：<ul>
+<li>如果有 <code>NOTIFY</code> 带来的具体 <code>id</code>，可以直接 <code>WHERE id = $1</code>。</li>
+<li>如果没有特定 <code>id</code>（例如，轮询模式或<code>NOTIFY</code>只通知有新消息而没有具体ID），则使用 <code>ORDER BY created_at ASC</code> 来获取最早的消息。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>关键：</strong> 整个消息获取、处理和删除&#x2F;更新必须在一个事务中完成。</li>
+</ul>
+</li>
+<li><strong>处理消息</strong>：消费者安全地获取消息后，执行业务逻辑来处理消息内容。</li>
+<li><strong><code>COMMIT</code> 或 <code>ROLLBACK</code></strong>：<ul>
+<li>如果消息处理成功，消费者在事务中执行 <code>DELETE FROM messages WHERE id = $1;</code> 来移除消息，然后 <code>COMMIT</code> 事务。<code>DELETE</code> 操作本身受到事务的保护。</li>
+<li>如果消息处理失败（例如，因为业务错误或外部服务不可用），事务应该 <code>ROLLBACK</code>。回滚后，之前 <code>SELECT FOR UPDATE</code> 获得的锁会被释放，并且 <code>DELETE</code> 操作也不会实际发生，消息会被保留在表中，可供后续重试。</li>
+</ul>
+</li>
+</ol>
+<p><strong>消费者（Go 语言示例）：</strong></p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;database/sql&quot;</span></span><br><span class="line">	<span class="string">&quot;encoding/json&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;log&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	_ <span class="string">&quot;github.com/lib/pq&quot;</span> <span class="comment">// PostgreSQL 驱动</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	pgConnStr   = <span class="string">&quot;postgres://user:password@localhost:5432/dbname?sslmode=disable&quot;</span></span><br><span class="line">	channelName = <span class="string">&quot;message_queue_channel&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Message represents the structure of a message in the database</span></span><br><span class="line"><span class="keyword">type</span> Message <span class="keyword">struct</span> &#123;</span><br><span class="line">	ID      <span class="type">int64</span>           <span class="string">`json:&quot;id&quot;`</span></span><br><span class="line">	Payload json.RawMessage <span class="string">`json:&quot;payload&quot;`</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	db, err := sql.Open(<span class="string">&quot;postgres&quot;</span>, pgConnStr)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Fatalf(<span class="string">&quot;Error opening database: %v&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> db.Close()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err = db.Ping(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Fatalf(<span class="string">&quot;Error connecting to database: %v&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	log.Println(<span class="string">&quot;Connected to PostgreSQL&quot;</span>)</span><br><span class="line"></span><br><span class="line">	ctx, cancel := context.WithCancel(context.Background())</span><br><span class="line">	<span class="keyword">defer</span> cancel()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Start listening for notifications</span></span><br><span class="line">	<span class="keyword">go</span> listenForNotifications(ctx, db)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Start polling for messages (as a fallback/initial load)</span></span><br><span class="line">	<span class="keyword">go</span> pollForMessages(ctx, db)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Keep main goroutine alive</span></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// listenForNotifications establishes a LISTEN connection and processes notifications</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">listenForNotifications</span><span class="params">(ctx context.Context, db *sql.DB)</span></span> &#123;</span><br><span class="line">	conn, err := db.Conn(ctx)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Printf(<span class="string">&quot;Failed to get connection for LISTEN: %v&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> conn.Close()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// LISTEN command must be executed within a transaction, but notifications are received outside the transaction.</span></span><br><span class="line">	_, err = conn.ExecContext(ctx, fmt.Sprintf(<span class="string">&quot;LISTEN %s&quot;</span>, channelName))</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Printf(<span class="string">&quot;Error executing LISTEN: %v&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">			log.Println(<span class="string">&quot;Listener shutdown.&quot;</span>)</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">			<span class="comment">// Use a context with timeout for notification waiting</span></span><br><span class="line">			<span class="comment">// Actual pq driver (github.com/lib/pq) provides a Notify channel</span></span><br><span class="line">			<span class="comment">// This simplified example assumes a pseudo-blocking wait</span></span><br><span class="line">			<span class="comment">// In real applications, use pq.Listener or check driver specific notification handling</span></span><br><span class="line">			log.Println(<span class="string">&quot;Waiting for notifications...&quot;</span>)</span><br><span class="line">			time.Sleep(<span class="number">5</span> * time.Second) <span class="comment">// Simulate waiting, real implementation would block on notification</span></span><br><span class="line"></span><br><span class="line">			<span class="comment">// In a real `github.com/lib/pq` usage:</span></span><br><span class="line">			<span class="comment">// listener := pq.NewListener(pgConnStr, 10*time.Second, time.Minute, nil)</span></span><br><span class="line">			<span class="comment">// err = listener.Listen(channelName)</span></span><br><span class="line">			<span class="comment">// if err != nil &#123; /* handle error */ &#125;</span></span><br><span class="line">			<span class="comment">// for n := range listener.Notify &#123;</span></span><br><span class="line">			<span class="comment">//    log.Printf(&quot;Received notification from channel %s: %s&quot;, n.Channel, n.Extra)</span></span><br><span class="line">			<span class="comment">//    processMessages(ctx, db) // Process all available messages, optionally using n.Extra as a hint</span></span><br><span class="line">			<span class="comment">// &#125;</span></span><br><span class="line"></span><br><span class="line">			<span class="comment">// After receiving a notification (or timeout for robustness), process messages</span></span><br><span class="line">			processMessages(ctx, db, <span class="literal">nil</span>) <span class="comment">// Process all available, as notify payload might not be specific</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// pollForMessages periodically checks for new messages in case LISTEN/NOTIFY fails or misses</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">pollForMessages</span><span class="params">(ctx context.Context, db *sql.DB)</span></span> &#123;</span><br><span class="line">	ticker := time.NewTicker(<span class="number">2</span> * time.Second) <span class="comment">// Poll every 2 seconds</span></span><br><span class="line">	<span class="keyword">defer</span> ticker.Stop()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-ctx.Done():</span><br><span class="line">			log.Println(<span class="string">&quot;Poller shutdown.&quot;</span>)</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		<span class="keyword">case</span> &lt;-ticker.C:</span><br><span class="line">			processMessages(ctx, db, <span class="literal">nil</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// processMessages attempts to acquire and process one or more messages</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">processMessages</span><span class="params">(ctx context.Context, db *sql.DB, notifiedID *<span class="type">int64</span>)</span></span> &#123;</span><br><span class="line">	tx, err := db.BeginTx(ctx, &amp;sql.TxOptions&#123;&#125;)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Printf(<span class="string">&quot;Failed to begin transaction: %v&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> tx.Rollback() <span class="comment">// Rollback by default if not committed</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> msg Message</span><br><span class="line">	<span class="keyword">var</span> selectQuery <span class="type">string</span></span><br><span class="line">	<span class="keyword">var</span> rows *sql.Rows</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> notifiedID != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="comment">// If a specific message ID was notified, try to acquire it first</span></span><br><span class="line">		selectQuery = <span class="string">`SELECT id, payload FROM messages WHERE id = $1 FOR UPDATE SKIP LOCKED LIMIT 1;`</span></span><br><span class="line">		rows, err = tx.QueryContext(ctx, selectQuery, *notifiedID)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="comment">// Otherwise, get the oldest pending message</span></span><br><span class="line">		selectQuery = <span class="string">`SELECT id, payload FROM messages ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 1;`</span></span><br><span class="line">		rows, err = tx.QueryContext(ctx, selectQuery)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Printf(<span class="string">&quot;Failed to select message(s): %v&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> rows.Close()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> !rows.Next() &#123;</span><br><span class="line">		<span class="comment">// log.Println(&quot;No pending messages acquired (might be locked by another consumer or none)&quot;)</span></span><br><span class="line">		<span class="keyword">return</span> <span class="comment">// No message found or all locked</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err := rows.Scan(&amp;msg.ID, &amp;msg.Payload); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Printf(<span class="string">&quot;Failed to scan message: %v&quot;</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	log.Printf(<span class="string">&quot;Acquired message ID: %d, Payload: %s&quot;</span>, msg.ID, <span class="type">string</span>(msg.Payload))</span><br><span class="line"></span><br><span class="line">	<span class="comment">// --- Simulate message processing ---</span></span><br><span class="line">	<span class="comment">// In a real scenario, this would involve calling external services,</span></span><br><span class="line">	<span class="comment">// updating other databases, etc.</span></span><br><span class="line">	<span class="keyword">if</span> msg.ID%<span class="number">2</span> == <span class="number">0</span> &#123; <span class="comment">// Simulate occasional processing failure</span></span><br><span class="line">		log.Printf(<span class="string">&quot;Simulating processing FAILURE for message ID %d&quot;</span>, msg.ID)</span><br><span class="line">		<span class="comment">// No commit, default defer tx.Rollback() will revert the SELECT FOR UPDATE&#x27;s ephemeral lock.</span></span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	time.Sleep(<span class="number">500</span> * time.Millisecond) <span class="comment">// Simulate work</span></span><br><span class="line">	log.Printf(<span class="string">&quot;Successfully processed message ID: %d&quot;</span>, msg.ID)</span><br><span class="line">	<span class="comment">// --- End simulation ---</span></span><br><span class="line"></span><br><span class="line">	_, err = tx.ExecContext(ctx, <span class="string">`DELETE FROM messages WHERE id = $1;`</span>, msg.ID)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Printf(<span class="string">&quot;Failed to delete message ID %d: %v&quot;</span>, msg.ID, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	err = tx.Commit()</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		log.Fatalf(<span class="string">&quot;Failed to commit transaction for message ID %d: %v&quot;</span>, msg.ID, err)</span><br><span class="line">	&#125;</span><br><span class="line">	log.Printf(<span class="string">&quot;Message ID %d committed and removed.&quot;</span>, msg.ID)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Since we successfully processed one message, immediately try to process another</span></span><br><span class="line">	<span class="comment">// without waiting for the next polling interval or notification.</span></span><br><span class="line">	<span class="comment">// This helps in clearing the queue faster.</span></span><br><span class="line">	<span class="keyword">go</span> processMessages(ctx, db, <span class="literal">nil</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="四、可靠性保障"><a href="#四、可靠性保障" class="headerlink" title="四、可靠性保障"></a>四、可靠性保障</h2><h3 id="4-1-至少一次交付-At-Least-Once-Delivery"><a href="#4-1-至少一次交付-At-Least-Once-Delivery" class="headerlink" title="4.1 至少一次交付 (At-Least-Once Delivery)"></a>4.1 至少一次交付 (At-Least-Once Delivery)</h3><p>PostgreSQL 基于触发器的消息队列天然支持至少一次交付：</p>
+<ol>
+<li><strong>生产者原子性入队</strong>：消息的写入是在事务中完成的，只有事务成功提交，消息才会被持久化。如果事务回滚，消息不会入队。</li>
+<li><strong>消费者原子性处理</strong>：<ul>
+<li><code>SELECT FOR UPDATE</code> 确保了消息在被一个消费者选中并处理时，不会被其他消费者同时选中。</li>
+<li>消息的处理 (<code>H</code>) 和删除 (<code>I</code>) 都在同一个事务中。</li>
+<li>如果处理成功并 <code>COMMIT</code>，消息被删除，不会再次处理。</li>
+<li>如果处理失败或消费者崩溃，事务会 <code>ROLLBACK</code>，消息上的锁会释放，消息将保留在队列中，可供另一个消费者（或该消费者重启后）再次获取和处理。</li>
+</ul>
+</li>
+</ol>
+<p>这意味着，在任何失败情况下（消费者崩溃、网络瞬断、处理逻辑异常），消息都不会丢失，但可能会被重复处理。</p>
+<h3 id="4-2-幂等性-Idempotency"><a href="#4-2-幂等性-Idempotency" class="headerlink" title="4.2 幂等性 (Idempotency)"></a>4.2 幂等性 (Idempotency)</h3><p>由于至少一次交付的特性，消费者必须是<strong>幂等</strong>的。这意味着即使收到并处理同一条消息多次，系统状态也不会发生错误的变化。例如，如果消息是“增加用户积分”，消费者需要检查用户积分是否已经增加过，或者确保增加操作本身是幂等的（如 <code>UPDATE users SET points = points + N WHERE id = $user_id AND last_handled_message_id &lt; $message_id;</code>）。</p>
+<h3 id="4-3-消息排序-Message-Ordering"><a href="#4-3-消息排序-Message-Ordering" class="headerlink" title="4.3 消息排序 (Message Ordering)"></a>4.3 消息排序 (Message Ordering)</h3><p><code>SELECT ... ORDER BY created_at ASC</code> 确保了消费者倾向于按照消息的入队时间顺序处理。然而，在多个并发消费者的情况下，由于 <code>SKIP LOCKED</code> 机制，实际的处理顺序可能无法严格保证（例如，一个消费者可能会跳过一个锁定的早期消息并处理较晚的消息）。对于需要严格顺序的场景，需要采取额外措施（例如，单消费者处理、或者在消息中包含排序键进行分组）。</p>
+<h3 id="4-4-持久性-Durability"><a href="#4-4-持久性-Durability" class="headerlink" title="4.4 持久性 (Durability)"></a>4.4 持久性 (Durability)</h3><p>消息存储在 PostgreSQL 数据库中，完全享有其数据持久化和备份恢复的保障。只要数据库本身是可靠的，消息就不会丢失。</p>
+<h3 id="4-5-错误处理与重试"><a href="#4-5-错误处理与重试" class="headerlink" title="4.5 错误处理与重试"></a>4.5 错误处理与重试</h3><ul>
+<li><strong>瞬时错误</strong>：对于数据库连接中断、外部服务暂时不可用等瞬时错误，消费者可以回滚事务，并由轮询机制或后续的 <code>NOTIFY</code> 机制再次触发对该消息的处理。</li>
+<li><strong>永久性错误</strong>：对于处理逻辑中出现的无法恢复的错误（例如，消息格式错误、业务规则验证失败），简单的回滚会导致消息无限重试。在这种情况下，可以考虑：<ul>
+<li><strong>死信队列 (Dead-Letter Queue, DLQ)</strong>：将错误消息移动到一个单独的 <code>dead_letter_messages</code> 表中，记录失败原因，不再进行自动重试。</li>
+<li><strong>重试计数与延迟重试</strong>：在消息表中添加 <code>retry_count</code> 和 <code>next_retry_time</code> 字段。每次失败后更新状态、增加计数并设置延迟时间，让消费者只获取 <code>next_retry_time</code> 之前未到达的消息。</li>
+</ul>
+</li>
+</ul>
+<h2 id="五、优缺点分析"><a href="#五、优缺点分析" class="headerlink" title="五、优缺点分析"></a>五、优缺点分析</h2><h3 id="5-1-优点"><a href="#5-1-优点" class="headerlink" title="5.1 优点"></a>5.1 优点</h3><ul>
+<li><strong>事务原子性</strong>：消息入队与业务逻辑在同一事务中，确保强一致性。</li>
+<li><strong>数据持久性</strong>：消息存储在成熟可靠的数据库中，不易丢失。</li>
+<li><strong>开发运维简便</strong>：无需引入和维护额外的消息队列服务，复用现有 PostgreSQL 设施。</li>
+<li><strong>至少一次交付</strong>：天然支持，易于实现。</li>
+<li><strong>低复杂性</strong>：对于简单的异步通信需求，实现逻辑相对直观。</li>
+</ul>
+<h3 id="5-2-缺点"><a href="#5-2-缺点" class="headerlink" title="5.2 缺点"></a>5.2 缺点</h3><ul>
+<li><strong>吞吐量限制</strong>：<code>LISTEN/NOTIFY</code> 机制的连接数和通知频率存在瓶颈。数据库作为消息队列的单点，在高并发写入和读取下，性能会受到 I&#x2F;O 和 CPU 限制。</li>
+<li><strong>扩展性差</strong>：难以像分布式消息队列一样水平扩展（例如，通过分区、消费者组）。</li>
+<li><strong><code>LISTEN/NOTIFY</code> 限制</strong>：<code>payload</code> 大小有限制 (目前为 8000 字节)，不适合直接传递大量消息内容。同时，连接状态依赖于数据库连接，如果连接断开需要重连并重新 <code>LISTEN</code>。</li>
+<li><strong>功能受限</strong>：缺乏专用消息队列系统（如消息过滤、复杂路由、延迟队列、批量操作、Exactly-Once 语义）的丰富功能。</li>
+<li><strong>资源消耗</strong>：<code>SELECT FOR UPDATE SKIP LOCKED</code> 可能会增加数据库的锁管理开销，尤其是在消息争用激烈时。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>通过 PostgreSQL 触发器和 <code>LISTEN/NOTIFY</code> 机制设计消息队列，是一种在特定场景下（中低流量、高事务一致性要求、现有 PostgreSQL 基础设施）实用且可靠的方案。它利用了 PostgreSQL 强大的事务保障能力，确保了消息的原子性入队和原子性处理，并自然地提供了至少一次交付的语义。</p>
+<p>然而，在选择此方案时，必须充分评估其在吞吐量和扩展性方面的局限性。对于高并发、复杂路由和严格顺序要求的场景，仍然建议使用专用的分布式消息队列系统。对于许多内部服务通信、简单任务调度或与数据库事务紧密耦合的异步操作，PostgreSQL 提供了一个强大而低成本的替代方案。理解其工作原理和权衡利弊，将有助于我们做出更明智的技术选型。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/89df00bae124/">https://blog.tbf1211.xx.kg/89df00bae124/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/PostgreSQL/">PostgreSQL</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-27.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/aa76a35a1a49/" title="Go语言泛型 (Generics) 详解：从概念到实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Go语言泛型 (Generics) 详解：从概念到实践</div></div><div class="info-2"><div class="info-item-1"> Go 语言在诞生之初，以其简洁、高效和内置并发特性迅速崛起，但长期以来缺少一个重要的现代语言特性：泛型 (Generics)。这导致开发者在处理通用数据结构和算法时，不得不依赖空接口 (interface&#123;&#125;) 加上类型断言，或者为每种类型复制粘贴代码，带来了类型不安全和代码冗余的问题。  随着 Go 1.18 版本的发布，Go 正式引入了泛型，为 Go 语言的表达能力带来了革命性的提升。本文将深入解析 Go 语言泛型的核心概念、语法、使用场景以及注意事项，帮助你理解并掌握这一重要特性。   一、 什么是泛型 (Generics)？泛型，也称作“泛型”或“类型参数”，是一种允许代码处理 多种类型数据 的编程机制。它使得我们能够编写不依赖于特定数据类型的函数、方法或数据结构，从而实现代码的重用和抽象。 在没有泛型之前，如果你想写一个能比较两个 int 类型值的最大函数，然后又想比较两个 float64 类型值的最大函数，你需要这样写： 12345678910111213func MaxInt(a, b int) int &#123;    if a &gt; ...</div></div></div></a><a class="pagination-related" href="/3f1235780eb1/" title="PostgreSQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">PostgreSQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> PostgreSQL 索引 是一种特殊的查找表，数据库搜索引擎用它来加速数据检索。它们是优化数据库查询性能的关键工具，尤其是在处理大量数据时。通过在表中的一列或多列上创建索引，可以显著减少数据库服务器在查找特定数据时需要扫描的数据量，从而提高查询速度。  核心思想：索引通过预先排序或组织表中的数据，创建指向实际数据行的快速查找路径，从而将全表扫描 (Full Table Scan) 转换为高效的索引扫描 (Index Scan)，但代价是增加存储空间和写操作的开销。   一、索引基础概念1.1 什么是索引？可以把数据库索引类比为一本书的目录。当你需要查找书中的某个特定主题时，你会首先查阅目录，而不是从头到尾翻阅整本书。目录（索引）提供了快速定位到相关内容（数据行）的页码（数据物理地址）。 1.2 为什么需要索引？ 加速数据检索：主要目的，尤其对 SELECT 查询中的 WHERE、ORDER BY、GROUP BY、JOIN 子句影响显著。 强制唯一性：唯一索引 (Unique Index) 可以确保表中的某列或多列的组合值是唯一的。 优化排序：如果查询结果需要按索引列排序，数...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/3f1235780eb1/" title="PostgreSQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-07</div><div class="info-item-2">PostgreSQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> PostgreSQL 索引 是一种特殊的查找表，数据库搜索引擎用它来加速数据检索。它们是优化数据库查询性能的关键工具，尤其是在处理大量数据时。通过在表中的一列或多列上创建索引，可以显著减少数据库服务器在查找特定数据时需要扫描的数据量，从而提高查询速度。  核心思想：索引通过预先排序或组织表中的数据，创建指向实际数据行的快速查找路径，从而将全表扫描 (Full Table Scan) 转换为高效的索引扫描 (Index Scan)，但代价是增加存储空间和写操作的开销。   一、索引基础概念1.1 什么是索引？可以把数据库索引类比为一本书的目录。当你需要查找书中的某个特定主题时，你会首先查阅目录，而不是从头到尾翻阅整本书。目录（索引）提供了快速定位到相关内容（数据行）的页码（数据物理地址）。 1.2 为什么需要索引？ 加速数据检索：主要目的，尤其对 SELECT 查询中的 WHERE、ORDER BY、GROUP BY、JOIN 子句影响显著。 强制唯一性：唯一索引 (Unique Index) 可以确保表中的某列或多列的组合值是唯一的。 优化排序：如果查询结果需要按索引列排序，数...</div></div></div></a><a class="pagination-related" href="/c4ce9fa15daa/" title="PostgreSQL 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-05</div><div class="info-item-2">PostgreSQL 详解</div></div><div class="info-2"><div class="info-item-1"> PostgreSQL 是一个强大、开源、高级的对象关系型数据库系统 (Object-Relational Database System, ORDBMS)。它以其卓越的稳定性、数据完整性、功能丰富性以及严格遵循 SQL 标准而闻名。PostgreSQL 支持 SQL 语言（包括大部分 SQL:2011 标准）并提供了许多现代特性，如复杂查询、外键、事务、用户定义类型和函数、继承、并发控制等。它被广泛应用于各种规模的应用程序，从小型独立项目到大型企业级系统。  核心思想：PostgreSQL 不仅是一个关系型数据库，还融合了面向对象的特性，提供强大的数据完整性保证（ACID），并采用先进的并发控制机制（MVCC），以支持高并发读写和复杂的业务逻辑。   一、核心概念1.1 ACID 特性PostgreSQL 严格遵循事务的 ACID 特性，确保数据的可靠性和完整性。  原子性 (Atomicity)：一个事务中的所有操作，要么全部成功，要么全部失败回滚。事务是不可分割的最小工作单元。 一致性 (Consistency)：事务完成后，数据库必须从一个一致状态转换到另一个一致状态。所...</div></div></div></a><a class="pagination-related" href="/ee3232cb24f1/" title="Golang map 扩容与缩容详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-05</div><div class="info-item-2">Golang map 扩容与缩容详解</div></div><div class="info-2"><div class="info-item-1"> Golang map 是一种内置的哈希表（hash table）实现，提供了高效的键值对存储和查找功能。其内部机制复杂且高度优化，其中包含了自动的扩容（expansion）逻辑，以适应数据量的增长并保证性能。然而，与扩容不同，Go map 在键值对被删除后不会自动缩容，这在某些场景下可能导致不必要的内存占用。理解 Go map 的扩容和非缩容机制对于编写高性能和内存效率高的 Go 程序至关重要。  核心思想：Go map 通过渐进式扩容来平滑处理数据增长带来的性能开销，但在数据减少时，为了避免复杂性和潜在的性能抖动，不提供自动缩容。   一、Go map 内部结构概述要理解 map 的扩容和缩容，首先需要了解其底层数据结构。Go map 的底层是一个 hmap 结构体，它管理着一系列的哈希桶（bucket）。 1.1 hmap 结构体hmap 是 map 的运行时表示，包含了一系列关键信息： 12345678910111213type hmap struct &#123;    count     int        // 当前map中kv对的数量    flags     ...</div></div></div></a><a class="pagination-related" href="/c5054902e8b1/" title="iptables 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-25</div><div class="info-item-2">iptables 详解</div></div><div class="info-2"><div class="info-item-1"> iptables 是 Linux 系统中一个强大的防火墙工具，它基于 Netfilter 框架。Netfilter 是 Linux 内核中的一个数据包过滤和修改框架，而 iptables 是用于在用户空间配置 Netfilter 规则的命令行工具。通过 iptables，系统管理员可以定义各种规则来过滤、修改、转发或拦截网络数据包，从而实现网络流量控制、端口转发、地址伪装等功能。可以说，iptables 是 Linux 系统网络安全和流量管理的基石。  核心思想：基于规则链对数据包进行匹配和处理。 数据包在网络协议栈中穿行时，会根据定义好的规则链进行检查，并按照链中的规则顺序执行相应的动作。   一、Netfilter 框架与 iptables 关系理解 iptables，首先要了解它与 Netfilter 的关系：  Netfilter：位于 Linux 内核中，是一个用于网络数据包过滤、修改、转发和跟踪的框架。它定义了几个”钩子” (Hooks) 点，当数据包经过这些钩子点时，Netfilter 会检查是否有注册的规则需要处理该数据包。 iptables：是用户空间的命令行...</div></div></div></a><a class="pagination-related" href="/bb47c1f6baff/" title="两侧胸膜增厚详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-13</div><div class="info-item-2">两侧胸膜增厚详解</div></div><div class="info-2"><div class="info-item-1"> 胸膜增厚是指胸膜组织因炎症、损伤、肿瘤等各种原因，导致其结构发生纤维化和硬化，从而变得比正常胸膜更厚、更致密。两侧胸膜增厚则意味着双侧肺部表面的胸膜或胸壁内侧的胸膜都出现了这种病理变化。这通常是胸膜疾病的后遗症或慢性病理过程的表现，而非一种独立的疾病。  核心思想：两侧胸膜增厚通常是胸膜炎症或损伤（如胸膜炎、胸腔积液、感染、创伤、职业暴露）长期或反复发作后的瘢痕形成，是继发性病变。其临床意义需结合病史、影像学特征及患者症状综合评估。   一、胸膜的解剖与生理在理解胸膜增厚之前，首先回顾一下胸膜的基本知识：  胸膜 (Pleura)：是一层薄而光滑的浆膜，分为两层： 脏层胸膜 (Visceral Pleura)：紧密覆盖在肺表面，深入肺裂。 壁层胸膜 (Parietal Pleura)：衬于胸腔内壁、膈肌上表面和纵隔侧面。   胸膜腔 (Pleural Cavity)：脏层胸膜和壁层胸膜之间的潜在间隙，内含少量浆液（约10-20ml），起到润滑作用，使肺在呼吸时能够平滑地在胸腔内滑动。 功能：胸膜的主要功能是减少呼吸时肺与胸壁之间的摩擦，并参与维持肺的膨胀状态。  二、两侧胸膜增...</div></div></div></a><a class="pagination-related" href="/9c8706bb41ed/" title="ArtPlayer 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-20</div><div class="info-item-2">ArtPlayer 详解</div></div><div class="info-2"><div class="info-item-1"> ArtPlayer 是一个基于 HTML5 的视频播放器，它设计简洁、功能强大且高度可定制。与传统播放器如 Video.js 相比，ArtPlayer 更加专注于现代 Web 场景，提供了丰富的配置选项、事件系统以及插件机制，旨在为开发者提供一个美观、易用且可扩展的视频播放解决方案。它支持多种视频格式，并且可以无缝集成 HLS、DASH 等流媒体协议（通常通过与其他库如 hls.js 或 dash.js 配合）。  核心思想：ArtPlayer 提供了一个高度可定制的、现代化的 HTML5 视频播放器解决方案，通过丰富的配置、插件系统和简洁的 API，帮助开发者快速构建符合个性化需求的视频播放体验。   一、为什么选择 ArtPlayer？在 Web 开发中，视频播放器是常见且重要的组件。虽然浏览器自带 &lt;video&gt; 标签，但其功能和样式都非常基础，无法满足复杂应用的需求。常见的定制化播放器有很多，选择 ArtPlayer 的原因主要包括：  现代化设计：界面美观，符合现代审美，用户体验良好。 高度可定制：提供了海量的配置选项，可以控制播放器的每一个细节，从 UI...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">555</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">232</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">86</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">一、背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6%E4%B8%8E%E6%9C%BA%E5%88%B6"><span class="toc-text">二、核心组件与机制</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97%E8%AE%BE%E8%AE%A1"><span class="toc-text">三、消息队列设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%B6%88%E6%81%AF%E8%A1%A8%E7%BB%93%E6%9E%84%E8%AE%BE%E8%AE%A1"><span class="toc-text">3.1 消息表结构设计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E8%A7%A6%E5%8F%91%E5%99%A8%E4%B8%8E-NOTIFY-%E6%9C%BA%E5%88%B6"><span class="toc-text">3.2 触发器与 NOTIFY 机制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E7%94%9F%E4%BA%A7%E8%80%85-Producer"><span class="toc-text">3.3 生产者 (Producer)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E6%B6%88%E8%B4%B9%E8%80%85-Consumer"><span class="toc-text">3.4 消费者 (Consumer)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%8F%AF%E9%9D%A0%E6%80%A7%E4%BF%9D%E9%9A%9C"><span class="toc-text">四、可靠性保障</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E8%87%B3%E5%B0%91%E4%B8%80%E6%AC%A1%E4%BA%A4%E4%BB%98-At-Least-Once-Delivery"><span class="toc-text">4.1 至少一次交付 (At-Least-Once Delivery)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%B9%82%E7%AD%89%E6%80%A7-Idempotency"><span class="toc-text">4.2 幂等性 (Idempotency)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%B6%88%E6%81%AF%E6%8E%92%E5%BA%8F-Message-Ordering"><span class="toc-text">4.3 消息排序 (Message Ordering)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E6%8C%81%E4%B9%85%E6%80%A7-Durability"><span class="toc-text">4.4 持久性 (Durability)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86%E4%B8%8E%E9%87%8D%E8%AF%95"><span class="toc-text">4.5 错误处理与重试</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%BC%98%E7%BC%BA%E7%82%B9%E5%88%86%E6%9E%90"><span class="toc-text">五、优缺点分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%BC%98%E7%82%B9"><span class="toc-text">5.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">5.2 缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="go.sum 文件中特殊哈希计算详解"/></a><div class="content"><a class="title" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解">go.sum 文件中特殊哈希计算详解</a><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/4e3b0c5d197a/" title="Web Components 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Web Components 详解"/></a><div class="content"><a class="title" href="/4e3b0c5d197a/" title="Web Components 详解">Web Components 详解</a><time datetime="2026-02-07T22:24:00.000Z" title="发表于 2026-02-08 06:24:00">2026-02-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/ecb44ccf1b04/" title="婴儿早期语音发展中的“Mama”与“Baba”现象探究"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="婴儿早期语音发展中的“Mama”与“Baba”现象探究"/></a><div class="content"><a class="title" href="/ecb44ccf1b04/" title="婴儿早期语音发展中的“Mama”与“Baba”现象探究">婴儿早期语音发展中的“Mama”与“Baba”现象探究</a><time datetime="2026-02-05T22:24:00.000Z" title="发表于 2026-02-06 06:24:00">2026-02-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/10349b09ff78/" title="Signal Protocol 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Signal Protocol 详解"/></a><div class="content"><a class="title" href="/10349b09ff78/" title="Signal Protocol 详解">Signal Protocol 详解</a><time datetime="2026-02-03T22:24:00.000Z" title="发表于 2026-02-04 06:24:00">2026-02-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/f81355a662b8/" title="ECMAScript ShadowRealm 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="ECMAScript ShadowRealm 详解"/></a><div class="content"><a class="title" href="/f81355a662b8/" title="ECMAScript ShadowRealm 详解">ECMAScript ShadowRealm 详解</a><time datetime="2026-02-01T22:24:00.000Z" title="发表于 2026-02-02 06:24:00">2026-02-02</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-27.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
