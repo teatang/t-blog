@@ -33,48 +33,41 @@ categories:
 OSI 模型从下到上依次分为物理层、数据链路层、网络层、传输层、会话层、表示层和应用层。数据在发送端从上层向下层传输，每层会添加自己的**协议头 (Header)** 或帧尾 (Trailer) 进行封装 (Encapsulation)；在接收端则从下层向上层传输，每层剥离 (Decapsulation) 自己的协议头。
 {% mermaid %}
 graph TD
-    A["应用层 (Application Layer)"] -- 提供网络服务给应用程序 --> A_DATA(应用数据)
-    P["表示层 (Presentation Layer)"] -- 数据格式化, 加解密 --> P_DATA(格式化数据)
-    S["会话层 (Session Layer)"] -- 管理会话、同步 --> S_DATA(会话数据)
-    T["传输层 (Transport Layer)"] -- 端到端可靠传输、流量控制 --> T_SEGMENT(段 Segment)
-    N["网络层 (Network Layer)"] -- 逻辑寻址、路由 --> N_PACKET(包 Packet)
-    D["数据链路层 (Data Link Layer)"] -- 物理寻址、帧封装、错误检测 --> D_FRAME(帧 Frame)
-    H["物理层 (Physical Layer)"] -- 传输比特流 --> H_BIT(比特流 Bit)
+    %% 发送方
+    subgraph Sender [发送方 - 封装过程 Encapsulation]
+        direction TB
+        L7S[L7 应用层] --- D7S(Data: 应用数据)
+        L6S[L6 表示层] --- D6S(Data: 编码/加密)
+        L5S[L5 会话层] --- D5S(Data: 会话管理)
+        L4S[L4 传输层] --- D4S(Segment: 段)
+        L3S[L3 网络层] --- D3S(Packet: 包)
+        L2S[L2 数据链路层] --- D2S(Frame: 帧)
+        L1S[L1 物理层] --- D1S(Bit: 比特流)
 
-    A_DATA --> P_DATA
-    P_DATA --> S_DATA
-    S_DATA --> T_SEGMENT
-    T_SEGMENT --> N_PACKET
-    N_PACKET --> D_FRAME
-    D_FRAME --> H_BIT
-
-    subgraph 发送方
-        A
-        P
-        S
-        T
-        N
-        D
-        H
+        D7S ==> D6S ==> D5S ==> D4S ==> D3S ==> D2S ==> D1S
     end
 
-    subgraph 接收方
-        H_R["物理层 (Physical Layer)"] -- 接收比特流 --> H_R_BIT(比特流 Bit)
-        D_R["数据链路层 (Data Link Layer)"] -- 帧解析、错误检测 --> D_R_FRAME(帧 Frame)
-        N_R["网络层 (Network Layer)"] -- 路由、逻辑寻址 --> N_R_PACKET(包 Packet)
-        T_R["传输层 (Transport Layer)"] -- 端到端传输、流控 --> T_R_SEGMENT(段 Segment)
-        S_R["会话层 (Session Layer)"] -- 会话管理、同步 --> S_R_DATA(会话数据)
-        P_R["表示层 (Presentation Layer)"] -- 数据解析、解密 --> P_R_DATA(格式化数据)
-        A_R["应用层 (Application Layer)"] -- 应用程序接收数据 --> A_R_DATA(应用数据)
+    %% 物理传输
+    D1S ==>|物理介质 / 光电信号| D1R
+
+    %% 接收方
+    subgraph Receiver [接收方 - 解封装过程 Decapsulation]
+        direction BT
+        L1R[L1 物理层] --- D1R(Bit: 比特流)
+        L2R[L2 数据链路层] --- D2R(Frame: 帧)
+        L3R[L3 网络层] --- D3R(Packet: 包)
+        L4R[L4 传输层] --- D4R(Segment: 段)
+        L5R[L5 会话层] --- D5R(Data: 会话管理)
+        L6R[L6 表示层] --- D6R(Data: 编码/加密)
+        L7R[L7 应用层] --- D7R(Data: 应用数据)
+
+        D1R ==> D2R ==> D3R ==> D4R ==> D5R ==> D6R ==> D7R
     end
 
-    H_BIT --> H_R_BIT
-    H_R_BIT --> D_R_FRAME
-    D_R_FRAME --> N_R_PACKET
-    N_R_PACKET --> T_R_SEGMENT
-    T_R_SEGMENT --> S_R_DATA
-    S_R_DATA --> P_R_DATA
-    P_R_DATA --> A_R_DATA
+    %% 逻辑对等层连接 (虚线表示)
+    L7S -. 虚位通信 .- L7R
+    L4S -. 端到端校验 .- L4R
+    L3S -. IP 路由寻址 .- L3R
 {% endmermaid %}
 
 ### 2.1 物理层 (Physical Layer) - 第 1 层
