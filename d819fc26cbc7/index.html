@@ -1,0 +1,1072 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>共识算法详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在分布式系统中，如何确保系统中的所有节点就某个数据或操作达成一致，是一个核心挑战。这种在多个独立节点之间达成统一决议的过程被称为共识 (Consensus)。共识算法是解决这一问题的关键技术，广泛应用于数据库复制、分布式文件系统、区块链等领域。  共识算法 (Consensus Algorithm) 是一种分布式计算协议，旨在让分布式系统中的多个节点在存在故障（包括节点崩溃、网络延迟、消息丢失甚至">
+<meta property="og:type" content="article">
+<meta property="og:title" content="共识算法详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/d819fc26cbc7/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="在分布式系统中，如何确保系统中的所有节点就某个数据或操作达成一致，是一个核心挑战。这种在多个独立节点之间达成统一决议的过程被称为共识 (Consensus)。共识算法是解决这一问题的关键技术，广泛应用于数据库复制、分布式文件系统、区块链等领域。  共识算法 (Consensus Algorithm) 是一种分布式计算协议，旨在让分布式系统中的多个节点在存在故障（包括节点崩溃、网络延迟、消息丢失甚至">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg">
+<meta property="article:published_time" content="2026-02-19T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-02-28T09:37:21.893Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络技术">
+<meta property="article:tag" content="2026">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "共识算法详解",
+  "url": "https://blog.tbf1211.xx.kg/d819fc26cbc7/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg",
+  "datePublished": "2026-02-19T22:24:00.000Z",
+  "dateModified": "2026-02-28T09:37:21.893Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/d819fc26cbc7/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '共识算法详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">567</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">233</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">85</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-11.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">共识算法详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">共识算法详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-02-19T22:24:00.000Z" title="发表于 2026-02-20 06:24:00">2026-02-20</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">5.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>18分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><p>在分布式系统中，如何确保系统中的所有节点就某个数据或操作达成一致，是一个核心挑战。这种在多个独立节点之间达成统一决议的过程被称为<strong>共识 (Consensus)</strong>。共识算法是解决这一问题的关键技术，广泛应用于数据库复制、分布式文件系统、区块链等领域。</p>
+<blockquote>
+<p><strong>共识算法 (Consensus Algorithm)</strong> 是一种分布式计算协议，旨在让分布式系统中的多个节点在存在故障（包括节点崩溃、网络延迟、消息丢失甚至恶意行为）的情况下，就某个或某些值达成一致的协议。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：在分布式环境中，即使部分节点故障或行为异常，系统也能像单一实体一样运作，对外提供一致的服务。</p>
+</div>
+
+<hr>
+<h2 id="一、共识的必要性与挑战"><a href="#一、共识的必要性与挑战" class="headerlink" title="一、共识的必要性与挑战"></a>一、共识的必要性与挑战</h2><h3 id="1-1-为什么需要共识？"><a href="#1-1-为什么需要共识？" class="headerlink" title="1.1 为什么需要共识？"></a>1.1 为什么需要共识？</h3><p>在分布式系统中，由于节点之间相互独立，数据复制和服务状态同步是常态。如果没有共识机制，可能出现以下问题：</p>
+<ul>
+<li><strong>数据不一致</strong>：不同节点存储的数据版本不同，导致读取结果不确定。</li>
+<li><strong>服务分裂 (Split-Brain)</strong>：当集群网络分区时，每个分区的节点都认为自己是活动的，并独立对外提供服务，造成数据冲突和系统行为异常。</li>
+<li><strong>操作非原子性</strong>：分布式事务难以保证原子性，可能出现部分成功部分失败的状态。</li>
+</ul>
+<p>共识算法旨在解决这些问题，确保分布式系统的<strong>一致性 (Consistency)</strong>、<strong>可用性 (Availability)</strong> 和<strong>分区容错性 (Partition Tolerance)</strong> 之间的权衡（CAP 定理）。在需要强一致性的场景中，共识算法是不可或缺的。</p>
+<h3 id="1-2-分布式系统中的挑战"><a href="#1-2-分布式系统中的挑战" class="headerlink" title="1.2 分布式系统中的挑战"></a>1.2 分布式系统中的挑战</h3><p>达成共识面临诸多挑战：</p>
+<ol>
+<li><strong>网络故障</strong>：消息可能丢失、重复、乱序或延迟。</li>
+<li><strong>节点故障</strong>：节点可能崩溃停止运行 (Crash Faults)。</li>
+<li><strong>拜占庭故障 (Byzantine Faults)</strong>：节点不仅可能崩溃，还可能发送任意错误信息，甚至恶意协作破坏系统。</li>
+<li><strong>异步系统</strong>：在纯异步系统中，无法设定消息传输时间或节点处理时间上限，这使得超时判断变得困难。</li>
+<li><strong>FLP 不可能性定理 (FLP Impossibility)</strong>：在一个完全异步的分布式系统中，只要有一个节点可能崩溃，就不可能设计出一个能保证总能终止的确定性共识算法。这意味着实际的共识算法必须牺牲一些属性，例如引入同步假设（如部分同步系统），或者允许在某些极端情况下不终止，或者引入随机性。</li>
+</ol>
+<h2 id="二、共识算法的分类与核心属性"><a href="#二、共识算法的分类与核心属性" class="headerlink" title="二、共识算法的分类与核心属性"></a>二、共识算法的分类与核心属性</h2><p>根据容错模型，共识算法主要分为两大类：</p>
+<ol>
+<li><strong>崩溃容错 (Crash Fault Tolerant, CFT) 算法</strong>：<ul>
+<li>假设节点只可能彻底停止运行（崩溃），但不会发送错误或恶意消息。</li>
+<li>典型算法：Paxos, Raft。</li>
+<li>容错能力：通常可以容忍 $f$ 个节点故障，只需要 $2f+1$ 个或更多的节点存活即可。</li>
+</ul>
+</li>
+<li><strong>拜占庭容错 (Byzantine Fault Tolerant, BFT) 算法</strong>：<ul>
+<li>假设节点除了崩溃，还可能出现任意行为，包括发送错误信息、虚假信息或恶意协作。</li>
+<li>典型算法：PBFT (Practical Byzantine Fault Tolerance), 以及区块链中的 PoW (Proof of Work), PoS (Proof of Stake) 等。</li>
+<li>容错能力：通常可以容忍 $f$ 个拜占庭节点故障，需要至少 $3f+1$ 个节点才能达成共识。</li>
+</ul>
+</li>
+</ol>
+<h3 id="2-1-共识算法的核心属性"><a href="#2-1-共识算法的核心属性" class="headerlink" title="2.1 共识算法的核心属性"></a>2.1 共识算法的核心属性</h3><p>无论哪种类型，一个有效的共识算法通常需要满足以下属性：</p>
+<ul>
+<li><strong>安全性 (Safety)</strong>：<ul>
+<li><strong>一致性 (Agreement)</strong>：所有未故障的节点最终都会对同一值达成一致。</li>
+<li><strong>有效性 (Validity)</strong>：如果所有未故障的节点都提议了相同的值，那么最终达成的共识值必须是该值。</li>
+<li><strong>不会产生冲突 (No Conflict)</strong>：一旦某个节点决定了一个值，其他节点就不能决定不同的值。</li>
+</ul>
+</li>
+<li><strong>活性 (Liveness)</strong>：<ul>
+<li><strong>终止性 (Termination)</strong>：所有未故障的节点最终都会决定一个值。</li>
+<li><strong>无死锁 (No Starvation)</strong>：只要有足够的节点存活，共识过程总能向前推进。</li>
+</ul>
+</li>
+</ul>
+<h2 id="三、经典崩溃容错算法-CFT"><a href="#三、经典崩溃容错算法-CFT" class="headerlink" title="三、经典崩溃容错算法 (CFT)"></a>三、经典崩溃容错算法 (CFT)</h2><h3 id="3-1-Paxos"><a href="#3-1-Paxos" class="headerlink" title="3.1 Paxos"></a>3.1 Paxos</h3><p>Paxos 是最早提出且最具影响力的共识算法之一，由 Leslie Lamport 于 1990 年代提出。Paxos 的核心挑战在于其理解和实现都非常复杂。</p>
+<h4 id="3-1-1-角色定义"><a href="#3-1-1-角色定义" class="headerlink" title="3.1.1 角色定义"></a>3.1.1 角色定义</h4><p>Paxos 将参与者分为三类角色：</p>
+<ul>
+<li><strong>提议者 (Proposer)</strong>：提议一个值，并试图说服接受者接受该值。</li>
+<li><strong>接受者 (Acceptor)</strong>：在众多提议中选择一个值，可以接受或拒绝提议。</li>
+<li><strong>学习者 (Learner)</strong>：从接受者那里学习最终被选定的值。</li>
+</ul>
+<p>在实际系统中，一个节点通常可以身兼多职。</p>
+<h4 id="3-1-2-算法流程"><a href="#3-1-2-算法流程" class="headerlink" title="3.1.2 算法流程"></a>3.1.2 算法流程</h4><p>Paxos 算法分为两个阶段，每个阶段使用轮次 (Round Number) 来区分不同的提议：</p>
+<p><strong>阶段 1：准备 (Prepare) 阶段</strong></p>
+<ol>
+<li><strong>提议者 (Proposer)</strong>：<ul>
+<li>选择一个<strong>新的提议编号 (proposal number)</strong> $N$，该编号必须比之前用过的所有提议编号都大。</li>
+<li>向大多数<strong>接受者 (Acceptors)</strong> 发送一个包含 $N$ 的 <strong>Prepare 请求</strong>。</li>
+</ul>
+</li>
+<li><strong>接受者 (Acceptor)</strong>：<ul>
+<li>接收到 Prepare 请求后，如果 $N$ 大于它已经响应过的任何 Prepare 请求的编号，则不再接受编号小于 $N$ 的提议。</li>
+<li>向提议者返回一个 <strong>Promise 响应</strong>，承诺不再接受任何编号小于 $N$ 的提议。</li>
+<li>如果接受者之前已经接受过任何值，它会把<strong>已接受的最高编号的提议 (Max_Accepted_N, Accepted_Value)</strong> 返回给提议者。</li>
+</ul>
+</li>
+</ol>
+<p><strong>阶段 2：接受 (Accept) 阶段</strong></p>
+<ol>
+<li><strong>提议者 (Proposer)</strong>：<ul>
+<li>如果提议者收到大多数接受者的 Promise 响应，它会检查这些响应中返回的（Max_Accepted_N, Accepted_Value）对。</li>
+<li>如果所有响应都没有返回已经接受的值，提议者就可以自由地提出自己的值 $V$。</li>
+<li>如果有一个或多个接受者返回了已经接受的值，提议者必须选择其中编号最高的那个值作为自己的提议值 $V$。</li>
+<li>向大多数接受者发送一个包含提议编号 $N$ 和提议值 $V$ 的 <strong>Accept 请求</strong>。</li>
+</ul>
+</li>
+<li><strong>接受者 (Acceptor)</strong>：<ul>
+<li>接收到 Accept 请求后，如果它还没有向编号大于 $N$ 的 Prepare 请求做出承诺，则<strong>接受 (Accept)</strong> 该提议。</li>
+<li>向所有学习者发送一个 <strong>Accepted 响应</strong>。</li>
+</ul>
+</li>
+</ol>
+<p><strong>值学习 (Value Learning)</strong>：<br>当学习者收到多数接受者对某个值 $V$ 的 Accepted 响应时，它就知道 $V$ 已经被选定。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant P as Proposer
+    participant A1 as Acceptor 1
+    participant A2 as Acceptor 2
+    participant A3 as Acceptor 3
+    participant L as Learner
+
+    P-&gt;&gt;A1: Prepare(N&#x3D;1)
+    P-&gt;&gt;A2: Prepare(N&#x3D;1)
+    P-&gt;&gt;A3: Prepare(N&#x3D;1)
+    A1--&gt;&gt;P: Promise(N&#x3D;1, null)
+    A2--&gt;&gt;P: Promise(N&#x3D;1, null)
+    A3--&gt;&gt;P: Promise(N&#x3D;1, null)
+
+    P-&gt;&gt;A1: Accept(N&#x3D;1, V&#x3D;&#39;value&#39;)
+    P-&gt;&gt;A2: Accept(N&#x3D;1, V&#x3D;&#39;value&#39;)
+    P-&gt;&gt;A3: Accept(N&#x3D;1, V&#x3D;&#39;value&#39;)
+    A1--&gt;&gt;L: Accepted(N&#x3D;1, V&#x3D;&#39;value&#39;)
+    A2--&gt;&gt;L: Accepted(N&#x3D;1, V&#x3D;&#39;value&#39;)
+
+    Note right of L: L received 2&#x2F;3 (majority) Accepted, consensus reached!
+  </pre></div>
+
+<h4 id="3-1-3-优缺点"><a href="#3-1-3-优缺点" class="headerlink" title="3.1.3 优缺点"></a>3.1.3 优缺点</h4><ul>
+<li><strong>优点</strong>：<ul>
+<li><strong>高容错性</strong>：在大多数节点正常工作的情况下，即使有故障节点也能达成共识。</li>
+<li><strong>永不冲突 (No Conflict)</strong>：一旦决定了某个值，就不会再改变。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>复杂性高</strong>：难以理解和实现，容易出错。</li>
+<li><strong>活锁风险</strong>：在极端情况下（多个提议者同时竞争），可能会出现 Prepare 请求和 Accept 请求来回竞争，导致活锁，需要额外的机制来打破，如随机退避。</li>
+<li><strong>性能开销大</strong>：两阶段提交以及多轮通信。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-2-Raft"><a href="#3-2-Raft" class="headerlink" title="3.2 Raft"></a>3.2 Raft</h3><p>Raft 算法是一种比 Paxos 更易于理解和实现的共识算法，但提供了与 Paxos 相同的容错能力。它由 Ongaro 和 Ousterhout 在 2013 年提出，其设计哲学是“可理解性优先”。</p>
+<h4 id="3-2-1-角色定义"><a href="#3-2-1-角色定义" class="headerlink" title="3.2.1 角色定义"></a>3.2.1 角色定义</h4><p>Raft 将节点状态分为三种：</p>
+<ul>
+<li><strong>领导者 (Leader)</strong>：处理所有客户端请求（日志复制、心跳等），并将日志条目复制到跟随者。集群中在任何时刻最多只有一个领导者。</li>
+<li><strong>跟随者 (Follower)</strong>：完全被动，只响应领导者和候选者的请求。</li>
+<li><strong>候选者 (Candidate)</strong>：在选举新的领导者时，自身变成候选者，并发起选举。</li>
+</ul>
+<h4 id="3-2-2-算法流程"><a href="#3-2-2-算法流程" class="headerlink" title="3.2.2 算法流程"></a>3.2.2 算法流程</h4><p>Raft 算法的核心分为三个子问题：</p>
+<p><strong>1. 领导者选举 (Leader Election)</strong></p>
+<ul>
+<li>所有节点最初都是跟随者。</li>
+<li>每个跟随者都有一个随机的<strong>选举超时时间</strong>。</li>
+<li>如果跟随者在给定的时间内没有收到来自领导者（或候选者）的心跳，它就会增加当前的<strong>任期 (Term)</strong>，并转变为<strong>候选者 (Candidate)</strong>。</li>
+<li>候选者向所有其他节点发送 <strong>RequestVote RPC (远程过程调用)</strong> 请求投票。</li>
+<li><strong>投票规则</strong>：<ul>
+<li>每个节点在一个任期内只能投一票。</li>
+<li>如果候选者的日志至少和自己的日志一样新，并且该节点还没有投票给其他候选者，就会投票给该候选者。</li>
+</ul>
+</li>
+<li><strong>选举结果</strong>：<ul>
+<li>如果候选者获得大多数节点的投票，它就成为新的领导者，并发送心跳包给所有跟随者。</li>
+<li>如果选举超时，没有达到多数，则进入下一个任期并再次发起选举。</li>
+<li>如果一个跟随者收到有效领导者的心跳，它就会返回跟随者状态。</li>
+</ul>
+</li>
+</ul>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant F1 as Follower 1
+    participant F2 as Follower 2
+    participant F3 as Follower 3
+    participant F4 as Follower 4
+    participant F5 as Follower 5
+
+    Note over F1,F5: All start as Followers
+    F1-&gt;&gt;F1: Election timeout elapsed
+    F1-&gt;&gt;F1: F1 becomes Candidate (Term N+1)
+    F1-&gt;&gt;F2: RequestVote(Term&#x3D;N+1, LogIndex&#x3D;X)
+    F1-&gt;&gt;F3: RequestVote(Term&#x3D;N+1, LogIndex&#x3D;X)
+    F1-&gt;&gt;F4: RequestVote(Term&#x3D;N+1, LogIndex&#x3D;X)
+    F1-&gt;&gt;F5: RequestVote(Term&#x3D;N+1, LogIndex&#x3D;X)
+    F2--&gt;&gt;F1: Vote(Term&#x3D;N+1)
+    F3--&gt;&gt;F1: Vote(Term&#x3D;N+1)
+    F4--&gt;&gt;F1: Vote(Term&#x3D;N+1)
+    Note over F1: F1 receives 3&#x2F;5 votes (majority)
+    F1-&gt;&gt;F1: F1 becomes Leader (Term N+1)
+    F1-&gt;&gt;F2: AppendEntries (Heartbeat)
+    F1-&gt;&gt;F3: AppendEntries (Heartbeat)
+    F1-&gt;&gt;F4: AppendEntries (Heartbeat)
+    F1-&gt;&gt;F5: AppendEntries (Heartbeat)
+  </pre></div>
+
+<p><strong>2. 日志复制 (Log Replication)</strong></p>
+<ul>
+<li>所有客户端请求都由<strong>领导者 (Leader)</strong> 处理。</li>
+<li>领导者把请求作为<strong>日志条目 (Log Entry)</strong> 追加到自己的日志中。</li>
+<li>领导者并行地向所有<strong>跟随者 (Followers)</strong> 发送 <strong>AppendEntries RPC</strong>（包含新的日志条目和心跳）。</li>
+<li>跟随者接收到 AppendEntries 后，如果日志一致，则追加日志并返回成功。</li>
+<li>领导者需要收到<strong>大多数跟随者</strong>的成功响应后，才认为日志条目已<strong>提交 (Committed)</strong>。</li>
+<li>已提交的日志条目可以被安全地应用到状态机，并回复客户端。</li>
+<li>Raft 通过强制领导者拥有最新的已提交日志来确保日志一致性 (Log Consistency)。</li>
+</ul>
+<p><strong>3. 安全性 (Safety)</strong></p>
+<p>Raft 引入了“任期”和投票限制来确保安全性：</p>
+<ul>
+<li><strong>选举限制</strong>：投票给某个候选者的节点，必须满足候选者的日志至少和自己本地的日志一样新（通过比较日志的任期和索引）。</li>
+<li><strong>集群成员变更</strong>：采用<strong>联合一致性 (Joint Consensus)</strong> 机制，平滑地改变集群成员，避免脑裂。</li>
+</ul>
+<h4 id="3-2-3-优缺点"><a href="#3-2-3-优缺点" class="headerlink" title="3.2.3 优缺点"></a>3.2.3 优缺点</h4><ul>
+<li><strong>优点</strong>：<ul>
+<li><strong>易于理解和实现</strong>：相比 Paxos 的一大优势，降低了分布式系统开发的门槛。</li>
+<li><strong>健壮性好</strong>：在各种网络和节点故障下都能正常工作。</li>
+<li><strong>性能较好</strong>：领导者处理所有请求，减少了复杂协商的开销。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>强领导者模式</strong>：所有的请求都需要经过领导者，如果领导者出现故障或网络分区，恢复时间会影响可用性。</li>
+<li><strong>不容忍拜占庭故障</strong>：Raft 依然是 CFT 算法。</li>
+</ul>
+</li>
+</ul>
+<h2 id="四、拜占庭容错算法-BFT"><a href="#四、拜占庭容错算法-BFT" class="headerlink" title="四、拜占庭容错算法 (BFT)"></a>四、拜占庭容错算法 (BFT)</h2><h3 id="4-1-Practical-Byzantine-Fault-Tolerance-PBFT"><a href="#4-1-Practical-Byzantine-Fault-Tolerance-PBFT" class="headerlink" title="4.1 Practical Byzantine Fault Tolerance (PBFT)"></a>4.1 Practical Byzantine Fault Tolerance (PBFT)</h3><p>PBFT 是一种高效的拜占庭容错算法，由 Miguel Castro 和 Barbara Liskov 在 1999 年提出。它能在异步网络环境中，容忍不超过 $f$ 个拜占庭节点故障，前提是系统总节点数 $N \geq 3f+1$。</p>
+<h4 id="4-1-1-角色定义"><a href="#4-1-1-角色定义" class="headerlink" title="4.1.1 角色定义"></a>4.1.1 角色定义</h4><p>PBFT 假设系统中有 $N$ 个副本节点：</p>
+<ul>
+<li><strong>主节点 (Primary)</strong>：负责接收客户端请求并协调共识过程。</li>
+<li><strong>备份节点 (Backup)</strong>：响应主节点的请求并参与共识。</li>
+</ul>
+<p>主节点是动态的，会根据视图编号 (View Number) 轮换。</p>
+<h4 id="4-1-2-算法流程"><a href="#4-1-2-算法流程" class="headerlink" title="4.1.2 算法流程"></a>4.1.2 算法流程</h4><p>PBFT 算法通过多阶段的投票和消息交换来达成共识，确保即使有恶意节点也无法破坏一致性。</p>
+<p><strong>阶段 0：客户端请求 (Client Request)</strong></p>
+<ol>
+<li>客户端向主节点发送请求 <code>&lt;REQUEST, o, t, c&gt;</code>，其中 $o$ 是操作，$t$ 是时间戳，$c$ 是客户端 ID。</li>
+</ol>
+<p><strong>阶段 1：预准备 (Pre-prepare)</strong></p>
+<ol>
+<li>主节点收到客户端请求后，为该请求分配一个序列号 $n$，并向所有备份节点广播一个 <strong>Pre-prepare 消息</strong>：<br><code>&lt;PRE-PREPARE, v, n, d(o)&gt;</code><br>其中 $v$ 是当前视图编号，$n$ 是序列号，$d(o)$ 是请求的摘要。</li>
+<li>备份节点接收到 Pre-prepare 消息后，进行校验（例如，检查消息的有效性和序列号）。</li>
+<li>如果校验通过，备份节点进入 Pre-prepare 状态，并向所有其他节点（包括主节点）广播 <strong>Prepare 消息</strong>。</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant C as Client
+    participant P as Primary (f0)
+    participant B1 as Backup 1 (f1)
+    participant B2 as Backup 2 (f2)
+    participant B3 as Backup 3 (f3)
+
+    C-&gt;&gt;P: Request(op, timestamp, client_id)
+    Note over P: P assigns sequence &#39;n&#39;
+    P-&gt;&gt;B1: Pre-prepare(v, n, Request_digest)
+    P-&gt;&gt;B2: Pre-prepare(v, n, Request_digest)
+    P-&gt;&gt;B3: Pre-prepare(v, n, Request_digest)
+  </pre></div>
+
+<p><strong>阶段 2：准备 (Prepare)</strong></p>
+<ol>
+<li>所有节点（包括主节点本身）在收到 Pre-prepare 消息后，会向所有其他节点广播 <strong>Prepare 消息</strong>：<br><code>&lt;PREPARE, v, n, d(o), i&gt;</code><br>其中 $i$ 是自己的节点 ID。</li>
+<li>节点在收到了至少 $2f+1$ 个<strong>合法的 Pre-prepare 和 Prepare 消息</strong>（包括自己的 Pre-prepare 或 Prepare 消息）后，就认为自己进入了 Prepare 状态，表示所有诚实节点都收到了相同的请求。</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant C as Client
+    participant P as Primary (f0)
+    participant B1 as Backup 1 (f1)
+    participant B2 as Backup 2 (f2)
+    participant B3 as Backup 3 (f3)
+
+    C-&gt;&gt;P: Request(op, timestamp, client_id)
+    P-&gt;&gt;B1: Pre-prepare(...)
+    P-&gt;&gt;B2: Pre-prepare(...)
+    P-&gt;&gt;B3: Pre-prepare(...)
+
+    B1-&gt;&gt;P: Prepare(...)
+    B1-&gt;&gt;B2: Prepare(...)
+    B1-&gt;&gt;B3: Prepare(...)
+    B2-&gt;&gt;P: Prepare(...)
+    B2-&gt;&gt;B1: Prepare(...)
+    B2-&gt;&gt;B3: Prepare(...)
+    B3-&gt;&gt;P: Prepare(...)
+    B3-&gt;&gt;B1: Prepare(...)
+    B3-&gt;&gt;B2: Prepare(...)
+
+    Note over P,B3: All nodes collect 2f+1 (e.g., 3 if f&#x3D;1) Prepare messages
+  </pre></div>
+
+<p><strong>阶段 3：提交 (Commit)</strong></p>
+<ol>
+<li>节点进入 Prepare 状态后，会向所有其他节点广播 <strong>Commit 消息</strong>：<br><code>&lt;COMMIT, v, n, d(o), i&gt;</code></li>
+<li>当节点收到至少 $2f+1$ 个<strong>合法的 Commit 消息</strong>后，就认为该请求已经被大多数节点认可，进入 Commit 状态。此时，请求可以被安全地应用。</li>
+</ol>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    sequenceDiagram
+    participant C as Client
+    participant P as Primary (f0)
+    participant B1 as Backup 1 (f1)
+    participant B2 as Backup 2 (f2)
+    participant B3 as Backup 3 (f3)
+
+    C-&gt;&gt;P: Request(op, timestamp, client_id)
+    P-&gt;&gt;B1: Pre-prepare(...)
+    P-&gt;&gt;B2: Pre-prepare(...)
+    P-&gt;&gt;B3: Pre-prepare(...)
+
+    B1-&gt;&gt;P: Prepare(...)
+    B1-&gt;&gt;B2: Prepare(...)
+    B1-&gt;&gt;B3: Prepare(...)
+    B2-&gt;&gt;P: Prepare(...)
+    B2-&gt;&gt;B1: Prepare(...)
+    B2-&gt;&gt;B3: Prepare(...)
+    B3-&gt;&gt;P: Prepare(...)
+    B3-&gt;&gt;B1: Prepare(...)
+    B3-&gt;&gt;B2: Prepare(...)
+
+    P-&gt;&gt;B1: Commit(...)
+    P-&gt;&gt;B2: Commit(...)
+    P-&gt;&gt;B3: Commit(...)
+    B1-&gt;&gt;P: Commit(...)
+    B1-&gt;&gt;B2: Commit(...)
+    B1-&gt;&gt;B3: Commit(...)
+    B2-&gt;&gt;P: Commit(...)
+    B2-&gt;&gt;B1: Commit(...)
+    B2-&gt;&gt;B3: Commit(...)
+    B3-&gt;&gt;P: Commit(...)
+    B3-&gt;&gt;B1: Commit(...)
+    B3-&gt;&gt;B2: Commit(...)
+
+    Note over P,B3: All nodes collect 2f+1 Commit messages, request is committed.
+  </pre></div>
+
+<p><strong>阶段 4：回复 (Reply)</strong></p>
+<ol>
+<li>节点提交请求后，执行相应的操作，并将结果发送回客户端：<br><code>&lt;REPLY, v, t, c, r&gt;</code><br>其中 $r$ 是操作结果。</li>
+<li>客户端等待接收到 $f+1$ 个来自不同节点的相同回复，以确认操作已经完成。</li>
+</ol>
+<p><strong>视图更换 (View Change)</strong>：<br>如果主节点发生故障或行为异常，备份节点会发起<strong>视图更换</strong>协议，选举新的主节点。这是 PBFT 确保活性的关键。</p>
+<h4 id="4-1-3-优缺点"><a href="#4-1-3-优缺点" class="headerlink" title="4.1.3 优缺点"></a>4.1.3 优缺点</h4><ul>
+<li><strong>优点</strong>：<ul>
+<li><strong>高容错性</strong>：能容忍拜占庭故障，保证安全性和活性。</li>
+<li><strong>最终确定性 (Finality)</strong>：一旦达成共识，交易结果就是最终的，不会被回滚。</li>
+<li><strong>性能较好</strong>：相比于区块链 PoW 机制，在小规模联盟链或私有链中性能显著更高。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：<ul>
+<li><strong>可伸缩性差</strong>：通信复杂度为 $O(N^2)$ (每个节点需要向 $N-1$ 个节点发送消息)，不适用于大规模网络，通常节点数上限在几十个。</li>
+<li><strong>需要知道所有节点信息</strong>：所有节点必须是已知的，且相对稳定，不适用于开放式的公有链。</li>
+<li><strong>初始信任假设</strong>：存在 $f$ 个恶意节点的前提下，要求有 $3f+1$ 个正常节点，意味着对最初的节点设置有一定信任要求。</li>
+</ul>
+</li>
+</ul>
+<h2 id="五、区块链中的共识机制简述"><a href="#五、区块链中的共识机制简述" class="headerlink" title="五、区块链中的共识机制简述"></a>五、区块链中的共识机制简述</h2><p>区块链技术由于其去中心化和无需信任的特性，对共识算法提出了独特的需求，特别是解决了<strong>开放网络中的拜占庭容错问题</strong>。</p>
+<ul>
+<li><strong>工作量证明 (Proof of Work, PoW)</strong>：<ul>
+<li><strong>原理</strong>：通过计算满足特定条件的哈希值（“挖矿”）来竞争生成新区块的权利。第一个找到满足条件的节点获得区块奖励，并广播新区块。</li>
+<li><strong>拜占庭容错</strong>：通过巨大的计算成本和“最长链原则”来确保链的安全性。恶意节点难以在计算能力上超越多数诚实节点，从而无法伪造交易或篡改历史。</li>
+<li><strong>优点</strong>：高度去中心化，安全性高。</li>
+<li><strong>缺点</strong>：资源消耗大，交易吞吐量低，确认时间长。</li>
+</ul>
+</li>
+<li><strong>权益证明 (Proof of Stake, PoS)</strong>：<ul>
+<li><strong>原理</strong>：节点（验证者）根据其持有的代币数量（权益）来竞争生成新区块的权利。权益越高，被选中的概率越大。</li>
+<li><strong>拜占庭容错</strong>：通过惩罚机制（如 slash 没收质押）来约束恶意行为。恶意行为的成本是其持有的权益，使得作恶经济上不划算。</li>
+<li><strong>优点</strong>：能耗低，交易吞吐量通常高于 PoW。</li>
+<li><strong>缺点</strong>：可能存在“富者越富”效应，中心化风险相对 PoW 理论上更高。</li>
+</ul>
+</li>
+</ul>
+<p>PoW 和 PoS 等区块链共识机制通过结合经济激励和密码学技术，在开放且无需许可的环境中实现了大规模的拜占庭容错。</p>
+<h2 id="六、共识算法对比"><a href="#六、共识算法对比" class="headerlink" title="六、共识算法对比"></a>六、共识算法对比</h2><table>
+<thead>
+<tr>
+<th align="left">特性 &#x2F; 算法</th>
+<th align="left">Paxos</th>
+<th align="left">Raft</th>
+<th align="left">PBFT</th>
+<th align="left">PoW (比特币)</th>
+<th align="left">PoS (以太坊 2.0)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>类型</strong></td>
+<td align="left">CFT</td>
+<td align="left">CFT</td>
+<td align="left">BFT</td>
+<td align="left">BFT (通过经济激励)</td>
+<td align="left">BFT (通过经济激励)</td>
+</tr>
+<tr>
+<td align="left"><strong>容错能力</strong></td>
+<td align="left">$f$ 个节点崩溃</td>
+<td align="left">$f$ 个节点崩溃</td>
+<td align="left">$f$ 个节点拜占庭故障</td>
+<td align="left">大部分哈希算力为诚实</td>
+<td align="left">大部分质押为诚实</td>
+</tr>
+<tr>
+<td align="left"><strong>所需节点</strong></td>
+<td align="left">$2f+1$</td>
+<td align="left">$2f+1$</td>
+<td align="left">$3f+1$</td>
+<td align="left">无特定数量，取决于算力分布</td>
+<td align="left">无特定数量，取决于质押分布</td>
+</tr>
+<tr>
+<td align="left"><strong>通信复杂度</strong></td>
+<td align="left">2PC (两阶段提交)，活锁风险</td>
+<td align="left">Leader-Follower (单领导者)</td>
+<td align="left">$O(N^2)$</td>
+<td align="left">广播区块，P2P 网络</td>
+<td align="left">P2P 网络，委员会投票</td>
+</tr>
+<tr>
+<td align="left"><strong>性能&#x2F;吞吐量</strong></td>
+<td align="left">中等</td>
+<td align="left">较好</td>
+<td align="left">高 (小规模)</td>
+<td align="left">极低</td>
+<td align="left">中等偏高</td>
+</tr>
+<tr>
+<td align="left"><strong>易理解性</strong></td>
+<td align="left">极复杂</td>
+<td align="left">易于理解</td>
+<td align="left">复杂</td>
+<td align="left">直观简单（作为用户）</td>
+<td align="left">相对复杂</td>
+</tr>
+<tr>
+<td align="left"><strong>应用场景</strong></td>
+<td align="left">分布式数据库，文件系统</td>
+<td align="left">分布式服务，配置管理，K&#x2F;V 存储</td>
+<td align="left">联盟链，私有链，许可链</td>
+<td align="left">公有链</td>
+<td align="left">公有链，私有链</td>
+</tr>
+<tr>
+<td align="left"><strong>最终性</strong></td>
+<td align="left">即时性确定</td>
+<td align="left">即时性确定</td>
+<td align="left">即时性确定</td>
+<td align="left">概率性确定（需等待多个区块确认）</td>
+<td align="left">概率性确定（需等待多个 Slot&#x2F;Epoch 确认）</td>
+</tr>
+<tr>
+<td align="left"><strong>网络环境</strong></td>
+<td align="left">部分同步或同步</td>
+<td align="left">部分同步</td>
+<td align="left">异步 (但有视图切换保障活性)</td>
+<td align="left">异步</td>
+<td align="left">异步</td>
+</tr>
+</tbody></table>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>共识算法是分布式系统领域中的基石，它使多个独立的计算机能够像一个整体一样协同工作，即使在面对各种故障和挑战时也能保持数据的一致性和服务的可靠性。从理论上优美但实践中复杂的 Paxos，到旨在易于理解和实现的 Raft，再到可以抵御恶意节点攻击的 PBFT，每种算法都有其特定的应用场景和优缺点。</p>
+<p>随着区块链技术的兴起，以 PoW 和 PoS 为代表的新型共识机制，在开放且无需信任的环境中解决了大规模的拜占庭容错问题，为去中心化应用奠定了基础。</p>
+<p>理解这些共识算法的原理，对于设计、实现和维护高性能、高可用且安全的分布式系统至关重要。开发者需要根据系统的具体需求（如容错模型、网络规模、性能要求和一致性级别）来审慎选择和使用适合的共识算法。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/d819fc26cbc7/">https://blog.tbf1211.xx.kg/d819fc26cbc7/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a><a class="post-meta__tags" href="/tags/2026/">2026</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-11.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">go.sum 文件中特殊哈希计算详解</div></div><div class="info-2"><div class="info-item-1"> go.sum 文件在 Go 模块生态系统中扮演着至关重要的角色，它记录了项目直接和间接依赖模块的加密哈希值，用于确保模块的完整性和安全性，防止供应链攻击。除了对模块文件内容的常规哈希外，go.sum 中还存在一些特殊的哈希条目，它们用于校验特定的信息流，而非直接的模块压缩包内容。本文将深入探讨这些特殊哈希的计算机制。  核心要点：go.sum 中的特殊哈希主要针对两种场景：go.mod 文件内容的校验以及 vendor 目录内容的校验。它们确保了关键配置信息和本地缓存的一致性。    一、Go Modules 与 go.sum 概述1.1 Go Modules 简介Go Modules 是 Go 语言的官方依赖管理系统，它通过 go.mod 文件定义模块的依赖关系，并通过 go.sum 文件记录模块的加密校验和。这种机制确保了构建的可重复性，并提供了针对恶意代码注入（如中间人攻击）的防御。 1.2 go.sum 的作用go.sum 文件包含两类条目，每行一个，格式通常为： module_path module_version HASH或module_path module_ve...</div></div></div></a><a class="pagination-related" href="/1c5cbb334a2a/" title="计算机中熵的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">计算机中熵的详解</div></div><div class="info-2"><div class="info-item-1">在计算机科学中，“熵”（Entropy）是一个核心而多维的概念，它源于信息论，并被广泛应用于随机数生成、密码学和系统安全等领域。理解熵对于构建健壮和安全的现代计算系统至关重要。  熵 (Entropy) 在信息论中，是一种衡量信息源不确定性或信息量的度量。在计算机领域，它通常指代随机性或不可预测性的量度，用于量化系统或数据中存在的无序程度或信息含量。更高的熵意味着更强的随机性和更大的不可预测性。  核心概念：熵是信息的不确定性或随机性大小的度量。    一、熵的引入：热力学与信息论的对比“熵”这个词最早来源于热力学，但在计算机科学中，我们通常主要关注的是信息熵 (Information Entropy)。尽管名称相同，它们描述的“无序”或“不确定性”在概念上存在一定的关联，但在具体领域和衡量方式上却存在显著差异： 1.1 热力学熵 (Thermodynamic Entropy) 领域：物理学，热力学。 衡量对象：一个物理系统中的混乱程度、分子无序性或能量分散程度。它与系统的微观状态数量（通过玻尔兹曼方程 $S &#x3D; k \ln \Omega$）以及能量转换的不可逆性（热力...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/fa3d796f3333/" title="MessagePack 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-09</div><div class="info-item-2">MessagePack 详解</div></div><div class="info-2"><div class="info-item-1"> MessagePack 是一个高效的二进制序列化格式，它允许你在多种语言之间交换数据，就像 JSON 一样。但与 JSON 不同的是，MessagePack 以更紧凑的二进制形式表示数据，这通常使其具有更小的消息大小和更快的编码&#x2F;解码速度。它被设计为一个“像 JSON 但更快更小”的替代品，特别适用于网络协议、数据存储以及低功耗设备等对性能和带宽敏感的场景。  核心思想：将结构化数据（如对象、数组、基本类型）编码成紧凑的二进制流，以实现高效的数据传输和存储。   一、什么是 MessagePack？MessagePack 是一种基于二进制的数据交换格式，其设计目标是高效、紧凑和跨语言兼容。它通过一种优化的二进制表示来序列化各种数据类型，包括整数、浮点数、字符串、二进制数据、数组和映射。其官方网站将其描述为“一个整洁、紧凑的二进制序列化格式”。 与文本格式（如 JSON）相比，MessagePack 的主要优势在于：  更小的消息尺寸：通过减少冗余信息并直接使用二进制表示数据类型，MessagePack 生成的数据通常比同等 JSON 数据小。 更快的处理速度：由于节省...</div></div></div></a><a class="pagination-related" href="/a90dd53e3ba4/" title="Protocol Buffers 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-12</div><div class="info-item-2">Protocol Buffers 详解</div></div><div class="info-2"><div class="info-item-1"> Protocol Buffers (Protobuf) 是 Google 开发的一种语言无关、平台无关、可扩展的序列化数据结构的方法。它旨在替代 XML 等数据交换格式，以实现更小、更快、更简单的数据传输。Protobuf 允许开发者定义数据结构（称为 message），并通过生成的代码，以高效的二进制格式序列化这些数据，或从二进制格式反序列化回原始数据结构。它广泛应用于微服务间的通信、数据存储以及网络协议定义等场景，尤其是 Google 自家的 gRPC 框架更是以 Protobuf 作为其默认的接口定义语言和数据交换格式。  核心思想：通过简洁的 .proto 文件定义数据结构，然后通过代码生成工具将其转换为特定语言的高效代码，实现紧凑、快速的二进制数据序列化和反序列化，支持强大的 Schema 演进和跨语言互操作性。    一、为什么需要 Protocol Buffers？在分布式系统和微服务架构中，不同服务之间的数据交换是核心环节。传统的数据交换格式，如 JSON 或 XML，存在以下一些问题：  性能瓶颈：文本格式解析速度相对较慢，对于大量数据或高并发场景，CPU 消...</div></div></div></a><a class="pagination-related" href="/28d59ad3e642/" title="Apache Avro 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-10</div><div class="info-item-2">Apache Avro 详解</div></div><div class="info-2"><div class="info-item-1"> Apache Avro 是一个数据序列化系统和远程过程调用 (RPC) 框架，起源于 Apache Hadoop 项目。它的核心目标是提供一个高效、紧凑、跨语言的数据交换和持久化存储解决方案，尤其适用于大数据环境和需要强大Schema 演进 (Schema Evolution) 支持的场景。Avro 通过 JSON 定义数据结构（Schema），但实际数据以紧凑的二进制格式存储，兼顾了可读性与传输效率。  核心思想：以 JSON 定义 Schema (模式) 实现跨语言的数据结构描述，以紧凑二进制格式序列化数据，并通过读写 Schema 差异自动处理数据兼容性，实现高效灵活的数据交换。    一、为什么需要 Avro？在分布式系统和大数据领域，数据交换和存储是核心挑战。传统的数据格式如 JSON 或 XML 虽然具有良好的可读性，但在数据量巨大时，它们的文件体积和解析效率往往成为瓶颈。而其他二进制格式如 Protocol Buffers 或 Thrift 虽然效率高，但通常需要代码生成，且在 Schema 演进和动态语言支持方面存在一些局限性。 Avro 的出现旨在解决这些问题...</div></div></div></a><a class="pagination-related" href="/84980af09d70/" title="HTTP URL 与 IP:端口 的区别详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-25</div><div class="info-item-2">HTTP URL 与 IP:端口 的区别详解</div></div><div class="info-2"><div class="info-item-1"> 虽然 http://127.0.0.1:1080 和 127.0.0.1:1080 都指向本地机器上的 1080 端口，但它们在含义、使用上下文和系统处理方式上存在根本区别。前者是一个完整的 URL (Uniform Resource Locator)，明确指定了协议 (Protocol)；而后者仅仅是一个 地址:端口 组合，通常用于网络服务的监听或内部配置，本身不包含协议信息。  核心思想：协议 (http://) 定义了客户端与服务端通信的方式和规则，而 IP:端口 仅仅标识了一个网络端点。在不同上下文中，对 IP:端口 的处理方式会有所不同，例如浏览器会自动补全协议，而网络编程接口通常只接收 IP:端口 来监听。   一、核心概念定义在深入探讨两者区别之前，我们先定义几个关键概念： 1.1 IP 地址 (Internet Protocol Address)定义：一个分配给网络上设备的数字标签，用于在计算机网络中标识和定位设备。127.0.0.1 是一个特殊的 IP 地址，称为回环地址 (Loopback Address) 或 本地主机 (localhost)，它总是指向当...</div></div></div></a><a class="pagination-related" href="/72a99447fbd9/" title="MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-11-22</div><div class="info-item-2">MTU (Maximum Transmission Unit) 与 MSS (Maximum Segment Size) 详解</div></div><div class="info-2"><div class="info-item-1"> 在计算机网络中，MTU (Maximum Transmission Unit - 最大传输单元) 和 MSS (Maximum Segment Size - 最大报文段长度) 是两个至关重要的概念，它们直接影响着网络数据传输的效率、链路的健壮性以及应用程序的性能。理解这两个参数的区别、它们如何协同工作以及它们在网络通信中的作用，对于优化网络配置、诊断性能问题具有深远的意义。简而言之，MTU 关注网络层及以下的最大数据帧大小，而 MSS 则关注传输层 TCP 报文段中应用数据的最大大小。  核心思想：MTU 限制了IP数据包在物理链路上的最大尺寸，而 MSS 限制了TCP数据段的大小，以避免在IP层发生分片，从而提高网络传输效率和减少重传开销。   一、MTU (Maximum Transmission Unit)1.1 定义MTU (Maximum Transmission Unit - 最大传输单元) 是指网络层可以一次性发送的最大 IP 数据包大小（包括 IP 头部和数据部分），但不包括数据链路层（如以太网）的帧头和帧尾。它是一个链路层特性，由网络接口或链路类型决定。 1....</div></div></div></a><a class="pagination-related" href="/deb8135d7a70/" title="NAT 类型详解与穿越机制"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-13</div><div class="info-item-2">NAT 类型详解与穿越机制</div></div><div class="info-2"><div class="info-item-1"> NAT (Network Address Translation) 是一种在 IP 数据包通过路由器或防火墙时，修改 IP 地址信息 (通常是 IP 地址和端口号) 的技术。其主要目的是缓解 IPv4 地址枯竭问题，并为内部网络提供地址隐藏和一定的安全性。然而，NAT 也为点对点 (P2P) 通信带来了挑战，因为不同类型的 NAT 对数据包的转发行为差异巨大。  通过了解 NAT 的不同类型，我们可以选择合适的 NAT 穿越技术 (如 STUN, TURN, ICE) 来实现内网设备间的直接通信。   一、NAT 的基本概念与作用基本概念： NAT 是将一个 IP 地址空间映射到另一个 IP 地址空间的技术。最常见的是将私有 IP 地址（如 10.0.0.0&#x2F;8, 172.16.0.0&#x2F;12, 192.168.0.0&#x2F;16）映射到公有 IP 地址。 主要作用：  缓解 IPv4 地址枯竭：允许一个公网 IP 地址被多个内网设备共享，大大减少所需公网 IP 的数量。 隐藏内部网络拓扑：对外只暴露一个或少数几个公网 IP 地址，内部网络结构对外部透明，...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">567</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">233</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">85</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%85%B1%E8%AF%86%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7%E4%B8%8E%E6%8C%91%E6%88%98"><span class="toc-text">一、共识的必要性与挑战</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%85%B1%E8%AF%86%EF%BC%9F"><span class="toc-text">1.1 为什么需要共识？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F%E4%B8%AD%E7%9A%84%E6%8C%91%E6%88%98"><span class="toc-text">1.2 分布式系统中的挑战</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%85%B1%E8%AF%86%E7%AE%97%E6%B3%95%E7%9A%84%E5%88%86%E7%B1%BB%E4%B8%8E%E6%A0%B8%E5%BF%83%E5%B1%9E%E6%80%A7"><span class="toc-text">二、共识算法的分类与核心属性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%85%B1%E8%AF%86%E7%AE%97%E6%B3%95%E7%9A%84%E6%A0%B8%E5%BF%83%E5%B1%9E%E6%80%A7"><span class="toc-text">2.1 共识算法的核心属性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E7%BB%8F%E5%85%B8%E5%B4%A9%E6%BA%83%E5%AE%B9%E9%94%99%E7%AE%97%E6%B3%95-CFT"><span class="toc-text">三、经典崩溃容错算法 (CFT)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-Paxos"><span class="toc-text">3.1 Paxos</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-%E8%A7%92%E8%89%B2%E5%AE%9A%E4%B9%89"><span class="toc-text">3.1.1 角色定义</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-2-%E7%AE%97%E6%B3%95%E6%B5%81%E7%A8%8B"><span class="toc-text">3.1.2 算法流程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-3-%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">3.1.3 优缺点</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Raft"><span class="toc-text">3.2 Raft</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-1-%E8%A7%92%E8%89%B2%E5%AE%9A%E4%B9%89"><span class="toc-text">3.2.1 角色定义</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-2-%E7%AE%97%E6%B3%95%E6%B5%81%E7%A8%8B"><span class="toc-text">3.2.2 算法流程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-3-%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">3.2.3 优缺点</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%8B%9C%E5%8D%A0%E5%BA%AD%E5%AE%B9%E9%94%99%E7%AE%97%E6%B3%95-BFT"><span class="toc-text">四、拜占庭容错算法 (BFT)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-Practical-Byzantine-Fault-Tolerance-PBFT"><span class="toc-text">4.1 Practical Byzantine Fault Tolerance (PBFT)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-1-%E8%A7%92%E8%89%B2%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1.1 角色定义</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-2-%E7%AE%97%E6%B3%95%E6%B5%81%E7%A8%8B"><span class="toc-text">4.1.2 算法流程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-3-%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">4.1.3 优缺点</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%8C%BA%E5%9D%97%E9%93%BE%E4%B8%AD%E7%9A%84%E5%85%B1%E8%AF%86%E6%9C%BA%E5%88%B6%E7%AE%80%E8%BF%B0"><span class="toc-text">五、区块链中的共识机制简述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%85%B1%E8%AF%86%E7%AE%97%E6%B3%95%E5%AF%B9%E6%AF%94"><span class="toc-text">六、共识算法对比</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="go.sum 文件中特殊哈希计算详解"/></a><div class="content"><a class="title" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解">go.sum 文件中特殊哈希计算详解</a><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d819fc26cbc7/" title="共识算法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="共识算法详解"/></a><div class="content"><a class="title" href="/d819fc26cbc7/" title="共识算法详解">共识算法详解</a><time datetime="2026-02-19T22:24:00.000Z" title="发表于 2026-02-20 06:24:00">2026-02-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1c5cbb334a2a/" title="计算机中熵的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="计算机中熵的详解"/></a><div class="content"><a class="title" href="/1c5cbb334a2a/" title="计算机中熵的详解">计算机中熵的详解</a><time datetime="2026-02-17T22:24:00.000Z" title="发表于 2026-02-18 06:24:00">2026-02-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/9ed85cc18e8a/" title="CSP并发模型详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CSP并发模型详解"/></a><div class="content"><a class="title" href="/9ed85cc18e8a/" title="CSP并发模型详解">CSP并发模型详解</a><time datetime="2026-02-15T22:24:00.000Z" title="发表于 2026-02-16 06:24:00">2026-02-16</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0d177e0002e6/" title="程序错误处理详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="程序错误处理详解"/></a><div class="content"><a class="title" href="/0d177e0002e6/" title="程序错误处理详解">程序错误处理详解</a><time datetime="2026-02-13T22:24:00.000Z" title="发表于 2026-02-14 06:24:00">2026-02-14</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-11.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
