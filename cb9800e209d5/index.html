@@ -1,0 +1,837 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>梅森旋转算法 (MT19937) 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="梅森旋转算法 (Mersenne Twister, MT) 是一种伪随机数生成器 (Pseudorandom Number Generator, PRNG)，由日本平山秀一和西村拓士（Makoto Matsumoto 和 Takuji Nishimura）于1997年开发。其中最常用的版本是 MT19937，它的周期非常长，达到了 $2^{19937}-1$，并且通过了严格的统计测试，具有良好的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="梅森旋转算法 (MT19937) 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/cb9800e209d5/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="梅森旋转算法 (Mersenne Twister, MT) 是一种伪随机数生成器 (Pseudorandom Number Generator, PRNG)，由日本平山秀一和西村拓士（Makoto Matsumoto 和 Takuji Nishimura）于1997年开发。其中最常用的版本是 MT19937，它的周期非常长，达到了 $2^{19937}-1$，并且通过了严格的统计测试，具有良好的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg">
+<meta property="article:published_time" content="2024-02-28T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-03-02T10:17:05.281Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="2024">
+<meta property="article:tag" content="随机数">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "梅森旋转算法 (MT19937) 详解",
+  "url": "https://blog.tbf1211.xx.kg/cb9800e209d5/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-09.jpg",
+  "datePublished": "2024-02-28T22:24:00.000Z",
+  "dateModified": "2026-03-02T10:17:05.281Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/cb9800e209d5/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '梅森旋转算法 (MT19937) 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">576</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">235</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">88</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-09.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">梅森旋转算法 (MT19937) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">梅森旋转算法 (MT19937) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-02-28T22:24:00.000Z" title="发表于 2024-02-29 06:24:00">2024-02-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E5%8A%A0%E5%AF%86%E7%AE%97%E6%B3%95/">加密算法</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>梅森旋转算法 (Mersenne Twister, MT)</strong> 是一种<strong>伪随机数生成器 (Pseudorandom Number Generator, PRNG)</strong>，由日本平山秀一和西村拓士（Makoto Matsumoto 和 Takuji Nishimura）于1997年开发。其中最常用的版本是 <strong>MT19937</strong>，它的周期非常长，达到了 $2^{19937}-1$，并且通过了严格的统计测试，具有良好的统计均匀性。MT19937 凭借其高质量的随机性、高效的生成速度和极长的周期，已成为许多编程语言和应用中默认的 PRNG。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：利用伽罗瓦域 (Galois Field) 上的线性递归关系和“扭曲”变换来生成具有极长周期和良好统计特性的伪随机数序列。</p>
+</div>
+
+<hr>
+<h2 id="一、什么是伪随机数生成器-PRNG-？"><a href="#一、什么是伪随机数生成器-PRNG-？" class="headerlink" title="一、什么是伪随机数生成器 (PRNG)？"></a>一、什么是伪随机数生成器 (PRNG)？</h2><p>在深入了解 MT19937 之前，我们首先需要理解什么是伪随机数生成器。</p>
+<ul>
+<li><strong>随机数</strong>：通常指不可预测的、没有规律的数字序列。在计算机中，真正的随机性（True Random Number Generation, TRNG）往往依赖于物理世界的不可预测事件，如大气噪声、放射性衰变、鼠标移动等。</li>
+<li><strong>伪随机数 (Pseudorandom Number)</strong>：是通过确定性算法生成的数字序列，这些序列在统计学上看起来是随机的，但实际上是完全可预测的。只要给定相同的初始状态（称为<strong>种子, Seed</strong>），PRNG 总是会生成相同的序列。</li>
+</ul>
+<p>PRNG 的质量通常通过以下几个指标衡量：</p>
+<ol>
+<li><strong>周期 (Period)</strong>：生成重复序列之前的长度。周期越长越好。</li>
+<li><strong>统计特性</strong>：生成的序列是否均匀分布，是否存在偏离，是否通过了如 Diehard tests 或 TestU01 等专业统计测试。</li>
+<li><strong>多维等分布</strong>：在多维空间中，点对是否也均匀分布。</li>
+<li><strong>生成速度</strong>：生成下一个随机数的速度。</li>
+</ol>
+<h2 id="二、MT19937-的历史与命名"><a href="#二、MT19937-的历史与命名" class="headerlink" title="二、MT19937 的历史与命名"></a>二、MT19937 的历史与命名</h2><ul>
+<li><strong>开发背景</strong>：在 MT19937 出现之前，传统的 PRNG（如线性同余生成器 LCG）往往周期较短，统计特性也一般，不足以满足复杂的模拟需求。</li>
+<li><strong>诞生</strong>：由日本京都大学教授松本真 (Makoto Matsumoto) 和西村拓士 (Takuji Nishimura) 于 1997 年发表。</li>
+<li><strong>命名由来</strong>：<ul>
+<li><strong>Mersenne (梅森)</strong>：该算法的周期是基于一个梅森素数 $2^p - 1$。梅森素数是一类形如 $2^p - 1$ 的素数，其中 $p$ 也是素数。</li>
+<li><strong>Twister (旋转)</strong>：指的是其核心操作中涉及到位操作和“扭曲”变换。</li>
+<li><strong>19937</strong>：表示该算法使用的梅森素数是 $M_{19937} &#x3D; 2^{19937} - 1$。这个数字大得惊人，意味着 MT19937 的周期长度达到了 $2^{19937}-1$，是目前已知最长的非密码学 PRNG 周期之一。</li>
+</ul>
+</li>
+</ul>
+<h2 id="三、MT19937-的工作原理"><a href="#三、MT19937-的工作原理" class="headerlink" title="三、MT19937 的工作原理"></a>三、MT19937 的工作原理</h2><p>MT19937 是一个基于<strong>有限二进制域 $\mathbb{F}_2$ 上的线性递归算法</strong>。它的核心思想可以概括为两个主要阶段：<strong>状态更新（扭曲）</strong> 和 <strong>输出处理（回火）</strong>。</p>
+<h3 id="3-1-内部状态-State"><a href="#3-1-内部状态-State" class="headerlink" title="3.1 内部状态 (State)"></a>3.1 内部状态 (State)</h3><p>MT19937 维护一个包含 <code>N</code> 个 32 位无符号整数的数组作为其内部状态。对于 MT19937，<code>N = 624</code>。这意味着其内部状态空间非常大，为 $624 \times 32$ 位。</p>
+<h3 id="3-2-线性递归关系-Twisting"><a href="#3-2-线性递归关系-Twisting" class="headerlink" title="3.2 线性递归关系 (Twisting)"></a>3.2 线性递归关系 (Twisting)</h3><p>这是生成器核心的“旋转”部分。每当内部状态耗尽（即所有 <code>N</code> 个随机数都已从当前状态生成），或者请求新的随机数时，生成器会通过以下线性递归关系来计算新的 <code>N</code> 个 32 位整数：</p>
+<p>$$<br>x_{i+N} &#x3D; x_{i+M} \oplus (x_i^{upper} | x_{i+1}^{lower}) A<br>$$</p>
+<p>其中：</p>
+<ul>
+<li>$x_i$ 是当前状态数组中的元素。</li>
+<li>$N &#x3D; 624$, $M &#x3D; 397$ (MT19937 的参数)。</li>
+<li>$x_i^{upper}$ 是 $x_i$ 的最高位（第 31 位）。</li>
+<li>$x_{i+1}^{lower}$ 是 $x_{i+1}$ 的低 31 位。</li>
+<li>$\oplus$ 表示异或 (XOR) 操作。</li>
+<li>$A$ 是一个特殊的 $w \times w$ 矩阵 (对于 32 位整数，是 $32 \times 32$ 矩阵)，通常被称为<strong>扭曲矩阵 (Twist Matrix)</strong>。这里的矩阵乘法是在 $\mathbb{F}_2$ 域（即模 2 运算）上进行的。在实际实现中，矩阵 $A$ 的乘法可以被简化为一系列的位移和 XOR 操作，因为 $A$ 被选择得非常稀疏。具体来说，$A$ 满足 $x \cdot A &#x3D; (x \gg 1) \oplus (\text{if } x_0&#x3D;1 \text{ then } a \text{ else } 0)$，其中 $a$ 是一个常数。</li>
+</ul>
+<p>这个操作有效地将当前状态的两个元素（$x_i$ 和 $x_{i+1}$）与另一个元素（$x_{i+M}$）结合起来，加上对一个特殊矩阵 $A$ 的乘法，来生成新的状态元素 $x_{i+N}$。</p>
+<h3 id="3-3-回火处理-Tempering"><a href="#3-3-回火处理-Tempering" class="headerlink" title="3.3 回火处理 (Tempering)"></a>3.3 回火处理 (Tempering)</h3><p>直接从内部状态中取出的 32 位整数可能不具备良好的统计特性（例如，最高位和最低位之间可能存在相关性）。为了改善输出的随机性，MT19937 在输出之前会进行一系列的<strong>回火 (Tempering)</strong> 变换。这些变换主要是<strong>非线性位移和异或操作</strong>，旨在“打乱”位的顺序，增加位之间的混乱度，从而提高最终输出的均匀性和统计独立性。</p>
+<p>对于一个从内部状态数组中获得的 32 位整数 <code>y</code>，回火过程通常如下：</p>
+<ul>
+<li><code>y = y ^ (y &gt;&gt; u)</code></li>
+<li><code>y = y ^ ((y &lt;&lt; s) &amp; b)</code></li>
+<li><code>y = y ^ ((y &lt;&lt; t) &amp; c)</code></li>
+<li><code>y = y ^ (y &gt;&gt; l)</code></li>
+</ul>
+<p>其中 <code>u, s, t, l</code> 是位移量，<code>b, c</code> 是位掩码，这些都是 MT19937 的预定义参数。</p>
+<h3 id="3-4-初始化-Seeding"><a href="#3-4-初始化-Seeding" class="headerlink" title="3.4 初始化 (Seeding)"></a>3.4 初始化 (Seeding)</h3><p>MT19937 需要一个初始种子来填充其内部状态数组。种子通常是一个 32 位整数。从这个单一的种子开始，通过一个更长的线性反馈移位操作，生成器会初始化其全部 624 个 32 位整数。良好的初始化算法可以确保即使使用相似的种子，也能产生统计上不同的序列。</p>
+<h3 id="简化工作流程"><a href="#简化工作流程" class="headerlink" title="简化工作流程"></a>简化工作流程</h3><ol>
+<li><strong>初始化 <code>state</code> 数组</strong>：使用一个种子值，通过特定的算法填充<code>state[0]</code>到<code>state[N-1]</code>。</li>
+<li><strong>生成随机数</strong>：<ul>
+<li>如果 <code>state</code> 数组中的所有随机数都已输出，则调用 <code>_twist</code> 函数生成一组新的 <code>N</code> 个随机数填充 <code>state</code> 数组。</li>
+<li>从 <code>state</code> 数组中取出一个随机数 <code>y</code>。</li>
+<li>对 <code>y</code> 进行 <code>_temper</code> 操作。</li>
+<li>返回回火处理后的 <code>y</code>。</li>
+</ul>
+</li>
+</ol>
+<h4 id="Mermaid-流程图"><a href="#Mermaid-流程图" class="headerlink" title="Mermaid 流程图"></a>Mermaid 流程图</h4><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TD
+    %% 样式定义：针对深色模式优化
+    classDef start_end fill:#313244,stroke:#a6e3a1,color:#a6e3a1,stroke-width:2px;
+    classDef init fill:#313244,stroke:#89b4fa,color:#89b4fa,stroke-width:2px;
+    classDef decision fill:#45475a,stroke:#fab387,color:#fab387,stroke-width:2px;
+    classDef internal fill:#313244,stroke:#cba6f7,color:#cba6f7,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef output fill:#313244,stroke:#f9e2af,color:#f9e2af,stroke-width:2px;
+
+    %% 流程节点
+    Start([&quot;&lt;b&gt;开始&lt;&#x2F;b&gt;&quot;]):::start_end --&gt; Seed[选择种子 Seed]:::init
+    Seed --&gt; InitState[&quot;初始化状态数组 &lt;br&#x2F;&gt;&lt;i&gt;State[N&#x3D;624]&lt;&#x2F;i&gt;&quot;]:::init
+    
+    subgraph GenerationCycle [生成循环]
+        InitState --&gt; CheckExhausted{索引 i &gt;&#x3D; N ? &lt;br&#x2F;&gt;状态已用尽?}:::decision
+        
+        CheckExhausted -- 是 --&gt; Twist[[&quot;&lt;b&gt;_twist()&lt;&#x2F;b&gt; &lt;br&#x2F;&gt;生成新状态集&quot;]]:::internal
+        CheckExhausted -- 否 --&gt; Fetch[&quot;取出 y &#x3D; State[i]&quot;]:::output
+        
+        Twist --&gt; Fetch
+        Fetch --&gt; Temper[[&quot;&lt;b&gt;_temper()&lt;&#x2F;b&gt; &lt;br&#x2F;&gt;执行回火处理&quot;]]:::internal
+        Temper --&gt; Return[&#x2F;返回随机数&#x2F;]:::output
+    end
+
+    Return --&gt; Loop{需要更多?}:::decision
+    Loop -- 是 --&gt; Next[i &#x3D; i + 1]:::init
+    Next --&gt; CheckExhausted
+    Loop -- 否 --&gt; End([&lt;b&gt;结束&lt;&#x2F;b&gt;]):::start_end
+
+    %% 连接线美化
+    linkStyle default stroke:#9399b2,stroke-width:1px;
+  </pre></div>
+
+<h2 id="四、Python-示例-仅为概念演示，非完整实现"><a href="#四、Python-示例-仅为概念演示，非完整实现" class="headerlink" title="四、Python 示例 (仅为概念演示，非完整实现)"></a>四、Python 示例 (仅为概念演示，非完整实现)</h2><p>以下 Python 代码片段展示了 MT19937 内部扭曲 (twist) 和回火 (temper) 过程的简化概念，并非完整的 MT19937 实现。Python 的 <code>random</code> 模块内部使用 MT19937。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="comment"># MT19937 的一些参数 (实际参数更复杂，这里仅为示意)</span></span><br><span class="line"><span class="comment"># W: word size (32 bits)</span></span><br><span class="line"><span class="comment"># N: degree of recurrence (624)</span></span><br><span class="line"><span class="comment"># M: middle term (397)</span></span><br><span class="line"><span class="comment"># R: separation point of word (r bits, 31 for MT19937)</span></span><br><span class="line"><span class="comment"># A: coefficients of the rational normal form twist matrix (0x9908B0DF for MT19937)</span></span><br><span class="line"><span class="comment"># U, S, T, L: tempering bit shifts (11, 7, 15, 18 for MT19937)</span></span><br><span class="line"><span class="comment"># B, C: tempering bitmasks (0x9D2C5680, 0xEFC60000 for MT19937)</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">MersenneTwister</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, seed=<span class="literal">None</span></span>):</span><br><span class="line">        <span class="variable language_">self</span>.N = <span class="number">624</span></span><br><span class="line">        <span class="variable language_">self</span>.M = <span class="number">397</span></span><br><span class="line">        <span class="variable language_">self</span>.matrix_A = <span class="number">0x9908B0DF</span> <span class="comment"># 常数 A</span></span><br><span class="line">        <span class="variable language_">self</span>.upper_mask = <span class="number">0x80000000</span>  <span class="comment"># highest bit, 1000...0000</span></span><br><span class="line">        <span class="variable language_">self</span>.lower_mask = <span class="number">0x7FFFFFFF</span>  <span class="comment"># lowest 31 bits, 0111...1111</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># Tempering parameters</span></span><br><span class="line">        <span class="variable language_">self</span>.tempering_u = <span class="number">11</span></span><br><span class="line">        <span class="variable language_">self</span>.tempering_s = <span class="number">7</span></span><br><span class="line">        <span class="variable language_">self</span>.tempering_b = <span class="number">0x9D2C5680</span></span><br><span class="line">        <span class="variable language_">self</span>.tempering_t = <span class="number">15</span></span><br><span class="line">        <span class="variable language_">self</span>.tempering_c = <span class="number">0xEFC60000</span></span><br><span class="line">        <span class="variable language_">self</span>.tempering_l = <span class="number">18</span></span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.state = [<span class="number">0</span>] * <span class="variable language_">self</span>.N</span><br><span class="line">        <span class="variable language_">self</span>.index = <span class="variable language_">self</span>.N + <span class="number">1</span> <span class="comment"># Indicates state has not been initialized</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> seed <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            seed = <span class="built_in">int</span>(time.time())</span><br><span class="line">        <span class="variable language_">self</span>.seed_mt(seed)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">seed_mt</span>(<span class="params">self, seed</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Initializes the generator with a seed.&quot;&quot;&quot;</span></span><br><span class="line">        <span class="variable language_">self</span>.state[<span class="number">0</span>] = seed &amp; <span class="number">0xFFFFFFFF</span> <span class="comment"># Ensure 32-bit</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">1</span>, <span class="variable language_">self</span>.N):</span><br><span class="line">            <span class="variable language_">self</span>.state[i] = (<span class="number">0x6c078965</span> * (<span class="variable language_">self</span>.state[i-<span class="number">1</span>] ^ (<span class="variable language_">self</span>.state[i-<span class="number">1</span>] &gt;&gt; <span class="number">30</span>)) + i) &amp; <span class="number">0xFFFFFFFF</span></span><br><span class="line">        <span class="variable language_">self</span>.index = <span class="variable language_">self</span>.N</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_twist</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Generates the next N values in the state array.&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="variable language_">self</span>.N):</span><br><span class="line">            y = (<span class="variable language_">self</span>.state[i] &amp; <span class="variable language_">self</span>.upper_mask) | (<span class="variable language_">self</span>.state[(i + <span class="number">1</span>) % <span class="variable language_">self</span>.N] &amp; <span class="variable language_">self</span>.lower_mask)</span><br><span class="line">            <span class="variable language_">self</span>.state[i] = <span class="variable language_">self</span>.state[(i + <span class="variable language_">self</span>.M) % <span class="variable language_">self</span>.N] ^ (y &gt;&gt; <span class="number">1</span>)</span><br><span class="line">            <span class="keyword">if</span> y % <span class="number">2</span> != <span class="number">0</span>: <span class="comment"># If the lowest bit of y is 1</span></span><br><span class="line">                <span class="variable language_">self</span>.state[i] ^= <span class="variable language_">self</span>.matrix_A</span><br><span class="line">            <span class="variable language_">self</span>.state[i] &amp;= <span class="number">0xFFFFFFFF</span> <span class="comment"># Ensure 32-bit</span></span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.index = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">extract_number</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Extracts a tempered random number.&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.index &gt; <span class="variable language_">self</span>.N:</span><br><span class="line">            <span class="comment"># Should not happen if seed_mt is called first,</span></span><br><span class="line">            <span class="comment"># but signifies uninitialized or out-of-bounds state.</span></span><br><span class="line">            <span class="keyword">raise</span> ValueError(<span class="string">&quot;Generator was never seeded or tried to extract too many numbers.&quot;</span>)</span><br><span class="line">      </span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.index == <span class="variable language_">self</span>.N:</span><br><span class="line">            <span class="variable language_">self</span>._twist()</span><br><span class="line"></span><br><span class="line">        y = <span class="variable language_">self</span>.state[<span class="variable language_">self</span>.index]</span><br><span class="line">        y = y ^ (y &gt;&gt; <span class="variable language_">self</span>.tempering_u)</span><br><span class="line">        y = y ^ ((y &lt;&lt; <span class="variable language_">self</span>.tempering_s) &amp; <span class="variable language_">self</span>.tempering_b)</span><br><span class="line">        y = y ^ ((y &lt;&lt; <span class="variable language_">self</span>.tempering_t) &amp; <span class="variable language_">self</span>.tempering_c)</span><br><span class="line">        y = y ^ (y &gt;&gt; <span class="variable language_">self</span>.tempering_l)</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.index += <span class="number">1</span></span><br><span class="line">        <span class="keyword">return</span> y &amp; <span class="number">0xFFFFFFFF</span> <span class="comment"># Ensure 32-bit output</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 示例使用</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    initial_seed = <span class="number">12345</span></span><br><span class="line">    mt = MersenneTwister(initial_seed)</span><br><span class="line"></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Generated random numbers with seed &#123;&#125;:&quot;</span>.<span class="built_in">format</span>(initial_seed))</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">10</span>):</span><br><span class="line">        <span class="built_in">print</span>(mt.extract_number())</span><br><span class="line"></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;\n--- Another sequence with the same seed ---&quot;</span>)</span><br><span class="line">    mt_same_seed = MersenneTwister(initial_seed)</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">10</span>):</span><br><span class="line">        <span class="built_in">print</span>(mt_same_seed.extract_number())</span><br><span class="line"></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;\n--- Another sequence with a different seed ---&quot;</span>)</span><br><span class="line">    mt_diff_seed = MersenneTwister(<span class="number">98765</span>)</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">10</span>):</span><br><span class="line">        <span class="built_in">print</span>(mt_diff_seed.extract_number())</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Python&#x27;s built-in random module uses MT19937</span></span><br><span class="line">    <span class="keyword">import</span> random</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;\n--- Python&#x27;s built-in random (MT19937) ---&quot;</span>)</span><br><span class="line">    random.seed(initial_seed)</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">10</span>):</span><br><span class="line">        <span class="built_in">print</span>(random.getrandbits(<span class="number">32</span>)) <span class="comment"># Generate 32-bit random integers</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="五、MT19937-的优缺点"><a href="#五、MT19937-的优缺点" class="headerlink" title="五、MT19937 的优缺点"></a>五、MT19937 的优缺点</h2><h3 id="5-1-优点"><a href="#5-1-优点" class="headerlink" title="5.1 优点"></a>5.1 优点</h3><ul>
+<li><strong>极长的周期</strong>：$2^{19937}-1$ 是一个天文数字，意味着在实际应用中几乎不可能遇到重复序列。这对于需要大量随机数的模拟和统计分析至关重要。</li>
+<li><strong>高统计均匀性</strong>：MT19937 通过了许多严格的统计测试，包括 Diehard tests 和 TestU01，生成的随机数在统计学上表现出非常好的均匀性，没有明显的偏差或模式。</li>
+<li><strong>多维等分布</strong>：在高达 623 维的空间中也具有良好的均匀分布特性，这对于蒙特卡洛模拟等高级应用非常重要。</li>
+<li><strong>生成速度快</strong>：一旦内部状态被初始化，生成每个新的随机数只需要进行一些简单的位操作，速度非常快。</li>
+<li><strong>广泛采用</strong>：由于其卓越的性能，MT19937 被广泛应用于各种编程语言（如 Python, Java, PHP, R, Ruby 等）的<code>random</code>库中，以及许多科学计算和模拟软件中。</li>
+</ul>
+<h3 id="5-2-缺点"><a href="#5-2-缺点" class="headerlink" title="5.2 缺点"></a>5.2 缺点</h3><ul>
+<li><strong>状态空间大</strong>：MT19937 需要维护包含 624 个 32 位整数的内部状态，总共 2496 字节。这在某些内存受限的环境下可能是一个问题。</li>
+<li><strong>可预测性 (非密码学安全)</strong>：这是 MT19937 最主要的缺陷。如果攻击者能够获取到连续 624 个输出的随机数，他们就能够完全推断出生成器的内部状态，从而预测未来所有的输出序列。这使得 MT19937 <strong>不适用于任何需要密码学安全的场景</strong>。</li>
+<li><strong>弱种子处理</strong>：早期的某些实现可能存在种子初始化问题，导致一些初始序列的统计特性不佳。虽然 MT19937 本身的设计解决了这个问题，但在使用时仍需注意库的初始化实现。</li>
+<li><strong>慢启动</strong>：在首次生成随机数之前，需要进行状态数组的初始化，这个过程可能比生成单个随机数略慢。</li>
+</ul>
+<h2 id="六、应用场景"><a href="#六、应用场景" class="headerlink" title="六、应用场景"></a>六、应用场景</h2><p>MT19937 是一个优秀的通用伪随机数生成器，适用于以下场景：</p>
+<ul>
+<li><strong>科学模拟和蒙特卡洛方法</strong>：如物理、化学、生物学、金融等领域的模拟实验。</li>
+<li><strong>统计抽样</strong>：从数据集中进行随机抽样。</li>
+<li><strong>游戏开发</strong>：非安全敏感的随机事件（如敌人出现位置、掉落物品、卡牌洗牌等）。</li>
+<li><strong>非密码学哈希函数</strong>：作为一些非安全敏感哈希函数的基础。</li>
+<li><strong>算法测试和调试</strong>：提供可重复的随机输入以确保测试的一致性。</li>
+</ul>
+<h2 id="七、何时不应使用-MT19937"><a href="#七、何时不应使用-MT19937" class="headerlink" title="七、何时不应使用 MT19937"></a>七、何时不应使用 MT19937</h2><p>由于其可预测性，<strong>MT19937 绝不能用于任何需要密码学安全的场景</strong>。包括但不限于：</p>
+<ul>
+<li><strong>生成加密密钥</strong>：如对称加密密钥、非对称密钥对。</li>
+<li><strong>生成一次性密码 (OTP)</strong>。</li>
+<li><strong>生成安全令牌或会话 ID</strong>。</li>
+<li><strong>生成加密盐 (Salt)</strong>。</li>
+<li><strong>生成 CSRF 令牌</strong>。</li>
+<li><strong>生成安全敏感的 ID 或 GUID</strong>。</li>
+<li><strong>任何需要对抗主动攻击者的场景</strong>。</li>
+</ul>
+<p>在这些需要密码学安全的场景中，应使用<strong>密码学安全伪随机数生成器 (CSPRNG)</strong>，例如 <code>/dev/urandom</code> (Linux&#x2F;macOS) 或 <code>CryptGenRandom</code> (Windows)，或专门的密码学库中提供的随机数生成器。</p>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>梅森旋转算法 MT19937 是一个在计算机科学和统计学领域具有里程碑意义的伪随机数生成器。它的出现极大地提升了 PRNG 的性能标准，以其极长的周期、优异的统计特性和高效的生成速度而闻名。它在科学模拟、统计分析以及大多数非安全敏感的游戏和应用中占据主导地位。</p>
+<p>然而，其确定性和可预测性是其内在属性，也限定了它的适用范围。对于涉及信息安全、加密或需要抵御恶意攻击的场景，我们必须明确 MT19937 的局限性，并选用专为密码学设计的安全随机数生成器。正确理解和应用 MT19937，是每个开发者和研究者都应掌握的知识。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/cb9800e209d5/">https://blog.tbf1211.xx.kg/cb9800e209d5/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E9%9A%8F%E6%9C%BA%E6%95%B0/">随机数</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-09.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/6ffd4698abd4/" title="Node.js 事件驱动模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Node.js 事件驱动模型详解</div></div><div class="info-2"><div class="info-item-1"> Node.js 因其基于 事件驱动 (Event-Driven)、非阻塞 I&#x2F;O (Non-blocking I&#x2F;O) 的特性，在构建高性能、可伸缩的网络应用方面表现出色。其核心在于一个高效的 事件循环 (Event Loop) 机制，使得 Node.js 成为后端开发领域的有力工具。  核心思想：将耗时的操作（如文件读写、网络请求）委托给操作系统处理，Node.js 自身不等待结果，而是注册回调函数，当操作完成后，操作系统通知 Node.js 将相应的回调函数放入事件队列，等待事件循环执行。 这种模型避免了传统多线程&#x2F;多进程模型中线程&#x2F;进程切换的开销，从而提高了性能。   一、为什么需要事件驱动模型？传统的服务器模型，如 Apache HTTP Server，通常采用多线程或多进程模型来处理并发请求。每个传入的请求都会创建一个新的线程或进程来处理，这在请求量大时会导致：  资源消耗高：每个线程&#x2F;进程都需要独立的内存和 CPU 资源，频繁创建和销毁或上下文切换会带来显著的开销。 并发瓶颈：操作系统限制了线程&#x2F;进程的最大...</div></div></div></a><a class="pagination-related" href="/af1b623130b7/" title="Node.js package.json 文件详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-06.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Node.js package.json 文件详解</div></div><div class="info-2"><div class="info-item-1"> package.json 文件是任何 Node.js 项目的核心。它是一个 JSON 格式的文件，包含了项目的元数据、依赖信息、脚本命令、版本控制等关键配置。它不仅是项目信息的载体，更是 npm (Node Package Manager) 或 yarn 等包管理器与项目交互的桥梁，定义了项目的身份、行为和依赖关系。  核心思想：package.json 是 Node.js 项目的清单文件，它描述了项目的所有关键信息，包括项目名称、版本、作者、许可证、脚本命令以及最重要的依赖关系。它是实现项目自动化、协作开发和依赖管理的基石。   一、为什么需要 package.json？package.json 在 Node.js 生态系统中扮演着至关重要的角色：  项目身份标识：提供项目的名称、版本、描述等基本信息，方便识别和管理。 依赖管理：记录项目所依赖的第三方模块及其版本范围，确保团队成员和部署环境使用相同的依赖，避免”在我机器上能跑”的问题。 脚本自动化：定义可执行的脚本命令（如启动服务器、运行测试、构建项目），简化开发流程和部署操作。 版本控制与发布：指导 npm 将项目发布到 ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/9d4cfe955d7d/" title="计算机随机数生成原理详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-25</div><div class="info-item-2">计算机随机数生成原理详解</div></div><div class="info-2"><div class="info-item-1">在计算机科学和工程领域，随机数扮演着极其重要的角色，从游戏娱乐到科学模拟，从数据加密到安全协议，几乎处处都需要随机数的支持。然而，计算机本质上是确定性机器，要生成“真正”的随机数并非易事。因此，理解计算机如何生成随机数及其背后的原理变得尤为关键。  随机数是指在一定范围内无法预测，且每个数值出现的概率相等的一组数。在计算机中，我们通常将随机数分为两大类：伪随机数 (Pseudo-Random Number) 和 真随机数 (True Random Number)。  核心概念：随机数并非“无序”，而是指其不可预测性和统计均匀性。    一、伪随机数生成器 (PRNG)伪随机数生成器 (Pseudo-Random Number Generator, PRNG) 是一种算法，它通过一个初始的“种子”(seed) 值，生成一个看似随机的数值序列。这个序列在统计学上表现出随机的特性，但实际上是完全确定性的，即可重现的。 1.1 工作原理PRNG 的核心思想是确定性算法。给定相同的初始种子，PRNG 总是会生成相同的随机数序列。其工作流程通常如下：      graph TB     %%...</div></div></div></a><a class="pagination-related" href="/0f6de86a0220/" title="STUN (Session Traversal Utilities for NAT) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-12</div><div class="info-item-2">STUN (Session Traversal Utilities for NAT) 详解</div></div><div class="info-2"><div class="info-item-1"> STUN (Session Traversal Utilities for NAT)，即 NAT 会话穿越工具，是一种网络协议，它允许位于NAT (Network Address Translation，网络地址转换) 设备之后的客户端发现其外部（公共）IP 地址和端口号，以及 NAT 设备的类型。STUN 的主要目的是协助建立对等连接 (P2P)，尤其是在 VoIP、视频会议和 WebRTC 等实时通信应用中。  核心思想：帮助内网主机探测 NAT 类型和获取公网 IP:Port，为 P2P 连接做准备。   一、为什么需要 STUN？现代互联网中，IPv4 地址资源日益枯竭，导致大多数终端设备都部署在 NAT 设备（如路由器）之后。NAT 设备通过将内部私有 IP 地址映射到外部公共 IP 地址和端口，允许多个内部设备共享一个公共 IP 地址访问互联网。 然而，NAT 给直接的点对点 (P2P) 通信带来了巨大的挑战：  内网 IP 地址不可路由：内部私有 IP 地址在公共互联网上是不可见的，外部设备无法直接通过私有 IP 地址联系到内部设备。 端口映射不确定：NAT 设备...</div></div></div></a><a class="pagination-related" href="/45a8b220c3e8/" title="中国移动 CMI 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-18</div><div class="info-item-2">中国移动 CMI 网络详解</div></div><div class="info-2"><div class="info-item-1"> CMI (China Mobile International)，即中国移动国际网络，是中国移动的国际出口骨干网络。与中国电信的 CN2 和中国联通的 AS4837&#x2F;AS9929 类似，CMI 专注于提供中国移动用户的高质量国际互联服务。它随着中国移动国际业务的扩张而迅速发展，成为连接中国大陆与全球各地的重要网络基础设施之一。  核心思想：CMI 是中国移动为提升其用户国际访问体验而建立的国际骨干网络。它通过建设自有海缆和海外节点，提供相对稳定、大带宽的国际互联通道。   一、为什么需要 CMI？1.1 中国移动网络的挑战在早期的国际互联方面，中国移动（China Mobile）主要依靠租用其他运营商的国际出口带宽，或者将流量转接到中国电信或中国联通的网络进行国际互联。这种方式存在一些固有的问题：  网络质量不稳定：路由路径通常较长，经过的中间运营商和节点多，导致延迟高、丢包率大。 带宽不足：租用带宽的成本和可用性限制，使得在国际流量高峰期容易出现拥堵。 服务不可控：缺乏对国际链路的端到端控制，难以保证服务质量 (QoS)。 成本高昂：长期租用国际带宽的成本较高。  ...</div></div></div></a><a class="pagination-related" href="/c70453d6b6cb/" title="CIDR和子网掩码详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-28</div><div class="info-item-2">CIDR和子网掩码详解</div></div><div class="info-2"><div class="info-item-1"> CIDR (Classless Inter-Domain Routing，无类别域间路由) 和子网掩码 (Subnet Mask) 是 IP 地址管理和路由技术中的两个核心概念。它们共同解决了传统 IP 地址分类的局限性，实现了更高效的 IP 地址分配和更灵活的网络划分。理解这两个概念对于构建和管理现代 IP 网络至关重要。  核心思想：CIDR 使用“IP 地址&#x2F;前缀长度”的格式，通过前缀长度直接表示网络部分和主机部分，从而废除了传统的 A&#x2F;B&#x2F;C 类地址概念。子网掩码则是这种前缀长度的二进制表示，用于在 IP 地址中区分网络地址和主机地址。   一、IP 地址基础回顾在深入 CIDR 和子网掩码之前，我们先快速回顾一下 IP 地址的基础知识：  IP 地址 (IPv4)：一个 32 位的二进制数字，通常表示为四个十进制数（0-255）由点分隔的形式，例如 192.168.1.1。 网络地址 (Network Address)：用于标识一个 IP 子网，所有在该子网内的主机都共享相同的网络地址。 主机地址 (Host Address)：用于标识子...</div></div></div></a><a class="pagination-related" href="/eb691cf6a7fb/" title="PPPoE (Point-to-Point Protocol over Ethernet) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-02-07</div><div class="info-item-2">PPPoE (Point-to-Point Protocol over Ethernet) 详解</div></div><div class="info-2"><div class="info-item-1"> PPPoE (Point-to-Point Protocol over Ethernet)，中文常译为“以太网上的点对点协议”，是一种将传统的点对点协议 (PPP) 封装在以太网数据帧中的网络协议。它主要用于在以太网局域网中实现点对点连接，最常见的应用场景是通过 DSL (数字用户线路) 或光纤等宽带接入技术向最终用户提供上网服务。PPPoE 允许 ISP (互联网服务提供商) 对用户进行身份验证 (Authentication)、会话管理以及基于会话的计费，同时为用户分配 IP 地址和其他网络参数。  核心思想：在以太网链路的基础上，模拟 PPP 连接的拨号体验，为每个用户提供独立的虚拟“隧道”，实现用户身份认证、IP地址分配和会话管理，以便进行计费和带宽控制。   一、什么是 PPPoE？在 ADSL (非对称数字用户线路) 和早期的光纤宽带时代，ISP 需要一种机制来管理大量拨号上网的用户。传统的拨号上网（通过电话线 Modem 连接）使用的是 PPP 协议，它能够提供用户认证、IP 地址分配和加密等功能。然而，随着局域网 (LAN) 和以太网的普及，人们希望在以太网环境...</div></div></div></a><a class="pagination-related" href="/da4a047de713/" title="中国电信 CN2 网络详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-03-19</div><div class="info-item-2">中国电信 CN2 网络详解</div></div><div class="info-2"><div class="info-item-1"> CN2 (ChinaNet Next Generation Carrying Network)，即中国电信下一代承载网络，是中国电信于 2005 年推出的新一代骨干网络。它旨在提供高质量、高可靠、低延迟的网络服务，主要面向政府、企业和高端个人用户。CN2 与传统的 ChinaNet (AS4134，163骨干网) 在架构和技术上都有显著区别，以提供更优质的国际互联体验。  核心思想：将互联网流量分为“优质”和“普通”两类通道，CN2 提供优质通道，通过更少的跳数、更小的丢包率和更低的延迟，显著提升国际互联的稳定性和速度。   一、为什么需要 CN2？1.1 ChinaNet (163骨干网) 的局限性传统的中国电信互联网骨干网，通常被称为 163 网（因其 AS 号为 4134，而 163 是其常用接入号），是国内用户最广泛使用的网络。然而，163 网在国际互联方面存在一些固有的问题：  链路拥堵：作为最常用的骨干网，163 网承载了大量流量，尤其在国际出口处容易出现拥堵，导致延迟高、丢包率大。 路由跳数多：在国际互联时，163 网的路由路径通常较长，经过的中间节点和运营商较多...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">576</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">235</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">88</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF%E4%BC%AA%E9%9A%8F%E6%9C%BA%E6%95%B0%E7%94%9F%E6%88%90%E5%99%A8-PRNG-%EF%BC%9F"><span class="toc-text">一、什么是伪随机数生成器 (PRNG)？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81MT19937-%E7%9A%84%E5%8E%86%E5%8F%B2%E4%B8%8E%E5%91%BD%E5%90%8D"><span class="toc-text">二、MT19937 的历史与命名</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81MT19937-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">三、MT19937 的工作原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%86%85%E9%83%A8%E7%8A%B6%E6%80%81-State"><span class="toc-text">3.1 内部状态 (State)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E7%BA%BF%E6%80%A7%E9%80%92%E5%BD%92%E5%85%B3%E7%B3%BB-Twisting"><span class="toc-text">3.2 线性递归关系 (Twisting)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%9B%9E%E7%81%AB%E5%A4%84%E7%90%86-Tempering"><span class="toc-text">3.3 回火处理 (Tempering)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E5%88%9D%E5%A7%8B%E5%8C%96-Seeding"><span class="toc-text">3.4 初始化 (Seeding)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AE%80%E5%8C%96%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B"><span class="toc-text">简化工作流程</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Mermaid-%E6%B5%81%E7%A8%8B%E5%9B%BE"><span class="toc-text">Mermaid 流程图</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Python-%E7%A4%BA%E4%BE%8B-%E4%BB%85%E4%B8%BA%E6%A6%82%E5%BF%B5%E6%BC%94%E7%A4%BA%EF%BC%8C%E9%9D%9E%E5%AE%8C%E6%95%B4%E5%AE%9E%E7%8E%B0"><span class="toc-text">四、Python 示例 (仅为概念演示，非完整实现)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81MT19937-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">五、MT19937 的优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%BC%98%E7%82%B9"><span class="toc-text">5.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%BC%BA%E7%82%B9"><span class="toc-text">5.2 缺点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">六、应用场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E4%BD%95%E6%97%B6%E4%B8%8D%E5%BA%94%E4%BD%BF%E7%94%A8-MT19937"><span class="toc-text">七、何时不应使用 MT19937</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="go.sum 文件中特殊哈希计算详解"/></a><div class="content"><a class="title" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解">go.sum 文件中特殊哈希计算详解</a><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/534cc47f2f4c/" title="二次验证 (2FA) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二次验证 (2FA) 详解"/></a><div class="content"><a class="title" href="/534cc47f2f4c/" title="二次验证 (2FA) 详解">二次验证 (2FA) 详解</a><time datetime="2026-02-21T22:24:00.000Z" title="发表于 2026-02-22 06:24:00">2026-02-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d819fc26cbc7/" title="共识算法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="共识算法详解"/></a><div class="content"><a class="title" href="/d819fc26cbc7/" title="共识算法详解">共识算法详解</a><time datetime="2026-02-19T22:24:00.000Z" title="发表于 2026-02-20 06:24:00">2026-02-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1c5cbb334a2a/" title="计算机中熵的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="计算机中熵的详解"/></a><div class="content"><a class="title" href="/1c5cbb334a2a/" title="计算机中熵的详解">计算机中熵的详解</a><time datetime="2026-02-17T22:24:00.000Z" title="发表于 2026-02-18 06:24:00">2026-02-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/9ed85cc18e8a/" title="CSP并发模型详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="CSP并发模型详解"/></a><div class="content"><a class="title" href="/9ed85cc18e8a/" title="CSP并发模型详解">CSP并发模型详解</a><time datetime="2026-02-15T22:24:00.000Z" title="发表于 2026-02-16 06:24:00">2026-02-16</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-09.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const loadMathjax = () => {
+    if (!window.MathJax) {
+      window.MathJax = {
+        loader: {
+          load: [
+            // Four font extension packages (optional)
+            //- '[tex]/bbm',
+            //- '[tex]/bboldx',
+            //- '[tex]/dsfont',
+            '[tex]/mhchem'
+          ],
+          paths: {
+            'mathjax-newcm': '[mathjax]/../@mathjax/mathjax-newcm-font',
+
+            //- // Four font extension packages (optional)
+            //- 'mathjax-bbm-extension': '[mathjax]/../@mathjax/mathjax-bbm-font-extension',
+            //- 'mathjax-bboldx-extension': '[mathjax]/../@mathjax/mathjax-bboldx-font-extension',
+            //- 'mathjax-dsfont-extension': '[mathjax]/../@mathjax/mathjax-dsfont-font-extension',
+            'mathjax-mhchem-extension': '[mathjax]/../@mathjax/mathjax-mhchem-font-extension'
+          }
+        },
+        output: {
+          font: 'mathjax-newcm',
+        },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+          packages: {
+            '[+]': [
+              'mhchem'
+            ]
+          }
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          enableMenu: true,
+          menuOptions: {
+            settings: {
+              enrich: false  // Turn off Braille and voice narration text automatic generation
+            }
+          },
+          renderActions: {
+            findScript: [10, doc => {
+              for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+                const display = !!node.type.match(/; *mode=display/)
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+                const text = document.createTextNode('')
+                node.parentNode.replaceChild(text, node)
+                math.start = {node: text, delim: '', n: 0}
+                math.end = {node: text, delim: '', n: 0}
+                doc.math.push(math)
+              }
+            }, '']
+          }
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.1.0/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.startup.document.state(0)
+      MathJax.texReset()
+      MathJax.typesetPromise()
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
