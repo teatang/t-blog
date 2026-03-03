@@ -110,7 +110,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
-}```
+}
+```
 
 ### 3.2 封装核心代码 (HttpRequest.ts)
 
