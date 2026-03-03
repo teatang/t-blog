@@ -1,0 +1,753 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Actor 模型的详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Actor 模型 (Actor Model) 是一种在理论计算机科学中处理并发计算的数学模型，它定义了系统中的基本并发单元——Actor (参与者)。该模型的核心思想是“一切皆 Actor”，并且 Actor 之间只能通过异步消息传递进行通信，从而避免了共享状态带来的复杂性和并发难题。它为构建高并发、可伸缩和容错的系统提供了一个强大的抽象。  核心思想：将并发系统建模为一组独立的、通过消息传递进">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Actor 模型的详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/96b89e66f942/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Actor 模型 (Actor Model) 是一种在理论计算机科学中处理并发计算的数学模型，它定义了系统中的基本并发单元——Actor (参与者)。该模型的核心思想是“一切皆 Actor”，并且 Actor 之间只能通过异步消息传递进行通信，从而避免了共享状态带来的复杂性和并发难题。它为构建高并发、可伸缩和容错的系统提供了一个强大的抽象。  核心思想：将并发系统建模为一组独立的、通过消息传递进">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2026-02-16T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-03-03T09:55:08.864Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="并发编程">
+<meta property="article:tag" content="2026">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Actor 模型的详解",
+  "url": "https://blog.tbf1211.xx.kg/96b89e66f942/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2026-02-16T22:24:00.000Z",
+  "dateModified": "2026-03-03T09:55:08.864Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/96b89e66f942/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Actor 模型的详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">580</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">235</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">89</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Actor 模型的详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Actor 模型的详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-02-16T22:24:00.000Z" title="发表于 2026-02-17 06:24:00">2026-02-17</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/%E5%B9%B6%E5%8F%91%E5%BC%82%E6%AD%A5/">并发异步</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Actor 模型 (Actor Model)</strong> 是一种在理论计算机科学中处理并发计算的数学模型，它定义了系统中的基本并发单元——<strong>Actor (参与者)</strong>。该模型的核心思想是“一切皆 Actor”，并且 Actor 之间只能通过异步消息传递进行通信，从而避免了共享状态带来的复杂性和并发难题。它为构建高并发、可伸缩和容错的系统提供了一个强大的抽象。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：将并发系统建模为一组独立的、通过消息传递进行通信的 Actor。每个 Actor 维护自己的私有状态，并以串行方式处理接收到的消息，从而避免了并发控制的复杂性。</p>
+</div>
+
+<hr>
+<h2 id="一、Actor-模型起源与背景"><a href="#一、Actor-模型起源与背景" class="headerlink" title="一、Actor 模型起源与背景"></a>一、Actor 模型起源与背景</h2><p>Actor 模型最早由 Carl Hewitt 于 1973 年提出，旨在为处理并发事件和分布式计算提供一个形式化的基础。其设计理念深深影响了并发编程领域，尤其在并发编程语言和框架中得到了广泛应用，如 Erlang、Scala 的 Akka、Golang 的 <code>goroutine</code> 和 <code>channel</code> 模式（受 CSP 影响，但常用于实现 Actor 风格的并发）。</p>
+<p>传统并发模型常面临共享内存引发的问题，如死锁、竞态条件、数据不一致等，需要复杂的锁机制进行同步。Actor 模型通过强制隔离 Actor 状态和异步消息传递来规避这些问题。</p>
+<h2 id="二、Actor-模型核心概念"><a href="#二、Actor-模型核心概念" class="headerlink" title="二、Actor 模型核心概念"></a>二、Actor 模型核心概念</h2><h3 id="2-1-Actor"><a href="#2-1-Actor" class="headerlink" title="2.1 Actor"></a>2.1 Actor</h3><p>Actor 是 Actor 模型中的基本计算单元。每个 Actor 至少包含以下三个基本组成部分：</p>
+<ol>
+<li><strong>状态 (State)</strong>：Actor 内部的私有数据。此状态只能由 Actor 自身直接访问和修改，任何其他 Actor 都无法直接访问，确保了状态隔离。</li>
+<li><strong>行为 (Behavior)</strong>：Actor 定义了如何响应接收到的消息。它是一个函数或一组规则，每次 Actor 接收到消息时都会被调用。行为可能包括修改其内部状态、创建新的 Actor、向其他 Actor 发送消息等。</li>
+<li><strong>邮箱 (Mailbox)</strong>：每个 Actor 都有一个唯一的邮箱，用于接收来自其他 Actor 的消息。邮箱通常是一个消息队列，Actor 会按顺序从邮箱中取出消息并进行处理。</li>
+</ol>
+<h3 id="2-2-消息-Message"><a href="#2-2-消息-Message" class="headerlink" title="2.2 消息 (Message)"></a>2.2 消息 (Message)</h3><p>Actor 之间唯一的通信方式是发送和接收消息。</p>
+<ul>
+<li><strong>异步性</strong>：消息发送是异步的，发送者发送消息后不会等待响应，可以继续执行其他任务。</li>
+<li><strong>单向性</strong>：消息从一个 Actor 发送到另一个 Actor。要实现双向通信，需要发送者和接收者都具备发送消息的能力。</li>
+<li><strong>不可变性 (Immutability)</strong>：消息内容通常是不可变的。一旦消息发送，其内容不应被修改。这简化了并发推理，因为消息在传输过程中不会被意外更改。</li>
+</ul>
+<h3 id="2-3-邮箱-Mailbox"><a href="#2-3-邮箱-Mailbox" class="headerlink" title="2.3 邮箱 (Mailbox)"></a>2.3 邮箱 (Mailbox)</h3><p>邮箱是 Actor 接收消息的队列。</p>
+<ul>
+<li><strong>顺序性</strong>：Actor 每次从邮箱中取出一个消息进行处理，并且通常是按照接收顺序（或某种优先级）处理。这意味着 Actor 自身的消息处理是串行的，无需内部锁机制。</li>
+<li><strong>缓冲</strong>：邮箱可以缓冲未处理的消息，允许发送者在接收者忙碌时发送消息。</li>
+</ul>
+<h3 id="2-4-隔离与位置透明性"><a href="#2-4-隔离与位置透明性" class="headerlink" title="2.4 隔离与位置透明性"></a>2.4 隔离与位置透明性</h3><ul>
+<li><strong>隔离 (Isolation)</strong>：Actor 的状态是完全私有的，不能被其他 Actor 直接读写。这是 Actor 模型实现内存安全并发的关键。</li>
+<li><strong>位置透明性 (Location Transparency)</strong>：Actor 的地址（引用）是抽象的，发送者无需知道接收 Actor 是在本地进程中，还是在远程机器上。这使得分布式系统中的扩展和故障恢复变得更加容易。</li>
+</ul>
+<h2 id="三、Actor-模型的工作原理"><a href="#三、Actor-模型的工作原理" class="headerlink" title="三、Actor 模型的工作原理"></a>三、Actor 模型的工作原理</h2><p>Actor 模型的核心工作循环可以概括为以下步骤：</p>
+<ol>
+<li><strong>接收消息 (Receive Message)</strong>：Actor 从其邮箱中取出一个消息。</li>
+<li><strong>执行行为 (Execute Behavior)</strong>：Actor 根据接收到的消息以及其当前状态，执行相应的行为逻辑。</li>
+<li><strong>修改状态 (Modify State)</strong>：Actor 可以根据需要更新其内部状态。</li>
+<li><strong>发送消息 (Send Message)</strong>：Actor 可以向其他 Actor 发送一个或多个新消息。</li>
+<li><strong>创建 Actor (Create Actor)</strong>：Actor 也可以决定创建新的 Actor。</li>
+</ol>
+<p>这个过程是循环进行的，每个 Actor 都在不断地接收、处理、响应消息。</p>
+<h3 id="工作流图示"><a href="#工作流图示" class="headerlink" title="工作流图示"></a>工作流图示</h3><div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    graph TB
+    %% 样式定义
+    classDef actorBoundary fill:#181825,stroke:#b4befe,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef mailbox fill:#313244,stroke:#fab387,stroke-width:2px,color:#fab387;
+    classDef logic fill:#1e1e2e,stroke:#cba6f7,stroke-width:2px,color:#cba6f7;
+    classDef state fill:#313244,stroke:#a6e3a1,stroke-width:2px,color:#a6e3a1;
+    classDef external fill:#45475a,stroke:#89b4fa,color:#89b4fa;
+
+    %% 外部交互
+    External([外部系统 &#x2F; 其他 Actor]):::external
+    
+    subgraph ActorInstance [&quot;Actor 实例 (隔离边界)&quot;]
+        direction TB
+        Mailbox[&#x2F;&quot;Mailbox (异步消息队列)&quot;&#x2F;]:::mailbox
+        
+        subgraph Handler [&quot;处理循环&quot;]
+            Process{消息处理器}:::logic
+            State[(&quot;私有状态 (Private State)&quot;)]:::state
+        end
+
+        Spawn([创建子 Actor]):::logic
+        Send([发送消息]):::external
+    end
+
+    %% 流程关系
+    External -- &quot;发送消息&quot; --&gt; Mailbox
+    Mailbox --&gt;|&quot;Pop&quot;| Process
+    
+    Process --&gt;|&quot;1. 变更&quot;| State
+    Process --&gt;|&quot;2. 衍生&quot;| Spawn
+    Process --&gt;|&quot;3. 通信&quot;| Send
+    
+    Send -.-&gt;|&quot;异步投递&quot;| OtherActor([其他 Actor]):::external
+
+    %% 连线颜色微调
+    linkStyle 0 stroke:#89b4fa,stroke-width:2px;
+    linkStyle 1 stroke:#fab387,stroke-width:2px;
+    linkStyle 2 stroke:#a6e3a1,stroke-width:2px;
+    linkStyle 5 stroke:#89b4fa,stroke-width:1px,stroke-dasharray: 3 3;
+  </pre></div>
+
+<h2 id="四、Actor-模型的优势"><a href="#四、Actor-模型的优势" class="headerlink" title="四、Actor 模型的优势"></a>四、Actor 模型的优势</h2><ol>
+<li><strong>并发性与无锁化 (Concurrency without Locks)</strong>：Actor 以串行方式处理消息，其内部状态无需锁保护。这消除了死锁和竞态条件等常见并发问题，简化了并发编程。</li>
+<li><strong>高伸缩性 (High Scalability)</strong>：由于 Actor 之间的隔离和消息传递，Actor 模型非常适合构建可伸缩的应用程序，无论是通过增加 Actor 数量在单机上扩展，还是将 Actor 分布到多台机器上实现分布式扩展。</li>
+<li><strong>高容错性 (High Fault Tolerance)</strong>：<ul>
+<li><strong>故障隔离</strong>：一个 Actor 的崩溃通常不会直接影响其他 Actor 的状态。</li>
+<li><strong>监督者模式 (Supervision)</strong>：在许多 Actor 框架中，存在“监督者”Actor 负责监控其他 Actor (子 Actor) 的健康状况。当子 Actor 失败时，监督者可以重启它，甚至替换它，从而使得系统具备自愈能力。</li>
+</ul>
+</li>
+<li><strong>清晰的职责分离</strong>：每个 Actor 代表一个独立的实体，负责处理特定类型的消息和维护特定的状态，使得系统设计更加模块化和易于理解。</li>
+<li><strong>响应式编程 (Reactive Programming)</strong>：Actor 模型天然支持事件驱动和异步非阻塞的编程范式，非常适合构建响应式系统。</li>
+</ol>
+<h2 id="五、Actor-模型的局限性"><a href="#五、Actor-模型的局限性" class="headerlink" title="五、Actor 模型的局限性"></a>五、Actor 模型的局限性</h2><ol>
+<li><strong>消息顺序性</strong>：默认情况下，Actor 模型不保证跨 Actor 消息的全局顺序。虽然单个 Actor 邮箱内的消息是按接收顺序处理的，但发送者发送给不同 Actor 的消息，或者不同发送者发送给同一 Actor 的消息，其全局顺序可能不确定。</li>
+<li><strong>调试复杂性</strong>：异步消息传递使得程序的控制流难以追踪。当错误发生时，通过堆栈回溯定位问题变得困难，可能需要更复杂的日志和监控工具。</li>
+<li><strong>潜在的性能开销</strong>：对于非常细粒度的计算任务，消息序列化&#x2F;反序列化和消息传递本身的开销可能会超过直接函数调用或共享内存方式。</li>
+<li><strong>学习曲线</strong>：对于习惯了传统同步编程模型的开发者，Actor 模型的思维范式转变需要一定的学习和适应过程。</li>
+<li><strong>邮箱阻塞&#x2F;消息丢失</strong>：如果邮箱容量有限且处理速度跟不上，可能导致邮箱阻塞或消息丢失。需要合理的邮箱策略和流量控制。</li>
+</ol>
+<h2 id="六、Actor-模型在-Golang-中的实现风格"><a href="#六、Actor-模型在-Golang-中的实现风格" class="headerlink" title="六、Actor 模型在 Golang 中的实现风格"></a>六、Actor 模型在 Golang 中的实现风格</h2><p>Golang 虽然不是一个纯粹的 Actor 模型实现，但其 <code>goroutine</code> 和 <code>channel</code> 提供了非常自然的 Actor 风格编程方式。一个 <code>goroutine</code> 可以作为一个 Actor，而 <code>channel</code> 则充当其邮箱。</p>
+<h3 id="示例：一个简单的计数器-Actor"><a href="#示例：一个简单的计数器-Actor" class="headerlink" title="示例：一个简单的计数器 Actor"></a>示例：一个简单的计数器 Actor</h3><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义消息类型</span></span><br><span class="line"><span class="keyword">type</span> MessageType <span class="type">int</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> (</span><br><span class="line">	Increment MessageType = <span class="literal">iota</span></span><br><span class="line">	Decrement</span><br><span class="line">	GetValue</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义消息结构</span></span><br><span class="line"><span class="keyword">type</span> Message <span class="keyword">struct</span> &#123;</span><br><span class="line">	Type     MessageType</span><br><span class="line">	Response <span class="keyword">chan</span> <span class="type">int</span> <span class="comment">// 用于GetValue消息返回结果</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// CounterActor 是一个 Actor，它维护一个计数器状态</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">CounterActor</span><span class="params">(mailBox <span class="keyword">chan</span> Message)</span></span> &#123;</span><br><span class="line">	count := <span class="number">0</span> <span class="comment">// Actor 的私有状态</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> msg := <span class="keyword">range</span> mailBox &#123; <span class="comment">// 循环从邮箱接收消息</span></span><br><span class="line">		<span class="keyword">switch</span> msg.Type &#123;</span><br><span class="line">		<span class="keyword">case</span> Increment:</span><br><span class="line">			count++</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Actor: Increment. Current count: %d\n&quot;</span>, count)</span><br><span class="line">		<span class="keyword">case</span> Decrement:</span><br><span class="line">			count--</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Actor: Decrement. Current count: %d\n&quot;</span>, count)</span><br><span class="line">		<span class="keyword">case</span> GetValue:</span><br><span class="line">			<span class="comment">// 通过Response channel发送当前值</span></span><br><span class="line">			msg.Response &lt;- count</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Actor: GetValue. Current count: %d\n&quot;</span>, count)</span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">			fmt.Println(<span class="string">&quot;Actor: Unknown message type&quot;</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	actorMailBox := <span class="built_in">make</span>(<span class="keyword">chan</span> Message) <span class="comment">// 创建 Actor 的邮箱</span></span><br><span class="line">	<span class="keyword">go</span> CounterActor(actorMailBox)      <span class="comment">// 启动 Actor goroutine</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 发送 Increment 消息</span></span><br><span class="line">	actorMailBox &lt;- Message&#123;Type: Increment&#125;</span><br><span class="line">	actorMailBox &lt;- Message&#123;Type: Increment&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 等待一小段时间，确保Actor处理完消息</span></span><br><span class="line">	time.Sleep(<span class="number">10</span> * time.Millisecond)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 发送 Decrement 消息</span></span><br><span class="line">	actorMailBox &lt;- Message&#123;Type: Decrement&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 发送 GetValue 消息并等待结果</span></span><br><span class="line">	responseChannel := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">int</span>)</span><br><span class="line">	actorMailBox &lt;- Message&#123;Type: GetValue, Response: responseChannel&#125;</span><br><span class="line">	currentCount := &lt;-responseChannel <span class="comment">// 从响应通道接收结果</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;Main: Received current count from actor: %d\n&quot;</span>, currentCount)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 关闭邮箱，Actor 将退出循环</span></span><br><span class="line">	<span class="built_in">close</span>(actorMailBox)</span><br><span class="line">	<span class="comment">// 实际应用中可能需要更优雅的退出机制，例如发送一个&quot;Terminate&quot;消息</span></span><br><span class="line">	time.Sleep(<span class="number">10</span> * time.Millisecond) <span class="comment">// 等待Actor退出</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;Main: Actor terminated.&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这个 Go 示例中：</p>
+<ul>
+<li><code>CounterActor</code> 函数定义了一个 Actor 的行为。</li>
+<li><code>go CounterActor(actorMailBox)</code> 启动了一个 <code>goroutine</code>，它就是我们的 Actor 实例。</li>
+<li><code>actorMailBox</code> 是这个 Actor 的邮箱（一个 channel）。</li>
+<li><code>count</code> 是 Actor 的私有状态，只能由 <code>CounterActor</code> goroutine 访问和修改。</li>
+<li><code>Message</code> 结构体定义了 Actor 之间传递的消息。<code>Response chan int</code> 字段演示了如何通过消息实现请求-响应模式。</li>
+</ul>
+<h2 id="七、与-CSP-模型的关系"><a href="#七、与-CSP-模型的关系" class="headerlink" title="七、与 CSP 模型的关系"></a>七、与 CSP 模型的关系</h2><p>Actor 模型与 <strong>CSP (Communicating Sequential Processes)</strong> 模型在并发编程中都非常流行，并都强调通过消息传递来避免共享内存。</p>
+<ul>
+<li><strong>Actor 模型</strong>：强调通过异步消息传递与 Actor 实体进行交互。每个 Actor 都有一个唯一的身份和邮箱，并且是独立的计算实体。</li>
+<li><strong>CSP 模型</strong>：强调通过同步通道 (synchronous channels) 在独立运行的进程 (processes) 之间传递消息。Go 的 <code>goroutine</code> 和 <code>channel</code> 是 CSP 思想的典型实现。</li>
+</ul>
+<p>虽然 Go 的 <code>goroutine</code> 和 <code>channel</code> 直接上更接近 CSP，但它们非常适合实现 Actor 风格的并发模式，因为 <code>goroutine</code> 可以封装状态和行为，<code>channel</code> 可以作为邮箱。</p>
+<h2 id="八、何时选用-Actor-模型"><a href="#八、何时选用-Actor-模型" class="headerlink" title="八、何时选用 Actor 模型"></a>八、何时选用 Actor 模型</h2><p>Actor 模型特别适合以下场景：</p>
+<ul>
+<li><strong>分布式系统</strong>：天然支持位置透明性，易于将业务逻辑扩展到多台机器。</li>
+<li><strong>高并发和响应式系统</strong>：例如在线游戏服务器、聊天应用、物联网后端、实时数据处理等，需要同时处理大量请求并保持低延迟。</li>
+<li><strong>容错系统</strong>：通过监督者模式，能够构建自愈合的弹性系统，抵抗单个组件的故障。</li>
+<li><strong>业务逻辑复杂且需要清晰隔离的场景</strong>：通过将复杂系统分解为多个职责单一的 Actor，可以提高代码的可维护性和可理解性。</li>
+</ul>
+<h2 id="九、总结"><a href="#九、总结" class="headerlink" title="九、总结"></a>九、总结</h2><p>Actor 模型提供了一种强大而优雅的并发编程范式，通过强制隔离状态和异步消息传递，有效地解决了传统共享内存并发模型中的诸多难题。它鼓励开发者以一种分布式、容错的思维模式来设计系统。虽然它有其局限性，但在构建现代高并发、高可用和可伸缩的软件系统中，Actor 模型及其衍生思想已成为不可或缺的工具。深入理解 Actor 模型，将为系统架构师和开发者在处理复杂并发问题时提供宝贵的视角和解决方案。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/96b89e66f942/">https://blog.tbf1211.xx.kg/96b89e66f942/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/">并发编程</a><a class="post-meta__tags" href="/tags/2026/">2026</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/1c5cbb334a2a/" title="计算机中熵的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">计算机中熵的详解</div></div><div class="info-2"><div class="info-item-1">在计算机科学中，“熵”（Entropy）是一个核心而多维的概念，它源于信息论，并被广泛应用于随机数生成、密码学和系统安全等领域。理解熵对于构建健壮和安全的现代计算系统至关重要。  熵 (Entropy) 在信息论中，是一种衡量信息源不确定性或信息量的度量。在计算机领域，它通常指代随机性或不可预测性的量度，用于量化系统或数据中存在的无序程度或信息含量。更高的熵意味着更强的随机性和更大的不可预测性。  核心概念：熵是信息的不确定性或随机性大小的度量。    一、熵的引入：热力学与信息论的对比“熵”这个词最早来源于热力学，但在计算机科学中，我们通常主要关注的是信息熵 (Information Entropy)。尽管名称相同，它们描述的“无序”或“不确定性”在概念上存在一定的关联，但在具体领域和衡量方式上却存在显著差异： 1.1 热力学熵 (Thermodynamic Entropy) 领域：物理学，热力学。 衡量对象：一个物理系统中的混乱程度、分子无序性或能量分散程度。它与系统的微观状态数量（通过玻尔兹曼方程 $S &#x3D; k \ln \Omega$）以及能量转换的不可逆性（热力...</div></div></div></a><a class="pagination-related" href="/9ed85cc18e8a/" title="CSP并发模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">CSP并发模型详解</div></div><div class="info-2"><div class="info-item-1">在构建现代高性能、可伸缩的软件系统时，并发编程是不可或缺的。众多并发模型中，Communicating Sequential Processes (CSP) 以其独特的通信机制和强大的概念简洁性，在业界，特别是在 Go 语言中，获得了广泛应用。  Communicating Sequential Processes (CSP)，即通信顺序进程，是由英国计算机科学家 Tony Hoare 于 1978 年提出的一种形式化语言和数学理论。CSP 的核心思想是，独立运行的顺序进程通过消息传递进行通信和同步，而不是通过共享内存来协作。 这种模型极大地简化了并发程序的推理和安全性，避免了传统共享内存模型中常见的竞态条件（Race Condition）和死锁（Deadlock）等问题。  核心原则：并发实体不通过共享内存进行通信；相反，它们通过通信来共享内存。 （”Do not communicate by sharing memory; instead, share memory by communicating.” - Go Proverb）    一、并发与并行：基本概念澄清在深入 C...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/cecf96486ef4/" title="IPC (Inter-Process Communication) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-05</div><div class="info-item-2">IPC (Inter-Process Communication) 详解</div></div><div class="info-2"><div class="info-item-1"> IPC (Inter-Process Communication)，即进程间通信，是指在多任务操作系统中，不同进程之间进行数据交换和同步行为的一种机制。由于每个进程通常拥有独立的内存空间，不能直接访问其他进程的数据，因此 IPC 机制是构建复杂、协作型多进程应用的关键。它使得进程能够共享信息、协调活动，从而实现更强大的功能和更高的系统效率。  核心思想：克服进程间内存隔离的障碍，提供一套规范化的方法，让独立运行的进程能够安全、有效地交换数据和同步操作。   一、为什么需要 IPC？在现代操作系统中，进程是资源分配和调度的基本单位。为了保证系统的稳定性和安全性，操作系统为每个进程分配独立的内存地址空间。这种内存隔离虽然能有效防止一个进程的错误影响其他进程，但也带来了以下问题：  信息共享：进程间需要共享数据或状态。例如，一个数据生产者进程生成数据，一个数据消费者进程处理数据。 模块化：将一个大型复杂的应用程序拆分成多个独立的、职责单一的进程，每个进程专注于特定任务。这些进程需要相互协作才能完成整体功能。 性能提升：通过并行处理，将不同的任务分配给不同的进程在多核处理器上同时执行，...</div></div></div></a><a class="pagination-related" href="/9ed85cc18e8a/" title="CSP并发模型详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-16</div><div class="info-item-2">CSP并发模型详解</div></div><div class="info-2"><div class="info-item-1">在构建现代高性能、可伸缩的软件系统时，并发编程是不可或缺的。众多并发模型中，Communicating Sequential Processes (CSP) 以其独特的通信机制和强大的概念简洁性，在业界，特别是在 Go 语言中，获得了广泛应用。  Communicating Sequential Processes (CSP)，即通信顺序进程，是由英国计算机科学家 Tony Hoare 于 1978 年提出的一种形式化语言和数学理论。CSP 的核心思想是，独立运行的顺序进程通过消息传递进行通信和同步，而不是通过共享内存来协作。 这种模型极大地简化了并发程序的推理和安全性，避免了传统共享内存模型中常见的竞态条件（Race Condition）和死锁（Deadlock）等问题。  核心原则：并发实体不通过共享内存进行通信；相反，它们通过通信来共享内存。 （”Do not communicate by sharing memory; instead, share memory by communicating.” - Go Proverb）    一、并发与并行：基本概念澄清在深入 C...</div></div></div></a><a class="pagination-related" href="/88fea7b52158/" title="Gzip 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-30</div><div class="info-item-2">Gzip 详解</div></div><div class="info-2"><div class="info-item-1"> Gzip 是一种广泛使用的数据压缩格式和文件格式，以及基于此格式的软件应用。它主要用于减小文件体积，以便在存储或传输时节省空间和带宽。在Web领域，Gzip压缩是提升网页加载速度、优化用户体验的关键技术之一。  核心概念：Gzip利用了DEFLATE算法对数据进行无损压缩，其优势在于压缩效率高、解压速度快，并被几乎所有现代浏览器和Web服务器广泛支持。    一、Gzip 概述与目的Gzip（GNU zip）最初是作为Unix系统中compress程序的替代品而开发的，旨在提供更高效的压缩算法。它的核心目标是：  减少文件存储空间：对于磁盘上的文件，Gzip可以显著减小其占用的存储空间。 加快数据传输速度：在网络传输中，尤其是Web传输（HTTP&#x2F;HTTPS），通过压缩数据可以减少传输量，从而降低带宽消耗并缩短数据抵达客户端的时间。 节省带宽成本：对于提供大量数据的服务提供商，减少传输数据量直接 translates to 降低带宽费用。  二、Gzip 的工作原理：DEFLATE 算法Gzip 压缩的核心是 DEFLATE 算法，它是一种无损数据压缩算法，结合了两种...</div></div></div></a><a class="pagination-related" href="/a90dd53e3ba4/" title="Protocol Buffers 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-12</div><div class="info-item-2">Protocol Buffers 详解</div></div><div class="info-2"><div class="info-item-1"> Protocol Buffers (Protobuf) 是 Google 开发的一种语言无关、平台无关、可扩展的序列化数据结构的方法。它旨在替代 XML 等数据交换格式，以实现更小、更快、更简单的数据传输。Protobuf 允许开发者定义数据结构（称为 message），并通过生成的代码，以高效的二进制格式序列化这些数据，或从二进制格式反序列化回原始数据结构。它广泛应用于微服务间的通信、数据存储以及网络协议定义等场景，尤其是 Google 自家的 gRPC 框架更是以 Protobuf 作为其默认的接口定义语言和数据交换格式。  核心思想：通过简洁的 .proto 文件定义数据结构，然后通过代码生成工具将其转换为特定语言的高效代码，实现紧凑、快速的二进制数据序列化和反序列化，支持强大的 Schema 演进和跨语言互操作性。    一、为什么需要 Protocol Buffers？在分布式系统和微服务架构中，不同服务之间的数据交换是核心环节。传统的数据交换格式，如 JSON 或 XML，存在以下一些问题：  性能瓶颈：文本格式解析速度相对较慢，对于大量数据或高并发场景，CPU 消...</div></div></div></a><a class="pagination-related" href="/ad010eef8c35/" title="Java 多线程编程详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-08-29</div><div class="info-item-2">Java 多线程编程详解</div></div><div class="info-2"><div class="info-item-1"> Java 多线程编程 是指在一个 Java 应用程序中同时执行多个独立的任务（或代码路径）。线程是操作系统调度的最小执行单元，而多线程编程允许程序更有效地利用 CPU 资源，提高程序的响应性和吞吐量，尤其是在现代多核处理器环境中。  核心思想：将一个程序分解为多个独立的执行流，并发地运行以提高效率和响应性。这要求开发者妥善处理线程间的协作与资源竞争，以避免数据不一致、死锁等问题。    一、为什么需要多线程编程？在单线程环境中，程序任务按顺序执行。如果一个任务耗时较长（例如 I&#x2F;O 操作、复杂计算），整个程序就会“卡住”，直到该任务完成。多线程编程旨在解决这些问题：  提高程序响应性：在图形用户界面 (GUI) 应用程序中，可以将耗时操作放在后台线程执行，主线程（UI 线程）保持响应，提升用户体验。 提高系统吞吐量：在服务器端应用中，可以同时处理多个客户端请求，从而提高服务器的处理能力。 充分利用多核 CPU 资源：现代处理器普遍拥有多核。多线程允许程序将计算任务分解为可并行执行的部分，从而利用所有可用的 CPU 核心，显著缩短总执行时间。 简化编程模型：对于某些复杂...</div></div></div></a><a class="pagination-related" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-24</div><div class="info-item-2">go.sum 文件中特殊哈希计算详解</div></div><div class="info-2"><div class="info-item-1"> go.sum 文件在 Go 模块生态系统中扮演着至关重要的角色，它记录了项目直接和间接依赖模块的加密哈希值，用于确保模块的完整性和安全性，防止供应链攻击。除了对模块文件内容的常规哈希外，go.sum 中还存在一些特殊的哈希条目，它们用于校验特定的信息流，而非直接的模块压缩包内容。本文将深入探讨这些特殊哈希的计算机制。  核心要点：go.sum 中的特殊哈希主要针对两种场景：go.mod 文件内容的校验以及 vendor 目录内容的校验。它们确保了关键配置信息和本地缓存的一致性。    一、Go Modules 与 go.sum 概述1.1 Go Modules 简介Go Modules 是 Go 语言的官方依赖管理系统，它通过 go.mod 文件定义模块的依赖关系，并通过 go.sum 文件记录模块的加密校验和。这种机制确保了构建的可重复性，并提供了针对恶意代码注入（如中间人攻击）的防御。 1.2 go.sum 的作用go.sum 文件包含两类条目，每行一个，格式通常为： module_path module_version HASH或module_path module_ve...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">580</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">235</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">89</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81Actor-%E6%A8%A1%E5%9E%8B%E8%B5%B7%E6%BA%90%E4%B8%8E%E8%83%8C%E6%99%AF"><span class="toc-text">一、Actor 模型起源与背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Actor-%E6%A8%A1%E5%9E%8B%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Actor 模型核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Actor"><span class="toc-text">2.1 Actor</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%B6%88%E6%81%AF-Message"><span class="toc-text">2.2 消息 (Message)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E9%82%AE%E7%AE%B1-Mailbox"><span class="toc-text">2.3 邮箱 (Mailbox)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E9%9A%94%E7%A6%BB%E4%B8%8E%E4%BD%8D%E7%BD%AE%E9%80%8F%E6%98%8E%E6%80%A7"><span class="toc-text">2.4 隔离与位置透明性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Actor-%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="toc-text">三、Actor 模型的工作原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B7%A5%E4%BD%9C%E6%B5%81%E5%9B%BE%E7%A4%BA"><span class="toc-text">工作流图示</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Actor-%E6%A8%A1%E5%9E%8B%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">四、Actor 模型的优势</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Actor-%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">五、Actor 模型的局限性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Actor-%E6%A8%A1%E5%9E%8B%E5%9C%A8-Golang-%E4%B8%AD%E7%9A%84%E5%AE%9E%E7%8E%B0%E9%A3%8E%E6%A0%BC"><span class="toc-text">六、Actor 模型在 Golang 中的实现风格</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%A4%BA%E4%BE%8B%EF%BC%9A%E4%B8%80%E4%B8%AA%E7%AE%80%E5%8D%95%E7%9A%84%E8%AE%A1%E6%95%B0%E5%99%A8-Actor"><span class="toc-text">示例：一个简单的计数器 Actor</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E4%B8%8E-CSP-%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">七、与 CSP 模型的关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E4%BD%95%E6%97%B6%E9%80%89%E7%94%A8-Actor-%E6%A8%A1%E5%9E%8B"><span class="toc-text">八、何时选用 Actor 模型</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">九、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="go.sum 文件中特殊哈希计算详解"/></a><div class="content"><a class="title" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解">go.sum 文件中特殊哈希计算详解</a><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/534cc47f2f4c/" title="二次验证 (2FA) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二次验证 (2FA) 详解"/></a><div class="content"><a class="title" href="/534cc47f2f4c/" title="二次验证 (2FA) 详解">二次验证 (2FA) 详解</a><time datetime="2026-02-21T22:24:00.000Z" title="发表于 2026-02-22 06:24:00">2026-02-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d819fc26cbc7/" title="共识算法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="共识算法详解"/></a><div class="content"><a class="title" href="/d819fc26cbc7/" title="共识算法详解">共识算法详解</a><time datetime="2026-02-19T22:24:00.000Z" title="发表于 2026-02-20 06:24:00">2026-02-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1c5cbb334a2a/" title="计算机中熵的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="计算机中熵的详解"/></a><div class="content"><a class="title" href="/1c5cbb334a2a/" title="计算机中熵的详解">计算机中熵的详解</a><time datetime="2026-02-17T22:24:00.000Z" title="发表于 2026-02-18 06:24:00">2026-02-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/96b89e66f942/" title="Actor 模型的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Actor 模型的详解"/></a><div class="content"><a class="title" href="/96b89e66f942/" title="Actor 模型的详解">Actor 模型的详解</a><time datetime="2026-02-16T22:24:00.000Z" title="发表于 2026-02-17 06:24:00">2026-02-17</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>

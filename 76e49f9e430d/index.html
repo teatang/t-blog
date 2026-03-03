@@ -1,0 +1,746 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Rust Async-std 的详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Async-std 是 Rust 异步生态系统中的一个重要异步运行时 (Asynchronous Runtime)，它旨在提供一个与 Rust 标准库 (standard library) 紧密结合、易于使用的异步编程环境。它的设计哲学是尽可能提供与 std:: 命名空间相似的异步版本，例如 async_std::fs::File 对应 std::fs::File，async_std::net:">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust Async-std 的详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/76e49f9e430d/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Async-std 是 Rust 异步生态系统中的一个重要异步运行时 (Asynchronous Runtime)，它旨在提供一个与 Rust 标准库 (standard library) 紧密结合、易于使用的异步编程环境。它的设计哲学是尽可能提供与 std:: 命名空间相似的异步版本，例如 async_std::fs::File 对应 std::fs::File，async_std::net:">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg">
+<meta property="article:published_time" content="2025-09-05T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-03-03T09:55:08.856Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="异步编程">
+<meta property="article:tag" content="程序设计">
+<meta property="article:tag" content="并发编程">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="Rust">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Rust Async-std 的详解",
+  "url": "https://blog.tbf1211.xx.kg/76e49f9e430d/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-24.jpg",
+  "datePublished": "2025-09-05T22:24:00.000Z",
+  "dateModified": "2026-03-03T09:55:08.856Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/76e49f9e430d/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Rust Async-std 的详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">580</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">235</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">89</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-24.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Rust Async-std 的详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Rust Async-std 的详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-09-05T22:24:00.000Z" title="发表于 2025-09-06 06:24:00">2025-09-06</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Rust/">Rust</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Rust/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">2.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>10分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Async-std</strong> 是 Rust 异步生态系统中的一个重要异步运行时 (Asynchronous Runtime)，它旨在提供一个与 Rust 标准库 (standard library) 紧密结合、易于使用的异步编程环境。它的设计哲学是尽可能提供与 <code>std::</code> 命名空间相似的异步版本，例如 <code>async_std::fs::File</code> 对应 <code>std::fs::File</code>，<code>async_std::net::TcpStream</code> 对应 <code>std::net::TcpStream</code>。Async-std 与 Rust 的 <code>async/await</code> 语法结合，允许开发者编写高性能、高并发、且兼具 Rust 安全性保障的异步应用程序。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：Async-std 通过模仿 Rust 标准库的 API 设计，提供一个直观且易于上手的异步运行时，旨在降低异步编程的学习曲线，同时保持 Rust 固有的性能和内存安全。</p>
+</div>
+
+<hr>
+<h2 id="一、为什么需要异步编程与-Async-std？"><a href="#一、为什么需要异步编程与-Async-std？" class="headerlink" title="一、为什么需要异步编程与 Async-std？"></a>一、为什么需要异步编程与 Async-std？</h2><p>在处理 I&#x2F;O 密集型任务（如网络通信、文件读写）时，传统的同步编程模型会导致线程阻塞，降低系统吞吐量。异步编程允许程序在等待 I&#x2F;O 操作完成时切换到其他任务，从而提高资源利用率和并发能力。</p>
+<p>Rust 从 1.39 版本开始稳定了 <code>async/await</code> 语法，这使得在语言层面编写异步代码成为可能。然而，<code>async fn</code> 返回的 <code>Future</code> 仅仅是一个 <strong>描述异步操作状态机</strong> 的值，它本身不会执行。为了真正运行这些 <code>Future</code>，我们需要一个 <strong>异步运行时 (Asynchronous Runtime)</strong>。</p>
+<p><strong>Async-std</strong> 便是其中一个重要的运行时。它的主要目标是：</p>
+<ul>
+<li><strong>提供一个基于 <code>async/await</code> 的执行器 (Executor)</strong>：负责调度和运行异步任务。</li>
+<li><strong>提供一套异步原语 (Async Primitives)</strong>：包括异步 I&#x2F;O (网络、文件)、同步工具 (通道、互斥锁) 和定时器等。</li>
+<li><strong>保持与标准库的 API 一致性</strong>：让熟悉 Rust 标准库的开发者能够更快上手异步编程。</li>
+</ul>
+<h2 id="二、Async-std-的核心概念"><a href="#二、Async-std-的核心概念" class="headerlink" title="二、Async-std 的核心概念"></a>二、Async-std 的核心概念</h2><h3 id="2-1-Future-异步任务"><a href="#2-1-Future-异步任务" class="headerlink" title="2.1 Future (异步任务)"></a>2.1 Future (异步任务)</h3><p>与 Tokio 或其他 Rust 异步运行时一样，<code>Future</code> 在 Async-std 中也扮演核心角色。一个 <code>Future</code> 是一个可等待的值，它在被 <code>poll</code> 时会推进其内部状态，最终完成并返回一个结果。</p>
+<p><code>async fn</code> 定义的函数返回一个匿名 <code>Future</code> 类型，而 <code>.await</code> 运算符用于等待一个 <code>Future</code> 完成，并在必要时挂起当前任务。</p>
+<h3 id="2-2-Executor-执行器-调度器"><a href="#2-2-Executor-执行器-调度器" class="headerlink" title="2.2 Executor (执行器&#x2F;调度器)"></a>2.2 Executor (执行器&#x2F;调度器)</h3><p>Async-std 运行时包含一个执行器，它负责接收 <code>Future</code> 并将它们调度到可用的线程上运行。它通常使用一个<strong>工作窃取 (Work-Stealing)</strong> 线程池，以高效地利用多核处理器。当一个 <code>Future</code> 阻塞等待 I&#x2F;O 时，执行器会调度另一个 <code>Future</code> 运行，从而实现并发。</p>
+<h3 id="2-3-Waker-唤醒器-与-Reactor-I-O-驱动"><a href="#2-3-Waker-唤醒器-与-Reactor-I-O-驱动" class="headerlink" title="2.3 Waker (唤醒器) 与 Reactor (I&#x2F;O 驱动)"></a>2.3 Waker (唤醒器) 与 Reactor (I&#x2F;O 驱动)</h3><p>当一个 <code>Future</code> 在 <code>poll</code> 时遇到 I&#x2F;O 阻塞，它会返回 <code>Poll::Pending</code>。此时，<code>async-std</code> 底层将 <code>Future</code> 对应的 <code>Waker</code> 注册到底层操作系统的 I&#x2F;O 多路复用机制（如 epoll, kqueue）中。一旦 I&#x2F;O 事件准备就绪，操作系统的通知会触发 <code>Waker</code>，进而告诉执行器这个 <code>Future</code> 已经准备好再次被 <code>poll</code>。这些底层机制对于开发者而言是透明的。</p>
+<h3 id="2-4-标准库风格的-API"><a href="#2-4-标准库风格的-API" class="headerlink" title="2.4 标准库风格的 API"></a>2.4 标准库风格的 API</h3><p>这是 Async-std 最显著的特点。它重新实现了标准库中的大部分 I&#x2F;O 和并发类型，使其具有 <code>async</code> 能力。例如：</p>
+<ul>
+<li><code>std::fs::File</code> -&gt; <code>async_std::fs::File</code></li>
+<li><code>std::net::TcpStream</code> -&gt; <code>async_std::net::TcpStream</code></li>
+<li><code>std::sync::Mutex</code> -&gt; <code>async_std::sync::Mutex</code></li>
+</ul>
+<p>这种设计哲学旨在为 Rust 开发者提供一种更平滑的异步编程体验。</p>
+<h2 id="三、Async-std-的工作原理与架构"><a href="#三、Async-std-的工作原理与架构" class="headerlink" title="三、Async-std 的工作原理与架构"></a>三、Async-std 的工作原理与架构</h2><p>Async-std 的核心是一个基于线程池的工作窃取调度器。</p>
+<ol>
+<li><strong>任务提交</strong>：当一个 <code>Future</code> (通过 <code>async_std::task::spawn</code> 或 <code>async_std::main</code> 宏) 被提交到运行时，它会被放置在一个全局队列或某个工作者线程的本地队列中。</li>
+<li><strong>工作者线程</strong>：运行时维护一个线程池。池中的每个线程都会从队列中获取任务并执行。</li>
+<li><strong>任务执行与暂停</strong>：当一个工作者线程执行一个 <code>Future</code> 的 <code>poll</code> 方法时：<ul>
+<li>如果 <code>Future</code> 已经完成 (例如，计算结果已准备好)，线程获取结果。</li>
+<li>如果 <code>Future</code> 遇到 I&#x2F;O 阻塞 (例如，等待网络数据)，它会返回 <code>Poll::Pending</code>。此时，I&#x2F;O 事件会被注册到底层 Reactor (如 <code>polling</code> crate)，并将 <code>Waker</code> 关联到该事件。工作者线程将 <code>Future</code> 放回队列，然后取出另一个任务执行。</li>
+<li>当 I&#x2F;O 事件准备就绪时，Reactor 会唤醒对应的 <code>Waker</code>，通知执行器将 <code>Future</code> 重新标记为可运行，并放入队列等待再次调度。</li>
+</ul>
+</li>
+<li><strong>工作窃取</strong>：如果一个工作者线程的本地任务队列为空，它会尝试从其他工作者线程的队列中“窃取”任务来执行，从而平衡负载并最大化 CPU 利用率。</li>
+</ol>
+<h2 id="四、Async-std-的关键组件与用法"><a href="#四、Async-std-的关键组件与用法" class="headerlink" title="四、Async-std 的关键组件与用法"></a>四、Async-std 的关键组件与用法</h2><h3 id="4-1-async-std-main-宏"><a href="#4-1-async-std-main-宏" class="headerlink" title="4.1 async_std::main 宏"></a>4.1 <code>async_std::main</code> 宏</h3><p>与 <code>tokio::main</code> 类似，<code>async_std::main</code> 宏提供了一个方便的方式来设置和运行 <code>async fn main()</code> 函数。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> async_std::task;</span><br><span class="line"><span class="keyword">use</span> async_std::prelude::*; <span class="comment">// 引入 trait</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[async_std::main]</span> <span class="comment">// 自动设置异步运行时</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;Hello from async-std!&quot;</span>);</span><br><span class="line">    task::<span class="title function_ invoke__">sleep</span>(std::time::Duration::<span class="title function_ invoke__">from_secs</span>(<span class="number">1</span>)).<span class="keyword">await</span>; <span class="comment">// 异步休眠</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;One second later!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-async-std-task-spawn-启动新任务"><a href="#4-2-async-std-task-spawn-启动新任务" class="headerlink" title="4.2 async_std::task::spawn - 启动新任务"></a>4.2 <code>async_std::task::spawn</code> - 启动新任务</h3><p>用于在运行时中启动一个独立的异步任务，其执行不会阻塞当前任务。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> async_std::task;</span><br><span class="line"><span class="keyword">use</span> async_std::prelude::*;</span><br><span class="line"><span class="keyword">use</span> std::time::Duration;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[async_std::main]</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;Main task started.&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">handle1</span> = task::<span class="title function_ invoke__">spawn</span>(<span class="keyword">async</span> &#123;</span><br><span class="line">        task::<span class="title function_ invoke__">sleep</span>(Duration::<span class="title function_ invoke__">from_secs</span>(<span class="number">2</span>)).<span class="keyword">await</span>;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">&quot;Task 1 finished after 2 seconds.&quot;</span>);</span><br><span class="line">        <span class="string">&quot;Result from task 1&quot;</span></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">handle2</span> = task::<span class="title function_ invoke__">spawn</span>(<span class="keyword">async</span> &#123;</span><br><span class="line">        task::<span class="title function_ invoke__">sleep</span>(Duration::<span class="title function_ invoke__">from_secs</span>(<span class="number">1</span>)).<span class="keyword">await</span>;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">&quot;Task 2 finished after 1 second.&quot;</span>);</span><br><span class="line">        <span class="number">42</span></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待所有异步任务完成</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">res1</span> = handle1.<span class="keyword">await</span>;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">res2</span> = handle2.<span class="keyword">await</span>;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;Main task finished. Results: &#123;&#125; and &#123;&#125;&quot;</span>, res1, res2);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-异步-I-O-原语"><a href="#4-3-异步-I-O-原语" class="headerlink" title="4.3 异步 I&#x2F;O 原语"></a>4.3 异步 I&#x2F;O 原语</h3><p>Async-std 提供的异步 I&#x2F;O 模块与标准库高度一致。</p>
+<ul>
+<li><strong><code>async_std::net::&#123;TcpListener, TcpStream, UdpSocket&#125;</code></strong></li>
+<li><strong><code>async_std::fs::&#123;File&#125;</code></strong></li>
+<li><strong><code>async_std::io::&#123;Read, Write, BufReader, BufWriter&#125;</code></strong></li>
+</ul>
+<p><strong>示例：一个简单的 echo TCP 服务器</strong></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> async_std::io::&#123;BufReader, prelude::*&#125;;</span><br><span class="line"><span class="keyword">use</span> async_std::net::TcpListener;</span><br><span class="line"><span class="keyword">use</span> async_std::task;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[async_std::main]</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">fn</span> <span class="title function_">main</span>() <span class="punctuation">-&gt;</span> <span class="type">Result</span>&lt;(), <span class="type">Box</span>&lt;<span class="keyword">dyn</span> std::error::Error&gt;&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">listener</span> = TcpListener::<span class="title function_ invoke__">bind</span>(<span class="string">&quot;127.0.0.1:8080&quot;</span>).<span class="keyword">await</span>?;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;Listening on &#123;&#125;&quot;</span>, listener.<span class="title function_ invoke__">local_addr</span>()?);</span><br><span class="line"></span><br><span class="line">    listener.<span class="title function_ invoke__">incoming</span>().for_each_concurrent(<span class="literal">None</span>, |stream_result| <span class="keyword">async</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">stream</span> = <span class="keyword">match</span> stream_result &#123;</span><br><span class="line">            <span class="title function_ invoke__">Ok</span>(s) =&gt; s,</span><br><span class="line">            <span class="title function_ invoke__">Err</span>(e) =&gt; &#123;</span><br><span class="line">                <span class="built_in">eprintln!</span>(<span class="string">&quot;Accept error: &#123;&#125;&quot;</span>, e);</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">peer_addr</span> = stream.<span class="title function_ invoke__">peer_addr</span>().<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">&quot;Accepted connection from &#123;&#125;&quot;</span>, peer_addr);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 处理连接</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">reader</span> = BufReader::<span class="title function_ invoke__">new</span>(&amp;<span class="keyword">mut</span> stream); <span class="comment">// 使用BufReader</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">buffer</span> = <span class="type">String</span>::<span class="title function_ invoke__">new</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">loop</span> &#123;</span><br><span class="line">            <span class="comment">// 尝试读取一行</span></span><br><span class="line">            <span class="keyword">match</span> reader.<span class="title function_ invoke__">read_line</span>(&amp;<span class="keyword">mut</span> buffer).<span class="keyword">await</span> &#123;</span><br><span class="line">                <span class="title function_ invoke__">Ok</span>(<span class="number">0</span>) =&gt; &#123; <span class="comment">// 连接关闭</span></span><br><span class="line">                    <span class="built_in">println!</span>(<span class="string">&quot;Connection from &#123;&#125; closed.&quot;</span>, peer_addr);</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="title function_ invoke__">Ok</span>(_) =&gt; &#123;</span><br><span class="line">                    <span class="built_in">print!</span>(<span class="string">&quot;Received from &#123;&#125;: &#123;&#125;&quot;</span>, peer_addr, buffer);</span><br><span class="line">                    <span class="comment">// 将收到的数据回写</span></span><br><span class="line">                    <span class="keyword">if</span> stream.<span class="title function_ invoke__">write_all</span>(buffer.<span class="title function_ invoke__">as_bytes</span>()).<span class="keyword">await</span>.<span class="title function_ invoke__">is_err</span>() &#123;</span><br><span class="line">                        <span class="built_in">eprintln!</span>(<span class="string">&quot;Write error to &#123;&#125;: Connection lost.&quot;</span>, peer_addr);</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                    buffer.<span class="title function_ invoke__">clear</span>(); <span class="comment">// 清空缓冲区以便下一次读取</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="title function_ invoke__">Err</span>(e) =&gt; &#123; <span class="comment">// 读取错误</span></span><br><span class="line">                    <span class="built_in">eprintln!</span>(<span class="string">&quot;Read error from &#123;&#125;: &#123;&#125;&quot;</span>, peer_addr, e);</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;).<span class="keyword">await</span>;</span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">Ok</span>(())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-异步同步原语"><a href="#4-4-异步同步原语" class="headerlink" title="4.4 异步同步原语"></a>4.4 异步同步原语</h3><p>Async-std 提供了异步版本的同步工具。</p>
+<ul>
+<li><strong><code>async_std::channel::&#123;Receiver, Sender&#125;</code></strong>: 异步通道 (mpsc)。</li>
+<li><strong><code>async_std::sync::&#123;Mutex, RwLock&#125;</code></strong>: 异步互斥锁和读写锁。</li>
+</ul>
+<p><strong>示例：使用 <code>channel</code> 进行任务间通信</strong></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> async_std::channel;</span><br><span class="line"><span class="keyword">use</span> async_std::task;</span><br><span class="line"><span class="keyword">use</span> std::time::Duration;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[async_std::main]</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> (sender, receiver) = channel::<span class="title function_ invoke__">unbounded</span>(); <span class="comment">// 创建一个无界异步通道</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 生产者任务</span></span><br><span class="line">    task::<span class="title function_ invoke__">spawn</span>(<span class="keyword">async</span> <span class="keyword">move</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> <span class="variable">i</span> <span class="keyword">in</span> <span class="number">0</span>..<span class="number">5</span> &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">msg</span> = <span class="built_in">format!</span>(<span class="string">&quot;Hello &#123;&#125;&quot;</span>, i);</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">&quot;Sending: &#123;&#125;&quot;</span>, msg);</span><br><span class="line">            sender.<span class="title function_ invoke__">send</span>(msg).<span class="keyword">await</span>.<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">            task::<span class="title function_ invoke__">sleep</span>(Duration::<span class="title function_ invoke__">from_millis</span>(<span class="number">100</span>)).<span class="keyword">await</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 消费者任务</span></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">let</span> <span class="variable">Ok</span>(msg) = receiver.<span class="title function_ invoke__">recv</span>().<span class="keyword">await</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">&quot;Received: &#123;&#125;&quot;</span>, msg);</span><br><span class="line">        <span class="keyword">if</span> msg == <span class="string">&quot;Hello 4&quot;</span> &#123;</span><br><span class="line">            <span class="keyword">break</span>; <span class="comment">// 接收到特定消息后停止</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;Consumer finished.&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、Async-std-的优势"><a href="#五、Async-std-的优势" class="headerlink" title="五、Async-std 的优势"></a>五、Async-std 的优势</h2><ol>
+<li><strong>标准库一致性</strong>：其 API 设计与 Rust 标准库高度相似，降低了学习曲线，使得开发者能够更自然地从同步编程过渡到异步编程。</li>
+<li><strong>简洁易用</strong>：默认配置通常能满足大多数需求，减少了配置的复杂性，特别适合快速原型开发和不需要极致优化的应用。</li>
+<li><strong>高性能</strong>：底层采用工作窃取调度器和高效的 I&#x2F;O 多路复用，能够提供卓越的性能，适用于高并发场景。</li>
+<li><strong>安全可靠</strong>：继承了 Rust 语言的所有权和借用检查机制，保证了内存安全和数据竞争的避免。</li>
+<li><strong>跨平台</strong>：支持主流操作系统 (Linux, macOS, Windows)。</li>
+</ol>
+<h2 id="六、Async-std-与-Tokio-的比较"><a href="#六、Async-std-与-Tokio-的比较" class="headerlink" title="六、Async-std 与 Tokio 的比较"></a>六、Async-std 与 Tokio 的比较</h2><table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">Async-std</th>
+<th align="left">Tokio</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>设计哲学</strong></td>
+<td align="left">模仿 <code>std</code> 库，提供简洁、直观的 API。</td>
+<td align="left">专注于高性能网络和服务器，提供细粒度控制，功能更丰富。</td>
+</tr>
+<tr>
+<td align="left"><strong>API 风格</strong></td>
+<td align="left">更接近 Rust 标准库。</td>
+<td align="left">自身有一套更独立的 API 风格，但功能强大。</td>
+</tr>
+<tr>
+<td align="left"><strong>易用性</strong></td>
+<td align="left">对于初学者和中小项目，学习曲线和上手难度较低。</td>
+<td align="left">功能全面，但在某些复杂场景下配置和使用可能更复杂。</td>
+</tr>
+<tr>
+<td align="left"><strong>生态系统</strong></td>
+<td align="left">较小，但与 <code>futures</code> crate 兼容，可使用其提供的组件。</td>
+<td align="left">庞大而成熟，拥有最多的第三方异步库支持 (如 Hyper, Tonic, Axum)。</td>
+</tr>
+<tr>
+<td align="left"><strong>性能</strong></td>
+<td align="left">通常非常优秀，足以满足大多数应用。</td>
+<td align="left">在一些极端高并发和有严格性能要求的场景下，可能略有优势，提供更多优化选项。</td>
+</tr>
+<tr>
+<td align="left"><strong>底层实现</strong></td>
+<td align="left">使用 <code>polling</code> crate 作为 I&#x2F;O 多路复用层。</td>
+<td align="left">使用 <code>mio</code> crate 和其自建的运行时。</td>
+</tr>
+<tr>
+<td align="left"><strong>最佳使用场景</strong></td>
+<td align="left">客户端应用、需要快速开发中小型异步服务、希望保持 <code>std</code> 风格的应用。</td>
+<td align="left">大型服务器、高并发网络服务、分布式系统、需要极致性能和丰富功能的应用。</td>
+</tr>
+</tbody></table>
+<p>两者都是优秀的异步运行时，并且都在不断发展。在很多情况下，它们的代码甚至可以互换或通过适配层兼容。在选择时，可以根据项目规模、团队偏好、以及对特定生态系统库的依赖来决定。</p>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>Async-std 为 Rust 异步编程提供了一条平坦的道路，其核心优势在于其与标准库的高度一致性和优秀的易用性。它使得 Rust 开发者能够以更直观的方式编写出高性能、内存安全的异步并发代码。无论你是在构建一个简单的命令行工具，还是一个中型 Web 服务，Async-std 都是一个强大且可靠的选择。对于那些寻求简洁、低学习成本且具有强大性能的异步运行时，Async-std 无疑是一个值得深入探索的工具。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/76e49f9e430d/">https://blog.tbf1211.xx.kg/76e49f9e430d/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B/">异步编程</a><a class="post-meta__tags" href="/tags/%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1/">程序设计</a><a class="post-meta__tags" href="/tags/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/">并发编程</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/Rust/">Rust</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-24.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/7a02193c3680/" title="React Native 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">React Native 详解</div></div><div class="info-2"><div class="info-item-1"> React Native 是 Facebook（现 Meta）于 2015 年推出的一个开源移动应用开发框架。它允许开发者使用 JavaScript 和 React 编写代码，同时将应用编译为原生 (Native) 的 iOS 和 Android 应用。其核心理念是“Learn once, write anywhere”——开发者只需学习一套技术栈（React 和 JavaScript），即可构建在多个平台运行的移动应用。  核心思想： React Native 并非将 Web 应用打包为移动应用（如 Cordova&#x2F;Ionic），而是通过 JavaScript 桥接，将 React 组件转换为真正的原生 UI 组件，从而提供接近原生应用的性能和用户体验，同时享受前端开发的高效率。   一、为什么选择 React Native？传统的移动应用开发通常需要为 iOS（使用 Swift&#x2F;Objective-C）和 Android（使用 Java&#x2F;Kotlin）分别编写两套代码，维护成本高昂。React Native 旨在解决这一痛点，提供以下核心优势：...</div></div></div></a><a class="pagination-related" href="/98c39f8e2307/" title="Go 语言协程设计与调度原理"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Go 语言协程设计与调度原理</div></div><div class="info-2"><div class="info-item-1"> Go 语言以其强大的并发特性而闻名，其核心是轻量级协程 (Goroutine) 和高效的调度器。理解 Goroutine 的设计理念以及 Go 运行时如何调度这些协程，对于编写高性能、高并发的 Go 应用程序至关重要。本文将深入探讨 Go 语言协程的设计哲学，并详细解析其背后支撑的 GMP 调度模型。  核心概念：  Goroutine：Go 语言的轻量级并发单元，用户态线程。 GMP 模型：Go 语言运行时调度 Goroutine 的核心模型，由 G (Goroutine)、M (Machine&#x2F;Thread)、P (Processor) 三要素组成。     一、Go 语言协程 (Goroutine) 的设计哲学传统的并发编程通常基于操作系统线程。虽然线程提供了并发能力，但它们也带来了不小的开销：  创建&#x2F;销毁开销大：创建和销毁线程需要向操作系统内核申请资源，涉及系统调用，开销较大。 上下文切换开销大：线程的上下文切换由操作系统内核完成，需要保存和恢复大量的寄存器信息，开销较大。 内存消耗大：每个线程通常需要 MB 级别的栈空间，大量线程会导致内存消耗巨...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/0a21f617fa07/" title="Rust Tokio 的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-03</div><div class="info-item-2">Rust Tokio 的详解</div></div><div class="info-2"><div class="info-item-1"> Tokio 是 Rust 生态系统中一个功能强大、高性能的异步运行时 (Asynchronous Runtime)。它提供了一套完整的工具和抽象，使得开发者能够用 Rust 编写高效、可伸缩的异步网络应用程序和并发服务。Tokio 的核心是其事件驱动的 I&#x2F;O 模型，通过结合 Rust 的 async/await 语法，它允许你在一个线程上并发地执行多个 I&#x2F;O 密集型任务，而不会阻塞主线程。  核心思想：Tokio 提供了一个事件驱动的异步 I&#x2F;O 运行时，通过 async/await 语法和非阻塞 I&#x2F;O 原语，使得 Rust 能够高效处理大量并发连接，特别适用于网络服务和服务器端应用，同时保持 Rust 语言固有的内存安全和性能优势。    一、为什么需要异步编程和 Tokio？传统的多线程同步编程模型中，如果一个操作（例如网络请求或文件读写）需要等待，那么执行该操作的整个线程都会被阻塞，直到操作完成。对于 I&#x2F;O 密集型应用（如 Web 服务器、数据库代理），这意味着一个线程在大部分时间都处于空闲等待状态，无法有效利用 ...</div></div></div></a><a class="pagination-related" href="/9abf6b3466b1/" title="Rust 可变引用和不可变引用的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-18</div><div class="info-item-2">Rust 可变引用和不可变引用的详解</div></div><div class="info-2"><div class="info-item-1"> 在 Rust 所有权系统 (Ownership System) 的框架下，引用 (References) 提供了一种在不转移所有权的情况下访问数据的方式，这个过程被称为 借用 (Borrowing)。Rust 区分两种主要类型的引用：不可变引用 (Immutable References) 和 可变引用 (Mutable References)。这种区分以及它们各自严格的规则是 Rust 保证内存安全和并发安全的核心机制，尤其有效地防止了数据竞争 (Data Races)。  核心思想：引用允许安全地共享数据而不必转移所有权。Rust 的强类型系统和借用检查器严格区分不可变引用和可变引用，并强制执行“一可变或多不可变”的规则，从而在编译时消除数据竞争等常见内存错误。    一、引用的基本概念引用是指向存储在内存中某个值的指针，但它不拥有该值。这意味着当引用离开作用域时，它所指向的值不会被丢弃。引用允许你在代码的不同部分之间共享数据，而无需担心所有权问题。 1.1 借用 (Borrowing)创建引用被称为“借用”。就像现实生活中，你借用一本书，你可以阅读它（不可变借用），或者如...</div></div></div></a><a class="pagination-related" href="/9a912f52cf6c/" title="Rust 生命周期的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-09-01</div><div class="info-item-2">Rust 生命周期的详解</div></div><div class="info-2"><div class="info-item-1"> Rust 的生命周期 (Lifetimes) 是其所有权 (Ownership) 和借用 (Borrowing) 系统中一个至关重要的概念。它们是 Rust 编译器的一种命名约定，用于描述引用 (References) 的有效范围，进而确保内存安全，避免 悬垂引用 (Dangling References)。生命周期确保了任何引用都不会比它所指向的数据活得更久，从而在编译时消除了许多常见的内存错误，而无需运行时垃圾回收的开销。  核心思想：生命周期参数告诉 Rust 编译器引用之间以及引用与数据之间生命周期的关系，确保所有借用在编译时都是有效的，从而防止使用失效的引用。    一、为什么需要生命周期？在没有垃圾回收的语言中，跟踪内存的有效性是一个常见且复杂的问题。例如在 C&#x2F;C++ 中，很容易创建指向已释放内存的指针（悬垂指针），导致程序崩溃或未定义行为。 悬垂引用 (Dangling Reference): 当一个引用指向的内存已经被释放，而引用本身仍然存在时，它就成了悬垂引用。使用悬垂引用会导致严重的安全和稳定性问题。 Rust 的所有权和借用系统通过在编译时强制...</div></div></div></a><a class="pagination-related" href="/e049c9066fae/" title="Rust 编程规范详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-01</div><div class="info-item-2">Rust 编程规范详解</div></div><div class="info-2"><div class="info-item-1"> Rust 编程规范 是一套关于如何编写清晰、一致、可维护和高效 Rust 代码的指导原则。遵循这些规范不仅能提升代码库的整体质量，还能促进团队成员之间的协作，减少潜在错误，并充分利用 Rust 语言在内存安全和并发方面的优势。本规范融合了 Rust 官方《Rust 程序设计语言》、rustfmt 的默认风格以及社区的普遍最佳实践。  核心思想：通过统一的风格、明确的结构和对语言特性的恰当应用，提高代码的可读性、可维护性和安全性，最终提升开发效率和软件质量。    一、命名规范 (Naming Conventions)Rust 的命名约定遵循了其标准库和社区的惯例，有助于快速理解代码元素的类型和目的。 1.1 snake_case (蛇形命名法)所有字母小写，单词之间用下划线 _ 连接。  变量 (Variables)：12let file_name = &quot;data.txt&quot;;let mut item_count = 0; 函数 (Functions)：1fn calculate_area(width: f64, height: f64) -&gt; f64 ...</div></div></div></a><a class="pagination-related" href="/1d8a8fa6c74e/" title="Rust 编程语言核心主题详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-04</div><div class="info-item-2">Rust 编程语言核心主题详解</div></div><div class="info-2"><div class="info-item-1"> Rust 是一门着重于安全 (Safety)、性能 (Performance) 和并发 (Concurrency) 的现代系统编程语言。它旨在解决 C&#x2F;C++ 等传统系统语言中常见的内存安全问题，同时又保持了零开销抽象和裸机控制的能力。Rust 通过其独特的所有权 (Ownership) 系统、借用 (Borrowing) 和生命周期 (Lifetimes) 规则，在编译时强制执行内存安全，无需垃圾回收器，从而避免了数据竞争和空指针解引用等常见错误。  核心思想：在保证与 C&#x2F;C++ 匹敌性能的同时，通过严格的编译时检查（所有权系统）来消除内存安全漏洞和数据竞争，使开发者可以专注于业务逻辑而非底层内存管理。    一、变量和可变性 (Variables and Mutability)Rust 的变量绑定默认是不可变的，这鼓励开发者编写更安全、更易于理解的代码。 1.1 let 绑定使用 let 关键字声明的变量默认是不可变的 (immutable)。一旦绑定了一个值，就不能再改变它。 12345fn main() &#123;    let x = 5; /...</div></div></div></a><a class="pagination-related" href="/22a5eeb71679/" title="Rust 所有权的详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-08-13</div><div class="info-item-2">Rust 所有权的详解</div></div><div class="info-2"><div class="info-item-1"> Rust 的所有权 (Ownership) 系统是其最独特且最具创新性的特性之一，也是 Rust 能够提供内存安全，同时无需垃圾回收器 (GC) 或手动内存管理的基石。它是一系列编译器在编译时检查的规则，用于管理程序如何使用内存。理解所有权是掌握 Rust 编程的关键，因为它直接影响了变量的生命周期、数据共享以及并发安全性。  核心思想：所有权系统在编译时强制执行关于程序数据访问的规则，确保内存安全，防止数据竞争，并实现高性能，而无需运行时负担。    一、所有权概念的引入在其他系统编程语言中，内存管理通常有两种常见方式：  垃圾回收 (GC)：在运行时自动寻找并清理不再使用的内存（如 Java, Go, Python）。优点是方便，缺点是运行时开销，可能导致程序暂停 (stop-the-world pauses)。 手动管理：程序员手动分配和释放内存（如 C, C++ 中的 malloc&#x2F;free 或 new&#x2F;delete）。优点是精确控制，性能高，缺点是容易出错，导致内存泄漏、悬垂指针、二次释放等问题。  Rust 的所有权系统旨在两全其美：在编译时通过...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">580</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">235</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">89</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B%E4%B8%8E-Async-std%EF%BC%9F"><span class="toc-text">一、为什么需要异步编程与 Async-std？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Async-std-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、Async-std 的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Future-%E5%BC%82%E6%AD%A5%E4%BB%BB%E5%8A%A1"><span class="toc-text">2.1 Future (异步任务)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Executor-%E6%89%A7%E8%A1%8C%E5%99%A8-%E8%B0%83%E5%BA%A6%E5%99%A8"><span class="toc-text">2.2 Executor (执行器&#x2F;调度器)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Waker-%E5%94%A4%E9%86%92%E5%99%A8-%E4%B8%8E-Reactor-I-O-%E9%A9%B1%E5%8A%A8"><span class="toc-text">2.3 Waker (唤醒器) 与 Reactor (I&#x2F;O 驱动)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E6%A0%87%E5%87%86%E5%BA%93%E9%A3%8E%E6%A0%BC%E7%9A%84-API"><span class="toc-text">2.4 标准库风格的 API</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Async-std-%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E4%B8%8E%E6%9E%B6%E6%9E%84"><span class="toc-text">三、Async-std 的工作原理与架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Async-std-%E7%9A%84%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6%E4%B8%8E%E7%94%A8%E6%B3%95"><span class="toc-text">四、Async-std 的关键组件与用法</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-async-std-main-%E5%AE%8F"><span class="toc-text">4.1 async_std::main 宏</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-async-std-task-spawn-%E5%90%AF%E5%8A%A8%E6%96%B0%E4%BB%BB%E5%8A%A1"><span class="toc-text">4.2 async_std::task::spawn - 启动新任务</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%BC%82%E6%AD%A5-I-O-%E5%8E%9F%E8%AF%AD"><span class="toc-text">4.3 异步 I&#x2F;O 原语</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%BC%82%E6%AD%A5%E5%90%8C%E6%AD%A5%E5%8E%9F%E8%AF%AD"><span class="toc-text">4.4 异步同步原语</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Async-std-%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="toc-text">五、Async-std 的优势</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Async-std-%E4%B8%8E-Tokio-%E7%9A%84%E6%AF%94%E8%BE%83"><span class="toc-text">六、Async-std 与 Tokio 的比较</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="go.sum 文件中特殊哈希计算详解"/></a><div class="content"><a class="title" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解">go.sum 文件中特殊哈希计算详解</a><time datetime="2026-02-23T22:24:00.000Z" title="发表于 2026-02-24 06:24:00">2026-02-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/534cc47f2f4c/" title="二次验证 (2FA) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二次验证 (2FA) 详解"/></a><div class="content"><a class="title" href="/534cc47f2f4c/" title="二次验证 (2FA) 详解">二次验证 (2FA) 详解</a><time datetime="2026-02-21T22:24:00.000Z" title="发表于 2026-02-22 06:24:00">2026-02-22</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/d819fc26cbc7/" title="共识算法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="共识算法详解"/></a><div class="content"><a class="title" href="/d819fc26cbc7/" title="共识算法详解">共识算法详解</a><time datetime="2026-02-19T22:24:00.000Z" title="发表于 2026-02-20 06:24:00">2026-02-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/1c5cbb334a2a/" title="计算机中熵的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="计算机中熵的详解"/></a><div class="content"><a class="title" href="/1c5cbb334a2a/" title="计算机中熵的详解">计算机中熵的详解</a><time datetime="2026-02-17T22:24:00.000Z" title="发表于 2026-02-18 06:24:00">2026-02-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/96b89e66f942/" title="Actor 模型的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Actor 模型的详解"/></a><div class="content"><a class="title" href="/96b89e66f942/" title="Actor 模型的详解">Actor 模型的详解</a><time datetime="2026-02-16T22:24:00.000Z" title="发表于 2026-02-17 06:24:00">2026-02-17</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-24.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
