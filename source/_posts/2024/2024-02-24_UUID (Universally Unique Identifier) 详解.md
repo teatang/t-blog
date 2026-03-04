@@ -171,25 +171,56 @@ RFC 4122 定义了五种主要的 UUID 版本（Version 1 到 Version 5），以
 
 {% mermaid %}
 graph LR
-    A[Start] --> B{需要可预测的ID或<br>基于名称的ID?};
-    B -- Yes --> C{需要更强的哈希算法?};
-    C -- Yes --> V5["Version 5 (SHA-1)"];
-    C -- No --> V3["Version 3 (MD5)"];
-    B -- No --> D{需要在数据库中高效排序?};
-    D -- Yes --> E{"对隐私敏感(MAC)?"};
-    E -- No --> V6["Version 6 <br>(Reordered Time/MAC)"];
-    E -- Yes --> V7["Version 7 <br>(Unix Epoch Time/Random
-    )"];
-    D -- No --> F{对生成ID的机器隐私敏感?};
-    F -- Yes --> V4["Version 4 (Random)"];
-    F -- No --> V1["Version 1 (Time/MAC)"];
-    V1 --> G[考虑替代: 雪花算法/ULID];
-    V4 --> G;
-    V6 --> G;
-    V7 --> G;
-    V3 --> G;
-    V5 --> G;
-    G[End];
+    %% 节点定义
+    A([<b>Start</b>])
+    B{需要可预测或<br/>基于名称的 ID?}
+    
+    C{需要更强的<br/>哈希算法?}
+    V5["<b>Version 5</b><br/><code>SHA-1</code>"]
+    V3["<b>Version 3</b><br/><code>MD5</code>"]
+    
+    D{需要在数据库中<br/>高效排序?}
+    
+    E{"对隐私敏感<br/>(暴露 MAC)?"}
+    V6["<b>Version 6</b><br/><code>Reordered Time / MAC</code>"]
+    V7["<b>Version 7</b><br/><code>Unix Epoch / Random</code>"]
+    
+    F{对生成机器的<br/>隐私敏感?}
+    V4["<b>Version 4</b><br/><code>Fully Random</code>"]
+    V1["<b>Version 1</b><br/><code>Time / MAC</code>"]
+    
+    G[<b>考虑替代方案</b><br/><code>Snowflake / ULID</code>]
+    H([<b>End</b>])
+
+    %% 逻辑连接
+    A --> B
+    B -- "Yes (Namespace)" --> C
+    C -- "Yes" --> V5
+    C -- "No" --> V3
+    
+    B -- "No (Unique)" --> D
+    D -- "Yes (Ordered)" --> E
+    E -- "No" --> V6
+    E -- "Yes" --> V7
+    
+    D -- "No (Unordered)" --> F
+    F -- "Yes" --> V4
+    F -- "No" --> V1
+
+    %% 汇聚到结束
+    V1 & V4 & V6 & V7 & V3 & V5 --> G
+    G --> H
+
+    %% 样式定制 (极客黑暗风格)
+    classDef startEnd fill:#334155,stroke:#94a3b8,color:#f8fafc;
+    classDef decision fill:#1e3a8a,stroke:#3b82f6,color:#eff6ff;
+    classDef version fill:#064e3b,stroke:#10b981,color:#ecfdf5;
+    classDef alt fill:#4c1d95,stroke:#8b5cf6,color:#f5f3ff;
+
+    class A,H startEnd;
+    class B,C,D,E,F decision;
+    class V1,V3,V4,V5,V6,V7 version;
+    class G alt;
 {% endmermaid %}
 
 ## 六、UUID 的优缺点
