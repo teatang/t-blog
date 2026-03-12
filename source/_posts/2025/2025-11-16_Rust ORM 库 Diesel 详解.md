@@ -1,6 +1,6 @@
 ---
 title: Rust ORM 库 Diesel 详解
-date: 2025-07-20 06:24:00
+date: 2025-11-16 06:24:00
 tags: 
     - 2025
     - Rust

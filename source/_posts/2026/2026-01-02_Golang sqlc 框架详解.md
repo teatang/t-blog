@@ -10,445 +10,452 @@ categories:
     - 库
 ---
 
-> **sqlc** 是一个**SQL 编译器 (SQL Compiler)**，它能够根据用户定义的 SQL 查询和数据库 Schema 自动生成类型安全 (type-safe) 的 Go 代码。与传统的 ORM (Object-Relational Mapping) 工具不同，`sqlc` 的核心理念是“**写 SQL，生成 Go (Write SQL, Get Go)**”。开发者专注于编写原生的 SQL 查询，`sqlc` 则负责将其转换为易于在 Go 应用程序中使用的、无反射、高性能的 API。
+> **sqlc** 是一个功能强大的**代码生成器**，它将 SQL 语句转换为类型安全的 Go 代码。与传统的 ORM (Object-Relational Mapper) 不同，sqlc 不会尝试将数据库表映射为 Go 结构体或构建复杂的查询 DSL。相反，它让开发者直接编写原始 SQL 语句，然后通过静态分析这些 SQL 语句及其对应的数据库 schema，自动生成用于执行这些查询的 Go 代码，包括参数结构体、结果结构体以及执行方法。这种方法结合了原始 SQL 的性能和灵活性，以及 Go 语言的强类型安全特性，极大地减少了数据库交互中的样板代码和潜在的运行时错误。
 
 {% note info %}
-核心思想：**保持 SQL 源码作为事实的唯一来源，并通过代码生成器将其无缝集成到 Go 代码中，实现类型安全和高效的数据库操作。** 它不尝试将 SQL 抽象化，而是将 SQL 语句转换为可直接调用的 Go 函数。
+核心思想：
+- **SQL-First**：开发者编写纯 SQL，而非通过 Go DSL 操作数据库。
+- **类型安全**：在编译时捕获 SQL 相关的类型错误和字段名错误。
+- **零反射/运行时开销**：生成的 Go 代码是普通的代码，没有运行时反射或额外的依赖。
+- **减少样板代码**：自动生成参数和结果 Go struct，以及执行 CRUD 操作的方法。
+- **防止 SQL 注入**：所有参数都通过 SQL 驱动参数化，避免手动字符串拼接。
+- **与数据库紧密集成**：通过数据库 Schema 进行类型推断和验证。
 {% endnote %}
-
 ------
 
-## 一、为什么选择 sqlc？
+## 一、什么是 sqlc？为什么选择它？
 
-在 Golang 中进行数据库操作，开发者通常面临几种选择：
+### 1.1 背景与痛点
 
-1.  **直接使用 `database/sql` 库**：最底层、最灵活，但需要手动处理行扫描、错误检查、参数绑定等，代码量大且容易出错。
-2.  **使用传统 ORM (如 GORM, XORM)**：提供了高层次的抽象，通过 Go 结构体标签或方法调用来构建 SQL，但可能引入“魔术”、性能开销 (反射)、N+1 查询问题，以及在复杂查询时难以控制生成的 SQL。
-3.  **使用 `sqlc`**：介于两者之间，它结合了 `database/sql` 的性能和 SQL 的控制力，同时提供了 ORM 的类型安全和便利性。
+在 Go 语言中与关系型数据库交互，通常有以下几种方式：
 
-`sqlc` 的主要优势包括：
+1.  **直接使用 `database/sql` 包**: 这是 Go 官方提供的数据库接口。它提供了高度的灵活性和性能，但需要开发者手动处理参数绑定、结果集扫描以及错误处理等大量样板代码。例如，每次查询结果都需要手动调用 `rows.Scan()` 将数据扫描到 Go 变量中，并且需要处理 `sql.NullString` 等空值类型。
+2.  **使用 ORM (Object-Relational Mapper)**: 例如 GORM、XORM 等。ORM 将数据库表映射为 Go 结构体，并提供一套 Go 语言的 API 来构建和执行查询。它们可以显著减少代码量，但缺点也显而易见：
+    *   **学习曲线**: 需要掌握 ORM 自身的 API 和约定。
+    *   **性能问题**: 有时生成的 SQL 不够优化，或者引入了运行时反射开销。
+    *   **灵活性受限**: 对于复杂的联接查询、自定义函数或数据库特定功能，ORM 往往难以支持或表达起来很笨重。
+3.  **sqlc 的出现**：sqlc 旨在结合前两者的优点，规避它们的缺点。它让你编写原始 SQL，从而保持 SQL 的性能和灵活性，同时通过代码生成，消除了 `database/sql` 的大量样板代码和潜在的类型不匹配错误，提供了强类型安全保证。
 
-1.  **类型安全 (Type-Safety)**：`sqlc` 在编译时就能够检查 SQL 查询的语法和参数类型。它根据数据库 Schema 和 SQL 查询的返回结果，生成具有精确类型签名的 Go 函数和结构体。这意味着你可以在编码阶段捕获许多潜在的数据库错误，而不是在运行时。
-2.  **性能 (Performance)**：`sqlc` 不使用反射，生成的 Go 代码直接调用 `database/sql` 的方法，性能接近手写 SQL。
-3.  **SQL 主导 (SQL-First)**：开发者直接编写和维护原生的 SQL 查询。这使得数据库专家可以专注于优化 SQL 语句，而无需关心 Go 层的实现细节。生成的 Go 代码只是 SQL 的一个类型安全封装。
-4.  **可维护性 (Maintainability)**：SQL 查询清晰可见，易于理解和调试。生成的 Go 代码是可读且可预测的，便于集成到项目中。
-5.  **避免 ORM 弊端**：无需学习复杂的 ORM API，不必担心 ORM 隐式生成的低效 SQL 或 N+1 查询问题。
-6.  **多数据库支持**：支持 PostgreSQL, MySQL, SQLite, Oracle 等主流关系型数据库。
-7.  **工具友好**：由于 SQL 查询是独立的 `.sql` 文件，可以利用各种 SQL 编辑器、格式化工具和 Lint 工具进行管理。
+### 1.2 sqlc 的优势
 
-## 二、sqlc 的核心概念
+*   **类型安全**: sqlc 在编译时根据 SQL Schema 验证你的 SQL 查询。这意味着，如果你的 SQL 查询中的列名拼写错误、类型不匹配，或者参数数量不正确，它会在代码生成阶段就报错，而不是在运行时。
+*   **性能**：由于生成的是普通的 Go 代码，不涉及运行时反射或其他抽象层，其性能与手动编写 `database/sql` 代码几乎相同。
+*   **减少样板代码**: 自动生成结构体用于接收查询参数和查询结果，以及执行各种 SQL 操作的方法。
+*   **防止 SQL 注入**: 所有参数都通过数据库驱动的安全参数绑定机制进行传递，而不是通过字符串拼接。
+*   **易于集成**: 生成的代码完全兼容 `database/sql` 接口，可以轻松集成到现有项目中。
+*   **强大的 SQL 支持**: 只要你的数据库支持，你就可以编写任何复杂的 SQL 查询，包括聚合、联接、子查询、存储过程调用等。
 
-`sqlc` 的工作流程和核心概念相对直观：
+## 二、工作原理与核心概念
 
-### 2.1 数据库 Schema (DDL)
+sqlc 的核心工作流程可以概括为以下步骤：
 
-`sqlc` 需要你的数据库 Schema 来理解表结构、列类型和约束。你通常会提供一个或多个 SQL 文件，其中包含 `CREATE TABLE` 等 DDL (Data Definition Language) 语句。`sqlc` 会解析这些文件，构建数据库的内部表示。
-
-### 2.2 SQL 查询文件
-
-这是你编写原生 SQL 查询的地方。每个 SQL 文件可以包含多个查询，每个查询都应该有一个唯一的名称（通过 SQL 注释指定），`sqlc` 会根据这个名称生成对应的 Go 函数。
-
-**示例：**
-```sql
--- name: GetUser :one
-SELECT id, name, email FROM users WHERE id = ?;
-
--- name: ListUsers :many
-SELECT id, name, email FROM users ORDER BY name;
-
--- name: CreateUser :execrows
-INSERT INTO users (name, email) VALUES (?, ?);
-```
-
-### 2.3 `sqlc.yaml` 配置文件
-
-这个 YAML 文件定义了 `sqlc` 的行为，包括：
-
-*   `schema`: 指向你的数据库 Schema DDL 文件。
-*   `queries`: 指向你的 SQL 查询文件。
-*   `version`: `sqlc` 配置的版本 (目前是 `v2`)。
-*   `plugins`: 定义要生成的语言和目标路径。
-*   `overrides`: 允许你将特定的 SQL 类型映射到自定义的 Go 类型。
-*   `sql`: 数据库类型 (`mysql`, `postgresql`, `sqlite`)，以及其他 SQL 相关的配置。
-
-### 2.4 生成的代码 (Go)
-
-`sqlc` 会根据 Schema 和查询文件生成以下 Go 代码：
-
-*   **`models.go`**: 包含与数据库表行对应的 Go 结构体。例如，如果 `SELECT id, name, email FROM users`，则会生成一个 `User` 结构体。
-*   **`queries.go`**: 包含所有 SQL 查询对应的 Go 函数。每个函数都接受 `context.Context` 和查询参数，并返回查询结果或错误。
-*   **`db.go`**: 包含 `Querier` 接口 (定义了所有查询函数) 和 `New` 函数 (用于创建 `Querier` 实例)。
-*   **`copyfrom.go` (可选)**: 如果启用，用于批量插入优化。
-
-### 2.5 `Querier` 接口
-
-`sqlc` 会自动生成一个 `Querier` 接口，其中包含了所有你在 SQL 查询文件中定义的查询函数。你的应用程序代码将主要通过这个接口来与数据库进行交互。
-
-## 三、sqlc 的工作流程
-
-`sqlc` 的典型工作流程如下：
+1.  **输入**: 提供数据库 Schema 文件（`schema.sql`）、包含 SQL 查询的文件（`query.sql`）以及 `sqlc.yaml` 配置文件。
+2.  **解析与验证**: sqlc 解析 `sqlc.yaml` 配置文件以获取生成选项。然后，它读取并解析数据库 Schema 文件，了解表格结构、列名、数据类型等。接着，它解析 SQL 查询文件，并根据已解析的 Schema 对这些查询进行静态验证。
+3.  **类型推断**: 基于 Schema 和查询，sqlc 推断 SQL 查询参数和结果集的 Go 语言类型。例如，一个 `INT` 类型的列可能会被映射为 `int32` 或 `int64`。
+4.  **代码生成**: 根据推断出的类型和查询定义，sqlc 生成 Go 源代码文件，包括：
+    *   用于传递查询参数的结构体。
+    *   用于接收查询结果的结构体。
+    *   一个 `Querier` 接口，定义了所有查询方法。
+    *   一个 `Queries` 结构体，实现了 `Querier` 接口，包含执行数据库操作的实际逻辑。
 
 {% mermaid %}
 graph TD
-    A[定义数据库Schema] --> B[编写SQL查询];
-    B --> C[配置sqlc.yaml];
-    C -- 运行 sqlc generate --> D[生成类型安全的Go代码];
-    D --> E[在应用程序中使用<br>生成的Go代码];
+    %% 节点样式定义
+    classDef input fill:#11263d,stroke:#007acc,stroke-width:2px,color:#fff;
+    classDef process fill:#1e3a1e,stroke:#4ec9b0,stroke-width:2px,color:#fff;
+    classDef output fill:#3d2b11,stroke:#d19a66,stroke-width:2px,color:#fff;
+    classDef error fill:#3d1111,stroke:#f44747,stroke-width:2px,color:#fff;
 
-    subgraph Schema 定义
-        A1["schema.sql (DDL)"]
-        A --> A1
+    subgraph Inputs [输入源 - Source Files]
+        A[<b>schema.sql</b><br/>数据库定义]:::input
+        C[<b>query.sql</b><br/>SQL 查询语句]:::input
+        E[<b>sqlc.yaml</b><br/>全局配置]:::input
     end
 
-    subgraph SQL 查询
-        B1["query.sql (SELECT, <br>INSERT, UPDATE, DELETE)"]
-        B --> B1
+    subgraph Core [sqlc 核心引擎 - Engine]
+        F{解析与读取}:::process
+        G{验证与推断}:::process
+        H[Go 类型映射/AST 生成]:::process
     end
 
-    subgraph sqlc 配置
-        C1[sqlc.yaml]
-        C --> C1
+    subgraph Outputs [生成代码 - Generated Go]
+        J[<b>db.go</b><br/>Entrypoint]:::output
+        K[<b>models.go</b><br/>Structs]:::output
+        L[<b>querier.go</b><br/>Interface]:::output
+        M[<b>*.sql.go</b><br/>Methods]:::output
     end
 
-    subgraph Go 应用程序
-        E1[main.go, service.go 等]
-        E --> E1
-    end
+    %% 流程连接
+    A & C & E --> F
+    F --> G
+    G -- 验证失败 --> I[错误报告]:::error
+    G -- 验证通过 --> H
+    H --> J & K & L & M
+
+    %% 全局微调
+    linkStyle default stroke:#858585,stroke-width:1px;
 {% endmermaid %}
+*图：sqlc 工作流程示意图*
 
-**详细步骤：**
+### 2.1 关键概念
 
-1.  **编写 DDL (Data Definition Language) 文件 (`schema.sql`)**: 定义你的数据库表结构。
-2.  **编写 SQL 查询文件 (`query.sql`)**: 包含你想要在 Go 代码中使用的所有 `SELECT`, `INSERT`, `UPDATE`, `DELETE` 语句。每个查询前加上 `--- name: QueryName :returntype` 注释。
-3.  **创建 `sqlc.yaml` 配置文件**: 指明 Schema 文件、查询文件、目标语言和输出路径等。
-4.  **运行 `sqlc generate` 命令**: `sqlc` 会读取配置文件、Schema 文件和查询文件，然后生成相应的 Go 代码。
-5.  **在 Go 应用程序中使用生成的代码**: 你可以通过 `sqlc.New(db)` 创建 `Querier` 实例，然后调用其上的方法来执行数据库操作。
+*   **SQL Schema 文件**: 包含 `CREATE TABLE`, `ALTER TABLE` 等 DDL (Data Definition Language) 语句，用于描述数据库结构。sqlc 使用这些文件来理解数据库的实际布局和数据类型。
+*   **SQL 查询文件**: 包含 `SELECT`, `INSERT`, `UPDATE`, `DELETE` 等 DML (Data Manipulation Language) 语句。每个 SQL 查询通常以 `sqlc` 注释 (`-- name: FunctionName :query-type`) 开头，指导 sqlc 生成特定类型的 Go 函数。
+*   **`sqlc.yaml` 配置文件**: SQLc 的核心配置文件，定义了如何生成 Go 代码，包括目标数据库类型、输出目录、包名、自定义类型映射等。
+*   **`-- name: FunctionName :query-type` 注释**: 这是 sqlc 特有的语法，用于为 SQL 查询命名，并指定其期望的执行结果类型。
+    *   `FunctionName`: 生成的 Go 函数名。
+    *   `query-type`:
+        *   `:one`: 期望返回单行结果。生成的函数将返回一个结构体和一个错误。
+        *   `:many`: 期望返回多行结果。生成的函数将返回一个结构体切片和一个错误。
+        *   `:exec`: 执行 DML 操作（`INSERT`, `UPDATE`, `DELETE`），不返回结果集。生成的函数将返回 `sql.Result` 和一个错误。
+        *   `:execrows`: 类似于 `:exec`，但返回受影响的行数 (`int64`)。
+        *   `:execresult`: 类似于 `:exec`，但返回 `sql.Result`。
+        *   `:migrations`: 运行 SQL 迁移文件，不生成任何 Go 代码。
 
-## 四、sqlc 实践示例 (MySQL)
+## 三、快速入门
 
-本示例将创建一个简单的 `users` 表，并实现 CRUD 操作。
+### 3.1 安装 sqlc
 
-### 4.1 准备工作
+首先，安装 `sqlc` 命令行工具：
 
-1.  **初始化 Go 项目**
-    ```bash
-    mkdir sqlc-demo && cd sqlc-demo
-    go mod init sqlc-demo
-    ```
+```bash
+go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+```
 
-2.  **安装 `sqlc` CLI 工具和数据库驱动**
-    ```bash
-    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-    go get github.com/go-sql-driver/mysql # 或者 github.com/lib/pq for PostgreSQL
-    ```
+验证安装：
 
-### 4.2 定义数据库 Schema (`schema.sql`)
+```bash
+sqlc version
+```
 
-创建一个 `schema.sql` 文件：
+### 3.2 项目结构
+
+典型的 sqlc 项目结构如下：
+
+```
+.
+├── main.go               # 应用程序入口
+├── sqlc.yaml             # sqlc 配置文件
+└── db/                   # 存放数据库相关的 schema 和 query 文件
+    ├── schema.sql        # 数据库 Schema 定义
+    └── query.sql         # 应用的 SQL 查询
+```
+
+### 3.3 编写 Schema (`db/schema.sql`)
+
+创建一个 `db/schema.sql` 文件，定义你的数据库表结构。这里以一个简单的 `users` 表为例：
+
 ```sql
--- schema.sql
+-- db/schema.sql
 CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    email VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### 4.3 编写 SQL 查询 (`query.sql`)
+### 3.4 编写 Queries (`db/query.sql`)
 
-创建一个 `query.sql` 文件：
+创建一个 `db/query.sql` 文件，包含你的应用将使用的 SQL 查询。使用 `sqlc` 的特定注释来定义函数。
+
 ```sql
--- query.sql
--- name: CreateUser :execresult
-INSERT INTO users (name, email) VALUES (?, ?);
+-- db/query.sql
+
+-- name: CreateUser :one
+INSERT INTO users (name, email)
+VALUES ($1, $2)
+RETURNING id, name, email, created_at;
 
 -- name: GetUserByID :one
-SELECT id, name, email, created_at FROM users WHERE id = ?;
-
--- name: GetUserByEmail :one
-SELECT id, name, email, created_at FROM users WHERE email = ?;
+SELECT id, name, email, created_at FROM users
+WHERE id = $1 LIMIT 1;
 
 -- name: ListUsers :many
-SELECT id, name, email, created_at FROM users ORDER BY name;
+SELECT id, name, email, created_at FROM users
+ORDER BY created_at DESC;
 
 -- name: UpdateUserName :execrows
-UPDATE users SET name = ? WHERE id = ?;
+UPDATE users
+SET name = $2
+WHERE id = $1;
 
 -- name: DeleteUser :exec
-DELETE FROM users WHERE id = ?;
+DELETE FROM users
+WHERE id = $1;
 ```
-**`:` 后面的注释 (`:one`, `:many`, `:exec`, `:execresult`, `:execrows`) 是 `sqlc` 特定的，用于指示查询的返回类型：**
-*   `:one`: 期望返回单行结果。生成的函数返回一个结构体和一个错误 (如果未找到则为 `sql.ErrNoRows`)。
-*   `:many`: 期望返回多行结果。生成的函数返回一个结构体切片和一个错误。
-*   `:exec`: 执行 DML (INSERT, UPDATE, DELETE) 语句，不返回结果集。生成的函数返回 `error`。
-*   `:execrows`: 执行 DML 语句，返回受影响的行数 (`int64`)。
-*   `:execresult`: 执行 DML 语句，返回 `sql.Result` 接口 (包含 `LastInsertId` 和 `RowsAffected`)。
+**注意**: PostgreSQL 数据库使用 `$1, $2, ...` 作为占位符。MySQL 则使用 `?`。不同的数据库驱动在 `sqlc.yaml` 中配置。
 
-### 4.4 配置 `sqlc.yaml`
+### 3.5 配置 `sqlc.yaml`
 
-创建一个 `sqlc.yaml` 文件：
+在项目根目录创建 `sqlc.yaml` 文件，用于配置代码生成行为。
+
 ```yaml
 # sqlc.yaml
 version: "2"
 sql:
-  - engine: "mysql" # 或 "postgresql", "sqlite"
-    queries: "query.sql"
-    schema: "schema.sql"
-    codegen:
-      - out: "sqlc" # 生成的 Go 代码的输出目录
-        plugin: "go"
-        options:
-          package: "sqlc" # 生成的 Go 包名
-          emit_json_tags: true # 为生成的结构体字段添加 JSON tag
-          emit_prepared_queries: false # 不生成预处理语句，默认 false
-          emit_interface: true # 生成 Querier 接口
-          emit_exact_table_names: false # 使用小写单数形式作为默认结构体名
-          emit_empty_slices: true # 查询结果为空时返回空切片而不是 nil
-          # sql_type_to_go_type: # 可选：自定义 SQL 类型到 Go 类型的映射
-          #   - db_type: "timestamptz"
-          #     go_type: "github.com/jackc/pgx/v5/pgtype.Timestamptz"
+  - engine: "postgresql" # 数据库类型 (支持 postgresql, mysql, sqlite)
+    queries: "db/query.sql" # SQL 查询文件路径
+    schema: "db/schema.sql" # 数据库 Schema 文件路径
+    gen:
+      go:
+        package: "db" # 生成 Go 代码的包名
+        out: "db" # 生成 Go 代码的输出目录
+        emit_json_tags: true # 为生成的 struct 字段添加 JSON 标签
+        emit_interface: true # 生成 Querier 接口
+        # emit_exact_table_names: false # 是否使用精确的表名作为 struct 名 (默认 false，会转为单数形式)
+        # emit_empty_slices: true # 对于 `:many` 查询，如果没有结果是否返回空切片而不是 nil
+        # overrides:
+        #   - db_type: "pg_catalog.uuid"
+        #     go_type:
+        #       import: "github.com/google/uuid"
+        #       type: "UUID"
+        #   - db_type: "pg_catalog.jsonb"
+        #     go_type:
+        #       import: "github.com/jackc/pgx/v5/pgtype"
+        #       type: "JSONB"
 ```
 
-### 4.5 生成 Go 代码
+### 3.6 生成 Go 代码
 
-运行 `sqlc generate` 命令：
+在项目根目录运行 `sqlc generate` 命令：
+
 ```bash
 sqlc generate
 ```
-这将在 `sqlc/` 目录下生成 `db.go`, `models.go`, `query.go` 文件。
 
-### 4.6 编写 Go 应用程序 (`main.go`)
+成功后，`db/` 目录下将生成以下 Go 文件：
+
+*   `db/models.go`: 定义了 `User` 等结果结构体，以及 `CreateUserParams`, `UpdateUserNameParams` 等参数结构体。
+*   `db/query.sql.go`: 包含了 `Queries` 结构体和实现 `Querier` 接口的方法，如 `CreateUser()`, `GetUserByID()`, `ListUsers()`, `UpdateUserName()`, `DeleteUser()`。
+*   `db/querier.go`: 定义了 `Querier` 接口。
+
+### 3.7 使用生成的 Go 代码 (`main.go`)
+
+在 `main.go` 中，你可以使用生成的代码与数据库进行交互。
+
+**注意**: 需要安装 PostgreSQL 驱动 `github.com/lib/pq` 或 `github.com/jackc/pgx/v5`。这里以 `pgx/v5` 为例：
+
+```bash
+go get github.com/jackc/pgx/v5
+```
 
 ```go
+// main.go
 package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
-	"sqlc-demo/sqlc" // 引入 sqlc 生成的包
-
-	_ "github.com/go-sql-driver/mysql" // 引入 MySQL 驱动
+	"github.com/jackc/pgx/v5"
+	"your_module_name/db" // 导入生成的 Go 包
 )
 
 func main() {
-	// 1. 连接数据库
-	db, err := sql.Open("mysql", "root:pass@tcp(127.0.0.1:3306)/sqlc_demo?parseTime=true")
-	if err != nil {
-		log.Fatalf("failed to open database connection: %v", err)
-	}
-	defer db.Close()
-
-	if err = db.Ping(); err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
-	log.Println("Successfully connected to the database!")
-
-	// 确保数据库中存在 'sqlc_demo' 数据库，并已执行 schema.sql
-	// 在生产环境中，你会使用专门的迁移工具来管理 schema。
-	// 这里为了演示，假设表已存在。
-
 	ctx := context.Background()
 
-	// 2. 创建 sqlc.Queries 实例
-	queries := sqlc.New(db)
+	// 替换为你的 PostgreSQL 连接字符串
+	connStr := "postgresql://user:password@localhost:5432/database?sslmode=disable"
+	conn, err := pgx.Connect(ctx, connStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close(ctx)
 
-	// --- CRUD Operations ---
+	queries := db.New(conn) // 创建 Queries 实例
 
-	// Create User
-	fmt.Println("\n--- Create User ---")
-	createResult, err := queries.CreateUser(ctx, sqlc.CreateUserParams{
+	// 1. 创建用户
+	log.Println("--- 创建用户 ---")
+	userParams := db.CreateUserParams{
 		Name:  "Alice",
-		Email: "alice@example.com",
-	})
-	if err != nil {
-		log.Fatalf("failed to create user: %v", err)
+		Email: fmt.Sprintf("alice-%d@example.com", time.Now().Unix()),
 	}
-	aliceID, _ := createResult.LastInsertId()
-	fmt.Printf("Created user Alice with ID: %d\n", aliceID)
-
-	createResult, err = queries.CreateUser(ctx, sqlc.CreateUserParams{
-		Name:  "Bob",
-		Email: "bob@example.com",
-	})
+	createdUser, err := queries.CreateUser(ctx, userParams)
 	if err != nil {
-		log.Fatalf("failed to create user: %v", err)
+		log.Fatalf("Failed to create user: %v", err)
 	}
-	bobID, _ := createResult.LastInsertId()
-	fmt.Printf("Created user Bob with ID: %d\n", bobID)
+	log.Printf("Created user: %+v\n", createdUser)
 
-	// Get User by ID
-	fmt.Println("\n--- Get User by ID ---")
-	userAlice, err := queries.GetUserByID(ctx, int32(aliceID))
+	// 2. 获取用户
+	log.Println("--- 获取用户 ---")
+	fetchedUser, err := queries.GetUserByID(ctx, createdUser.ID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Printf("User with ID %d not found.\n", aliceID)
-		} else {
-			log.Fatalf("failed to get user by ID: %v", err)
-		}
-	} else {
-		fmt.Printf("Found user by ID: %+v\n", userAlice)
+		log.Fatalf("Failed to get user by ID: %v", err)
 	}
+	log.Printf("Fetched user: %+v\n", fetchedUser)
 
-	// Get User by Email
-	fmt.Println("\n--- Get User by Email ---")
-	userBob, err := queries.GetUserByEmail(ctx, "bob@example.com")
+	// 3. 更新用户姓名
+	log.Println("--- 更新用户姓名 ---")
+	updateParams := db.UpdateUserNameParams{
+		ID:   fetchedUser.ID,
+		Name: "Alicia Smith",
+	}
+	rowsAffected, err := queries.UpdateUserName(ctx, updateParams)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Println("User with email bob@example.com not found.")
-		} else {
-			log.Fatalf("failed to get user by email: %v", err)
-		}
-	} else {
-		fmt.Printf("Found user by email: %+v\n", userBob)
+		log.Fatalf("Failed to update user name: %v", err)
 	}
+	log.Printf("Updated %d rows.\n", rowsAffected)
 
-	// List Users
-	fmt.Println("\n--- List Users ---")
+	// 4. 再次获取用户以验证更新
+	log.Println("--- 再次获取用户以验证更新 ---")
+	updatedFetchedUser, err := queries.GetUserByID(ctx, createdUser.ID)
+	if err != nil {
+		log.Fatalf("Failed to get updated user: %v", err)
+	}
+	log.Printf("Updated user: %+v\n", updatedFetchedUser)
+
+	// 5. 列出所有用户
+	log.Println("--- 列出所有用户 ---")
 	users, err := queries.ListUsers(ctx)
 	if err != nil {
-		log.Fatalf("failed to list users: %v", err)
+		log.Fatalf("Failed to list users: %v", err)
 	}
-	fmt.Println("All users:")
+	log.Printf("Listed %d users:\n", len(users))
 	for _, u := range users {
-		fmt.Printf("- %+v\n", u)
+		log.Printf("- %+v\n", u)
 	}
 
-	// Update User Name
-	fmt.Println("\n--- Update User Name ---")
-	rowsAffected, err := queries.UpdateUserName(ctx, sqlc.UpdateUserNameParams{
-		Name: "Alice Smith",
-		ID:   int32(aliceID),
-	})
+	// 6. 删除用户
+	log.Println("--- 删除用户 ---")
+	err = queries.DeleteUser(ctx, createdUser.ID)
 	if err != nil {
-		log.Fatalf("failed to update user name: %v", err)
+		log.Fatalf("Failed to delete user: %v", err)
 	}
-	fmt.Printf("Updated %d rows for user ID %d\n", rowsAffected, aliceID)
+	log.Printf("User with ID %d deleted.\n", createdUser.ID)
+}
 
-	// Verify update
-	userAliceUpdated, err := queries.GetUserByID(ctx, int32(aliceID))
-	if err != nil {
-		log.Fatalf("failed to get updated user: %v", err)
-	}
-	fmt.Printf("Updated user Alice: %+v\n", userAliceUpdated)
+```
+**重要**: 将 `your_module_name` 替换为你的 Go 模块名，并将连接字符串替换为实际的数据库凭据。
 
-	// Delete User
-	fmt.Println("\n--- Delete User ---")
-	err = queries.DeleteUser(ctx, int32(bobID))
-	if err != nil {
-		log.Fatalf("failed to delete user: %v", err)
-	}
-	fmt.Printf("Deleted user with ID: %d\n", bobID)
+## 四、高级特性
 
-	// Verify deletion
-	_, err = queries.GetUserByID(ctx, int32(bobID))
-	if err == sql.ErrNoRows {
-		fmt.Printf("User with ID %d not found after deletion (as expected).\n", bobID)
-	} else if err != nil {
-		log.Fatalf("failed to get deleted user: %v", err)
-	} else {
-		fmt.Println("User found after deletion (deletion failed).")
-	}
+### 4.1 自定义类型映射 (`overrides`)
 
-	// --- Transaction Example ---
-	fmt.Println("\n--- Transaction Example ---")
-	tx, err := db.BeginTx(ctx, nil) // 开始事务
-	if err != nil {
-		log.Fatalf("failed to begin transaction: %v", err)
-	}
-	// 在事务中使用 sqlc.Queries
-	txQueries := queries.WithTx(tx) // 重要：使用 WithTx 创建一个事务专用的 Querier 实例
+当数据库类型无法直接映射到 Go 标准库类型（例如 UUID, JSONB）时，或者你希望使用特定的第三方库类型时，可以使用 `sqlc.yaml` 的 `overrides` 配置。
 
-	// 在事务中创建新用户
-	carolResult, err := txQueries.CreateUser(ctx, sqlc.CreateUserParams{
-		Name:  "Carol",
-		Email: fmt.Sprintf("carol_%d@example.com", time.Now().UnixNano()),
-	})
-	if err != nil {
-		tx.Rollback() // 失败时回滚
-		log.Fatalf("failed to create Carol in transaction: %v", err)
-	}
-	carolID, _ := carolResult.LastInsertId()
-	fmt.Printf("Created user Carol in transaction with ID: %d\n", carolID)
+```yaml
+# sqlc.yaml (部分)
+    overrides:
+      # 将 PostgreSQL 的 uuid 类型映射到 github.com/google/uuid.UUID
+      - db_type: "pg_catalog.uuid"
+        go_type:
+          import: "github.com/google/uuid"
+          type: "UUID"
+      # 将 PostgreSQL 的 jsonb 类型映射到 pgx/v5 的 pgtype.JSONB
+      - db_type: "pg_catalog.jsonb"
+        go_type:
+          import: "github.com/jackc/pgx/v5/pgtype"
+          type: "JSONB"
+      # 可以指定特定的列名进行映射
+      # - column: "users.status"
+      #   go_type: "my_app/enums.UserStatus"
+```
+这将确保在生成的 Go 代码中，相应的 SQL 类型被正确地表示为指定的 Go 类型。
 
-	// 假设这里有一些业务逻辑，可能导致错误
-	if false { // 模拟一个错误，这将导致回滚
-		tx.Rollback()
-		fmt.Println("Transaction rolled back due to error.")
-	} else {
-		tx.Commit() // 成功时提交
-		fmt.Println("Transaction committed successfully.")
-	}
+### 4.2 空值处理 (Null Handling)
 
-	// 确认 Carol 是否存在 (如果提交了事务)
-	userCarol, err := queries.GetUserByID(ctx, int32(carolID))
-	if err != nil {
-		fmt.Printf("Carol not found after transaction (expected if rolled back): %v\n", err)
-	} else {
-		fmt.Printf("Carol found after transaction commit: %+v\n", userCarol)
-	}
+sqlc 默认使用 `database/sql` 提供的空值类型（如 `sql.NullString`, `sql.NullInt32`, `sql.NullTime`）来处理可能为 NULL 的列。例如，如果 `users.bio` 列允许 NULL，则在 `User` 结构体中，`Bio` 字段将被生成为 `sql.NullString`。
+
+如果要使用更现代的 `pgx` 驱动的类型（如 `pgtype.Text`, `pgtype.UUID`），可以在 `sqlc.yaml` 中配置 `pgx/v5`，它会使用其自己的空值支持。
+
+```yaml
+# sqlc.yaml (使用 pgx/v5 的空值类型)
+sql:
+  - engine: "postgresql"
+    queries: "db/query.sql"
+    schema: "db/schema.sql"
+    gen:
+      go:
+        package: "db"
+        out: "db"
+        sql_package: "pgx/v5" # 使用 pgx/v5 的类型，而非 database/sql 的默认类型
+```
+这将使得例如 `CHAR(255)` 类型对应 `pgtype.Text`，`INT` 对应 `pgtype.Int4`，它们都内置了空值类型处理。
+
+### 4.3 事务支持
+
+生成的 `Queries` 结构体通常是无状态的，每个方法都需要一个 `context.Context` 和一个 `sql.DB` 或 `sql.Tx` 实例。这意味着你可以通过传递 `sql.Tx` 来轻松地将多个操作组合到一个事务中。
+
+```go
+// 假设 main.go 中获取了 DB 连接池
+func performTransaction(ctx context.Context, dbPool *pgx.Conn) error {
+    tx, err := dbPool.Begin(ctx) // 开始事务
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback(ctx) // 确保在函数退出时回滚，除非明确提交
+
+    queries := db.New(tx) // 使用事务创建新的 Queries 实例
+
+    // 在事务中执行操作
+    userParams1 := db.CreateUserParams{ Name: "Bob", Email: "bob@example.com" }
+    _, err = queries.CreateUser(ctx, userParams1)
+    if err != nil {
+        return err
+    }
+
+    userParams2 := db.CreateUserParams{ Name: "Charlie", Email: "charlie@example.com" }
+    _, err = queries.CreateUser(ctx, userParams2)
+    if err != nil {
+        return err
+    }
+
+    return tx.Commit(ctx) // 提交事务
 }
 ```
 
-### 4.7 运行示例
+### 4.4 多个 SQL 包
 
-1.  确保 MySQL 数据库已运行，并创建了名为 `sqlc_demo` 的数据库。
-2.  更新 `main.go` 中的数据库连接字符串。
-3.  手动在 `sqlc_demo` 数据库中执行 `schema.sql` 中的 `CREATE TABLE` 语句，或者在 `main.go` 中添加自动执行 `schema.sql` 的逻辑 (不推荐在生产环境)。
-4.  运行 `main.go`：
-    ```bash
-    go run main.go
+一个 `sqlc.yaml` 文件可以定义多个 `sql` 部分，从而为不同的数据库或不同的 SQL 文件生成不同的 Go 包。
+
+```yaml
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "db/users_query.sql"
+    schema: "db/schema.sql"
+    gen:
+      go:
+        package: "userrepo"
+        out: "userrepo"
+  - engine: "postgresql"
+    queries: "db/products_query.sql"
+    schema: "db/schema.sql"
+    gen:
+      go:
+        package: "productrepo"
+        out: "productrepo"
+```
+
+## 五、sqlc 的局限性
+
+*   **没有自动迁移**: sqlc 专注于代码生成，不提供数据库 Schema 迁移工具。你需要结合如 `golang-migrate/migrate`、`goose` 等独立的工具来管理数据库 Schema 变更。
+*   **不处理连接池**: sqlc 生成的代码直接操作 `sql.DB` 或 `sql.Tx` 接口，它不负责数据库连接池的创建和管理。这部分工作需要你自己使用 `database/sql` 或 `pgx` 等驱动库来完成。
+*   **需要精确的 SQL**: sqlc 的强大之处在于它直接操作 SQL。这意味着你的 SQL 语句必须是有效的、正确的，并且与你的 Schema 一致。
+*   **冗长的 SELECT 语句**: 每次 `SELECT` 语句都需要列出所有列，这可能很长。然而，这种显式性有助于避免隐式列更改带来的问题。
+
+## 六、总结与最佳实践
+
+sqlc 提供了一个在 Go 语言中与关系型数据库交互的极佳替代方案，它成功地在 SQL 的性能、灵活性与 Go 的类型安全、无反射之间找到了平衡点。
+
+**最佳实践:**
+
+1.  **版本控制 SQL 文件**: 将 `schema.sql` 和 `query.sql` 文件纳入版本控制，它们是应用程序的核心数据访问逻辑。
+2.  **细粒度 SQL 文件**: 避免将所有查询都放在一个巨大的 `query.sql` 文件中。可以按功能模块拆分（例如 `users_query.sql`, `products_query.sql`）。
+3.  **使用 `go generate`**: 将 `sqlc generate` 命令集成到 Go 的 `go generate` 工具链中，这样可以通过 `go generate ./...` 统一生成代码。
+    ```go
+    // 添加到某个 Go 文件顶部
+    //go:generate sqlc generate
     ```
+4.  **清晰的命名**: 为 SQL 查询选择清晰、描述性的 Go 函数名。
+5.  **空值处理**: 根据项目需求选择 `database/sql` 的 `Null` 类型或 `pgx` 等驱动的空值类型。
+6.  **错误处理**: 始终检查 sqlc 生成函数返回的错误。
+7.  **数据库驱动选择**: 对于 PostgreSQL，`pgx/v5` 通常比 `lib/pq` 性能更好，且自带更丰富的类型支持。
+8.  **将 `Queries` 作为接口传递**: 在业务逻辑层中，推荐接收 `db.Querier` 接口而不是 `db.Queries` 具体结构体，这有助于提高代码的解耦和可测试性（方便 mock）。
 
-## 五、高级用法和特性
-
-1.  **Null 值处理**：`sqlc` 可以配置如何处理数据库中的 `NULL` 值。默认情况下，它会生成 Go 语言的 `sql.NullString`, `sql.NullInt32` 等类型。你也可以在 `sqlc.yaml` 中配置 `sql_type_to_go_type` 将其映射为 Go 指针类型 (如 `*string`) 或第三方库的 Nullable 类型 (如 `pgx/v5/pgtype`)。
-2.  **自定义类型**：通过 `sql_type_to_go_type` 配置，你可以将数据库的自定义类型 (如 PostgreSQL 的 `UUID` 类型) 映射到 Go 中的特定类型。
-3.  **事务**：`sqlc` 支持事务操作。你可以通过 `db.BeginTx(ctx, nil)` 开始一个事务，然后使用 `queries.WithTx(tx)` 方法创建一个新的 `Querier` 实例，该实例的所有操作都会在同一个事务中执行。
-4.  **Prepared Statements**：`sqlc` 默认生成的查询会使用预处理语句，这提高了性能并防止了 SQL 注入。
-5.  **批量插入/更新**：对于支持 `COPY FROM` (PostgreSQL) 或 `LOAD DATA LOCAL INFILE` (MySQL) 等批量操作的数据库，`sqlc` 可以生成相应的代码，显著提高数据导入效率。
-6.  **Hooks**：通过 `sqlc.yaml` 配置，可以运行自定义 Go 命令来处理生成的代码，例如格式化或 Lint。
-
-## 六、sqlc 的优缺点与适用场景
-
-### 6.1 优点：
-
-1.  **极高的类型安全性**：编译时捕获 SQL 错误和类型不匹配，提高代码质量和稳定性。
-2.  **高性能**：无反射开销，生成的代码直接使用 `database/sql`，性能接近手写 SQL。
-3.  **SQL 主导**：保持 SQL 的原生优势和控制力，方便数据库专家进行优化。
-4.  **易于维护和调试**：SQL 和 Go 代码都清晰可见，逻辑透明。
-5.  **避免 ORM 陷阱**：避免了 ORM 可能带来的复杂性、隐式行为和性能问题。
-6.  **工具生态友好**：可以直接使用现有 SQL 工具链进行 SQL 文件的管理。
-
-### 6.2 缺点：
-
-1.  **学习曲线**：对于习惯了 ORM 的开发者，需要适应 `sqlc` 的代码生成和 SQL-First 范式。
-2.  **SQL 文件的管理**：随着项目增长，SQL 查询文件会增多，需要良好的组织和命名规范。
-3.  **不处理 Schema 迁移**：`sqlc` 仅关注查询，Schema 迁移仍需配合其他工具（如 `golang-migrate`, `flyway`, `ent` 的迁移工具等）。
-4.  **关联查询的复杂性**：对于非常复杂的 JOIN 查询，可能需要手动编写更多的 SQL，而 ORM 可能会提供更高级的抽象。然而，这也可以看作是一种优势，因为它迫使你更清楚地理解 SQL。
-5.  **少量样板代码**：每次修改 Schema 或 `query.sql` 都需要重新运行 `sqlc generate`。
-
-### 6.3 适用场景：
-
-*   **对性能和类型安全有高要求**：例如高性能后端服务、数据处理服务。
-*   **希望保持 SQL 原生控制力**：当开发者希望完全控制 SQL 语句，不希望被 ORM 框架过度封装时。
-*   **微服务架构**：在微服务中，每个服务可以拥有自己的数据库 Schema 和 `sqlc` 生成的客户端。
-*   **与数据库专家紧密协作**：DBA 或后端开发者可以专注于优化 SQL 语句，Go 开发者只需使用生成的 API。
-*   **不希望引入复杂 ORM 依赖的项目**。
-
-## 七、安全性考虑
-
-1.  **SQL 注入防护**：`sqlc` 通过生成参数化查询的代码来**自动防止 SQL 注入**。你只需要在 SQL 中使用占位符 (`?` for MySQL/SQLite, `$1, $2` for PostgreSQL)，`sqlc` 会负责将 Go 参数安全地绑定到这些占位符上。
-2.  **敏感数据处理**：在数据库 Schema 和查询中不应直接暴露敏感信息，例如密码应存储哈希值。
-3.  **错误处理**：始终检查 `sqlc` 生成函数返回的 `error`。特别是 `sql.ErrNoRows` 表示未找到数据，而不是错误。
-4.  **数据库连接安全**：数据库连接字符串应从环境变量、配置文件或秘密管理服务中安全加载，绝不硬编码在代码中。
-5.  **权限控制**：`sqlc` 专注于数据库交互，不提供应用层面的权限管理。应用程序需要自行实现身份验证和授权逻辑。
-6.  **Schema 变更审查**：虽然 `sqlc` 不直接处理迁移，但在更改 `schema.sql` 后重新生成代码时，应配合版本化的数据库迁移工具，并在生产环境部署前仔细审查迁移脚本。
-
-## 八、总结
-
-`sqlc` 为 Golang 开发者提供了一个独特且强大的数据库访问方法。它在 `database/sql` 的性能和 SQL 的控制力之上，构建了一个类型安全的代码生成层。通过将 SQL 查询作为核心，`sqlc` 使得 Go 应用程序能够以最小的开销和最大的可靠性与数据库进行交互。对于那些重视性能、类型安全、SQL 透明度并乐于编写原生 SQL 的项目和团队来说，`sqlc` 是一个非常优秀的数据库工具。
+通过采用 sqlc，你的 Go 数据库访问层将变得更加健壮、高效且易于维护。
