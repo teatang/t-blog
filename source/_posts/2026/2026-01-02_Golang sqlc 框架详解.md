@@ -2,7 +2,7 @@
 title: Golang sqlc 框架详解
 date: 2026-01-02 06:24:00
 tags: 
-    - 2025
+    - 2026
     - Golang
     - SQL
 categories: 
