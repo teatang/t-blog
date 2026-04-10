@@ -156,6 +156,9 @@ graph LR
 # 使用 npm
 npm install --save-dev release-it
 
+# 使用 pnpm
+pnpm add -D release-it
+
 # 使用 yarn
 yarn add -D release-it
 ```

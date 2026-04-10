@@ -132,6 +132,9 @@ Commitlint 通常在 Node.js 项目中使用 npm 或 yarn 进行管理。
 # 使用 npm
 npm install --save-dev @commitlint/cli @commitlint/config-conventional
 
+# 使用 pnpm
+pnpm add -D @commitlint/cli @commitlint/config-conventional
+
 # 或者使用 yarn
 yarn add -D @commitlint/cli @commitlint/config-conventional
 ```

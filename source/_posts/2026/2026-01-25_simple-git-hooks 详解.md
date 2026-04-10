@@ -106,9 +106,9 @@ graph LR
     ```bash
     npm install simple-git-hooks --save-dev
     # 或者
-    yarn add simple-git-hooks --dev
+    yarn add simple-git-hooks -D
     # 或者对于 pnpm
-    pnpm add simple-git-hooks --save-dev
+    pnpm add simple-git-hooks -D
     ```
 
 2.  **配置 `package.json`**：
