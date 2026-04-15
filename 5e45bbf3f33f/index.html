@@ -1,0 +1,767 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Golang sync.Cond 详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="sync.Cond 是 Go 语言标准库 sync 包中提供的一个条件变量（Condition Variable）。它允许 goroutine 在满足特定条件之前暂停执行，并在条件满足时收到通知从而恢复执行。sync.Cond 通常与 sync.Mutex 或 sync.RWMutex 配合使用，用于协调多个 goroutine 对共享资源的访问，特别适用于生产者-消费者模型或等待特定状态变动的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Golang sync.Cond 详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/5e45bbf3f33f/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="sync.Cond 是 Go 语言标准库 sync 包中提供的一个条件变量（Condition Variable）。它允许 goroutine 在满足特定条件之前暂停执行，并在条件满足时收到通知从而恢复执行。sync.Cond 通常与 sync.Mutex 或 sync.RWMutex 配合使用，用于协调多个 goroutine 对共享资源的访问，特别适用于生产者-消费者模型或等待特定状态变动的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg">
+<meta property="article:published_time" content="2026-04-10T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-04-15T09:15:57.365Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="Golang">
+<meta property="article:tag" content="2026">
+<meta property="article:tag" content="goroutine">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Golang sync.Cond 详解",
+  "url": "https://blog.tbf1211.xx.kg/5e45bbf3f33f/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-22.jpg",
+  "datePublished": "2026-04-10T22:24:00.000Z",
+  "dateModified": "2026-04-15T09:15:57.365Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/5e45bbf3f33f/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Golang sync.Cond 详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">639</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">247</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">96</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-22.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Golang sync.Cond 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Golang sync.Cond 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-04-10T22:24:00.000Z" title="发表于 2026-04-11 06:24:00">2026-04-11</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/">Golang</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Golang/goroutine/">goroutine</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong><code>sync.Cond</code></strong> 是 Go 语言标准库 <code>sync</code> 包中提供的一个<strong>条件变量（Condition Variable）</strong>。它允许 goroutine 在满足特定条件之前<strong>暂停执行</strong>，并在条件满足时<strong>收到通知</strong>从而恢复执行。<code>sync.Cond</code> 通常与 <code>sync.Mutex</code> 或 <code>sync.RWMutex</code> 配合使用，用于协调多个 goroutine 对共享资源的访问，特别适用于<strong>生产者-消费者模型</strong>或<strong>等待特定状态变动</strong>的场景。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：</p>
+<ul>
+<li><strong>等待条件</strong>：goroutine 可以订阅某个条件，如果条件不满足，则阻塞等待。</li>
+<li><strong>通知唤醒</strong>：当另一个 goroutine 改变了条件并使其满足时，可以通知等待的 goroutine 恢复执行。</li>
+<li><strong>与锁结合</strong>：<code>sync.Cond</code> 必须与 <code>sync.Locker</code>（通常是 <code>sync.Mutex</code>）结合使用，以保护被等待的共享条件所依赖的数据。</li>
+<li><strong>避免忙等待</strong>：通过阻塞等待和通知机制，避免了 goroutine 持续轮询条件的“忙等待”（busy-waiting），提高了并发效率。</li>
+</ul>
+</div>
+
+<hr>
+<h2 id="一、为什么需要-sync-Cond？"><a href="#一、为什么需要-sync-Cond？" class="headerlink" title="一、为什么需要 sync.Cond？"></a>一、为什么需要 <code>sync.Cond</code>？</h2><p>在并发编程中，goroutine 之间经常需要根据某个共享状态的特定条件来决定是否继续执行。考虑以下场景：</p>
+<ol>
+<li><strong>生产者-消费者模型</strong>：生产者向缓冲区写入数据，消费者从缓冲区读取数据。如果缓冲区为空，消费者需要等待；如果缓冲区已满，生产者需要等待。</li>
+<li><strong>等待特定事件或状态</strong>：一个 goroutine 可能需要等待另一个 goroutine 完成某个任务或将某个标志设置为特定值后才能继续。</li>
+<li><strong>资源可用性</strong>：多个 goroutine 竞争有限的资源，当资源被占用时，其他 goroutine 需要等待资源释放。</li>
+</ol>
+<p>如果仅使用 <code>sync.Mutex</code>，虽然可以保护共享数据的完整性，但无法实现 goroutine 在条件不满足时<strong>高效地等待</strong>。一种简单的解决方案是“忙等待”：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	mu      sync.Mutex</span><br><span class="line">	dataReady <span class="type">bool</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 消费者 goroutine</span></span><br><span class="line"><span class="keyword">for</span> &#123;</span><br><span class="line">	mu.Lock()</span><br><span class="line">	<span class="keyword">if</span> !dataReady &#123;</span><br><span class="line">		<span class="comment">// 忙等待：持续检查，浪费 CPU</span></span><br><span class="line">		mu.Unlock()</span><br><span class="line">		time.Sleep(<span class="number">10</span> * time.Millisecond) <span class="comment">// 即使加了睡眠，依然是忙等待</span></span><br><span class="line">		<span class="keyword">continue</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 处理数据...</span></span><br><span class="line">	dataReady = <span class="literal">false</span></span><br><span class="line">	mu.Unlock()</span><br><span class="line">	<span class="keyword">break</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种“忙等待”会消耗大量 CPU 资源，并且效率低下。<code>sync.Cond</code> 提供了一种优雅的解决方案，允许 goroutine 在条件不满足时<strong>进入睡眠状态</strong>，直到被明确通知后才唤醒，从而避免了资源浪费。</p>
+<h2 id="二、核心概念"><a href="#二、核心概念" class="headerlink" title="二、核心概念"></a>二、核心概念</h2><h3 id="2-1-条件变量-Condition-Variable"><a href="#2-1-条件变量-Condition-Variable" class="headerlink" title="2.1 条件变量 (Condition Variable)"></a>2.1 条件变量 (Condition Variable)</h3><p>条件变量是一种同步原语，它本身不保护共享数据，而是作为一个<strong>信号机制</strong>，允许线程（或 goroutine）在某个条件不满足时阻塞，在另一个线程改变了条件并使其满足时通知等待的线程。条件变量总是与一个<strong>互斥锁</strong>（Mutex）关联使用，以确保对共享状态的检查和修改是原子性的。</p>
+<h3 id="2-2-sync-Cond-的结构"><a href="#2-2-sync-Cond-的结构" class="headerlink" title="2.2 sync.Cond 的结构"></a>2.2 <code>sync.Cond</code> 的结构</h3><p>在 Go 语言中，<code>sync.Cond</code> 的定义如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Cond <span class="keyword">struct</span> &#123;</span><br><span class="line">	noCopy noCopy <span class="comment">// 用于检测 Cond 是否被复制</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// L is the Locker that the Cond is associated with.</span></span><br><span class="line">	<span class="comment">// Gurad L before calling any Cond methods except for Wait.</span></span><br><span class="line">	L Locker <span class="comment">// 内嵌一个接口，通常是 *sync.Mutex 或 *sync.RWMutex</span></span><br><span class="line"></span><br><span class="line">	notify  notifyList <span class="comment">// 等待队列，存储等待的 goroutine</span></span><br><span class="line">	checker copyChecker</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Locker <span class="keyword">interface</span> &#123;</span><br><span class="line">	Lock()</span><br><span class="line">	Unlock()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong><code>L sync.Locker</code></strong>: 这是 <code>sync.Cond</code> 的关键组成部分。它表示与此条件变量关联的锁。在使用 <code>Cond</code> 的任何方法（除了 <code>Wait</code> 在内部会解锁和加锁）之前，<strong>必须先持有这个锁 <code>L</code></strong>。</li>
+<li><strong><code>notifyList</code></strong>: 内部用于管理等待的 goroutine 队列。</li>
+</ul>
+<h3 id="2-3-sync-Cond-的主要方法"><a href="#2-3-sync-Cond-的主要方法" class="headerlink" title="2.3 sync.Cond 的主要方法"></a>2.3 <code>sync.Cond</code> 的主要方法</h3><p><code>sync.Cond</code> 提供了以下三个核心方法：</p>
+<ol>
+<li><p><strong><code>func (c *Cond) Wait()</code></strong><br><code>Wait</code> 方法会<strong>原子地解锁条件变量关联的锁 <code>c.L</code></strong>，然后阻塞当前 goroutine，等待被唤醒。一旦 goroutine 被唤醒，<code>Wait</code> 会在返回前<strong>重新锁定 <code>c.L</code></strong>。</p>
+<p><strong>理解 <code>Wait</code> 的原子性操作至关重要</strong>：</p>
+<ol>
+<li>调用 <code>Wait()</code> 时，goroutine 必须已经持有 <code>c.L</code> 的锁。</li>
+<li><code>Wait()</code> 内部会释放 <code>c.L</code>。</li>
+<li><code>Wait()</code> 会将当前 goroutine 放入等待队列并阻塞。</li>
+<li>当 goroutine 被 <code>Signal()</code> 或 <code>Broadcast()</code> 唤醒后。</li>
+<li><code>Wait()</code> 会尝试重新获取 <code>c.L</code>。</li>
+<li>当成功获取 <code>c.L</code> 后，<code>Wait()</code> 方法返回。</li>
+</ol>
+<p><strong>重要提示</strong>: <code>Wait</code> 方法<strong>必须在一个循环中调用</strong>，以处理<strong>虚假唤醒（Spurious Wakeups）</strong>。</p>
+</li>
+<li><p><strong><code>func (c *Cond) Signal()</code></strong><br><code>Signal</code> 方法会唤醒<strong>一个</strong>正在 <code>Wait</code> 的 goroutine（如果存在）。如果有多个 goroutine 正在等待，具体唤醒哪一个是不确定的。如果没有 goroutine 正在等待，<code>Signal</code> 不会产生任何效果。</p>
+</li>
+<li><p><strong><code>func (c *Cond) Broadcast()</code></strong><br><code>Broadcast</code> 方法会唤醒<strong>所有</strong>正在 <code>Wait</code> 的 goroutine。如果没有 goroutine 正在等待，<code>Broadcast</code> 同样不会产生任何效果。</p>
+</li>
+</ol>
+<h2 id="三、工作原理与典型使用模式"><a href="#三、工作原理与典型使用模式" class="headerlink" title="三、工作原理与典型使用模式"></a>三、工作原理与典型使用模式</h2><p><code>sync.Cond</code> 的典型使用模式遵循以下步骤：</p>
+<ol>
+<li><p><strong>初始化 <code>sync.Cond</code></strong>：创建 <code>Cond</code> 实例，并为其关联一个 <code>sync.Locker</code> (通常是 <code>sync.Mutex</code>)。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> mu sync.Mutex</span><br><span class="line">cond := sync.NewCond(&amp;mu)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>goroutine A (等待者)</strong>：</p>
+<ul>
+<li><strong>获取锁</strong>：<code>cond.L.Lock()</code>。</li>
+<li><strong>检查条件</strong>：在一个循环中检查共享变量上的条件是否满足。</li>
+<li><strong>条件不满足则等待</strong>：如果条件不满足，调用 <code>cond.Wait()</code>。这会释放锁并使 goroutine A 进入阻塞状态。当 goroutine A 被唤醒时，<code>Wait()</code> 会重新获取锁。</li>
+<li><strong>条件满足则处理</strong>：如果条件满足，跳出循环，处理共享数据。</li>
+<li><strong>释放锁</strong>：<code>cond.L.Unlock()</code>。</li>
+</ul>
+<p><strong>为什么要在循环中检查条件？</strong><br>这是为了应对<strong>虚假唤醒</strong>。虚假唤醒是指 goroutine 在没有收到 <code>Signal</code> 或 <code>Broadcast</code> 通知的情况下被唤醒。虽然这种情况在 Go 中不常见，但在并发编程中仍被视为最佳实践。更重要的是，即使不是虚假唤醒，当多个 goroutine 被 <code>Broadcast</code> 唤醒时，只有一个 goroutine 能够先行获取锁并处理数据，其他被唤醒的 goroutine 可能发现条件仍然不满足，需要再次等待。因此，<strong>始终在 <code>Wait()</code> 调用外部嵌套一个循环来检查条件</strong>是确保正确性的关键。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">cond.L.Lock()</span><br><span class="line"><span class="keyword">for</span> !conditionMet &#123; <span class="comment">// 条件检查在循环中</span></span><br><span class="line">    cond.Wait()     <span class="comment">// 释放锁，等待被通知，被唤醒后重新获取锁</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 处理共享数据...</span></span><br><span class="line">cond.L.Unlock()</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>goroutine B (通知者)</strong>：</p>
+<ul>
+<li><strong>获取锁</strong>：<code>cond.L.Lock()</code>。</li>
+<li><strong>修改条件</strong>：安全地修改共享变量，使其满足等待 goroutine 的条件。</li>
+<li><strong>发送通知</strong>：调用 <code>cond.Signal()</code> (唤醒一个) 或 <code>cond.Broadcast()</code> (唤醒所有)。</li>
+<li><strong>释放锁</strong>：<code>cond.L.Unlock()</code>。</li>
+</ul>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">cond.L.Lock()</span><br><span class="line"><span class="comment">// 修改共享数据，使条件满足</span></span><br><span class="line">conditionMet = <span class="literal">true</span></span><br><span class="line">cond.Signal() <span class="comment">// 或 cond.Broadcast()</span></span><br><span class="line">cond.L.Unlock()</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>以下 Mermaid 图示描述了 <code>Wait()</code> 内部的原子操作流程：</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+    %%{init: { &#39;theme&#39;: &#39;base&#39;, &#39;themeVariables&#39;: {
+    &#39;primaryColor&#39;: &#39;#1e1e2e&#39;,
+    &#39;primaryTextColor&#39;: &#39;#cdd6f4&#39;,
+    &#39;primaryBorderColor&#39;: &#39;#b4befe&#39;,
+    &#39;lineColor&#39;: &#39;#9399b2&#39;,
+    &#39;secondaryColor&#39;: &#39;#313244&#39;,
+    &#39;tertiaryColor&#39;: &#39;#11111b&#39;,
+    &#39;edgeLabelBackground&#39;: &#39;#181825&#39;
+}}}%%
+
+graph TD
+    %% 核心流程
+    Start([Goroutine 持有锁 L 并调用 Wait]) --&gt; LockRel[原子操作: 释放锁 L]
+    LockRel --&gt; Block[Goroutine 进入等待队列并阻塞]
+    
+    %% 唤醒机制
+    WakeUp([Signal &#x2F; Broadcast 调用]) -.-&gt;|唤醒信号| Dequeue[从等待队列中移出]
+    Block -.-&gt; Dequeue
+    
+    Dequeue --&gt; ReAcquire[尝试重新获取锁 L]
+    ReAcquire --&gt; Check{是否成功?}
+    
+    Check -- &quot;No (阻塞重试)&quot; --&gt; ReAcquire
+    Check -- &quot;Yes&quot; --&gt; Done([Wait 方法返回])
+
+    %% 样式美化
+    style Start fill:#313244,stroke:#a6e3a1,stroke-width:2px
+    style Done fill:#313244,stroke:#89b4fa,stroke-width:2px
+    style WakeUp fill:#313244,stroke:#fab387,stroke-width:2px
+    style Check fill:#1e1e2e,stroke:#f9e2af,stroke-width:2px
+    style Block fill:#181825,stroke:#9399b2,stroke-dasharray: 5 5
+  </pre></div>
+
+<h2 id="四、代码示例：生产者-消费者模式"><a href="#四、代码示例：生产者-消费者模式" class="headerlink" title="四、代码示例：生产者-消费者模式"></a>四、代码示例：生产者-消费者模式</h2><p>下面是一个使用 <code>sync.Cond</code> 实现的简单生产者-消费者模型示例，其中包含一个有限容量的缓冲区。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;math/rand&quot;</span></span><br><span class="line">	<span class="string">&quot;sync&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Buffer 是一个有限容量的整数缓冲区</span></span><br><span class="line"><span class="keyword">type</span> Buffer <span class="keyword">struct</span> &#123;</span><br><span class="line">	cond       *sync.Cond</span><br><span class="line">	data       []<span class="type">int</span></span><br><span class="line">	capacity   <span class="type">int</span></span><br><span class="line">	isClosed   <span class="type">bool</span> <span class="comment">// 标志位，用于优雅关闭</span></span><br><span class="line">	mutex      sync.Mutex <span class="comment">// 保护 data 和 isClosed</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// NewBuffer 创建一个新的Buffer实例</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewBuffer</span><span class="params">(capacity <span class="type">int</span>)</span></span> *Buffer &#123;</span><br><span class="line">	b := &amp;Buffer&#123;</span><br><span class="line">		data:     <span class="built_in">make</span>([]<span class="type">int</span>, <span class="number">0</span>, capacity),</span><br><span class="line">		capacity: capacity,</span><br><span class="line">	&#125;</span><br><span class="line">	b.cond = sync.NewCond(&amp;b.mutex) <span class="comment">// 将 Cond 与 Mutex 关联</span></span><br><span class="line">	<span class="keyword">return</span> b</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Produce 方法用于向缓冲区添加数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Buffer)</span></span> Produce(item <span class="type">int</span>, id <span class="type">string</span>) &#123;</span><br><span class="line">	b.cond.L.Lock() <span class="comment">// 获取锁，保护共享数据</span></span><br><span class="line">	<span class="keyword">defer</span> b.cond.L.Unlock() <span class="comment">// 确保释放锁</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 循环检查条件：缓冲区是否已满？或者是否已关闭？</span></span><br><span class="line">	<span class="keyword">for</span> <span class="built_in">len</span>(b.data) == b.capacity &amp;&amp; !b.isClosed &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%s] Buffer is full, Producer %d waits...\n&quot;</span>, id, item)</span><br><span class="line">		b.cond.Wait() <span class="comment">// 缓冲区满，释放锁等待；被唤醒后重新获取锁</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> b.isClosed &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%s] Buffer closed, Producer %d cannot produce.\n&quot;</span>, id, item)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	b.data = <span class="built_in">append</span>(b.data, item) <span class="comment">// 添加数据</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;[%s] Produced %d. Buffer size: %d\n&quot;</span>, id, item, <span class="built_in">len</span>(b.data))</span><br><span class="line">	b.cond.Signal() <span class="comment">// 缓冲区不再为空，通知一个等待的消费者</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Consume 方法用于从缓冲区取出数据</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Buffer)</span></span> Consume(id <span class="type">string</span>) (<span class="type">int</span>, <span class="type">bool</span>) &#123;</span><br><span class="line">	b.cond.L.Lock() <span class="comment">// 获取锁，保护共享数据</span></span><br><span class="line">	<span class="keyword">defer</span> b.cond.L.Unlock() <span class="comment">// 确保释放锁</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 循环检查条件：缓冲区是否为空？</span></span><br><span class="line">	<span class="comment">// 并且在缓冲区为空时，如果已经关闭，则没有更多数据可消费</span></span><br><span class="line">	<span class="keyword">for</span> <span class="built_in">len</span>(b.data) == <span class="number">0</span> &amp;&amp; !b.isClosed &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%s] Buffer is empty, Consumer waits...\n&quot;</span>, id)</span><br><span class="line">		b.cond.Wait() <span class="comment">// 缓冲区空，释放锁等待；被唤醒后重新获取锁</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(b.data) == <span class="number">0</span> &amp;&amp; b.isClosed &#123;</span><br><span class="line">		fmt.Printf(<span class="string">&quot;[%s] Buffer is empty and closed, Consumer %s exits.\n&quot;</span>, id, id)</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>, <span class="literal">false</span> <span class="comment">// 缓冲区已空且已关闭，消费者退出</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	item := b.data[<span class="number">0</span>]</span><br><span class="line">	b.data = b.data[<span class="number">1</span>:] <span class="comment">// 取出数据</span></span><br><span class="line">	fmt.Printf(<span class="string">&quot;[%s] Consumed %d. Buffer size: %d\n&quot;</span>, id, item, <span class="built_in">len</span>(b.data))</span><br><span class="line">	b.cond.Signal() <span class="comment">// 缓冲区不再满，通知一个等待的生产者</span></span><br><span class="line">	<span class="keyword">return</span> item, <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Close 方法用于关闭缓冲区，通知所有等待者</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *Buffer)</span></span> Close() &#123;</span><br><span class="line">	b.cond.L.Lock()</span><br><span class="line">	<span class="keyword">defer</span> b.cond.L.Unlock()</span><br><span class="line"></span><br><span class="line">	b.isClosed = <span class="literal">true</span></span><br><span class="line">	fmt.Println(<span class="string">&quot;[Main] Closing buffer...&quot;</span>)</span><br><span class="line">	b.cond.Broadcast() <span class="comment">// 唤醒所有等待的生产者和消费者，让他们检查 isClosed 标志</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="keyword">const</span> (</span><br><span class="line">		bufferCapacity = <span class="number">5</span></span><br><span class="line">		numProducers   = <span class="number">2</span></span><br><span class="line">		numConsumers   = <span class="number">3</span></span><br><span class="line">		itemsPerProducer = <span class="number">10</span></span><br><span class="line">	)</span><br><span class="line"></span><br><span class="line">	buffer := NewBuffer(bufferCapacity)</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 启动生产者</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; numProducers; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(producerID <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			<span class="keyword">for</span> j := <span class="number">0</span>; j &lt; itemsPerProducer; j++ &#123;</span><br><span class="line">				item := producerID*<span class="number">100</span> + j</span><br><span class="line">				buffer.Produce(item, fmt.Sprintf(<span class="string">&quot;P%d&quot;</span>, producerID))</span><br><span class="line">				time.Sleep(time.Duration(rand.Intn(<span class="number">100</span>)) * time.Millisecond) <span class="comment">// 模拟生产时间</span></span><br><span class="line">			&#125;</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Producer P%d finished.\n&quot;</span>, producerID)</span><br><span class="line">		&#125;(i)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 启动消费者</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; numConsumers; i++ &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">(consumerID <span class="type">string</span>)</span></span> &#123;</span><br><span class="line">			<span class="keyword">defer</span> wg.Done()</span><br><span class="line">			<span class="keyword">for</span> &#123;</span><br><span class="line">				_, ok := buffer.Consume(consumerID)</span><br><span class="line">				<span class="keyword">if</span> !ok &#123;</span><br><span class="line">					<span class="keyword">break</span> <span class="comment">// 缓冲区已空并关闭，消费者退出</span></span><br><span class="line">				&#125;</span><br><span class="line">				time.Sleep(time.Duration(rand.Intn(<span class="number">150</span>)) * time.Millisecond) <span class="comment">// 模拟消费时间</span></span><br><span class="line">			&#125;</span><br><span class="line">			fmt.Printf(<span class="string">&quot;Consumer %s finished.\n&quot;</span>, consumerID)</span><br><span class="line">		&#125;(fmt.Sprintf(<span class="string">&quot;C%d&quot;</span>, i))</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 等待所有生产者完成</span></span><br><span class="line">	<span class="comment">// 注意，这里不能直接 wg.Wait() 等待所有，因为消费者是持续运行直到 buffer 关闭</span></span><br><span class="line">	<span class="comment">// 我们可以让 main goroutine 在一段时间后，或者当生产者全部完成后，关闭缓冲区</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// 在所有生产者完成任务后，等待几秒确保消费者有时间处理剩余数据</span></span><br><span class="line">		<span class="comment">// 实际应用可能根据业务逻辑判断何时关闭</span></span><br><span class="line">		time.Sleep(time.Duration(itemsPerProducer * numProducers * <span class="number">20</span>) * time.Millisecond) <span class="comment">// 粗略估算等待时间</span></span><br><span class="line">		buffer.Close()</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 确保所有 goroutine 有机会关闭（这里需要更精细的协调，示例简化）</span></span><br><span class="line">	<span class="comment">// 正确的做法是单独等待生产者完成，然后关闭buffer，最后等待消费者完成。</span></span><br><span class="line">	<span class="comment">// 这里简化为等待一个足够长的时间，或者通过额外的channel来实现</span></span><br><span class="line">	time.Sleep(<span class="number">5</span> * time.Second) <span class="comment">// 保证所有操作有时间完成</span></span><br><span class="line">	<span class="comment">// 或者通过一个更复杂的协调（例如，生产者完成生产后通知 main goroutine，main goroutine再通知关闭）</span></span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;Main goroutine finishes.&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="五、关键注意事项与最佳实践"><a href="#五、关键注意事项与最佳实践" class="headerlink" title="五、关键注意事项与最佳实践"></a>五、关键注意事项与最佳实践</h2><ol>
+<li><p><strong>始终在循环中调用 <code>Wait()</code></strong>：<br>这是最重要的规则。由于虚假唤醒或其他被唤醒的 goroutine 可能已经改变了条件，导致当前 goroutine 发现条件仍不满足，因此必须在 <code>for</code> 或 <code>while</code> 循环中重新检查条件。</p>
+</li>
+<li><p><strong><code>Cond</code> 必须与 <code>Locker</code> 关联</strong>：<br><code>sync.Cond</code> 不自带锁。它必须与一个 <code>sync.Locker</code> (通常是 <code>sync.Mutex</code> 或 <code>sync.RWMutex</code>) 实例关联。这个锁用于保护 <code>Cond</code> 所依赖的共享条件变量，确保对条件的检查和修改是原子性的。</p>
+</li>
+<li><p><strong>在调用 <code>Wait()</code>&#x2F;<code>Signal()</code>&#x2F;<code>Broadcast()</code> 前持有锁</strong>：<br>除了 <code>Wait()</code> 内部会短暂释放并重新获取锁，其他所有对 <code>Cond</code> 方法的调用（以及对共享条件变量的读写）都必须在持有 <code>cond.L</code> 锁的情况下进行。</p>
+</li>
+<li><p><strong><code>Signal()</code> vs <code>Broadcast()</code></strong>：</p>
+<ul>
+<li>使用 <code>Signal()</code> 当只需要唤醒一个 goroutine 时（例如，一个事件只有一个消费者关注）。</li>
+<li>使用 <code>Broadcast()</code> 当所有等待的 goroutine 都需要检查条件时（例如，多个消费者竞争资源，或者一个状态变化影响所有等待者）。使用 <code>Broadcast()</code> 会有更高的开销。</li>
+</ul>
+</li>
+<li><p><strong>何时使用 <code>sync.Cond</code> 而非 <code>channel</code>？</strong></p>
+<ul>
+<li><strong><code>channel</code></strong>：更适合用于<strong>传递数据或事件</strong>，实现 goroutine 之间的<strong>直接通信</strong>。例如，一个 goroutine 完成任务后通过 channel 发送结果给另一个 goroutine。</li>
+<li><strong><code>sync.Cond</code></strong>：更适合用于 goroutine <strong>等待某个共享状态的特定条件</strong>。当有一个共享的内存状态（如缓冲区满&#x2F;空，某个标志位 <code>true/false</code>）被多个 goroutine 读写，且 goroutine 仅仅是需要等待这个状态发生变化时，<code>Cond</code> 是一个更自然的选择。它允许 goroutine 在条件不满足时睡眠，无需传递数据。</li>
+</ul>
+</li>
+<li><p><strong>关闭机制</strong>：<br>在具有 <code>sync.Cond</code> 的生产者-消费者模型中，优雅地关闭系统是一个常见的挑战。需要一种机制来通知所有等待的生产者和消费者，系统即将关闭，它们不应该再等待条件满足。这通常通过一个 <code>isClosed</code> 标志和 <code>Broadcast()</code> 结合来实现，确保所有被阻塞的 goroutine 都能被唤醒并判断 <code>isClosed</code> 状态。</p>
+</li>
+</ol>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p><code>sync.Cond</code> 是 Go 语言提供的一个强大且高效的并发原语，用于协调 goroutine 在共享状态条件下的等待与通知。它通过与互斥锁结合，允许 goroutine 在条件不满足时进入睡眠状态，避免了忙等待，显著提高了程序的并发性能和资源利用率。</p>
+<p>理解 <code>sync.Cond</code> 的核心机制——尤其是 <code>Wait()</code> 方法的原子性操作、虚假唤醒问题以及在循环中检查条件的重要性——是正确使用它的关键。在生产者-消费者模型、任务协调或任何需要 goroutine 等待共享状态变化的场景中，<code>sync.Cond</code> 都是一个不可或缺的工具。正确地运用它</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/5e45bbf3f33f/">https://blog.tbf1211.xx.kg/5e45bbf3f33f/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Golang/">Golang</a><a class="post-meta__tags" href="/tags/2026/">2026</a><a class="post-meta__tags" href="/tags/goroutine/">goroutine</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-22.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/9db9ac148954/" title="麻腮风疫苗接种后发热现象详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">麻腮风疫苗接种后发热现象详解</div></div><div class="info-2"><div class="info-item-1"> 麻腮风（MMR）疫苗 是一种联合疫苗，用于预防麻疹 (Measles)、腮腺炎 (Mumps) 和风疹 (Rubella) 三种常见的儿童传染病。接种 MMR 疫苗后出现发热是其常见的、正常的生理反应之一，通常提示机体正在建立有效的免疫应答。本文将深入探讨 MMR 疫苗接种后发热的生物学机制、临床表现、与自然感染的区别以及相应的处理措施，旨在为家长提供科学、严谨的指导。  核心思想：  发热是免疫系统激活的正常信号：接种 MMR 疫苗后发热是机体对减毒活病毒产生免疫应答的生理表现。 延迟且通常轻微：与许多其他疫苗不同，MMR 疫苗引起的发热通常在接种后 5-12 天出现，且多为轻度至中度。 与疾病症状区分：疫苗引起的发热和相关症状远轻于自然感染，且疫苗病毒不具备传染性。 无需过度担忧，合理应对：了解其发生机制和应对方法，有助于家长减轻焦虑，确保儿童健康。     一、麻腮风疫苗简介麻腮风疫苗是一种减毒活疫苗 (Live-attenuated vaccine)，意味着它含有经过实验室处理、毒性减弱但仍能复制的麻疹、腮腺炎和风疹病毒。这些减弱的病毒不足以在健康个体中引起完全的疾病，...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/0051327a99f4/" title="Golang 并发 Map 详解：sync.Mutex、sync.RWMutex 与 sync.Map 对比"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-03</div><div class="info-item-2">Golang 并发 Map 详解：sync.Mutex、sync.RWMutex 与 sync.Map 对比</div></div><div class="info-2"><div class="info-item-1"> 在 Golang 中，内置的 map 类型不是并发安全的。当多个 goroutine 同时对 map 进行读写操作时，会导致竞争条件 (Race Condition)，甚至引发程序崩溃 (fatal error: concurrent map writes)。为了在并发环境下安全地使用 map，我们需要引入同步机制。本文将深入探讨三种常见的解决方案：使用 sync.Mutex 保护 map、使用 sync.RWMutex 保护 map，以及 Go 1.9 引入的 sync.Map，并对它们的特点、适用场景和性能进行对比分析。  核心问题：Go 内置 map 非并发安全。核心解决方案：  sync.Mutex：最简单粗暴，读写都加排他锁。 sync.RWMutex：读写分离锁，允许多个读操作并行，写操作独占。 sync.Map：专为读多写少、键不冲突或键值对持续增长的场景优化，内置无锁或乐观锁机制。     一、Go 内置 map 的并发问题Go 语言设计者有意将内置 map 设计为非并发安全的，主要出于以下考虑：  性能：为了避免在每次 map 操作时都承担锁的开销，从而在单线...</div></div></div></a><a class="pagination-related" href="/099de403ef3d/" title="Golang 缓冲Channel和无缓冲Channel的区别"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-07</div><div class="info-item-2">Golang 缓冲Channel和无缓冲Channel的区别</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言的并发编程模型中，Channel 是 Goroutine 之间通信和同步的核心机制。Channel 提供了一种安全、同步的方式来传递数据。根据其容量大小，Channel 可以分为两种类型：无缓冲 Channel (Unbuffered Channel) 和 缓冲 Channel (Buffered Channel)。理解这两种 Channel 的区别以及它们各自的适用场景，是编写高效、正确 Go 并发代码的关键。  核心思想：无缓冲 Channel 强调“同步”通信，发送方和接收方必须同时就绪。缓冲 Channel 则允许“异步”通信，发送方可以在接收方未就绪时发送数据，但容量有限。   一、Channel 简介在 Go 中，Channel 是类型化的管道，可以通过它们发送和接收特定类型的值。它遵循“通过通信共享内存，而不是通过共享内存来通信”的并发哲学。 声明 Channel 的基本语法： 12345// 声明一个传递 int 类型数据的无缓冲 Channelvar ch1 chan int// 声明一个传递 string 类型数据的缓冲 Channel，容量为...</div></div></div></a><a class="pagination-related" href="/f93f336b1901/" title="Golang 底层的多路复用和调度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-02-21</div><div class="info-item-2">Golang 底层的多路复用和调度详解</div></div><div class="info-2"><div class="info-item-1"> 多路复用 (Multiplexing) 在计算机网络编程中，通常指的是 I&#x2F;O 多路复用 (I&#x2F;O Multiplexing)，它是一种允许单个进程或线程监视多个 I&#x2F;O 事件（如网络连接、文件描述符）并在任何一个 I&#x2F;O 事件准备就绪时通知应用程序的机制。相较于传统的“一个连接一个线程&#x2F;进程”模型，I&#x2F;O 多路复用能够以更低的资源消耗处理大量并发连接，是构建高性能网络服务的基础。  核心思想：Go 语言通过其独特的运行时 (Runtime) 调度器和轻量级协程 (Goroutine) 机制，巧妙地将底层操作系统的 I&#x2F;O 多路复用能力抽象化，为开发者提供了编写简洁、高效且易于并发的网络服务的能力，让 I&#x2F;O 操作看起来像阻塞的，实则在底层是非阻塞的。   一、为什么需要多路复用？在理解 Go 语言如何实现多路复用之前，我们首先需要理解为什么它如此重要，以及它解决了哪些传统网络编程模型的痛点。 1.1 传统模型的问题1.1.1 阻塞 I&#x2F;O (Blocking I&#x2F;O)传统的阻塞...</div></div></div></a><a class="pagination-related" href="/147e095590e6/" title="Golang Lo库详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-02</div><div class="info-item-2">Golang Lo库详解</div></div><div class="info-2"><div class="info-item-1"> Lo 是一个用 Go 语言编写的现代化通用实用工具库，它提供了大量受函数式编程启发的高效、类型安全的工具函数。它利用 Go 1.18 引入的泛型特性，旨在简化对集合、管道、字符串、数字等常见数据结构和操作的处理，从而提高代码的简洁性、可读性和开发效率，减少样板代码。  核心思想：  函数式编程风格：提供 Map, Filter, Reduce 等函数，以声明式而非命令式的方式处理数据。 泛型支持：充分利用 Go 1.18+ 的泛型，提供编译时类型安全，避免 interface{} 和运行时反射的开销。 简化复杂操作：将常见的迭代、转换、筛选、聚合等逻辑封装成简洁的函数调用。 提高代码可读性：通过链式调用等方式，使数据处理流程清晰直观。     一、为什么选择 Lo 库？Go 语言以其简洁、高效和内置并发特性而闻名。然而，在 Go 1.18 之前，由于缺少泛型，开发者在处理不同类型集合的常见操作（如映射、过滤、查找）时，通常需要编写大量的样板代码（手动循环、类型断言），或者使用 interface&#123;&#125; 结合反射来编写通用函数，但这会牺牲类型安全性和性能。 传统...</div></div></div></a><a class="pagination-related" href="/cd5b6fd178d8/" title="go.sum 文件中特殊哈希计算详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-24</div><div class="info-item-2">go.sum 文件中特殊哈希计算详解</div></div><div class="info-2"><div class="info-item-1"> go.sum 文件在 Go 模块生态系统中扮演着至关重要的角色，它记录了项目直接和间接依赖模块的加密哈希值，用于确保模块的完整性和安全性，防止供应链攻击。除了对模块文件内容的常规哈希外，go.sum 中还存在一些特殊的哈希条目，它们用于校验特定的信息流，而非直接的模块压缩包内容。本文将深入探讨这些特殊哈希的计算机制。  核心要点：go.sum 中的特殊哈希主要针对两种场景：go.mod 文件内容的校验以及 vendor 目录内容的校验。它们确保了关键配置信息和本地缓存的一致性。    一、Go Modules 与 go.sum 概述1.1 Go Modules 简介Go Modules 是 Go 语言的官方依赖管理系统，它通过 go.mod 文件定义模块的依赖关系，并通过 go.sum 文件记录模块的加密校验和。这种机制确保了构建的可重复性，并提供了针对恶意代码注入（如中间人攻击）的防御。 1.2 go.sum 的作用go.sum 文件包含两类条目，每行一个，格式通常为： module_path module_version HASH或module_path module_ve...</div></div></div></a><a class="pagination-related" href="/7601ab41dda6/" title="Go语言并发与并行详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-10-23</div><div class="info-item-2">Go语言并发与并行详解</div></div><div class="info-2"><div class="info-item-1"> Go 语言（Golang） 被设计为一门天然支持并发的语言，其并发模型是基于 CSP (Communicating Sequential Processes) 理论的实现。Go 语言通过轻量级的 Goroutine (协程) 和原生的 Channel (管道) 机制，极大地简化了并发编程的复杂性，使得开发者能够更容易地编写出高并发、高性能的应用程序。  核心思想：不要通过共享内存来通信；相反，通过通信来共享内存。 这是 Go 并发哲学中的核心原则。   一、并发 (Concurrency) 与并行 (Parallelism)在深入 Go 语言的并发机制之前，理解并发与并行的区别至关重要。 1.1 并发 (Concurrency) 定义：并发是指系统能够同时处理多个任务的能力。这些任务不一定在同一时刻运行，它们可能在单个 CPU 核心上通过时间片轮转的方式快速切换执行，给人一种“同时进行”的错觉。 特性： 处理多个任务：关注如何设计程序来处理事件流，即使只有一个处理器。 任务切换：通过快速切换执行上下文来模拟同时执行。 目的：提高程序的吞吐量和响应速度。   类比：一个厨师可以在...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">639</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">247</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">96</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-sync-Cond%EF%BC%9F"><span class="toc-text">一、为什么需要 sync.Cond？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%9D%A1%E4%BB%B6%E5%8F%98%E9%87%8F-Condition-Variable"><span class="toc-text">2.1 条件变量 (Condition Variable)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-sync-Cond-%E7%9A%84%E7%BB%93%E6%9E%84"><span class="toc-text">2.2 sync.Cond 的结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-sync-Cond-%E7%9A%84%E4%B8%BB%E8%A6%81%E6%96%B9%E6%B3%95"><span class="toc-text">2.3 sync.Cond 的主要方法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E4%B8%8E%E5%85%B8%E5%9E%8B%E4%BD%BF%E7%94%A8%E6%A8%A1%E5%BC%8F"><span class="toc-text">三、工作原理与典型使用模式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B%EF%BC%9A%E7%94%9F%E4%BA%A7%E8%80%85-%E6%B6%88%E8%B4%B9%E8%80%85%E6%A8%A1%E5%BC%8F"><span class="toc-text">四、代码示例：生产者-消费者模式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%85%B3%E9%94%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-text">五、关键注意事项与最佳实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/5e45bbf3f33f/" title="Golang sync.Cond 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang sync.Cond 详解"/></a><div class="content"><a class="title" href="/5e45bbf3f33f/" title="Golang sync.Cond 详解">Golang sync.Cond 详解</a><time datetime="2026-04-10T22:24:00.000Z" title="发表于 2026-04-11 06:24:00">2026-04-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/9db9ac148954/" title="麻腮风疫苗接种后发热现象详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="麻腮风疫苗接种后发热现象详解"/></a><div class="content"><a class="title" href="/9db9ac148954/" title="麻腮风疫苗接种后发热现象详解">麻腮风疫苗接种后发热现象详解</a><time datetime="2026-04-08T22:24:00.000Z" title="发表于 2026-04-09 06:24:00">2026-04-09</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c551d3eaff90/" title="儿童电视内容的选择与优化策略"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="儿童电视内容的选择与优化策略"/></a><div class="content"><a class="title" href="/c551d3eaff90/" title="儿童电视内容的选择与优化策略">儿童电视内容的选择与优化策略</a><time datetime="2026-04-04T22:24:00.000Z" title="发表于 2026-04-05 06:24:00">2026-04-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/f9b3c36135f9/" title="婴儿厌奶现象详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="婴儿厌奶现象详解"/></a><div class="content"><a class="title" href="/f9b3c36135f9/" title="婴儿厌奶现象详解">婴儿厌奶现象详解</a><time datetime="2026-04-02T22:24:00.000Z" title="发表于 2026-04-03 06:24:00">2026-04-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6aeea5013665/" title="Rust 所有符号语法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rust 所有符号语法详解"/></a><div class="content"><a class="title" href="/6aeea5013665/" title="Rust 所有符号语法详解">Rust 所有符号语法详解</a><time datetime="2026-03-31T22:24:00.000Z" title="发表于 2026-04-01 06:24:00">2026-04-01</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-22.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        if (typeof svg === 'string') {
+          openSvgInNewTab({ source: svg, initViewBox })
+          return
+        }
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+
+    // Avoid binding multiple times on themeChange/pjax
+    if (wrap.__mermaidGestureBound) return
+    wrap.__mermaidGestureBound = true
+
+    // Helper: map client (viewport) coordinate -> viewBox coordinate
+    const clientToViewBox = (clientX, clientY) => {
+      const rect = svg.getBoundingClientRect()
+      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
+      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
+      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
+      return { x, y, rect, vb }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      startCenter: null
+    }
+
+    const clampVb = vb => {
+      const init = wrap.__mermaidInitViewBox || vb
+      const minW = init[2] * 0.1
+      const maxW = init[2] * 10
+      const minH = init[3] * 0.1
+      const maxH = init[3] * 10
+      vb[2] = clamp(vb[2], minW, maxW)
+      vb[3] = clamp(vb[3], minH, maxH)
+      return vb
+    }
+
+    const setCurVb = vb => {
+      vb = clampVb(vb)
+      wrap.__mermaidCurViewBox = vb
+      setSvgViewBox(svg, vb)
+    }
+
+    const onPointerDown = e => {
+      // Allow only primary button for mouse
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (state.pointers.size === 1) {
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      // Pan with 1 pointer
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = [...state.pointers.values()][0]
+        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
+        // movementX/Y unreliable on touch, compute from stored last position
+        const last = wrap.__mermaidLastSinglePointer || p
+        const dxClient = p.x - last.x
+        const dyClient = p.y - last.y
+        wrap.__mermaidLastSinglePointer = p
+
+        const { rect } = clientToViewBox(p.x, p.y)
+        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        const dx = dxClient * (vb[2] / rect.width)
+        const dy = dyClient * (vb[3] / rect.height)
+        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        return
+      }
+
+      // Pinch zoom with 2 pointers
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
+
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const centerClient = { x: cx, y: cy }
+
+        const pxy = clientToViewBox(centerClient.x, centerClient.y)
+        const cpx = pxy.x
+        const cpy = pxy.y
+
+        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
+        setCurVb(vb)
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+        state.startCenter = null
+        wrap.__mermaidLastSinglePointer = null
+      } else if (state.pointers.size === 1) {
+        // reset single pointer baseline to avoid jump
+        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+      }
+    }
+
+    // Wheel zoom (mouse/trackpad)
+    const onWheel = e => {
+      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      e.preventDefault()
+      const delta = e.deltaY
+      const zoomFactor = delta > 0 ? 1.1 : 0.9
+      const { x, y } = clientToViewBox(e.clientX, e.clientY)
+      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (!init) return
+      wrap.__mermaidCurViewBox = init.slice()
+      setSvgViewBox(svg, init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown)
+    svg.addEventListener('pointermove', onPointerMove)
+    svg.addEventListener('pointerup', onPointerUpOrCancel)
+    svg.addEventListener('pointercancel', onPointerUpOrCancel)
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    svg.addEventListener('dblclick', onDblClick)
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+
+      // Clear old render (themeChange/pjax will rerun)
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      item.__mermaidGestureBound = false
+
+      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
