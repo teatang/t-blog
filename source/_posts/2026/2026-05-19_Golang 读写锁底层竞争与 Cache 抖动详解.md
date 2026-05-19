@@ -128,16 +128,6 @@ func main() {
 **Mermaid 流程图：锁竞争**
 
 {% mermaid %}
-%%{init: {
-  'theme': 'dark',
-  'themeVariables': {
-    'background': '#1e1e1e',
-    'primaryColor': '#2d2d2d',
-    'primaryTextColor': '#f4f4f4',
-    'lineColor': '#a0a0a0',
-    'fontSize': '14px'
-  }
-}}%%
 graph TD
     %% 节点定义与样式分组
     subgraph 竞争阶段 [Goroutines 发起竞争]
@@ -235,16 +225,6 @@ Cache 抖动会导致：
 **Mermaid 流程图：Cache 抖动**
 
 {% mermaid %}
-%%{init: {
-  'theme': 'dark',
-  'themeVariables': {
-    'background': '#121212',
-    'primaryColor': '#1f1f1f',
-    'primaryTextColor': '#e0e0e0',
-    'lineColor': '#888888',
-    'fontSize': '14px'
-  }
-}}%%
 graph TD
     %% 核心冲突现象（全局高亮）
     K[⚠️ 频繁重复导致 Cache 颠簸 / 伪共享]
