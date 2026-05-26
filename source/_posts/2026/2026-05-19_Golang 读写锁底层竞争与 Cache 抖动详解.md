@@ -227,7 +227,7 @@ Cache 抖动会导致：
 {% mermaid %}
 graph TD
     %% 核心冲突现象（全局高亮）
-    K[⚠️ 频繁重复导致 Cache 颠簸 / 伪共享]
+    K[⚠️ 频繁重复导致 Cache <br/>颠簸 / 伪共享]
 
     %% CPU 1 事务流
     subgraph CPU_1 [CPU 1 核心动作]
