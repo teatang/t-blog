@@ -5,23 +5,23 @@
 <meta property="og:site_name" content="1024 维度">
 <meta property="og:description" content="PHP 编码规范 旨在提供一套指导原则和最佳实践，以确保 PHP 代码的一致性、可读性、可维护性和团队协作效率。在 PHP 社区中，PSR (PHP Standards Recommendations) 是最广泛接受和遵循的编码规范。遵循这些规范不仅能让你的代码更容易被其他 PHP 开发者理解，也能提高代码本身的质量和减少潜在错误，同时促进不同框架和库之间的互操作性。  核心思想：一致性至关重要">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-19.jpg">
 <meta property="article:published_time" content="2023-02-02T22:24:00.000Z">
-<meta property="article:modified_time" content="2026-07-14T09:19:36.068Z">
+<meta property="article:modified_time" content="2026-07-22T09:46:20.566Z">
 <meta property="article:author" content="TeaTang">
 <meta property="article:tag" content="2023">
 <meta property="article:tag" content="PHP">
 <meta property="article:tag" content="项目构建">
 <meta property="article:tag" content="编码规范">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg"><script type="application/ld+json">{
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-19.jpg"><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "PHP 编码规范详解",
   "url": "https://blog.tbf1211.xx.kg/2fe79cc940de/",
-  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-19.jpg",
   "datePublished": "2023-02-02T22:24:00.000Z",
-  "dateModified": "2026-07-14T09:19:36.068Z",
+  "dateModified": "2026-07-22T09:46:20.566Z",
   "author": [
     {
       "@type": "Person",
@@ -29,51 +29,92 @@
       "url": "https://blog.tbf1211.xx.kg"
     }
   ]
-}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2fe79cc940de/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.5"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/2fe79cc940de/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.6.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
     (() => {
       
     const saveToLocal = {
       set: (key, value, ttl) => {
-        if (!ttl) return
-        const expiry = Date.now() + ttl * 86400000
-        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+        const data = { value }
+
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
+
+        localStorage.setItem(key, JSON.stringify(data))
       },
       get: key => {
         const itemStr = localStorage.getItem(key)
-        if (!itemStr) return undefined
-        const { value, expiry } = JSON.parse(itemStr)
-        if (Date.now() > expiry) {
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
           localStorage.removeItem(key)
-          return undefined
         }
-        return value
       }
     }
 
+    const scriptCache = new Map()
+    const cssCache = new Map()
     window.btf = {
       saveToLocal,
-      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = url
-        script.async = true
-        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
-        script.onload = script.onreadystatechange = () => {
-          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
         }
-        script.onerror = reject
-        document.head.appendChild(script)
-      }),
-      getCSS: (url, id) => new Promise((resolve, reject) => {
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = url
-        if (id) link.id = id
-        link.onload = link.onreadystatechange = () => {
-          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
         }
-        link.onerror = reject
-        document.head.appendChild(link)
-      }),
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
       addGlobalFn: (key, fn, name = false, parent = window) => {
         if (!true && key.startsWith('pjax')) return
         const globalFn = parent.globalFn || {}
@@ -84,16 +125,17 @@
     }
   
       
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
       const activateDarkMode = () => {
-        document.documentElement.setAttribute('data-theme', 'dark')
-        if (document.querySelector('meta[name="theme-color"]') !== null) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
         }
       }
       const activateLightMode = () => {
-        document.documentElement.setAttribute('data-theme', 'light')
-        if (document.querySelector('meta[name="theme-color"]') !== null) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
         }
       }
 
@@ -103,7 +145,12 @@
       const theme = saveToLocal.get('theme')
     
           const hour = new Date().getHours()
-          const isNight = hour <= 6 || hour >= 7
+          const start = 6
+          const end = 7
+          const isNight =
+            start < end
+                ? hour < start || hour >= end
+                : hour >= start || hour < end
           if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
           else theme === 'light' ? activateLightMode() : activateDarkMode()
         
@@ -166,7 +213,7 @@
   isToc: true,
   pageType: 'post'
 }</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
-</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">667</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-11.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PHP 编码规范详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PHP 编码规范详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-02-02T22:24:00.000Z" title="发表于 2023-02-03 06:24:00">2023-02-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/PHP/">PHP</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">669</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-19.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PHP 编码规范详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PHP 编码规范详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-02-02T22:24:00.000Z" title="发表于 2023-02-03 06:24:00">2023-02-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/PHP/">PHP</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>13分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
 <p><strong>PHP 编码规范</strong> 旨在提供一套指导原则和最佳实践，以确保 PHP 代码的<strong>一致性、可读性、可维护性</strong>和<strong>团队协作效率</strong>。在 PHP 社区中，<strong>PSR (PHP Standards Recommendations)</strong> 是最广泛接受和遵循的编码规范。遵循这些规范不仅能让你的代码更容易被其他 PHP 开发者理解，也能提高代码本身的质量和减少潜在错误，同时促进不同框架和库之间的互操作性。</p>
 </blockquote>
 <div class="note info flat"><p>核心思想：<strong>一致性至关重要。代码是写给人看的，不是机器。清晰、简洁、可读的代码能够极大地提高开发效率和项目成功率。遵循 PSR 规范，让你的代码更具通用性和专业性。</strong></p>
@@ -345,7 +392,7 @@
 <li><strong>清晰与简洁</strong>：始终以提高代码可读性为目标，编写简洁、明确的代码。</li>
 </ul>
 <p>通过持续学习和实践这些规范，你的 PHP 代码将更加专业、易于协作，并能更好地融入现代 PHP 生态系统。</p>
-</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2fe79cc940de/">https://blog.tbf1211.xx.kg/2fe79cc940de/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/PHP/">PHP</a><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/%E7%BC%96%E7%A0%81%E8%A7%84%E8%8C%83/">编码规范</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-11.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/5dea4260c32f/" title="Docker镜像构建详解：从Dockerfile到高效实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Docker镜像构建详解：从Dockerfile到高效实践</div></div><div class="info-2"><div class="info-item-1"> Docker 镜像构建 (Image Building) 是 Docker 容器化技术的核心环节，它指的是根据 Dockerfile 中定义的一系列指令，逐步创建一个 Docker 镜像的过程。这个过程最终会生成一个轻量级、独立、可执行的软件包，其中包含运行应用程序所需的一切：代码、运行时环境、系统工具、库和配置。  核心思想：Docker 镜像构建是一个分层 (Layered) 且基于指令 (Instruction-based) 的过程。每条 Dockerfile 指令都会在现有镜像层之上创建一个新的只读层，这些层的集合构成了最终的 Docker 镜像。    一、Docker 镜像与分层存储在深入构建过程之前，理解 Docker 镜像的核心概念——分层存储 (Layered Storage) 至关重要。  只读层 (Read-Only Layers)： Docker 镜像由一系列只读的文件系统层组成，这些层叠加在一起。 Dockerfile 中的每条指令（例如 FROM, RUN, COPY 等）都会在现有镜像层之上创建一个新的只读层。 这些层是可重用的。如果多个镜像共享相...</div></div></div></a><a class="pagination-related" href="/895bad372d95/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> MySQL 索引 (Index) 是一种特殊的数据结构，存储着表中一列或多列数据的排序值和指向对应数据行的物理指针。它的主要目的是提高数据库查询的效率。通过创建索引，数据库系统可以快速定位到所需的数据行，而无需扫描整个表。然而，索引并非越多越好，不当的索引使用反而可能降低性能，因此深入理解索引的工作原理和优化策略至关重要。  核心思想：索引的本质是一种“文件目录”或“字典检索”，它通过牺牲一定的存储空间和维护成本，来大幅提升数据检索的速度。    一、为什么需要索引？想象一下一本没有目录的书，当你想查找某个特定主题时，你必须从头到尾翻阅整本书，效率非常低下。数据库查询也是一样。 当未对表中的列创建索引时：  全表扫描 (Full Table Scan)：每次查询都需要遍历表的每一行，逐一比对条件。对于小表来说可能影响不大，但对于包含数百万甚至数千万行记录的大表，全表扫描将导致灾难性的性能问题。 排序性能下降：如果查询结果需要排序（ORDER BY），但没有合适的索引，数据库需要在内存或磁盘上对结果集进行排序，开销巨大。 连接 (JOIN) 性能下降：多个表进行连接操作时，如果没...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/ab53b79e305e/" title="PHP this, self, static 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-06</div><div class="info-item-2">PHP this, self, static 详解</div></div><div class="info-2"><div class="info-item-1"> 在 PHP 面向对象编程中，$this、self 和 static 是三个至关重要的关键词，它们用于在类内部访问成员属性和方法。理解它们之间的区别和用法是掌握 PHP 对象模型，特别是后期静态绑定 (Late Static Binding) 的关键。  核心思想：$this 指向当前对象实例，self 指向当前类，static 结合后期静态绑定机制，根据运行时调用者来确定指向的类。    一、$this 关键字1.1 定义与用途$this 关键字用于引用当前对象实例。它只能在非静态方法中使用，用于访问当前对象实例的非静态属性和非静态方法。 当一个类被实例化为一个对象后，$this 就代表了该对象。 1.2 访问方式通过 -&gt; 运算符访问：$this-&gt;propertyName 或 $this-&gt;methodName()。 1.3 示例12345678910111213141516171819202122232425262728293031323334&lt;?phpclass Car &#123;    public $color; // 非静态属性    p...</div></div></div></a><a class="pagination-related" href="/80bef8aa6c96/" title="PHP 数组 (Array) 相关函数详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-14</div><div class="info-item-2">PHP 数组 (Array) 相关函数详解</div></div><div class="info-2"><div class="info-item-1"> PHP 数组 (Array) 是一种特殊的数据类型，可以存储多个值在一个变量中。PHP 数组是高度灵活的，既可以作为普通索引数组（数值键），也可以作为关联数组（字符串键），甚至可以两者混合使用，或者作为多维数组。PHP 提供了极其丰富和强大的内置函数来操作数组，涵盖了从创建、遍历、排序、过滤到搜索、合并等几乎所有常见的数组操作需求。深入理解并熟练运用这些函数，是高效编写 PHP 代码的关键。  核心思想：PHP 数组函数旨在提供强大、灵活且高效的方式来管理和操作复杂的数据集合，简化开发者对数据的处理。    一、数组基础知识回顾在深入函数之前，快速回顾 PHP 数组的几个核心特性：  异构性 (Heterogeneous)：数组中的元素可以是不同数据类型（字符串、数字、布尔、对象、其他数组等）。 动态大小 (Dynamic Sizing)：数组大小不是固定的，可以随时添加或删除元素。 索引与关联： 索引数组 (Indexed Array)：键是整数，默认从 0 开始。12$indexedArray = [&#x27;apple&#x27;, &#x27;banana&#x27;...</div></div></div></a><a class="pagination-related" href="/92f0967ae727/" title="PHP 重写 Trait 方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-21</div><div class="info-item-2">PHP 重写 Trait 方法详解</div></div><div class="info-2"><div class="info-item-1"> PHP 中的 Trait (特质) 是一种代码复用机制，它允许你将一组方法插入到多个不相关的类中，从而解决单继承语言中代码共享的限制。Trait 引入了一种水平复用 (Horizontal Reuse) 的方式，与传统的垂直继承 (Vertical Inheritance) 形成互补。当一个类 use 了一个 Trait 后，Trait 中的方法就如同在类中声明一样。然而，在某些情况下，我们可能需要对 Trait 中引入的方法进行重写或调整。本文将详细探讨 PHP 中如何重写 Trait 方法的各种策略和优先级规则。  核心概念：  Trait：一组可复用的方法集合，通过 use 关键字混入类中。 方法重写优先级：类自身方法 &gt; Trait 方法 &gt; 父类方法。 冲突解决：insteadof 和 as 关键字用于处理多个 Trait 之间或 Trait 与类方法之间的名称冲突。     一、Trait 的基本概念回顾Trait 旨在减少单继承语言的限制，它允许开发者自由地组合功能，而无需通过复杂的继承层次结构。 示例： 12345678910111213141516...</div></div></div></a><a class="pagination-related" href="/832eaf04ac40/" title="Python多线程实现生产者-消费者模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-21</div><div class="info-item-2">Python多线程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的同步问题。在 Python 中，由于全局解释器锁 (GIL) 的存在，多线程在 CPU 密集型任务上并不能真正并行，但在 I&#x2F;O 密集型任务上，多线程仍然可以有效地提高程序的效率和响应速度。本篇将详细介绍如何使用 Python 的 threading 模块和 queue 模块实现多线程版的生产者-消费者模式。  核心思想：利用线程安全的共享队列作为缓冲，实现生产者与消费者解耦，并通过队列自带的互斥锁和条件变量进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式与多线程概述1.1 生产者-消费者模式参考 Python 多进程生产者-消费者模式详解 中的概述，其核心构成和解决的问题在多线程场景下是相同的：  生产者 (Producer)：生成数据并放入队列。 消费者 (Consumer)：从队列取出数据并处理。 缓冲区 (Queue)：共享的、线程安全的数据容器。  1.2 Python 多线程与 GIL threading 模块：Python 标...</div></div></div></a><a class="pagination-related" href="/13fd43244420/" title="Java 编码规范详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-13</div><div class="info-item-2">Java 编码规范详解</div></div><div class="info-2"><div class="info-item-1"> Java 编码规范 是指在编写 Java 代码时，为了提高代码的可读性 (Readability)、可维护性 (Maintainability)、可扩展性 (Extensibility) 和团队协作效率而制定的一系列约定和规则。遵循统一的编码规范能够使代码风格保持一致，降低新人上手难度，减少潜在错误，并提升软件开发的整体质量。  核心思想：代码不仅仅是实现功能的工具，更是团队成员之间沟通的载体。一致的、规范的代码风格能够显著减少理解成本和维护成本。   一、为什么需要编码规范？编码规范的重要性体现在以下几个方面：  提高可读性：统一的风格使得代码逻辑更易于理解，无论代码由谁编写。 提高可维护性：规范的代码结构和注释有助于快速定位问题、理解功能并进行修改。 促进团队协作：在多开发人员参与的项目中，统一的规范能确保代码库风格一致，减少合并冲突和返工。 减少错误：清晰的命名和结构可以避免一些常见的编程错误。 提升代码质量：规范往往也包含了最佳实践，有助于编写出更健壮、更高效的代码。 代码审查效率：在代码审查时，审查者可以更专注于业务逻辑和潜在缺陷，而不是纠结于代码风格。  二、通用原...</div></div></div></a><a class="pagination-related" href="/60590698f89d/" title="Python abc模块详解 - 抽象基类 (Abstract Base Classes)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-08-27</div><div class="info-item-2">Python abc模块详解 - 抽象基类 (Abstract Base Classes)</div></div><div class="info-2"><div class="info-item-1"> Python 的 abc 模块 (Abstract Base Classes) 提供了一种定义抽象基类 (ABC) 的方式。抽象基类强制其子类实现特定的方法，从而为类结构引入了正式的接口定义能力。这在没有显式接口概念的 Python 中，是一种实现“鸭子类型 (Duck Typing)”的更严格、更可控的方式。它有助于构建可预测且易于维护的面向对象代码结构。  核心思想：强制子类遵循父类定义的“契约”，即必须实现某些方法，以确保API的一致性。这提升了代码的可读性、可维护性和健壮性。    一、为什么需要抽象基类 (ABC)？Python 是一种动态类型语言，其核心原则之一是“鸭子类型” (Duck Typing)：  “如果它走起来像鸭子，叫起来像鸭子，那么它就是一只鸭子。”  这意味着，只要一个对象实现了某个方法，我们就可以像对待具有该方法的任何其他对象一样使用它，而无需关心其继承关系或具体类型。 鸭子类型非常灵活，但在某些情况下也会带来问题：  接口不明确：当你在设计一个库或框架时，你可能希望用户提供的类必须实现某些方法。没有明确的接口，用户可能不知道要实现哪些方法，或者...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">667</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81PHP-%E7%BC%96%E7%A0%81%E5%93%B2%E5%AD%A6%E4%B8%8E-PSR"><span class="toc-text">一、PHP 编码哲学与 PSR</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E8%87%AA%E5%8A%A8%E5%8C%96%E5%B7%A5%E5%85%B7"><span class="toc-text">二、自动化工具</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-PHP-CS-Fixer-%E4%BB%A3%E7%A0%81%E9%A3%8E%E6%A0%BC%E4%BF%AE%E5%A4%8D%E5%B7%A5%E5%85%B7"><span class="toc-text">2.1 PHP-CS-Fixer (代码风格修复工具)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-PHP-CodeSniffer-%E4%BB%A3%E7%A0%81%E9%A3%8E%E6%A0%BC%E6%A3%80%E6%9F%A5%E5%B7%A5%E5%85%B7"><span class="toc-text">2.2 PHP_CodeSniffer (代码风格检查工具)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%9F%BA%E6%9C%AC%E7%BC%96%E7%A0%81%E6%A0%87%E5%87%86-PSR-1-PSR-12-Essentials"><span class="toc-text">三、基本编码标准 (PSR-1, PSR-12 Essentials)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-PHP-%E6%A0%87%E7%AD%BE"><span class="toc-text">3.1 PHP 标签</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%96%87%E4%BB%B6%E7%BC%96%E7%A0%81"><span class="toc-text">3.2 文件编码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%96%87%E4%BB%B6%E7%BB%93%E5%B0%BE%E5%92%8C%E7%B1%BB%E6%96%87%E4%BB%B6"><span class="toc-text">3.3 文件结尾和类文件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%A0%BC%E5%BC%8F%E5%8C%96-PSR-12-Essentials"><span class="toc-text">四、格式化 (PSR-12 Essentials)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E7%BC%A9%E8%BF%9B-Indentation"><span class="toc-text">4.1 缩进 (Indentation)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E8%A1%8C%E9%95%BF%E5%BA%A6-Line-Length"><span class="toc-text">4.2 行长度 (Line Length)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E7%A9%BA%E8%A1%8C-Blank-Lines"><span class="toc-text">4.3 空行 (Blank Lines)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%A3%B0%E6%98%8E%E5%9D%97-use-const-property"><span class="toc-text">4.4 声明块 (use, const, property)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E7%BB%93%E6%9E%84%E4%BD%93-Control-Structures"><span class="toc-text">4.5 结构体 (Control Structures)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E5%87%BD%E6%95%B0%E5%92%8C%E6%96%B9%E6%B3%95"><span class="toc-text">4.6 函数和方法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%91%BD%E5%90%8D%E8%A7%84%E8%8C%83-Naming-Conventions"><span class="toc-text">五、命名规范 (Naming Conventions)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%B1%BB%E3%80%81%E6%8E%A5%E5%8F%A3%E3%80%81Trait%E3%80%81%E6%9E%9A%E4%B8%BE"><span class="toc-text">5.1 类、接口、Trait、枚举</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%B1%BB%E5%B8%B8%E9%87%8F"><span class="toc-text">5.2 类常量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%B1%9E%E6%80%A7-Properties"><span class="toc-text">5.3 属性 (Properties)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E6%96%B9%E6%B3%95-Methods"><span class="toc-text">5.4 方法 (Methods)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-5-%E5%87%BD%E6%95%B0-Functions"><span class="toc-text">5.5 函数 (Functions)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-6-%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F"><span class="toc-text">5.6 局部变量</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81PHPDoc-%E6%96%87%E6%A1%A3%E5%9D%97"><span class="toc-text">六、PHPDoc (文档块)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E7%B1%BB%E5%9E%8B%E6%8F%90%E7%A4%BA-Type-Hints-PHP-7-0"><span class="toc-text">七、类型提示 (Type Hints) (PHP 7.0+)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/35d4f7383fcf/" title="二维码原理详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二维码原理详解"/></a><div class="content"><a class="title" href="/35d4f7383fcf/" title="二维码原理详解">二维码原理详解</a><time datetime="2026-05-20T22:24:00.000Z" title="发表于 2026-05-21 06:24:00">2026-05-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 读写锁底层竞争与 Cache 抖动详解"/></a><div class="content"><a class="title" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解">Golang 读写锁底层竞争与 Cache 抖动详解</a><time datetime="2026-05-18T22:24:00.000Z" title="发表于 2026-05-19 06:24:00">2026-05-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Godot 主要 2D 节点对象详解"/></a><div class="content"><a class="title" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解">Godot 主要 2D 节点对象详解</a><time datetime="2026-04-24T22:24:00.000Z" title="发表于 2026-04-25 06:24:00">2026-04-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/946d03cc4896/" title="Base64 编码详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Base64 编码详解"/></a><div class="content"><a class="title" href="/946d03cc4896/" title="Base64 编码详解">Base64 编码详解</a><time datetime="2026-04-22T22:24:00.000Z" title="发表于 2026-04-23 06:24:00">2026-04-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang Channel 堆满导致协程卡死的详解"/></a><div class="content"><a class="title" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解">Golang Channel 堆满导致协程卡死的详解</a><time datetime="2026-04-20T22:24:00.000Z" title="发表于 2026-04-21 06:24:00">2026-04-21</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-11.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5"></script><script src="/js/main.js?v=5.5.5"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/2fe79cc940de/">https://blog.tbf1211.xx.kg/2fe79cc940de/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/PHP/">PHP</a><a class="post-meta__tags" href="/tags/%E9%A1%B9%E7%9B%AE%E6%9E%84%E5%BB%BA/">项目构建</a><a class="post-meta__tags" href="/tags/%E7%BC%96%E7%A0%81%E8%A7%84%E8%8C%83/">编码规范</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-19.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/5dea4260c32f/" title="Docker镜像构建详解：从Dockerfile到高效实践"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Docker镜像构建详解：从Dockerfile到高效实践</div></div><div class="info-2"><div class="info-item-1"> Docker 镜像构建 (Image Building) 是 Docker 容器化技术的核心环节，它指的是根据 Dockerfile 中定义的一系列指令，逐步创建一个 Docker 镜像的过程。这个过程最终会生成一个轻量级、独立、可执行的软件包，其中包含运行应用程序所需的一切：代码、运行时环境、系统工具、库和配置。  核心思想：Docker 镜像构建是一个分层 (Layered) 且基于指令 (Instruction-based) 的过程。每条 Dockerfile 指令都会在现有镜像层之上创建一个新的只读层，这些层的集合构成了最终的 Docker 镜像。    一、Docker 镜像与分层存储在深入构建过程之前，理解 Docker 镜像的核心概念——分层存储 (Layered Storage) 至关重要。  只读层 (Read-Only Layers)： Docker 镜像由一系列只读的文件系统层组成，这些层叠加在一起。 Dockerfile 中的每条指令（例如 FROM, RUN, COPY 等）都会在现有镜像层之上创建一个新的只读层。 这些层是可重用的。如果多个镜像共享相...</div></div></div></a><a class="pagination-related" href="/895bad372d95/" title="MySQL 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">MySQL 索引详解</div></div><div class="info-2"><div class="info-item-1"> MySQL 索引 (Index) 是一种特殊的数据结构，存储着表中一列或多列数据的排序值和指向对应数据行的物理指针。它的主要目的是提高数据库查询的效率。通过创建索引，数据库系统可以快速定位到所需的数据行，而无需扫描整个表。然而，索引并非越多越好，不当的索引使用反而可能降低性能，因此深入理解索引的工作原理和优化策略至关重要。  核心思想：索引的本质是一种“文件目录”或“字典检索”，它通过牺牲一定的存储空间和维护成本，来大幅提升数据检索的速度。    一、为什么需要索引？想象一下一本没有目录的书，当你想查找某个特定主题时，你必须从头到尾翻阅整本书，效率非常低下。数据库查询也是一样。 当未对表中的列创建索引时：  全表扫描 (Full Table Scan)：每次查询都需要遍历表的每一行，逐一比对条件。对于小表来说可能影响不大，但对于包含数百万甚至数千万行记录的大表，全表扫描将导致灾难性的性能问题。 排序性能下降：如果查询结果需要排序（ORDER BY），但没有合适的索引，数据库需要在内存或磁盘上对结果集进行排序，开销巨大。 连接 (JOIN) 性能下降：多个表进行连接操作时，如果没...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/80bef8aa6c96/" title="PHP 数组 (Array) 相关函数详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-14</div><div class="info-item-2">PHP 数组 (Array) 相关函数详解</div></div><div class="info-2"><div class="info-item-1"> PHP 数组 (Array) 是一种特殊的数据类型，可以存储多个值在一个变量中。PHP 数组是高度灵活的，既可以作为普通索引数组（数值键），也可以作为关联数组（字符串键），甚至可以两者混合使用，或者作为多维数组。PHP 提供了极其丰富和强大的内置函数来操作数组，涵盖了从创建、遍历、排序、过滤到搜索、合并等几乎所有常见的数组操作需求。深入理解并熟练运用这些函数，是高效编写 PHP 代码的关键。  核心思想：PHP 数组函数旨在提供强大、灵活且高效的方式来管理和操作复杂的数据集合，简化开发者对数据的处理。    一、数组基础知识回顾在深入函数之前，快速回顾 PHP 数组的几个核心特性：  异构性 (Heterogeneous)：数组中的元素可以是不同数据类型（字符串、数字、布尔、对象、其他数组等）。 动态大小 (Dynamic Sizing)：数组大小不是固定的，可以随时添加或删除元素。 索引与关联： 索引数组 (Indexed Array)：键是整数，默认从 0 开始。12$indexedArray = [&#x27;apple&#x27;, &#x27;banana&#x27;...</div></div></div></a><a class="pagination-related" href="/ab53b79e305e/" title="PHP this, self, static 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-06</div><div class="info-item-2">PHP this, self, static 详解</div></div><div class="info-2"><div class="info-item-1"> 在 PHP 面向对象编程中，$this、self 和 static 是三个至关重要的关键词，它们用于在类内部访问成员属性和方法。理解它们之间的区别和用法是掌握 PHP 对象模型，特别是后期静态绑定 (Late Static Binding) 的关键。  核心思想：$this 指向当前对象实例，self 指向当前类，static 结合后期静态绑定机制，根据运行时调用者来确定指向的类。    一、$this 关键字1.1 定义与用途$this 关键字用于引用当前对象实例。它只能在非静态方法中使用，用于访问当前对象实例的非静态属性和非静态方法。 当一个类被实例化为一个对象后，$this 就代表了该对象。 1.2 访问方式通过 -&gt; 运算符访问：$this-&gt;propertyName 或 $this-&gt;methodName()。 1.3 示例12345678910111213141516171819202122232425262728293031323334&lt;?phpclass Car &#123;    public $color; // 非静态属性    p...</div></div></div></a><a class="pagination-related" href="/92f0967ae727/" title="PHP 重写 Trait 方法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-10-21</div><div class="info-item-2">PHP 重写 Trait 方法详解</div></div><div class="info-2"><div class="info-item-1"> PHP 中的 Trait (特质) 是一种代码复用机制，它允许你将一组方法插入到多个不相关的类中，从而解决单继承语言中代码共享的限制。Trait 引入了一种水平复用 (Horizontal Reuse) 的方式，与传统的垂直继承 (Vertical Inheritance) 形成互补。当一个类 use 了一个 Trait 后，Trait 中的方法就如同在类中声明一样。然而，在某些情况下，我们可能需要对 Trait 中引入的方法进行重写或调整。本文将详细探讨 PHP 中如何重写 Trait 方法的各种策略和优先级规则。  核心概念：  Trait：一组可复用的方法集合，通过 use 关键字混入类中。 方法重写优先级：类自身方法 &gt; Trait 方法 &gt; 父类方法。 冲突解决：insteadof 和 as 关键字用于处理多个 Trait 之间或 Trait 与类方法之间的名称冲突。     一、Trait 的基本概念回顾Trait 旨在减少单继承语言的限制，它允许开发者自由地组合功能，而无需通过复杂的继承层次结构。 示例： 12345678910111213141516...</div></div></div></a><a class="pagination-related" href="/38c508ec9ee0/" title="PHP Fibers (协程) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-06</div><div class="info-item-2">PHP Fibers (协程) 详解</div></div><div class="info-2"><div class="info-item-1"> Fibers (协程) 是 PHP 8.1 引入的一个重要新特性，它为 PHP 带来了原生的用户空间并发能力。与传统的线程或进程不同，Fibers 允许代码在执行过程中暂停和恢复，而无需使用生成器 (Generators) 或复杂的事件循环回调。这使得开发者能够编写更具可读性和可维护性的异步非阻塞代码，从而更好地应对 I&#x2F;O 密集型任务，如网络请求、数据库查询等。  核心思想：Fibers 是一种轻量级的并发原语，允许 PHP 代码在用户空间中实现非阻塞操作，通过显式地暂停和恢复执行，简化了异步代码的编写。   一、为什么需要 Fibers？在 PHP 8.1 之前，实现异步非阻塞代码通常依赖于以下两种方式：  Callbacks (回调函数)： 优点：简单直接，适用于简单的异步操作。 缺点：容易陷入“回调地狱 (Callback Hell)”，代码可读性和维护性差，错误处理复杂。   Generators (生成器)： 优点：通过 yield 实现了伪协程，可以在一定程度上改善回调地狱，允许代码暂停和恢复。 缺点：生成器本质上是迭代器，其语义更偏向于数据生成。将生成...</div></div></div></a><a class="pagination-related" href="/4749d07931d6/" title="Java Lambda 表达式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-09-25</div><div class="info-item-2">Java Lambda 表达式详解</div></div><div class="info-2"><div class="info-item-1"> Java Lambda 表达式 是 Java 8 引入的一个核心特性，它提供了一种简洁的方式来表示匿名函数 (Anonymous Function)。Lambda 表达式主要用于实现函数式接口 (Functional Interface)，极大地简化了代码，尤其是在处理集合、事件监听器和并发编程时，使 Java 代码更具表达力和可读性。  核心思想：将行为（一段代码逻辑）作为参数传递给方法。它实际上是函数式接口的“语法糖”，使得函数式接口的实现变得异常简洁。    一、为什么需要 Lambda 表达式？在 Java 8 之前，如果我们需要将一段行为（代码逻辑）作为参数传递给方法，通常需要依赖匿名内部类 (Anonymous Inner Class)。这种方式在某些场景下会导致代码冗长且可读性差。 例如，一个简单的 Runnable 接口的实现： 1234567// Java 8 之前：使用匿名内部类new Thread(new Runnable() &#123;    @Override    public void run() &#123;        System.out...</div></div></div></a><a class="pagination-related" href="/8d32c59da40a/" title="Vitest 详解：下一代前端测试框架"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-11-29</div><div class="info-item-2">Vitest 详解：下一代前端测试框架</div></div><div class="info-2"><div class="info-item-1"> Vitest 是一个由 Vite 驱动的下一代单元测试框架，旨在提供一个快速、现代且极具效率的测试体验。它与 Vite 深度集成，共享相同的配置、转换和解析器，从而为使用 Vite 构建的前端项目提供了无缝的测试解决方案。Vitest 的诞生，部分是为了解决传统前端测试工具（如 Jest）在大型项目中启动慢、HMR（热模块替换）支持不足等痛点。  核心思想：Vitest 利用 Vite 的 ESM-first 开发服务器和闪电般的 HMR 能力，为 JavaScript&#x2F;TypeScript 项目带来前所未有的快速测试体验，尤其适合基于 Vite 的现代前端项目。   一、为什么选择 Vitest？在前端开发日益复杂的今天，测试是保证代码质量和项目稳定性的关键环节。传统的测试框架，如 Jest，尽管功能强大，但在面对现代前端构建工具（如 ESM、TypeScript、JSX&#x2F;TSX 转换）时，往往需要额外的配置和转换步骤，导致测试启动慢、HMR 效率不高。Vitest 应运而生，旨在解决这些问题。 1.1 核心优势 Vite 驱动，极致速度：  直接利用 V...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">669</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81PHP-%E7%BC%96%E7%A0%81%E5%93%B2%E5%AD%A6%E4%B8%8E-PSR"><span class="toc-text">一、PHP 编码哲学与 PSR</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E8%87%AA%E5%8A%A8%E5%8C%96%E5%B7%A5%E5%85%B7"><span class="toc-text">二、自动化工具</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-PHP-CS-Fixer-%E4%BB%A3%E7%A0%81%E9%A3%8E%E6%A0%BC%E4%BF%AE%E5%A4%8D%E5%B7%A5%E5%85%B7"><span class="toc-text">2.1 PHP-CS-Fixer (代码风格修复工具)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-PHP-CodeSniffer-%E4%BB%A3%E7%A0%81%E9%A3%8E%E6%A0%BC%E6%A3%80%E6%9F%A5%E5%B7%A5%E5%85%B7"><span class="toc-text">2.2 PHP_CodeSniffer (代码风格检查工具)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%9F%BA%E6%9C%AC%E7%BC%96%E7%A0%81%E6%A0%87%E5%87%86-PSR-1-PSR-12-Essentials"><span class="toc-text">三、基本编码标准 (PSR-1, PSR-12 Essentials)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-PHP-%E6%A0%87%E7%AD%BE"><span class="toc-text">3.1 PHP 标签</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%96%87%E4%BB%B6%E7%BC%96%E7%A0%81"><span class="toc-text">3.2 文件编码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%96%87%E4%BB%B6%E7%BB%93%E5%B0%BE%E5%92%8C%E7%B1%BB%E6%96%87%E4%BB%B6"><span class="toc-text">3.3 文件结尾和类文件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%A0%BC%E5%BC%8F%E5%8C%96-PSR-12-Essentials"><span class="toc-text">四、格式化 (PSR-12 Essentials)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E7%BC%A9%E8%BF%9B-Indentation"><span class="toc-text">4.1 缩进 (Indentation)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E8%A1%8C%E9%95%BF%E5%BA%A6-Line-Length"><span class="toc-text">4.2 行长度 (Line Length)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E7%A9%BA%E8%A1%8C-Blank-Lines"><span class="toc-text">4.3 空行 (Blank Lines)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%A3%B0%E6%98%8E%E5%9D%97-use-const-property"><span class="toc-text">4.4 声明块 (use, const, property)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E7%BB%93%E6%9E%84%E4%BD%93-Control-Structures"><span class="toc-text">4.5 结构体 (Control Structures)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E5%87%BD%E6%95%B0%E5%92%8C%E6%96%B9%E6%B3%95"><span class="toc-text">4.6 函数和方法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%91%BD%E5%90%8D%E8%A7%84%E8%8C%83-Naming-Conventions"><span class="toc-text">五、命名规范 (Naming Conventions)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%B1%BB%E3%80%81%E6%8E%A5%E5%8F%A3%E3%80%81Trait%E3%80%81%E6%9E%9A%E4%B8%BE"><span class="toc-text">5.1 类、接口、Trait、枚举</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E7%B1%BB%E5%B8%B8%E9%87%8F"><span class="toc-text">5.2 类常量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%B1%9E%E6%80%A7-Properties"><span class="toc-text">5.3 属性 (Properties)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E6%96%B9%E6%B3%95-Methods"><span class="toc-text">5.4 方法 (Methods)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-5-%E5%87%BD%E6%95%B0-Functions"><span class="toc-text">5.5 函数 (Functions)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-6-%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F"><span class="toc-text">5.6 局部变量</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81PHPDoc-%E6%96%87%E6%A1%A3%E5%9D%97"><span class="toc-text">六、PHPDoc (文档块)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E7%B1%BB%E5%9E%8B%E6%8F%90%E7%A4%BA-Type-Hints-PHP-7-0"><span class="toc-text">七、类型提示 (Type Hints) (PHP 7.0+)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">八、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/35d4f7383fcf/" title="二维码原理详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二维码原理详解"/></a><div class="content"><a class="title" href="/35d4f7383fcf/" title="二维码原理详解">二维码原理详解</a><time datetime="2026-05-20T22:24:00.000Z" title="发表于 2026-05-21 06:24:00">2026-05-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 读写锁底层竞争与 Cache 抖动详解"/></a><div class="content"><a class="title" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解">Golang 读写锁底层竞争与 Cache 抖动详解</a><time datetime="2026-05-18T22:24:00.000Z" title="发表于 2026-05-19 06:24:00">2026-05-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Godot 主要 2D 节点对象详解"/></a><div class="content"><a class="title" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解">Godot 主要 2D 节点对象详解</a><time datetime="2026-04-24T22:24:00.000Z" title="发表于 2026-04-25 06:24:00">2026-04-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/946d03cc4896/" title="Base64 编码详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Base64 编码详解"/></a><div class="content"><a class="title" href="/946d03cc4896/" title="Base64 编码详解">Base64 编码详解</a><time datetime="2026-04-22T22:24:00.000Z" title="发表于 2026-04-23 06:24:00">2026-04-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang Channel 堆满导致协程卡死的详解"/></a><div class="content"><a class="title" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解">Golang Channel 堆满导致协程卡死的详解</a><time datetime="2026-04-20T22:24:00.000Z" title="发表于 2026-04-21 06:24:00">2026-04-21</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-19.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.6.1"></script><script src="/js/main.js?v=5.6.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
   const parseViewBox = viewBox => {
     if (!viewBox) return null
     const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
@@ -397,7 +444,7 @@
       clone.setAttribute('viewBox', initViewBox.join(' '))
     }
     if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+    if (!clone.getAttribute('xmlns:xlink') && clone.innerHTML.includes('xlink:')) {
       clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
     }
     // inject background to match current theme
@@ -416,7 +463,8 @@
     const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     window.open(url, '_blank', 'noopener')
-    setTimeout(() => URL.revokeObjectURL(url), 30000)
+
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
   const attachMermaidViewerButton = wrap => {
@@ -437,10 +485,6 @@
         const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
         if (!svg) return
         const initViewBox = wrap.__mermaidInitViewBox
-        if (typeof svg === 'string') {
-          openSvgInNewTab({ source: svg, initViewBox })
-          return
-        }
         openSvgInNewTab({ source: svg, initViewBox })
       })
       btn.__mermaidViewerBound = true
@@ -457,6 +501,13 @@
   }
 
   const initMermaidGestures = wrap => {
+    // Clean up previous event listeners and pending frames
+    if (wrap.__mermaidAbortController) {
+      wrap.__mermaidAbortController.abort()
+      if (wrap.__mermaidRafId) cancelAnimationFrame(wrap.__mermaidRafId)
+    }
+    const ac = new AbortController()
+    wrap.__mermaidAbortController = ac
     const svg = wrap.querySelector('svg')
     if (!svg) return
 
@@ -465,158 +516,177 @@
     wrap.__mermaidInitViewBox = initVb
     wrap.__mermaidCurViewBox = initVb.slice()
     setSvgViewBox(svg, initVb)
+    // Disable default gestures to prevent scroll chaining and pinch-zoom penetration in Chrome
+    svg.style.touchAction = 'none'
 
-    // Avoid binding multiple times on themeChange/pjax
-    if (wrap.__mermaidGestureBound) return
-    wrap.__mermaidGestureBound = true
+    // Cache BoundingClientRect, throttled on scroll to reduce reflow
+    let cachedRect = svg.getBoundingClientRect()
+    let rectDirty = false
+    const markRectDirty = () => { rectDirty = true }
+    window.addEventListener('resize', markRectDirty, { signal: ac.signal })
+    window.addEventListener('scroll', markRectDirty, { signal: ac.signal, capture: true })
+    const getRect = () => {
+      if (rectDirty) {
+        cachedRect = svg.getBoundingClientRect()
+        rectDirty = false
+      }
+      return cachedRect
+    }
 
-    // Helper: map client (viewport) coordinate -> viewBox coordinate
-    const clientToViewBox = (clientX, clientY) => {
-      const rect = svg.getBoundingClientRect()
-      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
-      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
-      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
-      return { x, y, rect, vb }
+    // Precompute clamp bounds from initial viewBox
+    const minW = initVb[2] * 0.1
+    const maxW = initVb[2] * 10
+    const minH = initVb[3] * 0.1
+    const maxH = initVb[3] * 10
+    const clampVb = vb => {
+      const out = vb.slice()
+      out[2] = clamp(out[2], minW, maxW)
+      out[3] = clamp(out[3], minH, maxH)
+      return out
+    }
+
+    // Throttle DOM updates using requestAnimationFrame
+    let pendingVb = null
+    let rafId = null
+    const applyVb = () => {
+      if (pendingVb) {
+        wrap.__mermaidCurViewBox = pendingVb
+        setSvgViewBox(svg, pendingVb)
+        pendingVb = null
+      }
+      rafId = null
+      wrap.__mermaidRafId = null
+    }
+    const setCurVb = vb => {
+      pendingVb = clampVb(vb)
+      if (!rafId) {
+        rafId = requestAnimationFrame(applyVb)
+        wrap.__mermaidRafId = rafId
+      }
     }
 
     const state = {
       pointers: new Map(),
       startVb: null,
       startDist: 0,
-      startCenter: null
-    }
-
-    const clampVb = vb => {
-      const init = wrap.__mermaidInitViewBox || vb
-      const minW = init[2] * 0.1
-      const maxW = init[2] * 10
-      const minH = init[3] * 0.1
-      const maxH = init[3] * 10
-      vb[2] = clamp(vb[2], minW, maxW)
-      vb[3] = clamp(vb[3], minH, maxH)
-      return vb
-    }
-
-    const setCurVb = vb => {
-      vb = clampVb(vb)
-      wrap.__mermaidCurViewBox = vb
-      setSvgViewBox(svg, vb)
+      lastPointerX: 0,
+      lastPointerY: 0
     }
 
     const onPointerDown = e => {
-      // Allow only primary button for mouse
       if (e.pointerType === 'mouse' && e.button !== 0) return
       svg.setPointerCapture(e.pointerId)
+      const curVb = wrap.__mermaidCurViewBox
       state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-
       if (state.pointers.size === 1) {
-        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startVb = curVb.slice()
+        state.lastPointerX = e.clientX
+        state.lastPointerY = e.clientY
       } else if (state.pointers.size === 2) {
         const pts = [...state.pointers.values()]
         const dx = pts[0].x - pts[1].x
         const dy = pts[0].y - pts[1].y
         state.startDist = Math.hypot(dx, dy)
-        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
-        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+        state.startVb = curVb.slice()
       }
     }
 
     const onPointerMove = e => {
       if (!state.pointers.has(e.pointerId)) return
       state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-
-      // Pan with 1 pointer
+      const curVb = wrap.__mermaidCurViewBox
+      const rect = getRect()
       if (state.pointers.size === 1 && state.startVb) {
-        const p = [...state.pointers.values()][0]
-        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
-        // movementX/Y unreliable on touch, compute from stored last position
-        const last = wrap.__mermaidLastSinglePointer || p
-        const dxClient = p.x - last.x
-        const dyClient = p.y - last.y
-        wrap.__mermaidLastSinglePointer = p
-
-        const { rect } = clientToViewBox(p.x, p.y)
-        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
-        const dx = dxClient * (vb[2] / rect.width)
-        const dy = dyClient * (vb[3] / rect.height)
-        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        const p = state.pointers.values().next().value
+        const dxClient = p.x - state.lastPointerX
+        const dyClient = p.y - state.lastPointerY
+        state.lastPointerX = p.x
+        state.lastPointerY = p.y
+        const dx = dxClient * (curVb[2] / rect.width)
+        const dy = dyClient * (curVb[3] / rect.height)
+        setCurVb([curVb[0] - dx, curVb[1] - dy, curVb[2], curVb[3]])
         return
       }
-
-      // Pinch zoom with 2 pointers
       if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
         const pts = [...state.pointers.values()]
         const dx = pts[0].x - pts[1].x
         const dy = pts[0].y - pts[1].y
         const dist = Math.hypot(dx, dy)
         if (!dist) return
-        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
-
+        const factor = state.startDist / dist
         const cx = (pts[0].x + pts[1].x) / 2
         const cy = (pts[0].y + pts[1].y) / 2
-        const centerClient = { x: cx, y: cy }
-
-        const pxy = clientToViewBox(centerClient.x, centerClient.y)
-        const cpx = pxy.x
-        const cpy = pxy.y
-
-        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
-        setCurVb(vb)
+        const px = curVb[0] + (cx - rect.left) * (curVb[2] / rect.width)
+        const py = curVb[1] + (cy - rect.top) * (curVb[3] / rect.height)
+        setCurVb(zoomAtPoint(state.startVb, factor, px, py))
       }
     }
 
     const onPointerUpOrCancel = e => {
+      // Release PointerCapture to avoid event capture anomalies
+      if (svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) {
+        svg.releasePointerCapture(e.pointerId)
+      }
       state.pointers.delete(e.pointerId)
       if (state.pointers.size === 0) {
         state.startVb = null
         state.startDist = 0
-        state.startCenter = null
-        wrap.__mermaidLastSinglePointer = null
       } else if (state.pointers.size === 1) {
-        // reset single pointer baseline to avoid jump
-        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+        const p = state.pointers.values().next().value
+        state.lastPointerX = p.x
+        state.lastPointerY = p.y
       }
     }
 
-    // Wheel zoom (mouse/trackpad)
     const onWheel = e => {
-      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      // Prevent event bubbling from triggering external scroll
       e.preventDefault()
-      const delta = e.deltaY
-      const zoomFactor = delta > 0 ? 1.1 : 0.9
-      const { x, y } = clientToViewBox(e.clientX, e.clientY)
-      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
-      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+      e.stopPropagation()
+      // Normalize deltaY across deltaMode (Chrome uses pixels, Safari uses lines)
+      let delta = e.deltaY
+      if (e.deltaMode === 1) delta *= 16
+      else if (e.deltaMode === 2) delta *= 400
+
+      // Continuous zoom factor: smoother than fixed 1.1/0.9 steps
+      const zoomFactor = Math.pow(1.001, delta)
+
+      const curVb = wrap.__mermaidCurViewBox
+      const rect = getRect()
+      const px = curVb[0] + (e.clientX - rect.left) * (curVb[2] / rect.width)
+      const py = curVb[1] + (e.clientY - rect.top) * (curVb[3] / rect.height)
+      setCurVb(zoomAtPoint(curVb, zoomFactor, px, py))
     }
 
     const onDblClick = () => {
       const init = wrap.__mermaidInitViewBox
-      if (!init) return
-      wrap.__mermaidCurViewBox = init.slice()
-      setSvgViewBox(svg, init)
+      if (init) setCurVb(init)
     }
 
-    svg.addEventListener('pointerdown', onPointerDown)
-    svg.addEventListener('pointermove', onPointerMove)
-    svg.addEventListener('pointerup', onPointerUpOrCancel)
-    svg.addEventListener('pointercancel', onPointerUpOrCancel)
-    svg.addEventListener('wheel', onWheel, { passive: false })
-    svg.addEventListener('dblclick', onDblClick)
+    svg.addEventListener('pointerdown', onPointerDown, { signal: ac.signal })
+    svg.addEventListener('pointermove', onPointerMove, { signal: ac.signal })
+    svg.addEventListener('pointerup', onPointerUpOrCancel, { signal: ac.signal })
+    svg.addEventListener('pointercancel', onPointerUpOrCancel, { signal: ac.signal })
+    svg.addEventListener('wheel', onWheel, { passive: false, signal: ac.signal })
+    svg.addEventListener('dblclick', onDblClick, { signal: ac.signal })
   }
 
   const runMermaid = ele => {
     window.loadMermaid = true
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
-
     ele.forEach((item, index) => {
       const mermaidSrc = item.firstElementChild
-
-      // Clear old render (themeChange/pjax will rerun)
+      // Clean up event listeners before removing old SVG
+      if (item.__mermaidAbortController) {
+        item.__mermaidAbortController.abort()
+      }
       const oldSvg = item.querySelector('svg')
       if (oldSvg) oldSvg.remove()
-      item.__mermaidGestureBound = false
-
-      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      let config = {}
+      try {
+        config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      } catch (e) {
+        console.warn('[mermaid] failed to parse dataset.config:', e)
+      }
       if (!config.theme) {
         config.theme = theme
       }
@@ -624,7 +694,6 @@
       const mermaidID = `mermaid-${index}`
       const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
 
-      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
       const renderMermaid = svg => {
         mermaidSrc.insertAdjacentHTML('afterend', svg)
         if (false) initMermaidGestures(item)
@@ -632,14 +701,30 @@
         if (true) attachMermaidViewerButton(item)
       }
 
+      const handleError = err => {
+        console.error(`[mermaid] render failed for block #${index}:`, err)
+        const errorEl = document.createElement('div')
+        errorEl.className = 'mermaid-error'
+        errorEl.textContent = `Mermaid render error: ${err.message || err}`
+        mermaidSrc.insertAdjacentElement('afterend', errorEl)
+      }
 
-      // mermaid v9 and v10 compatibility
-      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+      try {
+        const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+        // mermaid v9 and v10 compatibility
+        if (typeof renderFn === 'string') {
+          renderMermaid(renderFn)
+        } else {
+          renderFn.then(({ svg }) => renderMermaid(svg)).catch(handleError)
+        }
+      } catch (err) {
+        handleError(err)
+      }
     })
   }
 
-  const codeToMermaid = () => {
-    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+  const codeToMermaid = $article => {
+    const codeMermaidEle = $article.querySelectorAll('pre > code.mermaid')
     if (codeMermaidEle.length === 0) return
 
     codeMermaidEle.forEach(ele => {
@@ -655,13 +740,16 @@
   }
 
   const loadMermaid = () => {
-    if (true) codeToMermaid()
-    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    const $article = document.getElementById('article-container')
+    if (!$article) return
+
+    if (true) codeToMermaid($article)
+    const $mermaid = $article.querySelectorAll('.mermaid-wrap')
     if ($mermaid.length === 0) return
 
     const runMermaidFn = () => runMermaid($mermaid)
     btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
-    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.min.js').then(runMermaidFn)
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js').then(runMermaidFn)
   }
 
   btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
@@ -757,7 +845,7 @@
   const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 
   window.pjax = new Pjax({
-    elements: 'a:not([target="_blank"])',
+    elements: 'a:not([target="_blank"]):not([data-fancybox])',
     selectors: pjaxSelectors,
     cacheBust: false,
     analytics: false,
@@ -790,8 +878,9 @@
   document.addEventListener('pjax:complete', () => {
     btf.removeGlobalFnEvent('pjaxCompleteOnce')
     document.querySelectorAll('script[data-pjax]').forEach(item => {
+      if (!item.parentNode) return
       const newScript = document.createElement('script')
-      const content = item.text || item.textContent || item.innerHTML || ""
+      const content = item.text || item.textContent || ''
       Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
       newScript.appendChild(document.createTextNode(content))
       item.parentNode.replaceChild(newScript, item)
@@ -801,10 +890,13 @@
   })
 
   document.addEventListener('pjax:error', e => {
-    if (e.request.status === 404) {
+    const responseURL = e.request && e.request.responseURL
+    if (e.request && e.request.status === 404) {
       true
         ? pjax.loadUrl('/404.html')
-        : window.location.href = e.request.responseURL
+        : responseURL && (window.location.href = responseURL)
+    } else if (responseURL) {
+      window.location.href = responseURL
     }
   })
-})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5"></script></div></div></body></html>
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.6.1"></script></div></div></body></html>

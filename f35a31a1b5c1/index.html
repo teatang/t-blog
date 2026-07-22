@@ -5,22 +5,22 @@
 <meta property="og:site_name" content="1024 维度">
 <meta property="og:description" content="PHP 作为最流行的后端脚本语言之一，自诞生以来便不断演进。从早期的松散特性到现代的强类型、高性能，每一次版本迭代都带来了显著的改进。本文将详细回顾 PHP 7.0 以后，各个主要版本（7.x 和 8.x 系列）引入的新特性、性能提升和废弃功能，帮助开发者理解 PHP 的发展轨迹并更好地进行技术选型和代码迁移。  核心思想：PHP 的演进主线是：提高性能、增强类型系统、简化语法、引入现代编程范式">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-03.jpg">
 <meta property="article:published_time" content="2024-01-07T22:24:00.000Z">
-<meta property="article:modified_time" content="2026-07-14T09:19:36.088Z">
+<meta property="article:modified_time" content="2026-07-22T09:46:20.586Z">
 <meta property="article:author" content="TeaTang">
 <meta property="article:tag" content="PHP">
-<meta property="article:tag" content="语言版本">
 <meta property="article:tag" content="2024">
+<meta property="article:tag" content="语言版本">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg"><script type="application/ld+json">{
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-03.jpg"><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "PHP 各个版本新特性详解",
   "url": "https://blog.tbf1211.xx.kg/f35a31a1b5c1/",
-  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-12.jpg",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-03.jpg",
   "datePublished": "2024-01-07T22:24:00.000Z",
-  "dateModified": "2026-07-14T09:19:36.088Z",
+  "dateModified": "2026-07-22T09:46:20.586Z",
   "author": [
     {
       "@type": "Person",
@@ -28,51 +28,92 @@
       "url": "https://blog.tbf1211.xx.kg"
     }
   ]
-}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/f35a31a1b5c1/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.5.5"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/f35a31a1b5c1/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.6.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
     (() => {
       
     const saveToLocal = {
       set: (key, value, ttl) => {
-        if (!ttl) return
-        const expiry = Date.now() + ttl * 86400000
-        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+        const data = { value }
+
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
+
+        localStorage.setItem(key, JSON.stringify(data))
       },
       get: key => {
         const itemStr = localStorage.getItem(key)
-        if (!itemStr) return undefined
-        const { value, expiry } = JSON.parse(itemStr)
-        if (Date.now() > expiry) {
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
           localStorage.removeItem(key)
-          return undefined
         }
-        return value
       }
     }
 
+    const scriptCache = new Map()
+    const cssCache = new Map()
     window.btf = {
       saveToLocal,
-      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = url
-        script.async = true
-        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
-        script.onload = script.onreadystatechange = () => {
-          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
         }
-        script.onerror = reject
-        document.head.appendChild(script)
-      }),
-      getCSS: (url, id) => new Promise((resolve, reject) => {
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = url
-        if (id) link.id = id
-        link.onload = link.onreadystatechange = () => {
-          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
         }
-        link.onerror = reject
-        document.head.appendChild(link)
-      }),
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
       addGlobalFn: (key, fn, name = false, parent = window) => {
         if (!true && key.startsWith('pjax')) return
         const globalFn = parent.globalFn || {}
@@ -83,16 +124,17 @@
     }
   
       
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
       const activateDarkMode = () => {
-        document.documentElement.setAttribute('data-theme', 'dark')
-        if (document.querySelector('meta[name="theme-color"]') !== null) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
         }
       }
       const activateLightMode = () => {
-        document.documentElement.setAttribute('data-theme', 'light')
-        if (document.querySelector('meta[name="theme-color"]') !== null) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
         }
       }
 
@@ -102,7 +144,12 @@
       const theme = saveToLocal.get('theme')
     
           const hour = new Date().getHours()
-          const isNight = hour <= 6 || hour >= 7
+          const start = 6
+          const end = 7
+          const isNight =
+            start < end
+                ? hour < start || hour >= end
+                : hour >= start || hour < end
           if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
           else theme === 'light' ? activateLightMode() : activateDarkMode()
         
@@ -165,7 +212,7 @@
   isToc: true,
   pageType: 'post'
 }</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
-</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">667</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-12.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PHP 各个版本新特性详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PHP 各个版本新特性详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-01-07T22:24:00.000Z" title="发表于 2024-01-08 06:24:00">2024-01-08</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/PHP/">PHP</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>16分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">669</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-03.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">PHP 各个版本新特性详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PHP 各个版本新特性详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2024-01-07T22:24:00.000Z" title="发表于 2024-01-08 06:24:00">2024-01-08</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/PHP/">PHP</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>16分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
 <p>PHP 作为最流行的后端脚本语言之一，自诞生以来便不断演进。从早期的松散特性到现代的强类型、高性能，每一次版本迭代都带来了显著的改进。本文将详细回顾 PHP 7.0 以后，各个主要版本（7.x 和 8.x 系列）引入的新特性、性能提升和废弃功能，帮助开发者理解 PHP 的发展轨迹并更好地进行技术选型和代码迁移。</p>
 </blockquote>
 <div class="note info flat"><p>核心思想：<strong>PHP 的演进主线是：提高性能、增强类型系统、简化语法、引入现代编程范式和清理历史遗留问题。</strong></p>
@@ -572,7 +619,7 @@
 <li><strong>安全与最佳实践</strong>：内置 <code>libsodium</code>、弃用动态属性、敏感参数隐藏等都体现了 PHP 社区对安全性和代码质量的重视。</li>
 </ul>
 <p>随着 PHP 版本的不断更新，我们可以预见它将继续在性能、类型安全、并发能力和开发者体验方面持续进步，为 Web 开发带来更多可能性。建议开发者始终关注最新版本，并尽可能升级到最新的稳定版本，以利用其带来的性能和功能优势。</p>
-</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/f35a31a1b5c1/">https://blog.tbf1211.xx.kg/f35a31a1b5c1/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/PHP/">PHP</a><a class="post-meta__tags" href="/tags/%E8%AF%AD%E8%A8%80%E7%89%88%E6%9C%AC/">语言版本</a><a class="post-meta__tags" href="/tags/2024/">2024</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-12.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/f5c29582f368/" title="Serverless 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Serverless 详解</div></div><div class="info-2"><div class="info-item-1"> Serverless (无服务器) 是一种云计算的执行模型，它允许开发者构建和运行应用程序而无需管理服务器。在这种模型下，云服务提供商负责服务器的调配、维护和扩展，开发者只需关注自己的代码逻辑。Serverless 并不是指“没有服务器”，而是指“开发者不需要关心服务器”。它通常包含两种核心服务模式：函数即服务 (Function-as-a-Service, FaaS) 和 后端即服务 (Backend-as-a-Service, BaaS)。  核心思想：将基础设施管理完全交给云服务商，开发者只需编写代码并部署，按实际使用量付费，实现极致的弹性伸缩和降低运维成本。   一、为什么需要 Serverless？传统的应用部署模型（物理机、虚拟机、容器）都需要开发者或运维团队投入大量精力进行服务器管理：  资源调配：预估并配置合适的 CPU、内存、存储。 操作系统管理：安装、打补丁、更新。 运行时环境：安装语言运行时、库、依赖。 扩展性：根据流量变化手动或自动伸缩服务器集群。 高可用性：设置负载均衡、故障转移机制。 监控与日志：部署监控 agent，收集日志。  这些“非功能性需求...</div></div></div></a><a class="pagination-related" href="/ba096d7d0780/" title="虚拟局域网 (VLAN) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">虚拟局域网 (VLAN) 详解</div></div><div class="info-2"><div class="info-item-1"> 虚拟局域网 (VLAN - Virtual Local Area Network) 是一种在物理上共享同一网络基础设施（如交换机、网线）的局域网中，通过逻辑划分而不是物理划分来创建多个独立广播域的技术。它允许网络管理员将一个物理局域网划分成多个逻辑上独立的网络，每个 VLAN 都是一个独立的广播域。VLAN 技术是现代企业网络设计中不可或缺的组成部分，它极大地增强了网络的安全性、性能、灵活性和可管理性。  核心思想：在不改变物理连接的情况下，将一个物理交换机划分出多个逻辑隔离的广播域，实现设备间的逻辑分段通信。   一、什么是 VLAN？在传统的以太网中，所有连接到同一个交换机或集线器的设备都属于同一个广播域 (Broadcast Domain)。这意味着当任何一台设备发送一个广播帧（例如 ARP 请求），这个广播帧会到达该域内的所有其他设备。随着网络规模的扩大，广播流量会显著增加，导致网络性能下降并带来安全隐患。 VLAN 技术应运而生，它通过在数据链路层（OSI 模型第二层）对以太网帧进行标识和处理，从而实现：  逻辑隔离：即使设备物理上连接在同一台交换机上，如果它们属于不...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/ceaafd31dca2/" title="GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-04</div><div class="info-item-2">GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)</div></div><div class="info-2"><div class="info-item-1"> Go 语言 (Golang) 自 2009 年由 Google 推出以来，以其简洁的语法、内置的并发支持、高效的编译速度和强大的标准库迅速获得了开发者的青睐。自 2012 年发布 Go 1.0 以来，Go 语言每半年发布一个主要版本，持续引入新特性、性能优化、工具改进和安全增强。理解这些版本特性对于 Go 开发者来说至关重要，它能帮助我们编写更高效、更现代且更具可维护性的代码。  核心思想： Go 语言的版本迭代始终秉持“简单性、可靠性、高效性”的原则，聚焦于提升开发效率、运行时性能、内存管理、工具链功能以及语言表达力。   一、Go 1.0 - 1.5：奠基与自举 (Bootstrapping)Go 语言在早期版本主要关注语言的稳定、核心功能的完善以及工具链的成熟。Go 1.5 是一个里程碑，实现了 Go 语言的自举。 1.1 Go 1.0 (2012-03-28) Go 语言的第一个稳定版本：标志着 Go 语言正式可以用于生产环境。 语言规范稳定：承诺 Go 1 兼容性，确保未来版本不会破坏 Go 1.0 代码的兼容性。 核心并发模型：Goroutine 和 Channel...</div></div></div></a><a class="pagination-related" href="/e208a03b114e/" title="JavaScript (ECMAScript) 各版本新特性详解 (ES1 至 ES2025)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-04-15</div><div class="info-item-2">JavaScript (ECMAScript) 各版本新特性详解 (ES1 至 ES2025)</div></div><div class="info-2"><div class="info-item-1"> JavaScript，正式名称为 ECMAScript (ES)，自 1997 年标准化以来，一直在不断发展。尤其是从 ES6 (ES2015) 开始，它进入了一个快速迭代的时代，每年都会发布一个新版本，引入大量的新特性、语法糖和标准库改进。理解这些新特性对于现代 JavaScript 开发者至关重要，它能帮助我们编写更简洁、更强大、更符合未来趋势的代码。  核心思想： ECMAScript 的版本迭代致力于提升开发效率、代码可读性、执行性能，并引入现代编程范式（如异步编程、模块化），同时保持向后兼容性。   一、早期版本：奠定基础 (ES1 - ES5)早期版本的 ECMAScript 奠定了 JavaScript 的基本语法和核心功能，但发展速度相对较慢。 1.1 ES1 (1997) - ES3 (1999) 基本语法：变量声明 (var)、函数、条件语句、循环、基本数据类型（字符串、数字、布尔、null、undefined）。 对象和数组：字面量创建、属性访问。 原型继承：基于原型的继承机制。 函数作用域：变量作用域规则。 try...catch：错误处理。 eval(...</div></div></div></a><a class="pagination-related" href="/024db074490c/" title="ESP32 RMT红外控制详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-21</div><div class="info-item-2">ESP32 RMT红外控制详解</div></div><div class="info-2"><div class="info-item-1"> RMT (Remote Control) 模块是 ESP32 特有的一个高度灵活的外设，主要用于红外 (Infrared) 遥控信号的生成和解析。它提供了一种高效且精确的方式来处理时间敏感的信号，尤其适用于各种自定义的红外协议，而无需占用大量 CPU 资源。  核心思想： RMT 模块通过硬件方式，精确控制脉冲的持续时间（高电平或低电平的宽度），从而实现对各种红外编码协议（如 NEC、RC5、RC6 等）的编解码，大大减轻了 CPU 软件模拟脉冲的负担和精度问题。   一、RMT 模块概述ESP32 的 RMT 模块提供以下主要特性：  高精度脉冲控制：能够生成和解析微秒级别的脉冲。 DMA (Direct Memory Access) 支持：RMT 可以直接从内存读取数据并发送，或将接收到的数据直接写入内存，无需 CPU 干预，提高了效率。 多通道：通常有8个独立的RMT通道，每个通道都可以配置为发送或接收模式。 编码&#x2F;解码灵活：可以通过编程配置，适应多种红外协议。 空闲状态检测：接收模式下可检测总线空闲，判断数据包结束。 载波调制&#x2F;解调：支持对发送信号进...</div></div></div></a><a class="pagination-related" href="/6a6fe76b55d2/" title="Python 结构化模式匹配 (Structural Pattern Matching) 深度详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-04-17</div><div class="info-item-2">Python 结构化模式匹配 (Structural Pattern Matching) 深度详解</div></div><div class="info-2"><div class="info-item-1"> Python 的结构化模式匹配 (Structural Pattern Matching) 是在 Python 3.10 中引入的一项强大新特性，灵感来源于其他函数式编程语言。该特性通过 match 和 case 语句，提供了一种简洁、富有表现力的方式来根据数据结构和值进行分支逻辑处理。它不仅是对传统 if/elif/else 语句的补充，更是一种处理复杂数据结构（如列表、字典、对象）的新范式，能够显著提高代码的可读性、可维护性和健壮性。  核心思想：模式匹配允许你将一个主题 (subject) 值与一系列模式 (patterns) 进行比较。当一个模式成功匹配主题值时，相关的代码块将被执行。在此过程中，模式还可以解构 (destructure) 主题值，并将其中的部分绑定到新的变量上，从而直接获取所需的数据。   一、为什么需要结构化模式匹配？背景与痛点在 Python 3.10 之前，处理复杂的数据结构，特别是当需要根据其形状、类型或包含的值进行条件判断时，代码往往会变得冗长且难以阅读。例如，考虑处理来自不同来源的 JSON 数据，或者解析命令行参数，传统的方法通常涉及： ...</div></div></div></a><a class="pagination-related" href="/75b66b0f0910/" title="RSA (Rivest–Shamir–Adleman) 加密算法详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-18</div><div class="info-item-2">RSA (Rivest–Shamir–Adleman) 加密算法详解</div></div><div class="info-2"><div class="info-item-1"> RSA (Rivest-Shamir-Adleman) 是一种基于大素数分解困难性的公钥加密算法 (Public-Key Cryptosystem)。它于 1977 年由 Ron Rivest、Adi Shamir 和 Leonard Adleman 三位科学家首次提出，并以他们姓氏的首字母命名。RSA 广泛应用于数据加密、数字签名和密钥交换等领域，是目前应用最广泛的非对称加密算法之一。  核心思想：利用数学单向函数（大整数分解在计算上是困难的），生成一对关联的公钥 (Public Key) 和私钥 (Private Key)。公钥公开用于加密，私钥保密用于解密。   一、为什么需要公钥密码学？在传统的对称加密中（如 AES、DES），通信双方必须共享同一个秘密密钥。这会带来密钥分发难题：如何在不安全的信道上安全地将密钥传递给对方？ 公钥密码学（也称为非对称加密）解决了这个问题：  密钥对：每个用户拥有一个公钥和一个私钥。 公钥公开：公钥可以安全地发布给任何人。 私钥保密：私钥必须严格保密，只有所有者知道。 加密：发送方使用接收方的公钥加密消息。 解密：接收方使用自己的私钥解密...</div></div></div></a><a class="pagination-related" href="/6920c2a60356/" title="Substitution-box (S-box) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-13</div><div class="info-item-2">Substitution-box (S-box) 详解</div></div><div class="info-2"><div class="info-item-1"> 在现代对称密钥密码算法，特别是分组密码 (Block Ciphers) 中，Substitution-box (S-box) 是一个至关重要的组件。S-box 的引入是为了提供算法的非线性性 (Non-linearity)，这是确保密码安全性的核心要素之一。如果一个密码算法是线性的，攻击者可以利用线性代数方法轻松破解它。S-box 通过将输入位模式映射到不同的输出位模式，使得整个加密过程变得高度复杂和混沌，从而抵抗各种密码分析攻击。  核心思想：S-box 的核心作用是在分组密码中引入非线性变换，将输入位序列替换为与输入不呈线性关系的输出位序列，从而增强密码的混淆性 (confusion) 和扩散性 (diffusion)，抵抗线性密码分析和差分密码分析等攻击。   一、什么是 S-box？1.1 定义Substitution-box (S-box)，也称为替换盒，是一个查找表 (lookup table)，它接受一个固定长度的输入位序列（通常是若干位），并生成一个不同或相同长度的输出位序列。S-box 的设计目的是实现非线性变换：它不是一个简单的位移、异或 (XOR) 或加法...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">667</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81PHP-7-0-2015%E5%B9%B4-%E6%80%A7%E8%83%BD%E9%A3%9E%E8%B7%83%E7%9A%84%E8%B5%B7%E7%82%B9"><span class="toc-text">一、PHP 7.0 (2015年) - 性能飞跃的起点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7%E4%B8%8E%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87"><span class="toc-text">1.1 核心特性与性能提升</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">1.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81PHP-7-1-2016%E5%B9%B4-%E6%8C%81%E7%BB%AD%E5%AE%8C%E5%96%84%E7%B1%BB%E5%9E%8B%E7%B3%BB%E7%BB%9F"><span class="toc-text">二、PHP 7.1 (2016年) - 持续完善类型系统</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">2.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">2.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81PHP-7-2-2017%E5%B9%B4-%E5%BC%BA%E5%8C%96%E5%AE%89%E5%85%A8%E4%B8%8E%E7%8E%B0%E4%BB%A3%E5%8A%9F%E8%83%BD"><span class="toc-text">三、PHP 7.2 (2017年) - 强化安全与现代功能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">3.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">3.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81PHP-7-3-2018%E5%B9%B4-%E8%AF%AD%E6%B3%95%E7%B3%96%E4%B8%8E%E6%80%A7%E8%83%BD%E5%BE%AE%E8%B0%83"><span class="toc-text">四、PHP 7.3 (2018年) - 语法糖与性能微调</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">4.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">4.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81PHP-7-4-2019%E5%B9%B4-%E8%B4%A8%E7%9A%84%E9%A3%9E%E8%B7%83%EF%BC%8C%E4%B8%BA-PHP-8-%E9%93%BA%E8%B7%AF"><span class="toc-text">五、PHP 7.4 (2019年) - 质的飞跃，为 PHP 8 铺路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">5.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">5.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81PHP-8-0-2020%E5%B9%B4-%E7%8E%B0%E4%BB%A3%E5%8C%96%E7%9A%84%E9%87%8D%E5%A4%A7%E9%A3%9E%E8%B7%83"><span class="toc-text">六、PHP 8.0 (2020年) - 现代化的重大飞跃</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7%E4%B8%8E%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87"><span class="toc-text">6.1 核心特性与性能提升</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">6.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81PHP-8-1-2021%E5%B9%B4-%E6%9E%9A%E4%B8%BE%E3%80%81%E5%8F%AA%E8%AF%BB%E5%B1%9E%E6%80%A7%E5%92%8C-Fiber"><span class="toc-text">七、PHP 8.1 (2021年) - 枚举、只读属性和 Fiber</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">7.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">7.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81PHP-8-2-2022%E5%B9%B4-%E5%8F%AA%E8%AF%BB%E7%B1%BB%E3%80%81Disjunctive-Normal-Form-DNF-%E7%B1%BB%E5%9E%8B"><span class="toc-text">八、PHP 8.2 (2022年) - 只读类、Disjunctive Normal Form (DNF) 类型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">8.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">8.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81PHP-8-3-2023%E5%B9%B4-%E6%8C%81%E7%BB%AD%E6%94%B9%E8%BF%9B"><span class="toc-text">九、PHP 8.3 (2023年) - 持续改进</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#9-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">9.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">9.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81%E6%80%BB%E7%BB%93%E4%B8%8E%E5%B1%95%E6%9C%9B"><span class="toc-text">十、总结与展望</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/35d4f7383fcf/" title="二维码原理详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二维码原理详解"/></a><div class="content"><a class="title" href="/35d4f7383fcf/" title="二维码原理详解">二维码原理详解</a><time datetime="2026-05-20T22:24:00.000Z" title="发表于 2026-05-21 06:24:00">2026-05-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 读写锁底层竞争与 Cache 抖动详解"/></a><div class="content"><a class="title" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解">Golang 读写锁底层竞争与 Cache 抖动详解</a><time datetime="2026-05-18T22:24:00.000Z" title="发表于 2026-05-19 06:24:00">2026-05-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Godot 主要 2D 节点对象详解"/></a><div class="content"><a class="title" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解">Godot 主要 2D 节点对象详解</a><time datetime="2026-04-24T22:24:00.000Z" title="发表于 2026-04-25 06:24:00">2026-04-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/946d03cc4896/" title="Base64 编码详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Base64 编码详解"/></a><div class="content"><a class="title" href="/946d03cc4896/" title="Base64 编码详解">Base64 编码详解</a><time datetime="2026-04-22T22:24:00.000Z" title="发表于 2026-04-23 06:24:00">2026-04-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang Channel 堆满导致协程卡死的详解"/></a><div class="content"><a class="title" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解">Golang Channel 堆满导致协程卡死的详解</a><time datetime="2026-04-20T22:24:00.000Z" title="发表于 2026-04-21 06:24:00">2026-04-21</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-12.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5"></script><script src="/js/main.js?v=5.5.5"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/f35a31a1b5c1/">https://blog.tbf1211.xx.kg/f35a31a1b5c1/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/PHP/">PHP</a><a class="post-meta__tags" href="/tags/2024/">2024</a><a class="post-meta__tags" href="/tags/%E8%AF%AD%E8%A8%80%E7%89%88%E6%9C%AC/">语言版本</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-03.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/f5c29582f368/" title="Serverless 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Serverless 详解</div></div><div class="info-2"><div class="info-item-1"> Serverless (无服务器) 是一种云计算的执行模型，它允许开发者构建和运行应用程序而无需管理服务器。在这种模型下，云服务提供商负责服务器的调配、维护和扩展，开发者只需关注自己的代码逻辑。Serverless 并不是指“没有服务器”，而是指“开发者不需要关心服务器”。它通常包含两种核心服务模式：函数即服务 (Function-as-a-Service, FaaS) 和 后端即服务 (Backend-as-a-Service, BaaS)。  核心思想：将基础设施管理完全交给云服务商，开发者只需编写代码并部署，按实际使用量付费，实现极致的弹性伸缩和降低运维成本。   一、为什么需要 Serverless？传统的应用部署模型（物理机、虚拟机、容器）都需要开发者或运维团队投入大量精力进行服务器管理：  资源调配：预估并配置合适的 CPU、内存、存储。 操作系统管理：安装、打补丁、更新。 运行时环境：安装语言运行时、库、依赖。 扩展性：根据流量变化手动或自动伸缩服务器集群。 高可用性：设置负载均衡、故障转移机制。 监控与日志：部署监控 agent，收集日志。  这些“非功能性需求...</div></div></div></a><a class="pagination-related" href="/ba096d7d0780/" title="虚拟局域网 (VLAN) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">虚拟局域网 (VLAN) 详解</div></div><div class="info-2"><div class="info-item-1"> 虚拟局域网 (VLAN - Virtual Local Area Network) 是一种在物理上共享同一网络基础设施（如交换机、网线）的局域网中，通过逻辑划分而不是物理划分来创建多个独立广播域的技术。它允许网络管理员将一个物理局域网划分成多个逻辑上独立的网络，每个 VLAN 都是一个独立的广播域。VLAN 技术是现代企业网络设计中不可或缺的组成部分，它极大地增强了网络的安全性、性能、灵活性和可管理性。  核心思想：在不改变物理连接的情况下，将一个物理交换机划分出多个逻辑隔离的广播域，实现设备间的逻辑分段通信。   一、什么是 VLAN？在传统的以太网中，所有连接到同一个交换机或集线器的设备都属于同一个广播域 (Broadcast Domain)。这意味着当任何一台设备发送一个广播帧（例如 ARP 请求），这个广播帧会到达该域内的所有其他设备。随着网络规模的扩大，广播流量会显著增加，导致网络性能下降并带来安全隐患。 VLAN 技术应运而生，它通过在数据链路层（OSI 模型第二层）对以太网帧进行标识和处理，从而实现：  逻辑隔离：即使设备物理上连接在同一台交换机上，如果它们属于不...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/ceaafd31dca2/" title="GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-12-04</div><div class="info-item-2">GoLang 各版本新特性详解 (Go 1.0 至 Go 1.25)</div></div><div class="info-2"><div class="info-item-1"> Go 语言 (Golang) 自 2009 年由 Google 推出以来，以其简洁的语法、内置的并发支持、高效的编译速度和强大的标准库迅速获得了开发者的青睐。自 2012 年发布 Go 1.0 以来，Go 语言每半年发布一个主要版本，持续引入新特性、性能优化、工具改进和安全增强。理解这些版本特性对于 Go 开发者来说至关重要，它能帮助我们编写更高效、更现代且更具可维护性的代码。  核心思想： Go 语言的版本迭代始终秉持“简单性、可靠性、高效性”的原则，聚焦于提升开发效率、运行时性能、内存管理、工具链功能以及语言表达力。   一、Go 1.0 - 1.5：奠基与自举 (Bootstrapping)Go 语言在早期版本主要关注语言的稳定、核心功能的完善以及工具链的成熟。Go 1.5 是一个里程碑，实现了 Go 语言的自举。 1.1 Go 1.0 (2012-03-28) Go 语言的第一个稳定版本：标志着 Go 语言正式可以用于生产环境。 语言规范稳定：承诺 Go 1 兼容性，确保未来版本不会破坏 Go 1.0 代码的兼容性。 核心并发模型：Goroutine 和 Channel...</div></div></div></a><a class="pagination-related" href="/f87caed1dc06/" title="ESP32 Arduino 定时器详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-03.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-09-16</div><div class="info-item-2">ESP32 Arduino 定时器详解</div></div><div class="info-2"><div class="info-item-1"> ESP32 定时器 在 Arduino 环境下提供了高度灵活且强大的时间管理和事件调度能力。与传统的 AVR 微控制器（如 Arduino Uno）相比，ESP32 拥有更丰富、更复杂的定时器资源，包括硬件定时器、看门狗定时器以及基于 FreeRTOS 的软件定时器，这些都为多任务处理、精确时间控制和外设驱动提供了坚实的基础。  核心思想：利用 ESP32 强大的定时器硬件和 FreeRTOS 软件定时器，实现高度灵活和精确的时间管理，支持复杂的并发任务调度和外设控制。   一、ESP32 定时器概述ESP32 是一个双核（或单核）的 32 位 LX6 微控制器，运行着 FreeRTOS 操作系统。其定时器资源远超一般的 8 位 AVR 芯片。 ESP32 主要提供以下类型的定时器：  通用目的定时器 (General Purpose Timer - GPTimer)： ESP32 集成了 2 个定时器组 (Timer Group)。 每个定时器组包含 2 个通用定时器，总共有 4 个硬件定时器 (Timer0, Timer1 in Group0; Timer0, Timer1...</div></div></div></a><a class="pagination-related" href="/099de403ef3d/" title="Golang 缓冲Channel和无缓冲Channel的区别"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-08-07</div><div class="info-item-2">Golang 缓冲Channel和无缓冲Channel的区别</div></div><div class="info-2"><div class="info-item-1"> 在 Go 语言的并发编程模型中，Channel 是 Goroutine 之间通信和同步的核心机制。Channel 提供了一种安全、同步的方式来传递数据。根据其容量大小，Channel 可以分为两种类型：无缓冲 Channel (Unbuffered Channel) 和 缓冲 Channel (Buffered Channel)。理解这两种 Channel 的区别以及它们各自的适用场景，是编写高效、正确 Go 并发代码的关键。  核心思想：无缓冲 Channel 强调“同步”通信，发送方和接收方必须同时就绪。缓冲 Channel 则允许“异步”通信，发送方可以在接收方未就绪时发送数据，但容量有限。   一、Channel 简介在 Go 中，Channel 是类型化的管道，可以通过它们发送和接收特定类型的值。它遵循“通过通信共享内存，而不是通过共享内存来通信”的并发哲学。 声明 Channel 的基本语法： 12345// 声明一个传递 int 类型数据的无缓冲 Channelvar ch1 chan int// 声明一个传递 string 类型数据的缓冲 Channel，容量为...</div></div></div></a><a class="pagination-related" href="/90cc7269d332/" title="面包板与杜邦线详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-06-06</div><div class="info-item-2">面包板与杜邦线详解</div></div><div class="info-2"><div class="info-item-1"> 面包板 (Breadboard) (又称无焊面包板、插接试验板) 和 杜邦线 (Jumper Wires) 是电子原型开发、教学和DIY项目中，不可或缺的基础工具。它们允许开发者在不进行焊接的情况下，快速搭建、修改和测试电路，极大地降低了电路开发的门槛和成本。理解它们的工作原理和正确使用方法，是步入电子世界的第一步。  核心思想：提供一种无需焊接、可重复使用、灵活多变的电路搭建方式，加速电子项目的原型验证和故障排查。   一、面包板 (Breadboard) 详解1.1 什么是面包板？面包板是一种用于搭建临时电子电路的无焊原型板。它通过内部金属条连接大量的孔洞，允许电子元件（如电阻、电容、IC 芯片）和杜邦线直接插拔，而无需焊接。这一特性使得电路的搭建和修改变得极为方便。其名称来源于早期工程师在木制面包板上通过钉子和电线来搭建电路。 1.2 面包板的结构与原理一个标准的面包板通常由以下几部分组成：  塑料外壳：通常为白色塑料，上面有许多规则排列的孔洞。 金属簧片：孔洞下方隐藏着许多导电的金属簧片。这些簧片通过特定的方式相互连接，形成不同的导通轨道。 背胶：有些面包板背面有粘性胶...</div></div></div></a><a class="pagination-related" href="/4e9ffd4da2a3/" title="Tree Shaking 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-05-01</div><div class="info-item-2">Tree Shaking 详解</div></div><div class="info-2"><div class="info-item-1"> Tree Shaking 是一种死代码消除 (Dead Code Elimination) 技术，主要应用于 JavaScript 模块打包过程中。它的核心思想是移除模块中未被实际使用的代码，从而显著减小最终的打包文件体积。这个术语最初由 Rollup.js 提出并推广，现已被 Webpack 等主流构建工具广泛支持。  核心思想：仅打包生产环境中实际需要的代码，通过移除“枯叶”（未使用的代码），使“树”（项目代码）更精炼。   一、为什么需要 Tree Shaking？随着现代 Web 应用的复杂性增加，项目往往会引入大量的第三方库和工具，或者存在许多内部的工具函数、组件等。即使我们只使用这些库或模块中的一小部分功能，传统的模块打包方式（尤其是在早期 CommonJS 模块系统中）可能会将整个模块文件包含在最终的构建产物中。这导致：  文件体积膨胀 (Bundle Bloat)：即使只用了一个库的 debounce 函数，整个 lodash 库也可能被打包进来。 加载时间延长：更大的文件意味着更长的网络传输时间和浏览器解析&#x2F;执行时间，从而影响用户体验。 资源浪费：增...</div></div></div></a><a class="pagination-related" href="/c8105d5c8d5e/" title="Electron 开发详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-04</div><div class="info-item-2">Electron 开发详解</div></div><div class="info-2"><div class="info-item-1"> Electron (原名 Atom Shell) 是一个由 GitHub 开发的开源框架，它允许你使用 Web 技术 (HTML, CSS, JavaScript) 来构建跨平台的桌面应用程序。通过将 Chromium 渲染引擎和 Node.js 运行时集成到一个单一的项目中，Electron 使得前端开发者只需掌握一套技术栈，就能创建出功能强大、拥有原生外观和感觉的桌面应用，并能够访问操作系统底层功能。  核心思想：借助 Chromium (渲染视图) 和 Node.js (处理操作系统交互) 的能力，Electron 让 Web 技术栈能够构建全功能的跨平台桌面应用。   一、Electron 简介与优势1.1 什么是 Electron？Electron 可以被简单理解为一个微型浏览器套壳，它包含了：  Chromium：提供渲染用户界面的能力，这意味着你可以使用 HTML、CSS 和 JavaScript 来构建应用的 UI。 Node.js：提供访问操作系统底层 API 的能力，例如文件系统、网络、进程管理等。 原生 API 集成：Electron 提供了一套 API，...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">669</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">258</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">102</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81PHP-7-0-2015%E5%B9%B4-%E6%80%A7%E8%83%BD%E9%A3%9E%E8%B7%83%E7%9A%84%E8%B5%B7%E7%82%B9"><span class="toc-text">一、PHP 7.0 (2015年) - 性能飞跃的起点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7%E4%B8%8E%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87"><span class="toc-text">1.1 核心特性与性能提升</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">1.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81PHP-7-1-2016%E5%B9%B4-%E6%8C%81%E7%BB%AD%E5%AE%8C%E5%96%84%E7%B1%BB%E5%9E%8B%E7%B3%BB%E7%BB%9F"><span class="toc-text">二、PHP 7.1 (2016年) - 持续完善类型系统</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">2.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">2.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81PHP-7-2-2017%E5%B9%B4-%E5%BC%BA%E5%8C%96%E5%AE%89%E5%85%A8%E4%B8%8E%E7%8E%B0%E4%BB%A3%E5%8A%9F%E8%83%BD"><span class="toc-text">三、PHP 7.2 (2017年) - 强化安全与现代功能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">3.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">3.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81PHP-7-3-2018%E5%B9%B4-%E8%AF%AD%E6%B3%95%E7%B3%96%E4%B8%8E%E6%80%A7%E8%83%BD%E5%BE%AE%E8%B0%83"><span class="toc-text">四、PHP 7.3 (2018年) - 语法糖与性能微调</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">4.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">4.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81PHP-7-4-2019%E5%B9%B4-%E8%B4%A8%E7%9A%84%E9%A3%9E%E8%B7%83%EF%BC%8C%E4%B8%BA-PHP-8-%E9%93%BA%E8%B7%AF"><span class="toc-text">五、PHP 7.4 (2019年) - 质的飞跃，为 PHP 8 铺路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">5.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">5.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81PHP-8-0-2020%E5%B9%B4-%E7%8E%B0%E4%BB%A3%E5%8C%96%E7%9A%84%E9%87%8D%E5%A4%A7%E9%A3%9E%E8%B7%83"><span class="toc-text">六、PHP 8.0 (2020年) - 现代化的重大飞跃</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7%E4%B8%8E%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87"><span class="toc-text">6.1 核心特性与性能提升</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">6.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81PHP-8-1-2021%E5%B9%B4-%E6%9E%9A%E4%B8%BE%E3%80%81%E5%8F%AA%E8%AF%BB%E5%B1%9E%E6%80%A7%E5%92%8C-Fiber"><span class="toc-text">七、PHP 8.1 (2021年) - 枚举、只读属性和 Fiber</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">7.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">7.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81PHP-8-2-2022%E5%B9%B4-%E5%8F%AA%E8%AF%BB%E7%B1%BB%E3%80%81Disjunctive-Normal-Form-DNF-%E7%B1%BB%E5%9E%8B"><span class="toc-text">八、PHP 8.2 (2022年) - 只读类、Disjunctive Normal Form (DNF) 类型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">8.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">8.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81PHP-8-3-2023%E5%B9%B4-%E6%8C%81%E7%BB%AD%E6%94%B9%E8%BF%9B"><span class="toc-text">九、PHP 8.3 (2023年) - 持续改进</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#9-1-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7"><span class="toc-text">9.1 核心特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-2-%E5%BA%9F%E5%BC%83%E4%B8%8E%E7%A7%BB%E9%99%A4"><span class="toc-text">9.2 废弃与移除</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81%E6%80%BB%E7%BB%93%E4%B8%8E%E5%B1%95%E6%9C%9B"><span class="toc-text">十、总结与展望</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/35d4f7383fcf/" title="二维码原理详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="二维码原理详解"/></a><div class="content"><a class="title" href="/35d4f7383fcf/" title="二维码原理详解">二维码原理详解</a><time datetime="2026-05-20T22:24:00.000Z" title="发表于 2026-05-21 06:24:00">2026-05-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 读写锁底层竞争与 Cache 抖动详解"/></a><div class="content"><a class="title" href="/c240e2c1fab0/" title="Golang 读写锁底层竞争与 Cache 抖动详解">Golang 读写锁底层竞争与 Cache 抖动详解</a><time datetime="2026-05-18T22:24:00.000Z" title="发表于 2026-05-19 06:24:00">2026-05-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-04.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Godot 主要 2D 节点对象详解"/></a><div class="content"><a class="title" href="/5fdb8b4f70c6/" title="Godot 主要 2D 节点对象详解">Godot 主要 2D 节点对象详解</a><time datetime="2026-04-24T22:24:00.000Z" title="发表于 2026-04-25 06:24:00">2026-04-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/946d03cc4896/" title="Base64 编码详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-25.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Base64 编码详解"/></a><div class="content"><a class="title" href="/946d03cc4896/" title="Base64 编码详解">Base64 编码详解</a><time datetime="2026-04-22T22:24:00.000Z" title="发表于 2026-04-23 06:24:00">2026-04-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang Channel 堆满导致协程卡死的详解"/></a><div class="content"><a class="title" href="/98f6fc45288c/" title="Golang Channel 堆满导致协程卡死的详解">Golang Channel 堆满导致协程卡死的详解</a><time datetime="2026-04-20T22:24:00.000Z" title="发表于 2026-04-21 06:24:00">2026-04-21</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-03.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.6.1"></script><script src="/js/main.js?v=5.6.1"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
   const parseViewBox = viewBox => {
     if (!viewBox) return null
     const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
@@ -624,7 +671,7 @@
       clone.setAttribute('viewBox', initViewBox.join(' '))
     }
     if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-    if (!clone.getAttribute('xmlns:xlink') && clone.outerHTML.includes('xlink:')) {
+    if (!clone.getAttribute('xmlns:xlink') && clone.innerHTML.includes('xlink:')) {
       clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
     }
     // inject background to match current theme
@@ -643,7 +690,8 @@
     const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     window.open(url, '_blank', 'noopener')
-    setTimeout(() => URL.revokeObjectURL(url), 30000)
+
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
   const attachMermaidViewerButton = wrap => {
@@ -664,10 +712,6 @@
         const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
         if (!svg) return
         const initViewBox = wrap.__mermaidInitViewBox
-        if (typeof svg === 'string') {
-          openSvgInNewTab({ source: svg, initViewBox })
-          return
-        }
         openSvgInNewTab({ source: svg, initViewBox })
       })
       btn.__mermaidViewerBound = true
@@ -684,6 +728,13 @@
   }
 
   const initMermaidGestures = wrap => {
+    // Clean up previous event listeners and pending frames
+    if (wrap.__mermaidAbortController) {
+      wrap.__mermaidAbortController.abort()
+      if (wrap.__mermaidRafId) cancelAnimationFrame(wrap.__mermaidRafId)
+    }
+    const ac = new AbortController()
+    wrap.__mermaidAbortController = ac
     const svg = wrap.querySelector('svg')
     if (!svg) return
 
@@ -692,158 +743,177 @@
     wrap.__mermaidInitViewBox = initVb
     wrap.__mermaidCurViewBox = initVb.slice()
     setSvgViewBox(svg, initVb)
+    // Disable default gestures to prevent scroll chaining and pinch-zoom penetration in Chrome
+    svg.style.touchAction = 'none'
 
-    // Avoid binding multiple times on themeChange/pjax
-    if (wrap.__mermaidGestureBound) return
-    wrap.__mermaidGestureBound = true
+    // Cache BoundingClientRect, throttled on scroll to reduce reflow
+    let cachedRect = svg.getBoundingClientRect()
+    let rectDirty = false
+    const markRectDirty = () => { rectDirty = true }
+    window.addEventListener('resize', markRectDirty, { signal: ac.signal })
+    window.addEventListener('scroll', markRectDirty, { signal: ac.signal, capture: true })
+    const getRect = () => {
+      if (rectDirty) {
+        cachedRect = svg.getBoundingClientRect()
+        rectDirty = false
+      }
+      return cachedRect
+    }
 
-    // Helper: map client (viewport) coordinate -> viewBox coordinate
-    const clientToViewBox = (clientX, clientY) => {
-      const rect = svg.getBoundingClientRect()
-      const vb = wrap.__mermaidCurViewBox || getSvgViewBox(svg)
-      const x = vb[0] + (clientX - rect.left) * (vb[2] / rect.width)
-      const y = vb[1] + (clientY - rect.top) * (vb[3] / rect.height)
-      return { x, y, rect, vb }
+    // Precompute clamp bounds from initial viewBox
+    const minW = initVb[2] * 0.1
+    const maxW = initVb[2] * 10
+    const minH = initVb[3] * 0.1
+    const maxH = initVb[3] * 10
+    const clampVb = vb => {
+      const out = vb.slice()
+      out[2] = clamp(out[2], minW, maxW)
+      out[3] = clamp(out[3], minH, maxH)
+      return out
+    }
+
+    // Throttle DOM updates using requestAnimationFrame
+    let pendingVb = null
+    let rafId = null
+    const applyVb = () => {
+      if (pendingVb) {
+        wrap.__mermaidCurViewBox = pendingVb
+        setSvgViewBox(svg, pendingVb)
+        pendingVb = null
+      }
+      rafId = null
+      wrap.__mermaidRafId = null
+    }
+    const setCurVb = vb => {
+      pendingVb = clampVb(vb)
+      if (!rafId) {
+        rafId = requestAnimationFrame(applyVb)
+        wrap.__mermaidRafId = rafId
+      }
     }
 
     const state = {
       pointers: new Map(),
       startVb: null,
       startDist: 0,
-      startCenter: null
-    }
-
-    const clampVb = vb => {
-      const init = wrap.__mermaidInitViewBox || vb
-      const minW = init[2] * 0.1
-      const maxW = init[2] * 10
-      const minH = init[3] * 0.1
-      const maxH = init[3] * 10
-      vb[2] = clamp(vb[2], minW, maxW)
-      vb[3] = clamp(vb[3], minH, maxH)
-      return vb
-    }
-
-    const setCurVb = vb => {
-      vb = clampVb(vb)
-      wrap.__mermaidCurViewBox = vb
-      setSvgViewBox(svg, vb)
+      lastPointerX: 0,
+      lastPointerY: 0
     }
 
     const onPointerDown = e => {
-      // Allow only primary button for mouse
       if (e.pointerType === 'mouse' && e.button !== 0) return
       svg.setPointerCapture(e.pointerId)
+      const curVb = wrap.__mermaidCurViewBox
       state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-
       if (state.pointers.size === 1) {
-        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
+        state.startVb = curVb.slice()
+        state.lastPointerX = e.clientX
+        state.lastPointerY = e.clientY
       } else if (state.pointers.size === 2) {
         const pts = [...state.pointers.values()]
         const dx = pts[0].x - pts[1].x
         const dy = pts[0].y - pts[1].y
         state.startDist = Math.hypot(dx, dy)
-        state.startVb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
-        state.startCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 }
+        state.startVb = curVb.slice()
       }
     }
 
     const onPointerMove = e => {
       if (!state.pointers.has(e.pointerId)) return
       state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-
-      // Pan with 1 pointer
+      const curVb = wrap.__mermaidCurViewBox
+      const rect = getRect()
       if (state.pointers.size === 1 && state.startVb) {
-        const p = [...state.pointers.values()][0]
-        const prev = { x: e.clientX - e.movementX, y: e.clientY - e.movementY }
-        // movementX/Y unreliable on touch, compute from stored last position
-        const last = wrap.__mermaidLastSinglePointer || p
-        const dxClient = p.x - last.x
-        const dyClient = p.y - last.y
-        wrap.__mermaidLastSinglePointer = p
-
-        const { rect } = clientToViewBox(p.x, p.y)
-        const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
-        const dx = dxClient * (vb[2] / rect.width)
-        const dy = dyClient * (vb[3] / rect.height)
-        setCurVb([vb[0] - dx, vb[1] - dy, vb[2], vb[3]])
+        const p = state.pointers.values().next().value
+        const dxClient = p.x - state.lastPointerX
+        const dyClient = p.y - state.lastPointerY
+        state.lastPointerX = p.x
+        state.lastPointerY = p.y
+        const dx = dxClient * (curVb[2] / rect.width)
+        const dy = dyClient * (curVb[3] / rect.height)
+        setCurVb([curVb[0] - dx, curVb[1] - dy, curVb[2], curVb[3]])
         return
       }
-
-      // Pinch zoom with 2 pointers
       if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
         const pts = [...state.pointers.values()]
         const dx = pts[0].x - pts[1].x
         const dy = pts[0].y - pts[1].y
         const dist = Math.hypot(dx, dy)
         if (!dist) return
-        const factor = state.startDist / dist // dist bigger => zoom in (viewBox smaller)
-
+        const factor = state.startDist / dist
         const cx = (pts[0].x + pts[1].x) / 2
         const cy = (pts[0].y + pts[1].y) / 2
-        const centerClient = { x: cx, y: cy }
-
-        const pxy = clientToViewBox(centerClient.x, centerClient.y)
-        const cpx = pxy.x
-        const cpy = pxy.y
-
-        const vb = zoomAtPoint(state.startVb, factor, cpx, cpy)
-        setCurVb(vb)
+        const px = curVb[0] + (cx - rect.left) * (curVb[2] / rect.width)
+        const py = curVb[1] + (cy - rect.top) * (curVb[3] / rect.height)
+        setCurVb(zoomAtPoint(state.startVb, factor, px, py))
       }
     }
 
     const onPointerUpOrCancel = e => {
+      // Release PointerCapture to avoid event capture anomalies
+      if (svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) {
+        svg.releasePointerCapture(e.pointerId)
+      }
       state.pointers.delete(e.pointerId)
       if (state.pointers.size === 0) {
         state.startVb = null
         state.startDist = 0
-        state.startCenter = null
-        wrap.__mermaidLastSinglePointer = null
       } else if (state.pointers.size === 1) {
-        // reset single pointer baseline to avoid jump
-        wrap.__mermaidLastSinglePointer = [...state.pointers.values()][0]
+        const p = state.pointers.values().next().value
+        state.lastPointerX = p.x
+        state.lastPointerY = p.y
       }
     }
 
-    // Wheel zoom (mouse/trackpad)
     const onWheel = e => {
-      // ctrlKey on mac trackpad pinch; we treat both as zoom
+      // Prevent event bubbling from triggering external scroll
       e.preventDefault()
-      const delta = e.deltaY
-      const zoomFactor = delta > 0 ? 1.1 : 0.9
-      const { x, y } = clientToViewBox(e.clientX, e.clientY)
-      const vb = (wrap.__mermaidCurViewBox || getSvgViewBox(svg)).slice()
-      setCurVb(zoomAtPoint(vb, zoomFactor, x, y))
+      e.stopPropagation()
+      // Normalize deltaY across deltaMode (Chrome uses pixels, Safari uses lines)
+      let delta = e.deltaY
+      if (e.deltaMode === 1) delta *= 16
+      else if (e.deltaMode === 2) delta *= 400
+
+      // Continuous zoom factor: smoother than fixed 1.1/0.9 steps
+      const zoomFactor = Math.pow(1.001, delta)
+
+      const curVb = wrap.__mermaidCurViewBox
+      const rect = getRect()
+      const px = curVb[0] + (e.clientX - rect.left) * (curVb[2] / rect.width)
+      const py = curVb[1] + (e.clientY - rect.top) * (curVb[3] / rect.height)
+      setCurVb(zoomAtPoint(curVb, zoomFactor, px, py))
     }
 
     const onDblClick = () => {
       const init = wrap.__mermaidInitViewBox
-      if (!init) return
-      wrap.__mermaidCurViewBox = init.slice()
-      setSvgViewBox(svg, init)
+      if (init) setCurVb(init)
     }
 
-    svg.addEventListener('pointerdown', onPointerDown)
-    svg.addEventListener('pointermove', onPointerMove)
-    svg.addEventListener('pointerup', onPointerUpOrCancel)
-    svg.addEventListener('pointercancel', onPointerUpOrCancel)
-    svg.addEventListener('wheel', onWheel, { passive: false })
-    svg.addEventListener('dblclick', onDblClick)
+    svg.addEventListener('pointerdown', onPointerDown, { signal: ac.signal })
+    svg.addEventListener('pointermove', onPointerMove, { signal: ac.signal })
+    svg.addEventListener('pointerup', onPointerUpOrCancel, { signal: ac.signal })
+    svg.addEventListener('pointercancel', onPointerUpOrCancel, { signal: ac.signal })
+    svg.addEventListener('wheel', onWheel, { passive: false, signal: ac.signal })
+    svg.addEventListener('dblclick', onDblClick, { signal: ac.signal })
   }
 
   const runMermaid = ele => {
     window.loadMermaid = true
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
-
     ele.forEach((item, index) => {
       const mermaidSrc = item.firstElementChild
-
-      // Clear old render (themeChange/pjax will rerun)
+      // Clean up event listeners before removing old SVG
+      if (item.__mermaidAbortController) {
+        item.__mermaidAbortController.abort()
+      }
       const oldSvg = item.querySelector('svg')
       if (oldSvg) oldSvg.remove()
-      item.__mermaidGestureBound = false
-
-      const config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      let config = {}
+      try {
+        config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      } catch (e) {
+        console.warn('[mermaid] failed to parse dataset.config:', e)
+      }
       if (!config.theme) {
         config.theme = theme
       }
@@ -851,7 +921,6 @@
       const mermaidID = `mermaid-${index}`
       const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
 
-      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
       const renderMermaid = svg => {
         mermaidSrc.insertAdjacentHTML('afterend', svg)
         if (false) initMermaidGestures(item)
@@ -859,14 +928,30 @@
         if (true) attachMermaidViewerButton(item)
       }
 
+      const handleError = err => {
+        console.error(`[mermaid] render failed for block #${index}:`, err)
+        const errorEl = document.createElement('div')
+        errorEl.className = 'mermaid-error'
+        errorEl.textContent = `Mermaid render error: ${err.message || err}`
+        mermaidSrc.insertAdjacentElement('afterend', errorEl)
+      }
 
-      // mermaid v9 and v10 compatibility
-      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+      try {
+        const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+        // mermaid v9 and v10 compatibility
+        if (typeof renderFn === 'string') {
+          renderMermaid(renderFn)
+        } else {
+          renderFn.then(({ svg }) => renderMermaid(svg)).catch(handleError)
+        }
+      } catch (err) {
+        handleError(err)
+      }
     })
   }
 
-  const codeToMermaid = () => {
-    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+  const codeToMermaid = $article => {
+    const codeMermaidEle = $article.querySelectorAll('pre > code.mermaid')
     if (codeMermaidEle.length === 0) return
 
     codeMermaidEle.forEach(ele => {
@@ -882,13 +967,16 @@
   }
 
   const loadMermaid = () => {
-    if (true) codeToMermaid()
-    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    const $article = document.getElementById('article-container')
+    if (!$article) return
+
+    if (true) codeToMermaid($article)
+    const $mermaid = $article.querySelectorAll('.mermaid-wrap')
     if ($mermaid.length === 0) return
 
     const runMermaidFn = () => runMermaid($mermaid)
     btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
-    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.min.js').then(runMermaidFn)
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js').then(runMermaidFn)
   }
 
   btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
@@ -984,7 +1072,7 @@
   const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 
   window.pjax = new Pjax({
-    elements: 'a:not([target="_blank"])',
+    elements: 'a:not([target="_blank"]):not([data-fancybox])',
     selectors: pjaxSelectors,
     cacheBust: false,
     analytics: false,
@@ -1017,8 +1105,9 @@
   document.addEventListener('pjax:complete', () => {
     btf.removeGlobalFnEvent('pjaxCompleteOnce')
     document.querySelectorAll('script[data-pjax]').forEach(item => {
+      if (!item.parentNode) return
       const newScript = document.createElement('script')
-      const content = item.text || item.textContent || item.innerHTML || ""
+      const content = item.text || item.textContent || ''
       Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
       newScript.appendChild(document.createTextNode(content))
       item.parentNode.replaceChild(newScript, item)
@@ -1028,10 +1117,13 @@
   })
 
   document.addEventListener('pjax:error', e => {
-    if (e.request.status === 404) {
+    const responseURL = e.request && e.request.responseURL
+    if (e.request && e.request.status === 404) {
       true
         ? pjax.loadUrl('/404.html')
-        : window.location.href = e.request.responseURL
+        : responseURL && (window.location.href = responseURL)
+    } else if (responseURL) {
+      window.location.href = responseURL
     }
   })
-})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5"></script></div></div></body></html>
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.6.1"></script></div></div></body></html>
