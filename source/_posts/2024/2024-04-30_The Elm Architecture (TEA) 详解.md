@@ -209,22 +209,40 @@ TEA 的核心优势在于其严格且可预测的**单向数据流**。一切都
 7.  **循环**：新的 `Model` 会再次被 `View` 函数用于渲染新的 UI，从而完成一个循环。
 
 {% mermaid %}
-graph TD
-    A[Start] --> B(Initialize:<br/>Initial Model, Cmd);
-    B --> C{Render View};
-    C --> D[User Interaction <br/>/ External Events];
-    D --> E(Generate Msg);
-    E --> F[Dispatch Msg];
-    F --> G{Update Function};
-    G -- "Returns (New Model, Cmd)" --> H["Handle Cmd<br/>(Side Effects)"];
-    H -- "Cmd Result (New Msg)" --> F;
-    G --> C;
+flowchart TD
+    %% 样式定义 (兼容深色/浅色高对比度)
+    classDef coreNode fill:#1e293b,stroke:#60a5fa,stroke-width:2px,color:#f8fafc;
+    classDef eventNode fill:#172554,stroke:#3b82f6,stroke-width:1.5px,color:#dbeafe;
+    classDef sideEffectNode fill:#312e81,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff;
+    classDef startNode fill:#334155,stroke:#94a3b8,stroke-width:1px,color:#f1f5f9;
 
-    subgraph Core Loop
-        C -- "Uses Model" --> G;
-        G -- "Produces New Model" --> C;
-        D -- "Produces Msg" --> F;
+    %% 流程定义
+    A([Start]) --> B[Initialize: Model & Cmd]
+    B --> C
+
+    subgraph CoreLoop [" Core Model-View-Update Loop "]
+        direction TB
+        C[Render View] --> D[User Interaction / Event]
+        D --> E[Generate Msg]
+        E --> F[Dispatch Msg]
+        F --> G[Update Function]
+        G -- "New Model" --> C
     end
+
+    subgraph CmdLoop [" Side Effects & Async "]
+        direction TB
+        H["Handle Cmd<br/>(Side Effects)"]
+    end
+
+    %% 侧效应与主循环连接
+    G -- "Returns (New Model, Cmd)" --> H
+    H -- "Cmd Result (New Msg)" --> F
+
+    %% 节点样式应用
+    class A,B startNode;
+    class C,G coreNode;
+    class D,E,F eventNode;
+    class H sideEffectNode;
 {% endmermaid %}
 
 ## 四、完整的 TypeScript 概念示例 (伪代码)
