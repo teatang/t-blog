@@ -5,9 +5,10 @@ tags:
   - 2025
   - AI
   - LLM
+  - 向量
 categories:
   - AI
-  - LLM
+  - 向量
 mathjax: true
 ---
 

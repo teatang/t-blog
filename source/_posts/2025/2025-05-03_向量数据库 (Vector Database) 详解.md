@@ -5,9 +5,11 @@ tags:
   - 2025
   - AI
   - LLM
+  - 向量
 categories:
   - AI
-  - LLM
+  - 向量
+mathjax: true
 ---
 
 > **向量数据库 (Vector Database / Vector Store)** 是一种专门设计用于高效存储、管理和检索**向量嵌入 (Vector Embeddings)** 的数据库。这些向量嵌入是高维的数值表示，由机器学习模型生成，能够捕捉文本、图像、音频或其他复杂数据的**语义信息**。向量数据库的核心能力在于通过计算向量之间的**相似度 (Similarity)** 来进行快速搜索，而非传统的精确匹配。
@@ -28,7 +30,7 @@ categories:
 *   **一维向量**：一个标量，如 `[5]`。
 *   **二维向量**：表示平面上的一个点或从原点指向该点的箭头，如 `[x, y]`。例如，`[3, 4]`。
 *   **三维向量**：表示空间中的一个点，如 `[x, y, z]`。例如，`[1, -2, 5]`。
-*   **N维向量**：由 N 个数值组成的有序列表，如 `[v1, v2, ..., vN]`。
+*   **N维向量**：由 N 个数值组成的有序列表，如 `$[v_1, v_2, ..., v_N]$`。
 
 在计算机科学和人工智能领域，我们通常将**高维向量**视为一个固定长度的数值数组。这些数值是浮点数，每个数值对应向量空间中的一个维度。
 
@@ -100,18 +102,24 @@ print(f"第一个文本('向量数据库...')与第三个文本('狗是一种常
 
 ### 3.1 相似度度量 (Similarity Metrics)
 
-用于量化两个向量之间“相似性”的数学方法。
+用于量化两个向量之间“相似性”的数学方法。设有两个 N 维向量 $A = [A_1, A_2, ..., A_N]$ 和 $B = [B_1, B_2, ..., B_N]$。
 
 *   **余弦相似度 (Cosine Similarity)**：
     *   **定义**：衡量两个向量在 N 维空间中方向的夹角。值介于 -1 和 1 之间。
+    *   **公式**：
+        $$CosineSimilarity(A, B) = \frac{A \cdot B}{||A|| \cdot ||B||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \sqrt{\sum_{i=1}^{n} B_i^2}}$$
     *   **特点**：夹角越小，方向越一致，余弦值越接近 1，表示相似度越高。它对向量的长度不敏感，更关注方向。
     *   **适用场景**：文本语义相似度（因为文本的含义更多体现在词向量的方向上）。
 *   **欧氏距离 (Euclidean Distance)**：
     *   **定义**：衡量两个向量在 N 维空间中的直线距离。
+    *   **公式**：
+        $$EuclideanDistance(A, B) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2}$$
     *   **特点**：距离越小，相似度越高。它对向量的绝对值和长度都敏感。
     *   **适用场景**：图像特征、物理距离等。
 *   **内积 / 点积 (Dot Product)**：
     *   **定义**：两个向量的对应元素相乘再求和。
+    *   **公式**：
+        $$DotProduct(A, B) = A \cdot B = \sum_{i=1}^{n} A_i B_i$$
     *   **特点**：内积越大，相似度越高。它结合了向量的大小和方向。当向量经过归一化（长度为1）后，内积就等同于余弦相似度。
     *   **适用场景**：推荐系统等。
 
@@ -134,32 +142,52 @@ print(f"第一个文本('向量数据库...')与第三个文本('狗是一种常
 ### HNSW (Hierarchical Navigable Small Worlds) 概念图
 
 {% mermaid %}
-graph TD
-    subgraph "HNSW (Hierarchical Navigable Small Worlds)"
-        L0["层0 (细粒度搜索)"] --> N0_1(V1)
-        L0 --> N0_2(V2)
-        L0 --> N0_3(V3)
-        L0 --> N0_4(V4)
-        L0 --> ...
-      
-        L1["层1 (中粒度搜索)"] --> N1_1(V5)
-        L1 --> N1_2(V6)
-        L1 --> ...
-      
-        L2["层2 (粗粒度搜索)"] --> N2_1(V7)
-        L2 --> ...
+flowchart TD
+    subgraph HNSW ["HNSW (Hierarchical Navigable Small Worlds)"]
+        direction TB
+        
+        subgraph Layer2 ["层 2 · 顶层 (粗粒度 / 稀疏跳表)"]
+            L2_entry(["入口节点 (Enter Point)"]):::highlightNode
+            L2_n1("V7"):::nodeStyle
+            L2_dots["..."]:::ghostNode
+            L2_entry -.-> L2_n1 -.-> L2_dots
+        end
+
+        subgraph Layer1 ["层 1 · 中间层 (中粒度 / 快速路由)"]
+            L1_n1("V5"):::nodeStyle
+            L1_n2("V6"):::nodeStyle
+            L1_dots["..."]:::ghostNode
+            L1_n1 --> L1_n2 -.-> L1_dots
+        end
+
+        subgraph Layer0 ["层 0 · 底层 (全量数据 / 局部贪心搜索)"]
+            L0_n1("V1"):::nodeStyle
+            L0_n2("V2"):::nodeStyle
+            L0_n3("V3"):::nodeStyle
+            L0_n4("V4"):::nodeStyle
+            L0_dots["..."]:::ghostNode
+            L0_n1 --- L0_n2 --- L0_n3 --- L0_n4 -.-> L0_dots
+        end
     end
 
-    Query(查询向量) --- 从最高层开始 --> L2
-    L2 -- 快速导航到邻近节点 --> L1
-    L1 -- 进一步精确搜索 --> L0
-    L0 -- 返回近似最近邻 --> Result[最相似的Top-K向量]
+    Query[/"🔍 查询向量 (Query)"/]:::queryNode
+    Result[/"🎯 最相似的 Top-K 向量"/]:::resultNode
 
-    style L0 fill:#FDF5E6,stroke:#333,stroke-width:2px,color:#000
-    style L1 fill:#FFF8DC,stroke:#333,stroke-width:2px,color:#000
-    style L2 fill:#FAFAD2,stroke:#333,stroke-width:2px,color:#000
-    style Query fill:#B0E0E6,stroke:#333,stroke-width:2px,color:#000
-    style Result fill:#98FB98,stroke:#333,stroke-width:2px,color:#000
+    Query ==>|"1. 定位全局入口"| L2_entry
+    Layer2 ==>|"2. 局部最优后下沉"| Layer1
+    Layer1 ==>|"3. 细化候选集并下沉"| Layer0
+    Layer0 ==>|"4. 贪心搜索收敛"| Result
+
+    classDef queryNode fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
+    classDef resultNode fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5;
+    classDef highlightNode fill:#3b1d11,stroke:#fb923c,stroke-width:2px,color:#fed7aa;
+    classDef nodeStyle fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc;
+    classDef ghostNode fill:transparent,stroke:none,color:#64748b;
+    
+    style HNSW fill:#090d16,stroke:#334155,stroke-width:1.5px,color:#94a3b8;
+    style Layer2 fill:#111827,stroke:#374151,stroke-width:1px,color:#cbd5e1;
+    style Layer1 fill:#111827,stroke:#374151,stroke-width:1px,color:#cbd5e1;
+    style Layer0 fill:#111827,stroke:#374151,stroke-width:1px,color:#cbd5e1;
 {% endmermaid %}
 **说明**：HNSW 算法通过构建一个多层导航图，上层图节点稀疏但相互连接很远，用于快速“跳跃”到达大致区域；下层图节点密集且连接较近，用于精确地搜索局部邻居。这种分层结构显著地加速了高维空间中的近似最近邻搜索。
 
