@@ -1,0 +1,930 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>近似最近邻 (ANN) 算法详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="近似最近邻 (Approximate Nearest Neighbor, ANN) 算法是一类旨在高效解决高维空间中“最近邻搜索”问题的计算方法。与精确最近邻 (Exact Nearest Neighbor, kNN) 搜索不同，ANN 算法通过牺牲少量的搜索精度（即不保证找到的 K 个邻居是严格意义上最接近的），来换取搜索速度和内存效率的显著提升。它们在高维数据、大规模数据集和实时应用中扮演着">
+<meta property="og:type" content="article">
+<meta property="og:title" content="近似最近邻 (ANN) 算法详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/ce4077971aa6/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="近似最近邻 (Approximate Nearest Neighbor, ANN) 算法是一类旨在高效解决高维空间中“最近邻搜索”问题的计算方法。与精确最近邻 (Exact Nearest Neighbor, kNN) 搜索不同，ANN 算法通过牺牲少量的搜索精度（即不保证找到的 K 个邻居是严格意义上最接近的），来换取搜索速度和内存效率的显著提升。它们在高维数据、大规模数据集和实时应用中扮演着">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-28.jpg">
+<meta property="article:published_time" content="2026-05-29T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-08-26T08:26:36.556Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2026">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="ANN">
+<meta property="article:tag" content="向量">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-28.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "近似最近邻 (ANN) 算法详解",
+  "url": "https://blog.tbf1211.xx.kg/ce4077971aa6/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-28.jpg",
+  "datePublished": "2026-05-29T22:24:00.000Z",
+  "dateModified": "2026-08-26T08:26:36.556Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/ce4077971aa6/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.7.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        const data = { value }
+
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
+
+        localStorage.setItem(key, JSON.stringify(data))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
+          localStorage.removeItem(key)
+        }
+      }
+    }
+
+    const scriptCache = new Map()
+    const cssCache = new Map()
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+      const activateDarkMode = () => {
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const start = 6
+          const end = 7
+          const isNight =
+            start < end
+                ? hour < start || hour >= end
+                : hour >= start || hour < end
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '近似最近邻 (ANN) 算法详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">679</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">260</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-28.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">近似最近邻 (ANN) 算法详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">近似最近邻 (ANN) 算法详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2026-05-29T22:24:00.000Z" title="发表于 2026-05-30 06:24:00">2026-05-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/">AI</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/%E5%90%91%E9%87%8F/">向量</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">4.4k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>15分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>近似最近邻 (Approximate Nearest Neighbor, ANN)</strong> 算法是一类旨在高效解决高维空间中“最近邻搜索”问题的计算方法。与精确最近邻 (Exact Nearest Neighbor, kNN) 搜索不同，ANN 算法通过牺牲少量的搜索精度（即不保证找到的 K 个邻居是严格意义上最接近的），来换取搜索速度和内存效率的显著提升。它们在高维数据、大规模数据集和实时应用中扮演着核心角色。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：<strong>在保证可接受的搜索精度前提下，大幅减少在高维空间中查找最近邻的计算量，克服“维数灾难”带来的性能瓶颈。</strong></p>
+</div>
+<hr>
+<h2 id="一、为什么需要-ANN？精确最近邻-kNN-的局限性"><a href="#一、为什么需要-ANN？精确最近邻-kNN-的局限性" class="headerlink" title="一、为什么需要 ANN？精确最近邻 (kNN) 的局限性"></a>一、为什么需要 ANN？精确最近邻 (kNN) 的局限性</h2><p>在人工智能和数据科学领域，我们经常需要在一个大型数据集中找到与给定查询点最相似的 K 个数据点。例如：</p>
+<ul>
+<li>在推荐系统中，找到与用户购买历史最相似的其他用户或商品。</li>
+<li>在图像搜索中，找到与查询图像视觉内容最相似的其他图像。</li>
+<li>在语义搜索中，找到与查询文本含义最接近的文档。</li>
+</ul>
+<p>这些场景的核心是<strong>最近邻搜索</strong>。</p>
+<h3 id="1-1-精确最近邻-Exact-Nearest-Neighbor-kNN-搜索"><a href="#1-1-精确最近邻-Exact-Nearest-Neighbor-kNN-搜索" class="headerlink" title="1.1 精确最近邻 (Exact Nearest Neighbor, kNN) 搜索"></a>1.1 精确最近邻 (Exact Nearest Neighbor, kNN) 搜索</h3><p>传统的精确 kNN 搜索方法（如线性扫描或利用 KD-树&#x2F;Ball-树等空间索引）在高维数据和大规模数据集上存在严重局限：</p>
+<ol>
+<li><strong>维数灾难 (Curse of Dimensionality)</strong>：<ul>
+<li>在高维空间中，数据点变得异常稀疏，并且所有数据点到任何查询点的距离都趋于相似（距离集中现象）。这意味着传统的空间分割索引（如 KD-树）在高维环境下效率急剧下降，甚至不如线性扫描。</li>
+<li>直观来说，在一个二维平面上很容易划分子区域，但在几百维甚至上千维的空间中，有效地分割空间以排除大量不相关点变得极其困难。</li>
+</ul>
+</li>
+<li><strong>性能瓶颈 (Computational Cost)</strong>：<ul>
+<li>对于包含 $N$ 个 $D$ 维向量的数据集，线性扫描的查询时间复杂度为 $O(N \cdot D)$。</li>
+<li>当 $N$ 和 $D$ 都很大时（例如，10 亿个 1536 维的向量），进行一次全量扫描需要天文数字般的计算量，无法满足实时应用的需求。</li>
+</ul>
+</li>
+<li><strong>内存消耗</strong>：一些精确索引结构（如树形结构）在高维下为了存储节点信息和分区策略，会消耗大量内存，导致可扩展性差。</li>
+</ol>
+<p>正是为了应对这些挑战，ANN 算法通过接受一定程度的近似性，来显著提升搜索速度和资源效率。</p>
+<h2 id="二、ANN-算法的核心概念"><a href="#二、ANN-算法的核心概念" class="headerlink" title="二、ANN 算法的核心概念"></a>二、ANN 算法的核心概念</h2><h3 id="2-1-精度与速度的权衡-Trade-off-between-Accuracy-and-Speed"><a href="#2-1-精度与速度的权衡-Trade-off-between-Accuracy-and-Speed" class="headerlink" title="2.1 精度与速度的权衡 (Trade-off between Accuracy and Speed)"></a>2.1 精度与速度的权衡 (Trade-off between Accuracy and Speed)</h3><p>ANN 算法最根本的特点是其在搜索<strong>精度 (Recall)</strong> 和<strong>速度 (Latency)</strong> 之间的权衡。</p>
+<ul>
+<li><strong>高精度模式</strong>：算法会进行更彻底的搜索，可能找到更接近真实最近邻的结果，但查询时间会更长。</li>
+<li><strong>高速度模式</strong>：算法会进行更激进的剪枝和近似计算，查询时间更短，但找到的结果可能不如最精确的 K 个。</li>
+</ul>
+<p>用户通常可以通过调整算法的参数来控制这种权衡，例如设置搜索时的候选邻居数量。</p>
+<h3 id="2-2-距离度量-Distance-Metrics"><a href="#2-2-距离度量-Distance-Metrics" class="headerlink" title="2.2 距离度量 (Distance Metrics)"></a>2.2 距离度量 (Distance Metrics)</h3><p>ANN 算法的基石是有效计算向量间的“相似度”或“距离”。常见的距离度量包括：</p>
+<ul>
+<li><strong>欧氏距离 (Euclidean Distance)</strong>：衡量 N 维空间中两点之间的直线距离。距离越小越相似。<br>$$d(A, B) &#x3D; \sqrt{\sum_{i&#x3D;1}^{n} (A_i - B_i)^2}$$</li>
+<li><strong>余弦相似度 (Cosine Similarity)</strong>：衡量两个向量在 N 维空间中的方向一致性。值介于 -1 (完全相反) 和 1 (完全相同) 之间。值越大越相似。<br>$$sim(A, B) &#x3D; \frac{A \cdot B}{||A|| \cdot ||B||} &#x3D; \frac{\sum_{i&#x3D;1}^{n} A_i B_i}{\sqrt{\sum_{i&#x3D;1}^{n} A_i^2} \sqrt{\sum_{i&#x3D;1}^{n} B_i^2}}$$</li>
+<li><strong>内积 &#x2F; 点积 (Dot Product)</strong>：衡量向量在方向和大小上的投影。值越大越相似。当向量归一化后，内积等同于余弦相似度。<br>$$dot(A, B) &#x3D; A \cdot B &#x3D; \sum_{i&#x3D;1}^{n} A_i B_i$$<br>选择合适的距离度量取决于数据的性质和应用场景。</li>
+</ul>
+<h2 id="三、主流-ANN-算法分类与原理"><a href="#三、主流-ANN-算法分类与原理" class="headerlink" title="三、主流 ANN 算法分类与原理"></a>三、主流 ANN 算法分类与原理</h2><p>目前，ANN 算法主要分为几大类，每种都有其独特的原理和适用场景。</p>
+<h3 id="3-1-基于哈希-Hashing-based"><a href="#3-1-基于哈希-Hashing-based" class="headerlink" title="3.1 基于哈希 (Hashing-based)"></a>3.1 基于哈希 (Hashing-based)</h3><p><strong>核心思想</strong>：将高维空间中的数据点映射到低维哈希桶中，使得相似的数据点以高概率落入同一个哈希桶，不相似的数据点则落入不同的桶。</p>
+<h4 id="3-1-1-局部敏感哈希-Locality-Sensitive-Hashing-LSH"><a href="#3-1-1-局部敏感哈希-Locality-Sensitive-Hashing-LSH" class="headerlink" title="3.1.1 局部敏感哈希 (Locality Sensitive Hashing, LSH)"></a>3.1.1 局部敏感哈希 (Locality Sensitive Hashing, LSH)</h4><ul>
+<li><strong>原理</strong>：LSH 通过设计一系列哈希函数，这些函数具有“局部敏感”的特性。具体来说，对于任意两个数据点 $p$ 和 $q$，如果它们之间的距离小于某个阈值，那么它们被哈希到同一个桶的概率很高；反之，如果距离大于阈值，则被哈希到同一个桶的概率很低。</li>
+<li><strong>工作流程</strong>：<ol>
+<li><strong>哈希函数族</strong>：定义一组哈希函数，例如对于欧氏距离，可以使用随机投影哈希。每个随机投影将数据点投影到一个随机方向，然后根据投影值是否大于某个阈值将其哈希到 0 或 1。</li>
+<li><strong>多个哈希表</strong>：为了提高召回率，通常会使用多个哈希函数和多个哈希表。查询时，对查询向量进行哈希，然后在所有对应的哈希桶中检索候选邻居，再计算精确距离进行排序。</li>
+</ol>
+</li>
+<li><strong>Python 示例：LSH 随机投影 (概念性)</strong><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">create_lsh_hash_function</span>(<span class="params">dim</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;生成一个随机投影向量作为LSH哈希函数&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> np.random.randn(dim)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">hash_vector</span>(<span class="params">vec, random_plane</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将向量投影到随机平面，并根据投影结果哈希为0或1&quot;&quot;&quot;</span></span><br><span class="line">    <span class="comment"># 如果点积为正，哈希为1；否则哈希为0</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span> <span class="keyword">if</span> np.dot(vec, random_plane) &gt;= <span class="number">0</span> <span class="keyword">else</span> <span class="number">0</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 假设向量维度为2</span></span><br><span class="line">dim = <span class="number">2</span></span><br><span class="line"><span class="comment"># 模拟数据点</span></span><br><span class="line">vector1 = np.array([<span class="number">0.1</span>, <span class="number">0.2</span>])</span><br><span class="line">vector2 = np.array([<span class="number">0.15</span>, <span class="number">0.25</span>]) <span class="comment"># 接近 vector1</span></span><br><span class="line">vector3 = np.array([<span class="number">5.0</span>, <span class="number">6.0</span>])   <span class="comment"># 不接近 vector1</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成一个随机投影哈希函数</span></span><br><span class="line">hash_plane = create_lsh_hash_function(dim)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;随机投影平面: <span class="subst">&#123;hash_plane&#125;</span>&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Vector1 (<span class="subst">&#123;vector1&#125;</span>) 哈希值: <span class="subst">&#123;hash_vector(vector1, hash_plane)&#125;</span>&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Vector2 (<span class="subst">&#123;vector2&#125;</span>) 哈希值: <span class="subst">&#123;hash_vector(vector2, hash_plane)&#125;</span>&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;Vector3 (<span class="subst">&#123;vector3&#125;</span>) 哈希值: <span class="subst">&#123;hash_vector(vector3, hash_plane)&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 实际LSH会使用多个这样的哈希函数和哈希表来提高精度</span></span><br><span class="line"><span class="comment"># 例如，多个hash_plane会生成一个哈希签名</span></span><br><span class="line"><span class="comment"># hash_signature_v1 = [hash_vector(vector1, p) for p in [plane1, plane2, ...]]</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>优点</strong>：概念简单，易于实现，在大规模数据集上具有较好的扩展性，内存效率较高。</li>
+<li><strong>缺点</strong>：哈希冲突可能导致精度下降，需要选择合适的哈希函数和参数，在大数据量下通常需要更多的哈希表来保证精度，而这会增加内存和查询时间。</li>
+</ul>
+<h3 id="3-2-基于树-Tree-based"><a href="#3-2-基于树-Tree-based" class="headerlink" title="3.2 基于树 (Tree-based)"></a>3.2 基于树 (Tree-based)</h3><p><strong>核心思想</strong>：通过递归地划分高维空间来构建树形索引，使得相似的数据点被划分到相近的子空间中。</p>
+<h4 id="3-2-1-KD-树-K-Dimensional-Tree-与-Ball-树-Ball-Tree"><a href="#3-2-1-KD-树-K-Dimensional-Tree-与-Ball-树-Ball-Tree" class="headerlink" title="3.2.1 KD-树 (K-Dimensional Tree) 与 Ball-树 (Ball Tree)"></a>3.2.1 KD-树 (K-Dimensional Tree) 与 Ball-树 (Ball Tree)</h4><ul>
+<li><strong>原理</strong>：<ul>
+<li><strong>KD-树</strong>：每次选择一个维度，然后选择该维度上的中位数作为分割点，将数据点集一分为二。递归进行，直到叶子节点包含少量数据点。</li>
+<li><strong>Ball-树</strong>：通过构建超球面（ball）来包裹数据点。在每次分割时，选择两个中心点，并将其他数据点分配到离它们最近的中心点所属的球中。</li>
+</ul>
+</li>
+<li><strong>优点</strong>：对于低维到中等维度（通常 $&lt; 20$ 维）的数据非常高效，查询过程直观。</li>
+<li><strong>缺点</strong>：随着维度的增加，树的深度和复杂性急剧增加，查询效率（特别是对于 K-NN）会快速下降，甚至退化为线性扫描。它们通常不适用于数百维以上的数据。</li>
+</ul>
+<h3 id="3-3-基于量化-Quantization-based"><a href="#3-3-基于量化-Quantization-based" class="headerlink" title="3.3 基于量化 (Quantization-based)"></a>3.3 基于量化 (Quantization-based)</h3><p><strong>核心思想</strong>：通过将高维向量进行压缩或聚类，将搜索空间从原始的高维连续空间映射到更小、更离散的低维表示或聚类中心，从而加速搜索。</p>
+<h4 id="3-3-1-乘积量化-Product-Quantization-PQ"><a href="#3-3-1-乘积量化-Product-Quantization-PQ" class="headerlink" title="3.3.1 乘积量化 (Product Quantization, PQ)"></a>3.3.1 乘积量化 (Product Quantization, PQ)</h4><ul>
+<li><strong>原理</strong>：将一个高维向量分割成多个子向量，对每个子向量独立进行矢量量化（即聚类）。这样，一个高维向量就可以用其所有子向量的聚类中心索引来表示。在计算距离时，可以通过查表（距离表）快速估算近似距离。</li>
+<li><strong>优点</strong>：显著压缩存储空间，加速距离计算。</li>
+<li><strong>缺点</strong>：精度相对较低，尤其是在向量维度较高时。</li>
+</ul>
+<h4 id="3-3-2-倒排文件索引-Inverted-File-Index-IVF"><a href="#3-3-2-倒排文件索引-Inverted-File-Index-IVF" class="headerlink" title="3.3.2 倒排文件索引 (Inverted File Index, IVF)"></a>3.3.2 倒排文件索引 (Inverted File Index, IVF)</h4><ul>
+<li><strong>原理</strong>：首先将整个数据集聚类成 $C$ 个簇（或称 Voronoi 单元），每个簇有一个中心。构建一个倒排索引，将每个簇中心映射到属于该簇的所有数据点列表。查询时，首先找到查询向量最近的 $nprobe$ 个簇中心，然后在这些选定的簇中进行精确搜索。</li>
+<li><strong>工作流程</strong>：<ol>
+<li><strong>聚类</strong>：使用 K-Means 等算法对所有数据向量进行聚类，得到 $C$ 个簇中心。</li>
+<li><strong>倒排索引构建</strong>：每个数据向量被分配到其最近的簇，并存储在该簇对应的“倒排列表”中。</li>
+<li><strong>查询</strong>：<ul>
+<li>找到查询向量最近的 $nprobe$ 个簇中心。</li>
+<li>只在这些 $nprobe$ 个簇的倒排列表中进行精确搜索，找到最近邻。</li>
+</ul>
+</li>
+</ol>
+</li>
+<li><strong>参数</strong>：<ul>
+<li><code>nlist</code> (或 <code>C</code>)：簇的数量。</li>
+<li><code>nprobe</code>：查询时检查的簇的数量。<code>nprobe</code> 越大，精度越高，但速度越慢。</li>
+</ul>
+</li>
+<li><strong>优点</strong>：在保持较好精度的同时，显著降低搜索时间（$O(nprobe \cdot (N&#x2F;C) \cdot D)$），适用于大规模数据集。</li>
+<li><strong>缺点</strong>：构建索引耗时，精度受 <code>nlist</code> 和 <code>nprobe</code> 影响。</li>
+<li><strong>组合</strong>：IVF 常与 PQ 结合使用（IVF_PQ），进一步压缩倒排列表中的向量，以节省内存并加速内部搜索。</li>
+</ul>
+<h3 id="3-4-基于图-Graph-based"><a href="#3-4-基于图-Graph-based" class="headerlink" title="3.4 基于图 (Graph-based)"></a>3.4 基于图 (Graph-based)</h3><p><strong>核心思想</strong>：将数据点视为图的节点，数据点之间的相似性作为边的权重或连接关系。通过在图上进行遍历（导航）来查找最近邻。</p>
+<h4 id="3-4-1-HNSW-Hierarchical-Navigable-Small-Worlds"><a href="#3-4-1-HNSW-Hierarchical-Navigable-Small-Worlds" class="headerlink" title="3.4.1 HNSW (Hierarchical Navigable Small Worlds)"></a>3.4.1 HNSW (Hierarchical Navigable Small Worlds)</h4><ul>
+<li><strong>原理</strong>：HNSW 是一种目前最先进、性能最佳的 ANN 算法之一。它构建了一个多层的图结构，最顶层稀疏连接，用于快速导航到查询点的大致区域；最底层（Level 0）包含所有数据点并密集连接，用于精细搜索。这种分层结构结合了“小世界”网络的特性和跳表的思想，实现了近似对数级的搜索时间复杂度。</li>
+<li><strong>优点</strong>：在速度和精度之间取得了极佳的平衡，支持高效的动态更新（插入和删除），在大规模高维数据集上表现优异。</li>
+<li><strong>缺点</strong>：内存消耗相对较高，参数调优较为复杂。</li>
+<li><strong>更多细节</strong>：请参考 [[HNSW (Hierarchical Navigable Small Worlds) 详解]]。</li>
+</ul>
+<h2 id="四、ANN-算法的关键性能指标与选择考量"><a href="#四、ANN-算法的关键性能指标与选择考量" class="headerlink" title="四、ANN 算法的关键性能指标与选择考量"></a>四、ANN 算法的关键性能指标与选择考量</h2><p>在选择和使用 ANN 算法时，需要评估以下几个关键指标：</p>
+<ol>
+<li><strong>召回率 (Recall)</strong>：找到的 K 个邻居中有多少是真正的 K 个最近邻。是衡量精度的最重要指标。</li>
+<li><strong>查询延迟 (Query Latency)</strong>：执行一次搜索操作所需的时间。</li>
+<li><strong>索引构建时间 (Index Build Time)</strong>：构建 ANN 索引所需的时间。</li>
+<li><strong>内存占用 (Memory Footprint)</strong>：索引结构在内存中占用的空间。</li>
+<li><strong>可扩展性 (Scalability)</strong>：处理大规模数据集（增加 $N$）和高维数据（增加 $D$）的能力。</li>
+<li><strong>动态更新能力</strong>：是否支持高效的添加、删除和更新向量。</li>
+</ol>
+<p><strong>选择 ANN 算法的考量</strong>：</p>
+<ul>
+<li><strong>数据集规模</strong>：N 大则需要更高效的索引和查询结构。</li>
+<li><strong>数据维度</strong>：D 高则树形结构表现不佳，LSH、IVF、HNSW 更合适。</li>
+<li><strong>内存预算</strong>：限制内存则 LSH、PQ 等压缩算法更有优势。</li>
+<li><strong>精度要求</strong>：对召回率要求高则需选择更复杂的算法或设置更高的参数（如 <code>efSearch</code>、<code>nprobe</code>）。</li>
+<li><strong>实时性要求</strong>：对查询延迟要求高则需选择速度快的算法或更小的搜索参数。</li>
+<li><strong>更新频率</strong>：HNSW 支持高效动态更新，而 IVF 等可能需要周期性重建索引。</li>
+</ul>
+<h2 id="五、Python-示例：使用-Faiss-库实现-ANN-搜索"><a href="#五、Python-示例：使用-Faiss-库实现-ANN-搜索" class="headerlink" title="五、Python 示例：使用 Faiss 库实现 ANN 搜索"></a>五、Python 示例：使用 Faiss 库实现 ANN 搜索</h2><p>Faiss (Facebook AI Similarity Search) 是一个高效的 C++ 库，提供了多种 ANN 算法的实现，并有 Python 接口。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> faiss</span><br><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="comment"># 1. 生成模拟数据</span></span><br><span class="line">D = <span class="number">128</span>      <span class="comment"># 向量维度</span></span><br><span class="line">NB = <span class="number">100000</span>  <span class="comment"># 数据库中的向量数量</span></span><br><span class="line">NQ = <span class="number">10</span>      <span class="comment"># 查询向量数量</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 随机生成数据库向量 (Normalized to unit length for cosine similarity later)</span></span><br><span class="line">xb = np.random.random((NB, D)).astype(<span class="string">&#x27;float32&#x27;</span>)</span><br><span class="line">xb = xb / np.linalg.norm(xb, axis=<span class="number">1</span>)[:, np.newaxis]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 随机生成查询向量</span></span><br><span class="line">xq = np.random.random((NQ, D)).astype(<span class="string">&#x27;float32&#x27;</span>)</span><br><span class="line">xq = xq / np.linalg.norm(xq, axis=<span class="number">1</span>)[:, np.newaxis]</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;数据库向量形状: <span class="subst">&#123;xb.shape&#125;</span>&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;查询向量形状: <span class="subst">&#123;xq.shape&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 2. 精确最近邻搜索 (Brute Force / IndexFlatL2) ---</span></span><br><span class="line"><span class="comment"># IndexFlatL2 是Faiss提供的基本索引，执行精确的L2距离（欧氏距离）搜索</span></span><br><span class="line"><span class="comment"># 对于余弦相似度，可以将向量归一化后使用L2距离，因为 ||a-b||^2 = ||a||^2 + ||b||^2 - 2a.b</span></span><br><span class="line"><span class="comment"># 如果 ||a|| = ||b|| = 1, 则 ||a-b||^2 = 2 - 2a.b. 距离越小，内积 (相似度) 越大。</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- 精确搜索 (IndexFlatL2) ---&quot;</span>)</span><br><span class="line">index_exact = faiss.IndexFlatL2(D)</span><br><span class="line">index_exact.add(xb) <span class="comment"># 添加向量到索引中</span></span><br><span class="line"></span><br><span class="line">k = <span class="number">5</span> <span class="comment"># 查找最近的5个邻居</span></span><br><span class="line"></span><br><span class="line">start_time = time.time()</span><br><span class="line">distances_exact, indices_exact = index_exact.search(xq, k)</span><br><span class="line">end_time = time.time()</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;精确搜索耗时: <span class="subst">&#123;end_time - start_time:<span class="number">.4</span>f&#125;</span> 秒&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;查询向量 0 的精确最近邻索引:&quot;</span>, indices_exact[<span class="number">0</span>])</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;查询向量 0 的精确最近邻距离:&quot;</span>, distances_exact[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 3. 近似最近邻搜索 (IVF_Flat) ---</span></span><br><span class="line"><span class="comment"># IVF_Flat 是一个常用的ANN算法，结合了IVF和Flat（精确搜索簇内）</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;\n--- 近似搜索 (IndexIVFFlat) ---&quot;</span>)</span><br><span class="line"></span><br><span class="line">nlist = <span class="number">100</span> <span class="comment"># 簇的数量</span></span><br><span class="line">quantizer = faiss.IndexFlatL2(D) <span class="comment"># 量化器（用于聚类）</span></span><br><span class="line">index_ivf = faiss.IndexIVFFlat(quantizer, D, nlist, faiss.METRIC_L2)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 索引训练：K-Means 聚类过程</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;开始训练 IVF 索引 (nlist=<span class="subst">&#123;nlist&#125;</span>)...&quot;</span>)</span><br><span class="line">start_time = time.time()</span><br><span class="line">index_ivf.train(xb)</span><br><span class="line">end_time = time.time()</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;IVF 索引训练耗时: <span class="subst">&#123;end_time - start_time:<span class="number">.4</span>f&#125;</span> 秒&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加向量到 IVF 索引</span></span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;添加向量到 IVF 索引...&quot;</span>)</span><br><span class="line">start_time = time.time()</span><br><span class="line">index_ivf.add(xb)</span><br><span class="line">end_time = time.time()</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;IVF 索引添加向量耗时: <span class="subst">&#123;end_time - start_time:<span class="number">.4</span>f&#125;</span> 秒&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置查询参数 nprobe (查询时检查的簇的数量)</span></span><br><span class="line"><span class="comment"># nprobe 越大，精度越高，但查询越慢</span></span><br><span class="line">index_ivf.nprobe = <span class="number">10</span> <span class="comment"># 检查10个最近的簇</span></span><br><span class="line"></span><br><span class="line">start_time = time.time()</span><br><span class="line">distances_ivf, indices_ivf = index_ivf.search(xq, k)</span><br><span class="line">end_time = time.time()</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;近似搜索耗时 (nprobe=<span class="subst">&#123;index_ivf.nprobe&#125;</span>): <span class="subst">&#123;end_time - start_time:<span class="number">.4</span>f&#125;</span> 秒&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;查询向量 0 的近似最近邻索引:&quot;</span>, indices_ivf[<span class="number">0</span>])</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;查询向量 0 的近似最近邻距离:&quot;</span>, distances_ivf[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line"><span class="comment"># --- 4. 评估精度 (Recall) ---</span></span><br><span class="line"><span class="comment"># 计算第一个查询向量的召回率</span></span><br><span class="line"><span class="comment"># 召回率 = (精确搜索结果中包含的近似搜索结果数量) / K</span></span><br><span class="line">correct_matches = np.isin(indices_ivf[<span class="number">0</span>], indices_exact[<span class="number">0</span>]).<span class="built_in">sum</span>()</span><br><span class="line">recall = correct_matches / k</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;\n查询向量 0 的召回率: <span class="subst">&#123;recall:<span class="number">.4</span>f&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 提高 nprobe 再次搜索</span></span><br><span class="line">index_ivf.nprobe = <span class="number">20</span> <span class="comment"># 检查20个最近的簇</span></span><br><span class="line">start_time = time.time()</span><br><span class="line">distances_ivf_high_nprobe, indices_ivf_high_nprobe = index_ivf.search(xq, k)</span><br><span class="line">end_time = time.time()</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;近似搜索耗时 (nprobe=<span class="subst">&#123;index_ivf.nprobe&#125;</span>): <span class="subst">&#123;end_time - start_time:<span class="number">.4</span>f&#125;</span> 秒&quot;</span>)</span><br><span class="line"></span><br><span class="line">correct_matches_high_nprobe = np.isin(indices_ivf_high_nprobe[<span class="number">0</span>], indices_exact[<span class="number">0</span>]).<span class="built_in">sum</span>()</span><br><span class="line">recall_high_nprobe = correct_matches_high_nprobe / k</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;查询向量 0 的召回率 (nprobe=<span class="subst">&#123;index_ivf.nprobe&#125;</span>): <span class="subst">&#123;recall_high_nprobe:<span class="number">.4</span>f&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+<p><strong>示例解读</strong>：</p>
+<ul>
+<li><strong>Exact Search (<code>IndexFlatL2</code>)</strong>：这是基准线，提供了精确的搜索结果和耗时。对于大规模数据集，它的耗时会非常高。</li>
+<li><strong>ANN Search (<code>IndexIVFFlat</code>)</strong>：<ul>
+<li>首先需要通过 <code>index_ivf.train(xb)</code> 进行训练，这个过程主要是执行 K-Means 聚类，找出簇中心。</li>
+<li><code>nprobe</code> 参数是 ANN 算法中精度和速度权衡的关键。在例子中，可以看到将 <code>nprobe</code> 从 10 提高到 20 后，搜索时间略有增加，但召回率可能也随之提升。</li>
+</ul>
+</li>
+<li><strong>召回率</strong>：衡量了 ANN 搜索结果与精确搜索结果的重叠程度。通常，我们希望在可接受的查询延迟下获得尽可能高的召回率。</li>
+</ul>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>近似最近邻 (ANN) 算法是现代数据科学和人工智能领域不可或缺的工具。它们通过在精度和速度之间进行巧妙权衡，有效地解决了高维空间中精确最近邻搜索的挑战。从基于哈希的 LSH 到基于量化的 IVF，再到基于图的 HNSW，各种 ANN 算法各有优劣，适用于不同的场景和需求。</p>
+<p>选择和优化 ANN 算法是一个涉及数据集特性、性能要求和资源限制的复杂过程。然而，随着向量数据库的普及和 AI 应用对语义搜索能力的日益增长，理解并掌握 ANN 算法的原理和应用，已成为构建下一代智能系统工程师的关键技能。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/ce4077971aa6/">https://blog.tbf1211.xx.kg/ce4077971aa6/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2026/">2026</a><a class="post-meta__tags" href="/tags/AI/">AI</a><a class="post-meta__tags" href="/tags/LLM/">LLM</a><a class="post-meta__tags" href="/tags/ANN/">ANN</a><a class="post-meta__tags" href="/tags/%E5%90%91%E9%87%8F/">向量</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-28.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2bb96106e182/" title="HNSW (Hierarchical Navigable Small Worlds) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">HNSW (Hierarchical Navigable Small Worlds) 详解</div></div><div class="info-2"><div class="info-item-1"> Hierarchical Navigable Small Worlds (HNSW) 是一种高效的近似最近邻 (Approximate Nearest Neighbor, ANN) 搜索算法。它通过构建一个多层图结构来在多维空间中快速查找与查询点最相似的数据点。HNSW 结合了分层结构（hierarchical）和跳表（skip-list）的思想，旨在克服高维空间中精确最近邻搜索的“维数灾难”问题，同时保持较高的搜索精度和查询速度。  核心思想：将高维向量空间中的搜索问题转化为在多层图结构上的路径导航问题，通过“粗粒度”的顶层快速定位到大致区域，再通过“细粒度”的底层精确搜索局部最近邻。   一、为什么需要 HNSW？ANN 算法的背景在向量数据库中，核心任务是在一个包含数百万甚至数十亿高维向量的数据集中，找到与给定查询向量最相似的 $K$ 个向量（即 K-Nearest Neighbors, K-NN）。 传统的精确 K-NN 搜索方法，如通过计算查询向量与所有存储向量的欧氏距离或余弦相似度进行全量扫描，其时间复杂度为 $O(N \cdot D)$，其中 $N$ 是向量总数，...</div></div></div></a><a class="pagination-related" href="/35d4f7383fcf/" title="二维码原理详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">二维码原理详解</div></div><div class="info-2"><div class="info-item-1"> 二维码 (Quick Response Code) 是一种二维条形码，由日本 Denso Wave 公司于 1994 年发明。它能够存储比传统一维条形码更多的数据，并在各个方向上实现高速读取。QR 码的核心设计理念在于其高效的数据存储、强大的纠错能力和快速的识别速度，使其在移动支付、信息传递、物流追踪等多个领域得到广泛应用。  核心概念：  二维性： 数据编码在水平和垂直两个方向上，而非传统条形码的单方向。 高容量： 能够存储数字、字母、汉字、二进制数据等多种类型的信息。 纠错能力： 内置冗余数据，即使部分区域损坏或遮挡也能被正确识别。 全向识别： 无需特定方向即可读取。     一、QR 码的基本结构与组成部分一个标准的 QR 码由多个功能区域组成，这些区域共同协作，确保其能够被稳定、准确地识别和解码。理解这些组成部分是理解 QR 码工作原理的基础。      graph LR      subgraph qr_subgraph [&quot;QR Code 结构概览 (Dark UI Optimized)&quot;]         A[&quot;空白区 &lt;br&...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/6eff21dcb903/" title="乘积量化 (Product Quantization, PQ) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-08</div><div class="info-item-2">乘积量化 (Product Quantization, PQ) 详解</div></div><div class="info-2"><div class="info-item-1"> 乘积量化 (Product Quantization, PQ) 是一种高效的向量压缩和近似最近邻 (Approximate Nearest Neighbor, ANN) 搜索技术。它通过将高维向量分解为多个低维子向量，并对每个子向量独立进行矢量量化（即聚类），从而显著降低存储成本并加速距离计算。PQ 常与其他 ANN 算法（如 IVF）结合使用，以进一步提升大规模向量搜索系统的性能。  核心思想：将高维向量拆分为多个子向量，对每个子向量进行独立聚类，用聚类中心（码字）的索引来表示原始向量的子向量，从而达到高倍率压缩和加速距离计算的目的。   一、为什么需要乘积量化？高维向量的挑战在现代人工智能应用中，数据通常以高维向量的形式表示（例如，词嵌入、图像特征、用户行为嵌入等）。这些高维向量带来了一系列挑战：  存储成本高昂：一个 $D$ 维的浮点向量需要 $D \times 4$ 字节的存储空间。当数据集包含数百万甚至数十亿个向量时，总存储量将非常庞大，无法全部载入内存，也增加了磁盘 I&#x2F;O 成本。 距离计算缓慢：计算两个 $D$ 维向量之间的距离需要 $O(D)$ 次浮点...</div></div></div></a><a class="pagination-related" href="/2bb96106e182/" title="HNSW (Hierarchical Navigable Small Worlds) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-30</div><div class="info-item-2">HNSW (Hierarchical Navigable Small Worlds) 详解</div></div><div class="info-2"><div class="info-item-1"> Hierarchical Navigable Small Worlds (HNSW) 是一种高效的近似最近邻 (Approximate Nearest Neighbor, ANN) 搜索算法。它通过构建一个多层图结构来在多维空间中快速查找与查询点最相似的数据点。HNSW 结合了分层结构（hierarchical）和跳表（skip-list）的思想，旨在克服高维空间中精确最近邻搜索的“维数灾难”问题，同时保持较高的搜索精度和查询速度。  核心思想：将高维向量空间中的搜索问题转化为在多层图结构上的路径导航问题，通过“粗粒度”的顶层快速定位到大致区域，再通过“细粒度”的底层精确搜索局部最近邻。   一、为什么需要 HNSW？ANN 算法的背景在向量数据库中，核心任务是在一个包含数百万甚至数十亿高维向量的数据集中，找到与给定查询向量最相似的 $K$ 个向量（即 K-Nearest Neighbors, K-NN）。 传统的精确 K-NN 搜索方法，如通过计算查询向量与所有存储向量的欧氏距离或余弦相似度进行全量扫描，其时间复杂度为 $O(N \cdot D)$，其中 $N$ 是向量总数，...</div></div></div></a><a class="pagination-related" href="/37c346f8c5a7/" title="IVF (倒排文件) 索引详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-04</div><div class="info-item-2">IVF (倒排文件) 索引详解</div></div><div class="info-2"><div class="info-item-1"> 倒排文件索引 (Inverted File Index, IVF) 是一种广泛应用于近似最近邻 (Approximate Nearest Neighbor, ANN) 搜索的算法。它通过对高维向量空间进行分区 (Partitioning) 和构建倒排列表 (Inverted Lists)，将大规模的最近邻搜索问题分解为更小、更易于管理的问题，从而显著提高查询速度和效率。IVF 是许多主流向量数据库（如 Faiss、Milvus 中的部分索引类型）的基础。  核心思想：将整个向量数据集划分为多个簇（分区），然后只在与查询向量最相关的少数几个簇中进行局部搜索，以牺牲少量精度换取查询效率的巨大提升。   一、为什么需要 IVF？分区策略的重要性在处理海量高维向量数据时，精确最近邻 (Exact Nearest Neighbor) 搜索的计算成本过高，效率低下。例如，线性扫描需要计算查询向量与所有数据库向量的距离。为了加速这一过程，核心思想是避免与所有向量计算距离，而是通过某种机制，快速定位到可能包含最近邻的少量区域。 IVF 正是基于这种分区策略而设计的。它将复杂的全局搜索问题转化为...</div></div></div></a><a class="pagination-related" href="/da90086a8e85/" title="IVF_PQ (倒排文件 + 乘积量化) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-10</div><div class="info-item-2">IVF_PQ (倒排文件 + 乘积量化) 详解</div></div><div class="info-2"><div class="info-item-1"> IVF_PQ (Inverted File Index with Product Quantization) 是一种结合了倒排文件索引 (IVF) 和乘积量化 (PQ) 的高级近似最近邻 (ANN) 算法。它旨在同时解决大规模高维向量数据的存储效率和查询速度问题，是目前许多主流向量数据库（如 Faiss、Milvus）中常用且高效的索引类型之一。IVF_PQ 通过“粗粒度 + 细粒度”的两阶段搜索策略，在保证较高召回率的同时，显著降低了内存占用和查询延迟。  核心思想：首先利用 IVF 的分区策略进行粗粒度筛选，将搜索范围缩小到少数几个簇；然后在这些选定的簇中，利用 PQ 对残差向量进行高效压缩和加速距离计算，实现高效的细粒度搜索。   一、为什么需要 IVF_PQ？结合两者的优势我们已经了解了 IVF 和 PQ 各自的优势和局限：  IVF (倒排文件索引)  优势：通过将数据划分为多个簇（Voronoi 单元）和构建倒排列表，实现了对搜索空间的粗粒度筛选，大大加速了查询速度。 局限：如果倒排列表中存储的是原始浮点向量，随着向量维度和数据集规模的增大，内存占用仍然会非常高，且...</div></div></div></a><a class="pagination-related" href="/0733bc9c954a/" title="ReAct 模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-08</div><div class="info-item-2">ReAct 模式详解</div></div><div class="info-2"><div class="info-item-1"> ReAct (Reasoning and Acting) 模式是一种创新的提示工程 (Prompt Engineering) 技术，旨在提升大型语言模型 (LLMs) 在执行复杂任务时的推理能力和与外部环境交互的能力。它通过诱导 LLM 显式地生成思维链 (Thought) 和行动 (Action)，然后观察环境反馈 (Observation)，并基于这些反馈迭代地进行推理和行动，从而使其能够规划、执行和修正任务。ReAct 模式的核心思想是将人类解决问题的方式（思考、行动、观察、再思考）映射到 LLM 的提示交互中，极大地增强了 LLM 解决需要多步骤推理和工具使用的动态问题的能力。  核心思想：  推理 (Reasoning)：LLM 显式生成思考过程，分析问题、规划步骤。 行动 (Acting)：LLM 决定执行特定工具或操作。 观察 (Observation)：LLM 获取环境（工具输出、外部信息）的反馈。 迭代循环：Thought -&gt; Action -&gt; Observation 循环往复，直到任务完成。 增强性能：有效提升复杂推理、事实问答、数学计算、代...</div></div></div></a><a class="pagination-related" href="/af35dccdb35c/" title="Reflection 模式详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-12</div><div class="info-item-2">Reflection 模式详解</div></div><div class="info-2"><div class="info-item-1"> Reflection (反思) 模式是一种先进的提示工程和代理设计技术，旨在赋予大型语言模型 (LLMs) 自我评估、自我批评和自我改进的能力。其核心思想是让 LLM 不仅仅是生成一个初始答案或行动序列，而是进一步审查其自身的输出或执行过程，识别潜在的错误、不足或改进空间，并利用这些反思性的洞察来迭代地修正和完善自己的生成结果或行动计划。这种模式模仿了人类在解决问题时“回顾过去、吸取教训”的过程，显著提升了 LLM 在复杂任务上的准确性、鲁棒性和可靠性。  核心思想：  自我评估：LLM 能够审视自己的输出或行动。 错误识别：发现生成内容或执行过程中的不足。 迭代改进：利用反思结果指导下一轮的生成或行动。 增强性能：有效提升复杂推理、代码生成、创意写作、事实性问答等的质量和准确性。 降低“幻觉”：通过自我检查机制，减少不准确或虚构的内容。     一、为什么需要 Reflection 模式？LLM 固有限制尽管 LLM 在生成高质量文本方面表现出色，但它们仍存在一些固有的限制，这些限制催生了 Reflection 模式的需求：  “幻觉”现象：LLM 有时会生成听起来合理但实际...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">679</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">260</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-ANN%EF%BC%9F%E7%B2%BE%E7%A1%AE%E6%9C%80%E8%BF%91%E9%82%BB-kNN-%E7%9A%84%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">一、为什么需要 ANN？精确最近邻 (kNN) 的局限性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E7%B2%BE%E7%A1%AE%E6%9C%80%E8%BF%91%E9%82%BB-Exact-Nearest-Neighbor-kNN-%E6%90%9C%E7%B4%A2"><span class="toc-text">1.1 精确最近邻 (Exact Nearest Neighbor, kNN) 搜索</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81ANN-%E7%AE%97%E6%B3%95%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、ANN 算法的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E7%B2%BE%E5%BA%A6%E4%B8%8E%E9%80%9F%E5%BA%A6%E7%9A%84%E6%9D%83%E8%A1%A1-Trade-off-between-Accuracy-and-Speed"><span class="toc-text">2.1 精度与速度的权衡 (Trade-off between Accuracy and Speed)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E8%B7%9D%E7%A6%BB%E5%BA%A6%E9%87%8F-Distance-Metrics"><span class="toc-text">2.2 距离度量 (Distance Metrics)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%B8%BB%E6%B5%81-ANN-%E7%AE%97%E6%B3%95%E5%88%86%E7%B1%BB%E4%B8%8E%E5%8E%9F%E7%90%86"><span class="toc-text">三、主流 ANN 算法分类与原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%9F%BA%E4%BA%8E%E5%93%88%E5%B8%8C-Hashing-based"><span class="toc-text">3.1 基于哈希 (Hashing-based)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-%E5%B1%80%E9%83%A8%E6%95%8F%E6%84%9F%E5%93%88%E5%B8%8C-Locality-Sensitive-Hashing-LSH"><span class="toc-text">3.1.1 局部敏感哈希 (Locality Sensitive Hashing, LSH)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%9F%BA%E4%BA%8E%E6%A0%91-Tree-based"><span class="toc-text">3.2 基于树 (Tree-based)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-1-KD-%E6%A0%91-K-Dimensional-Tree-%E4%B8%8E-Ball-%E6%A0%91-Ball-Tree"><span class="toc-text">3.2.1 KD-树 (K-Dimensional Tree) 与 Ball-树 (Ball Tree)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%9F%BA%E4%BA%8E%E9%87%8F%E5%8C%96-Quantization-based"><span class="toc-text">3.3 基于量化 (Quantization-based)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-1-%E4%B9%98%E7%A7%AF%E9%87%8F%E5%8C%96-Product-Quantization-PQ"><span class="toc-text">3.3.1 乘积量化 (Product Quantization, PQ)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-2-%E5%80%92%E6%8E%92%E6%96%87%E4%BB%B6%E7%B4%A2%E5%BC%95-Inverted-File-Index-IVF"><span class="toc-text">3.3.2 倒排文件索引 (Inverted File Index, IVF)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E5%9F%BA%E4%BA%8E%E5%9B%BE-Graph-based"><span class="toc-text">3.4 基于图 (Graph-based)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-4-1-HNSW-Hierarchical-Navigable-Small-Worlds"><span class="toc-text">3.4.1 HNSW (Hierarchical Navigable Small Worlds)</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81ANN-%E7%AE%97%E6%B3%95%E7%9A%84%E5%85%B3%E9%94%AE%E6%80%A7%E8%83%BD%E6%8C%87%E6%A0%87%E4%B8%8E%E9%80%89%E6%8B%A9%E8%80%83%E9%87%8F"><span class="toc-text">四、ANN 算法的关键性能指标与选择考量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81Python-%E7%A4%BA%E4%BE%8B%EF%BC%9A%E4%BD%BF%E7%94%A8-Faiss-%E5%BA%93%E5%AE%9E%E7%8E%B0-ANN-%E6%90%9C%E7%B4%A2"><span class="toc-text">五、Python 示例：使用 Faiss 库实现 ANN 搜索</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-23.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Radix Tree (基数树/压缩前缀树) 详解"/></a><div class="content"><a class="title" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解">Radix Tree (基数树/压缩前缀树) 详解</a><time datetime="2026-08-17T22:24:00.000Z" title="发表于 2026-08-18 06:24:00">2026-08-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/da90086a8e85/" title="IVF_PQ (倒排文件 + 乘积量化) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IVF_PQ (倒排文件 + 乘积量化) 详解"/></a><div class="content"><a class="title" href="/da90086a8e85/" title="IVF_PQ (倒排文件 + 乘积量化) 详解">IVF_PQ (倒排文件 + 乘积量化) 详解</a><time datetime="2026-06-09T22:24:00.000Z" title="发表于 2026-06-10 06:24:00">2026-06-10</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/6eff21dcb903/" title="乘积量化 (Product Quantization, PQ) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-26.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="乘积量化 (Product Quantization, PQ) 详解"/></a><div class="content"><a class="title" href="/6eff21dcb903/" title="乘积量化 (Product Quantization, PQ) 详解">乘积量化 (Product Quantization, PQ) 详解</a><time datetime="2026-06-07T22:24:00.000Z" title="发表于 2026-06-08 06:24:00">2026-06-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/37c346f8c5a7/" title="IVF (倒排文件) 索引详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="IVF (倒排文件) 索引详解"/></a><div class="content"><a class="title" href="/37c346f8c5a7/" title="IVF (倒排文件) 索引详解">IVF (倒排文件) 索引详解</a><time datetime="2026-06-03T22:24:00.000Z" title="发表于 2026-06-04 06:24:00">2026-06-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/ce4077971aa6/" title="近似最近邻 (ANN) 算法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="近似最近邻 (ANN) 算法详解"/></a><div class="content"><a class="title" href="/ce4077971aa6/" title="近似最近邻 (ANN) 算法详解">近似最近邻 (ANN) 算法详解</a><time datetime="2026-05-29T22:24:00.000Z" title="发表于 2026-05-30 06:24:00">2026-05-30</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-28.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.7.0"></script><script src="/js/main.js?v=5.7.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const changeScriptToMath = article => {
+    article.querySelectorAll('script[type^="math/tex"]').forEach(el => {
+      const display = /mode=display/.test(el.type)
+      const node = document.createElement(display ? 'div' : 'span')
+      node.textContent = display
+        ? `$$${el.textContent}$$`
+        : `$${el.textContent}$`
+      el.parentNode.replaceChild(node, el)
+    })
+  }
+
+  const loadMathjax = () => {
+    const article = document.getElementById('article-container')
+    if (!article || article.querySelector('.hbe-container')) return
+    changeScriptToMath(article)
+
+    if (!window.MathJax) {
+      window.MathJax = {
+        loader: {
+          load: [
+            // Four font extension packages (optional)
+            //- '[tex]/bbm',
+            //- '[tex]/bboldx',
+            //- '[tex]/dsfont',
+            '[tex]/mhchem',
+            'ui/lazy'
+          ],
+          paths: {
+            'mathjax-newcm': '[mathjax]/../@mathjax/mathjax-newcm-font',
+
+            //- // Four font extension packages (optional)
+            //- 'mathjax-bbm-extension': '[mathjax]/../@mathjax/mathjax-bbm-font-extension',
+            //- 'mathjax-bboldx-extension': '[mathjax]/../@mathjax/mathjax-bboldx-font-extension',
+            //- 'mathjax-dsfont-extension': '[mathjax]/../@mathjax/mathjax-dsfont-font-extension',
+            'mathjax-mhchem-extension': '[mathjax]/../@mathjax/mathjax-mhchem-font-extension'
+          }
+        },
+        output: {
+          font: 'mathjax-newcm',
+        },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+          packages: {
+            '[+]': [
+              'mhchem'
+            ]
+          }
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          lazyMargin: '200px',
+          enableMenu: true,
+          menuOptions: {
+            settings: {
+              enrich: false  // Turn off Braille and voice narration text automatic generation
+            }
+          },
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.typesetClear()
+      MathJax.typesetPromise([ article ])
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script><script>(() => {
+  const parseViewBox = viewBox => {
+    if (!viewBox) return null
+    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
+    return parts
+  }
+
+  const getSvgViewBox = svg => {
+    const attr = parseViewBox(svg.getAttribute('viewBox'))
+    if (attr) return attr
+
+    // Fallback: use bbox to build a viewBox
+    try {
+      const bbox = svg.getBBox()
+      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
+    } catch (e) {
+      // getBBox may fail on some edge cases; ignore
+    }
+
+    const w = Number(svg.getAttribute('width')) || 0
+    const h = Number(svg.getAttribute('height')) || 0
+    if (w > 0 && h > 0) return [0, 0, w, h]
+    return [0, 0, 100, 100]
+  }
+
+  const setSvgViewBox = (svg, vb) => {
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
+  }
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+  const openSvgInNewTab = ({ source, initViewBox }) => {
+    const getClonedSvg = () => {
+      if (typeof source === 'string') {
+        const template = document.createElement('template')
+        template.innerHTML = source.trim()
+        const svg = template.content.querySelector('svg')
+        return svg ? svg.cloneNode(true) : null
+      }
+      if (source && typeof source.cloneNode === 'function') {
+        return source.cloneNode(true)
+      }
+      return null
+    }
+
+    const clone = getClonedSvg()
+    if (!clone) return
+    if (initViewBox && initViewBox.length === 4) {
+      clone.setAttribute('viewBox', initViewBox.join(' '))
+    }
+    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    if (!clone.getAttribute('xmlns:xlink') && clone.innerHTML.includes('xlink:')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    }
+    // inject background to match current theme
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
+    if (!clone.style.background) clone.style.background = bg
+
+    const serializer = new XMLSerializer()
+    const svgSource = serializer.serializeToString(clone)
+    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
+      <style>
+        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
+        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
+      </style>
+      </head><body>${svgSource}</body></html>`
+    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener')
+
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+  }
+
+  const attachMermaidViewerButton = wrap => {
+    let btn = wrap.querySelector('.mermaid-open-btn')
+    if (!btn) {
+      btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'mermaid-open-btn'
+      wrap.appendChild(btn)
+    }
+
+    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
+
+    if (!btn.__mermaidViewerBound) {
+      btn.addEventListener('click', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
+        if (!svg) return
+        const initViewBox = wrap.__mermaidInitViewBox
+        openSvgInNewTab({ source: svg, initViewBox })
+      })
+      btn.__mermaidViewerBound = true
+    }
+  }
+
+  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
+  const zoomAtPoint = (vb, factor, px, py) => {
+    const w = vb[2] * factor
+    const h = vb[3] * factor
+    const nx = px - (px - vb[0]) * factor
+    const ny = py - (py - vb[1]) * factor
+    return [nx, ny, w, h]
+  }
+
+  const initMermaidGestures = wrap => {
+    // Clean up previous event listeners and pending frames
+    if (wrap.__mermaidAbortController) {
+      wrap.__mermaidAbortController.abort()
+      if (wrap.__mermaidRafId) cancelAnimationFrame(wrap.__mermaidRafId)
+    }
+    const ac = new AbortController()
+    wrap.__mermaidAbortController = ac
+    const svg = wrap.querySelector('svg')
+    if (!svg) return
+
+    // Ensure viewBox exists so gestures always work
+    const initVb = getSvgViewBox(svg)
+    wrap.__mermaidInitViewBox = initVb
+    wrap.__mermaidCurViewBox = initVb.slice()
+    setSvgViewBox(svg, initVb)
+    // Disable default gestures to prevent scroll chaining and pinch-zoom penetration in Chrome
+    svg.style.touchAction = 'none'
+
+    // Cache BoundingClientRect, throttled on scroll to reduce reflow
+    let cachedRect = svg.getBoundingClientRect()
+    let rectDirty = false
+    const markRectDirty = () => { rectDirty = true }
+    window.addEventListener('resize', markRectDirty, { signal: ac.signal })
+    window.addEventListener('scroll', markRectDirty, { signal: ac.signal, capture: true })
+    const getRect = () => {
+      if (rectDirty) {
+        cachedRect = svg.getBoundingClientRect()
+        rectDirty = false
+      }
+      return cachedRect
+    }
+
+    // Precompute clamp bounds from initial viewBox
+    const minW = initVb[2] * 0.1
+    const maxW = initVb[2] * 10
+    const minH = initVb[3] * 0.1
+    const maxH = initVb[3] * 10
+    const clampVb = vb => {
+      const out = vb.slice()
+      out[2] = clamp(out[2], minW, maxW)
+      out[3] = clamp(out[3], minH, maxH)
+      return out
+    }
+
+    // Throttle DOM updates using requestAnimationFrame
+    let pendingVb = null
+    let rafId = null
+    const applyVb = () => {
+      if (pendingVb) {
+        wrap.__mermaidCurViewBox = pendingVb
+        setSvgViewBox(svg, pendingVb)
+        pendingVb = null
+      }
+      rafId = null
+      wrap.__mermaidRafId = null
+    }
+    const setCurVb = vb => {
+      pendingVb = clampVb(vb)
+      if (!rafId) {
+        rafId = requestAnimationFrame(applyVb)
+        wrap.__mermaidRafId = rafId
+      }
+    }
+
+    const state = {
+      pointers: new Map(),
+      startVb: null,
+      startDist: 0,
+      lastPointerX: 0,
+      lastPointerY: 0
+    }
+
+    const onPointerDown = e => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      svg.setPointerCapture(e.pointerId)
+      const curVb = wrap.__mermaidCurViewBox
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (state.pointers.size === 1) {
+        state.startVb = curVb.slice()
+        state.lastPointerX = e.clientX
+        state.lastPointerY = e.clientY
+      } else if (state.pointers.size === 2) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        state.startDist = Math.hypot(dx, dy)
+        state.startVb = curVb.slice()
+      }
+    }
+
+    const onPointerMove = e => {
+      if (!state.pointers.has(e.pointerId)) return
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      const curVb = wrap.__mermaidCurViewBox
+      const rect = getRect()
+      if (state.pointers.size === 1 && state.startVb) {
+        const p = state.pointers.values().next().value
+        const dxClient = p.x - state.lastPointerX
+        const dyClient = p.y - state.lastPointerY
+        state.lastPointerX = p.x
+        state.lastPointerY = p.y
+        const dx = dxClient * (curVb[2] / rect.width)
+        const dy = dyClient * (curVb[3] / rect.height)
+        setCurVb([curVb[0] - dx, curVb[1] - dy, curVb[2], curVb[3]])
+        return
+      }
+      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
+        const pts = [...state.pointers.values()]
+        const dx = pts[0].x - pts[1].x
+        const dy = pts[0].y - pts[1].y
+        const dist = Math.hypot(dx, dy)
+        if (!dist) return
+        const factor = state.startDist / dist
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        const px = curVb[0] + (cx - rect.left) * (curVb[2] / rect.width)
+        const py = curVb[1] + (cy - rect.top) * (curVb[3] / rect.height)
+        setCurVb(zoomAtPoint(state.startVb, factor, px, py))
+      }
+    }
+
+    const onPointerUpOrCancel = e => {
+      // Release PointerCapture to avoid event capture anomalies
+      if (svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) {
+        svg.releasePointerCapture(e.pointerId)
+      }
+      state.pointers.delete(e.pointerId)
+      if (state.pointers.size === 0) {
+        state.startVb = null
+        state.startDist = 0
+      } else if (state.pointers.size === 1) {
+        const p = state.pointers.values().next().value
+        state.lastPointerX = p.x
+        state.lastPointerY = p.y
+      }
+    }
+
+    const onWheel = e => {
+      // Prevent event bubbling from triggering external scroll
+      e.preventDefault()
+      e.stopPropagation()
+      // Normalize deltaY across deltaMode (Chrome uses pixels, Safari uses lines)
+      let delta = e.deltaY
+      if (e.deltaMode === 1) delta *= 16
+      else if (e.deltaMode === 2) delta *= 400
+
+      // Continuous zoom factor: smoother than fixed 1.1/0.9 steps
+      const zoomFactor = Math.pow(1.001, delta)
+
+      const curVb = wrap.__mermaidCurViewBox
+      const rect = getRect()
+      const px = curVb[0] + (e.clientX - rect.left) * (curVb[2] / rect.width)
+      const py = curVb[1] + (e.clientY - rect.top) * (curVb[3] / rect.height)
+      setCurVb(zoomAtPoint(curVb, zoomFactor, px, py))
+    }
+
+    const onDblClick = () => {
+      const init = wrap.__mermaidInitViewBox
+      if (init) setCurVb(init)
+    }
+
+    svg.addEventListener('pointerdown', onPointerDown, { signal: ac.signal })
+    svg.addEventListener('pointermove', onPointerMove, { signal: ac.signal })
+    svg.addEventListener('pointerup', onPointerUpOrCancel, { signal: ac.signal })
+    svg.addEventListener('pointercancel', onPointerUpOrCancel, { signal: ac.signal })
+    svg.addEventListener('wheel', onWheel, { passive: false, signal: ac.signal })
+    svg.addEventListener('dblclick', onDblClick, { signal: ac.signal })
+  }
+
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      // Clean up event listeners before removing old SVG
+      if (item.__mermaidAbortController) {
+        item.__mermaidAbortController.abort()
+      }
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
+      let config = {}
+      try {
+        config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
+      } catch (e) {
+        console.warn('[mermaid] failed to parse dataset.config:', e)
+      }
+      if (!config.theme) {
+        config.theme = theme
+      }
+      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+        if (false) initMermaidGestures(item)
+        item.__mermaidOriginalSvg = svg
+        if (true) attachMermaidViewerButton(item)
+      }
+
+      const handleError = err => {
+        console.error(`[mermaid] render failed for block #${index}:`, err)
+        const errorEl = document.createElement('div')
+        errorEl.className = 'mermaid-error'
+        errorEl.textContent = `Mermaid render error: ${err.message || err}`
+        mermaidSrc.insertAdjacentElement('afterend', errorEl)
+      }
+
+      try {
+        const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+        // mermaid v9 and v10 compatibility
+        if (typeof renderFn === 'string') {
+          renderMermaid(renderFn)
+        } else {
+          renderFn.then(({ svg }) => renderMermaid(svg)).catch(handleError)
+        }
+      } catch (err) {
+        handleError(err)
+      }
+    })
+  }
+
+  const codeToMermaid = $article => {
+    const codeMermaidEle = $article.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    const $article = document.getElementById('article-container')
+    if (!$article) return
+
+    if (true) codeToMermaid($article)
+    const $mermaid = $article.querySelectorAll('.mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="150" alpha="0.6" zIndex="-1" mobile="false" data-click="ture"></script><script defer="defer" id="fluttering_ribbon" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-fluttering-ribbon.min.js"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"]):not([data-fancybox])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      if (!item.parentNode) return
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || ''
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    const responseURL = e.request && e.request.responseURL
+    if (e.request && e.request.status === 404) {
+      true
+        ? pjax.loadUrl('/404.html')
+        : responseURL && (window.location.href = responseURL)
+    } else if (responseURL) {
+      window.location.href = responseURL
+    }
+  })
+})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.7.0"></script></div></div></body></html>
