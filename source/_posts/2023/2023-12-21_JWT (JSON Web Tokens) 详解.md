@@ -117,27 +117,57 @@ HMACSHA256(
 **一个典型的 JWT 认证流程如下：**
 
 {% mermaid %}
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'darkMode': true,
+    'background': '#1e1e2e',
+    'primaryColor': '#313244',
+    'primaryTextColor': '#cdd6f4',
+    'primaryBorderColor': '#89b4fa',
+    'lineColor': '#a6adc8',
+    'secondaryColor': '#181825',
+    'tertiaryColor': '#11111b',
+    'noteBkgColor': '#181825',
+    'noteTextColor': '#f9e2af',
+    'noteBorderColor': '#89b4fa',
+    'activationBorderColor': '#89b4fa',
+    'activationBkgColor': '#45475a',
+    'sequenceNumberColor': '#11111b'
+  }
+}}%%
 sequenceDiagram
-    participant user as 用户
-    participant client as 客户端 (前端/App)
-    participant auth_server as 认证服务器
-    participant resource_server as 资源服务器 (API)
+    autonumber
+    actor U as 用户 (User)
+    participant C as 客户端 (Client/App)
+    participant AS as 认证服务器 (Auth Server)
+    participant RS as 资源服务器 (Resource Server)
 
-    user->>client: 1. 提供用户名和密码
-    client->>auth_server: 2. 发送登录请求 (用户名, 密码)
-    auth_server->>auth_server: 3. 验证用户名密码，并生成 JWT
-    auth_server->>client: 4. 返回 JWT (包含 Access Token 和 Refresh Token)
-    client->>client: 5. 客户端存储 JWT (如 localStorage/Cookie)
+    rect rgb(35, 45, 65)
+        Note over U,AS: 阶段 1: 登录与令牌签发 (Authentication)
+        U->>C: 输入账号凭证 (Username / Password)
+        C->>+AS: POST /oauth/token (Credentials)
+        AS->>AS: 校验凭据 & 签名生成 JWT (HMAC/RSA)
+        AS-->>-C: 200 OK (AccessToken, RefreshToken)
+        C->>C: 安全存储 Token (Secure Cookie / Storage)
+    end
 
-    user->>client: 6. 用户请求受保护资源
-    client->>resource_server: 7. 在请求头部携带 Access Token <br/>(e.g., Authorization: Bearer <Access Token>)
-    resource_server->>resource_server: 8. 验证 Access Token (签名, 过期时间, 内容)
-    alt Token有效
-        resource_server->>resource_server: 9. 解析 Payload 获取用户身份信息
-        resource_server->>resource_server: 10. 判断用户是否有权限访问资源
-        resource_server->>client: 11. 返回请求的资源数据
-    else Token无效或过期
-        resource_server->>client: 11. 返回 401 Unauthorized
+    rect rgb(40, 50, 45)
+        Note over U,RS: 阶段 2: 资源请求与权限校验 (Authorization)
+        U->>C: 触发业务请求 (Request Protected Resource)
+        C->>+RS: GET /api/v1/resource<br/>[Header: Authorization: Bearer <Access_Token>]
+        
+        RS->>RS: 验证 JWT (Signature, Exp, Nbf)
+        
+        alt 校验通过 (Valid Token)
+            RS->>RS: 解析 Claims 提取 uid / roles
+            RS->>RS: RBAC / ABAC 权限判定
+            RS-->>C: 200 OK (Data Payload)
+            C-->>U: 渲染资源数据
+        else 校验失败 (Invalid / Expired)
+            RS-->>-C: 401 Unauthorized (Token Expired or Invalid)
+            C-->>U: 提示认证失败 / 触发 Refresh Token 流程
+        end
     end
 {% endmermaid %}
 
@@ -146,19 +176,47 @@ sequenceDiagram
 当 Access Token 过期时，客户端可以使用 Refresh Token 获取新的 Access Token。
 
 {% mermaid %}
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'darkMode': true,
+    'background': '#1e1e2e',
+    'primaryColor': '#313244',
+    'primaryTextColor': '#cdd6f4',
+    'primaryBorderColor': '#89b4fa',
+    'lineColor': '#a6adc8',
+    'secondaryColor': '#181825',
+    'tertiaryColor': '#11111b',
+    'noteBkgColor': '#181825',
+    'noteTextColor': '#f9e2af',
+    'noteBorderColor': '#89b4fa',
+    'activationBorderColor': '#89b4fa',
+    'activationBkgColor': '#45475a',
+    'sequenceNumberColor': '#11111b'
+  }
+}}%%
 sequenceDiagram
-    participant client as 客户端
-    participant auth_server as 认证服务器 / 授权服务器
+    autonumber
+    participant C as 客户端 (Client/App)
+    participant AS as 认证/授权服务器 (Auth Server)
 
-    client->>client: 1. Access Token 过期
-    client->>auth_server: 2. 发送刷新请求 (携带 Refresh Token)
-    auth_server->>auth_server: 3. 验证 Refresh Token 有效性
-    alt Refresh Token有效
-        auth_server->>auth_server: 4. 生成新的 Access Token (和新的 Refresh Token)
-        auth_server->>client: 5. 返回新的 Access Token (和新的 Refresh Token)
-        client->>client: 6. 客户端更新存储的 Token
-    else Refresh Token无效
-        auth_server->>client: 4. 返回 401 Unauthorized (用户需重新登录)
+    rect rgb(35, 45, 65)
+        Note over C: Access Token 已过期 (Exp Detected)
+        C->>+AS: POST /oauth/v2/token<br/>[grant_type=refresh_token, refresh_token=RT_xxx]
+        
+        AS->>AS: 校验 Refresh Token (签名、有效期限、黑名单)
+
+        alt 校验通过 (Token Valid)
+            AS->>AS: 生成全新 Access Token (AT_new)
+            AS->>AS: 触发 Token Rotation (签发新 RT_new 并废弃旧 RT)
+            AS-->>C: 200 OK<br/>{ access_token: AT_new, refresh_token: RT_new, expires_in: 3600 }
+            C->>C: 原子更新本地存储凭证 (Update Storage)
+            Note over C: 无感刷新成功，继续恢复被挂起的业务请求
+        else 校验失败/已废弃 (Invalid or Revoked)
+            AS-->>-C: 401 Unauthorized<br/>{ error: "invalid_grant" }
+            C->>C: 清理本地所有 Token 凭据
+            Note over C,AS: 会话彻底失效，强制重定向至登录页
+        end
     end
 {% endmermaid %}
 

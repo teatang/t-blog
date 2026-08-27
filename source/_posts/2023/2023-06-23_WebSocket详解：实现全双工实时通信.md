@@ -50,28 +50,60 @@ WebSocket 协议 (RFC 6455) 于 2011 年标准化，具有以下显著特点和�
 WebSocket 连接的建立过程是一个特殊的 HTTP 请求-响应机制，称为**握手 (Handshake)**，通常发生在 TCP 连接建立之后。
 
 {% mermaid %}
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'darkMode': true,
+    'background': '#1e1e2e',
+    'primaryColor': '#313244',
+    'primaryTextColor': '#cdd6f4',
+    'primaryBorderColor': '#89b4fa',
+    'lineColor': '#a6adc8',
+    'secondaryColor': '#181825',
+    'tertiaryColor': '#11111b',
+    'noteBkgColor': '#181825',
+    'noteTextColor': '#f9e2af',
+    'noteBorderColor': '#f38ba8',
+    'activationBorderColor': '#89b4fa',
+    'activationBkgColor': '#45475a',
+    'sequenceNumberColor': '#11111b'
+  }
+}}%%
 sequenceDiagram
-    participant C as 客户端 (浏览器)
-    participant S as WebSocket 服务器
+    autonumber
+    actor C as 客户端 (Client/Browser)
+    participant S as WebSocket 服务器 (Server)
 
-    C->>S: 1. TCP 三次握手
-    Note over C,S: 建立底层 TCP 连接
+    rect rgb(30, 40, 60)
+        Note over C,S: 阶段 1: 传输层握手
+        C->>S: SYN
+        S->>C: SYN + ACK
+        C->>S: ACK (TCP 连接建立)
+    end
 
-    C->>S: 2. WebSocket 握手请求
-    Note over C,S: HTTP Upgrade Request
+    rect rgb(40, 45, 70)
+        Note over C,S: 阶段 2: 协议升级握手 (HTTP Upgrade)
+        C->>S: GET /chat (Upgrade: websocket, Connection: Upgrade)
+        S-->>C: HTTP/1.1 101 Switching Protocols
+        Note over C,S: 握手成功：连接协议正式切换为 WebSocket
+    end
 
-    S->>C: 3. WebSocket 握手响应
-    Note over C,S: HTTP 101 Switching Protocols
+    rect rgb(25, 50, 45)
+        Note over C,S: 阶段 3: 全双工双向通信 (Data Framing)
+        loop 实时通信
+            C->>S: WebSocket Data Frame (Masked)
+            S->>C: WebSocket Data Frame (Unmasked)
+            C->>S: Ping 帧 (心跳探测)
+            S-->>C: Pong 帧 (心跳响应)
+        end
+    end
 
-    Note over C,S: **握手成功！** TCP 连接现在升级为 WebSocket 连接。
-
-    C-->>S: 4. WebSocket 数据帧 (客户端发送)
-    S-->>C: 5. WebSocket 数据帧 (服务器发送)
-    C-->>S: 6. ... (后续通信，全双工)
-
-    C->>S: 7. WebSocket 关闭请求帧 (可选)
-    S->>C: 8. WebSocket 关闭响应帧 (可选)
-    Note over C,S: 关闭 WebSocket 连接，底层 TCP 连接随后断开。
+    rect rgb(50, 30, 40)
+        Note over C,S: 阶段 4: 双向关闭握手
+        C->>S: Close Frame (Code: 1000)
+        S-->>C: Close Frame (Echo)
+        Note over C,S: WebSocket 关闭，随后释放底层 TCP (FIN/ACK)
+    end
 {% endmermaid %}
 
 **握手关键点解析：**
