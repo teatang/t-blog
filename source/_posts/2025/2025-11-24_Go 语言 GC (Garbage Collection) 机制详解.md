@@ -93,11 +93,24 @@ Go 语言的 GC 核心是**并发三色标记清除算法**，并辅以**混合�
 
 {% mermaid %}
 graph LR
-    White -- Root Object / Reference found --> Gray
-    Gray -- All references scanned --> Black
-    Black -- Next GC cycle starts --> White
-    Gray -- Mutator changes reference (with write barrier) --> Gray
-    White -- Mutator creates new object (with write barrier) --> Gray
+    %% 样式定义（深色模式与三色语义映射）
+    classDef whiteNode fill:#1e293b,stroke:#94a3b8,stroke-width:2px,color:#f8fafc;
+    classDef grayNode fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
+    classDef blackNode fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#d1fae5;
+
+    %% 状态节点
+    W["⚪ 白色 (White)<br/>未访问 / 垃圾候选"]:::whiteNode
+    G["🟡 灰色 (Gray)<br/>已访问 / 引用待扫描"]:::grayNode
+    B["🟢 黑色 (Black)<br/>存活 / 所有引用已扫描"]:::blackNode
+
+    %% 正常 GC 标记流程
+    W -->|1. 发现根引用 / 可达| G
+    G -->|2. 扫描完所有子引用| B
+    B -.->|3. 本轮结束 / 下一轮重置| W
+
+    %% 写屏障与突变器触发 (Mutator & Write Barrier)
+    W -->|写屏障: 新建/重新被引用| G
+    G -->|写屏障: 修改引用关系| G
 {% endmermaid %}
 
 ### 3.2 写屏障 (Write Barrier)
@@ -145,33 +158,84 @@ GC Pacing 使得 Go 运行时能够自动调整 GC 的激进程度，以适应�
 Go GC 的一个典型循环如下：
 
 {% mermaid %}
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'darkMode': true,
+    'background': '#0b0f19',
+    'primaryColor': '#1e293b',
+    'primaryTextColor': '#f8fafc',
+    'primaryBorderColor': '#38bdf8',
+    'lineColor': '#94a3b8',
+    'secondaryColor': '#0f172a',
+    'tertiaryColor': '#1e1b4b',
+    'noteBkgColor': '#1e293b',
+    'noteTextColor': '#e2e8f0',
+    'noteBorderColor': '#475569',
+    'signalColor': '#cbd5e1',
+    'signalTextColor': '#f1f5f9',
+    'actorBkg': '#0f172a',
+    'actorBorder': '#38bdf8',
+    'actorTextColor': '#f8fafc',
+    'actorLineColor': '#475569',
+    'labelBoxBkgColor': '#1e293b',
+    'labelBoxBorderColor': '#64748b',
+    'labelTextColor': '#f8fafc',
+    'loopTextColor': '#38bdf8',
+    'activationBorderColor': '#38bdf8',
+    'activationBkgColor': '#1e293b'
+  }
+}}%%
 sequenceDiagram
-    participant UserGoroutines as 用户Goroutine (Mutator)
-    participant GCRuntime as GC 运行时
-    participant GCMarkWorker as GC 标记工作协程
-    participant GCSweepWorker as GC 清除工作协程
+    autonumber
+    participant Mutator as 🧑‍💻 用户 Goroutine (Mutator)
+    participant Runtime as ⚙️ GC 运行时 (Coordinator)
+    participant MarkWorker as 🔍 标记工作协程 (Mark Worker)
+    participant SweepWorker as 🧹 清除工作协程 (Sweep Worker)
 
-    loop GC Cycle
-        UserGoroutines->>GCRuntime: 1. 内存分配 / 达到GC触发阈值
-        GCRuntime->>GCRuntime: 2. GC Pacing 决定触发
-        GCRuntime->>UserGoroutines: 3. STW 开始 (GC 根对象扫描)
-        GCRuntime->>GCMarkWorker: 4. 根对象扫描, 标记灰色对象
-        GCRuntime->>UserGoroutines: 5. STW 结束 (短暂停顿)
-      
-        Note over UserGoroutines, GCMarkWorker: **并发标记阶段** (用户 Goroutine 运行，GCMarkWorker 扫描灰色对象)
-        UserGoroutines->>UserGoroutines: 6. 用户逻辑运行
-        UserGoroutines->>GCRuntime: 7. **写屏障** (处理指针赋值，将新引用对象标记为灰色)
-        GCMarkWorker->>GCMarkWorker: 8. 从灰色队列取出对象->标记黑色->扫描其引用->将新白对象标记灰色
-      
-        GCRuntime->>UserGoroutines: 9. STW 开始 (标记终止, 清空灰色队列)
-        GCRuntime->>GCMarkWorker: 10. 标记终止 (处理遗漏的灰色对象)
-        GCRuntime->>UserGoroutines: 11. STW 结束 (短暂停顿)
-      
-        Note over UserGoroutines, GCSweepWorker: **并发清除阶段** (用户 Goroutine 运行，GCSweepWorker 回收白色对象)
-        UserGoroutines->>UserGoroutines: 12. 用户逻辑运行
-        GCSweepWorker->>GCSweepWorker: 13. 遍历堆，回收白色对象，为下次GC重置颜色
-      
-        GCRuntime->>GCRuntime: 14. GC Cycle End
+    loop GC 完整周期 (GC Cycle)
+        Mutator->>Runtime: 内存分配达到触发阈值 (GC Pacing)
+        
+        rect rgba(239, 68, 68, 0.15)
+            Note over Mutator, SweepWorker: 🔴 STW 阶段 1：Sweep Termination (清扫终止 & 开启写屏障)
+            Runtime->>Mutator: 停止所有用户 Goroutine (STW Start)
+            Runtime->>SweepWorker: 确保上一轮清扫完全结束
+            Runtime->>Runtime: 开启混合写屏障 (Hybrid Write Barrier)
+            Runtime->>Mutator: 恢复用户 Goroutine (STW End)
+        end
+
+        rect rgba(56, 189, 248, 0.12)
+            Note over Mutator, MarkWorker: 🔵 并发标记阶段 (Concurrent Marking) ~ 25% CPU
+            Runtime->>MarkWorker: 启动标记工作协程 (Dedicated / Fractional / Idle)
+            MarkWorker->>MarkWorker: 扫描栈/全局根对象，将可达对象标灰入队
+            
+            par 用户业务执行与写屏障
+                Mutator->>Mutator: 正常执行业务逻辑
+                Mutator->>Runtime: 堆指针写入触发【混合写屏障】(新对象/旧引用标灰)
+            and 标记协程扫描
+                MarkWorker->>MarkWorker: 消费灰色队列 -> 扫描子引用标灰 -> 自身标黑
+            and 内存分配过快时的协助
+                Mutator->>MarkWorker: 触发 Mark Assist (协助标记以平衡分配速率)
+            end
+        end
+
+        rect rgba(239, 68, 68, 0.15)
+            Note over Mutator, MarkWorker: 🔴 STW 阶段 2：Mark Termination (标记终止)
+            Runtime->>Mutator: 再次进入短暂停顿 (STW Start)
+            Runtime->>MarkWorker: 清空残余工作队列，完成最终标记
+            Runtime->>Runtime: 关闭写屏障，计算下一轮 GC 目标 (Pacer)
+            Runtime->>Mutator: 恢复用户 Goroutine (STW End)
+        end
+
+        rect rgba(34, 197, 94, 0.12)
+            Note over Mutator, SweepWorker: 🟢 并发清除阶段 (Concurrent Sweep)
+            Runtime->>SweepWorker: 唤醒后台并发清扫协程
+            par 用户分配与惰性清扫
+                Mutator->>Mutator: 业务运行 (分配新内存时按需清扫 mspan)
+            and 后台清扫
+                SweepWorker->>SweepWorker: 遍历堆中的 mspan，回收白色未标记对象
+            end
+        end
     end
 {% endmermaid %}
 
