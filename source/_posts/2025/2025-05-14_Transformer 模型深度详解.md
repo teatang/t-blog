@@ -39,23 +39,56 @@ Transformer 模型遵循经典的**编码器-解码器 (Encoder-Decoder)** 结�
 *   **解码器 (Decoder)**：由 `N` 个相同的解码器层堆叠而成。它负责将编码器的输出和之前生成的输出序列（例如，目标语言句子）作为输入，生成下一个输出序列的元素。
 
 {% mermaid %}
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'darkMode': true,
+    'background': '#121316',
+    'primaryColor': '#2b2d42',
+    'primaryTextColor': '#e2e8f0',
+    'primaryBorderColor': '#4a5568',
+    'lineColor': '#94a3b8',
+    'secondaryColor': '#1e293b',
+    'tertiaryColor': '#0f172a'
+  }
+}}%%
 graph LR
-    subgraph Transformer
-        Input[输入序列] --> InputEmbedding[输入嵌入 + 位置编码];
+    classDef inputNode fill:#1e293b,stroke:#475569,stroke-width:1.5px,color:#f8fafc;
+    classDef encNode fill:#1e3a5f,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff;
+    classDef decNode fill:#3b1e54,stroke:#c084fc,stroke-width:1.5px,color:#faf5ff;
+    classDef outNode fill:#143e35,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5;
 
-        subgraph Encoder Stack
-            E1[编码器层 1] --> E2[编码器层 2] --> ... --> EN[编码器层 N];
+    subgraph Transformer ["Transformer 整体架构"]
+        %% 编码器流向
+        Input["输入序列 (Inputs)"]:::inputNode --> InputEmbed["输入嵌入 + 位置编码"]:::inputNode
+        InputEmbed --> E1
+
+        subgraph EncoderStack ["Encoder 堆叠 (Nx)"]
+            E1["编码器层 1"]:::encNode --> E2["编码器层 2"]:::encNode
+            E2 -.-> EDots["..."]:::encNode
+            EDots -.-> EN["编码器层 N"]:::encNode
         end
-        InputEmbedding --> E1;
-        EN --> EncoderOutput[编码器输出];
 
-        OutputEmbedding[输出嵌入 + 位置编码] --> D1[解码器层 1];
-        D1 --> D2[解码器层 2] --> ... --> DN[解码器层 N];
+        EN --> EncOut["编码器表征向量 (K, V)"]:::encNode
 
-        EncoderOutput --> D1;
+        %% 解码器流向
+        Target["输出目标 (Shifted Right)"]:::inputNode --> OutputEmbed["输出嵌入 + 位置编码"]:::inputNode
+        OutputEmbed --> D1
 
-        DN --> Linear[线性层] --> Softmax[Softmax];
-        Softmax --> Output[输出概率分布];
+        subgraph DecoderStack ["Decoder 堆叠 (Nx)"]
+            D1["解码器层 1"]:::decNode --> D2["解码器层 2"]:::decNode
+            D2 -.-> DDots["..."]:::decNode
+            DDots -.-> DN["解码器层 N"]:::decNode
+        end
+
+        EncOut ==>|"交叉注意力交互"| D1
+        EncOut -.-> D2
+        EncOut -.-> DN
+
+        %% 预测输出
+        DN --> Linear["线性投射层 (Linear)"]:::outNode
+        Linear --> Softmax["Softmax"]:::outNode
+        Softmax --> FinalOutput["预测概率分布 (Output Probabilities)"]:::outNode
     end
 {% endmermaid %}
 
@@ -125,39 +158,80 @@ $$
 *   提高模型捕捉复杂模式的能力。
 
 {% mermaid %}
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1E293B',
+    'primaryTextColor': '#F8FAFC',
+    'primaryBorderColor': '#475569',
+    'lineColor': '#94A3B8',
+    'secondaryColor': '#0F172A',
+    'tertiaryColor': '#0B0F19'
+  }
+}}%%
 graph TD
-    Input_X[输入 X] --> Linear_Q[线性变换 WQ];
-    Input_X --> Linear_K[线性变换 WK];
-    Input_X --> Linear_V[线性变换 WV];
+    %% 输入与投影层
+    Input_X["输入矩阵 X"] --> Linear_Q["线性变换 W_Q"]
+    Input_X --> Linear_K["线性变换 W_K"]
+    Input_X --> Linear_V["线性变换 W_V"]
 
-    Linear_Q --> Q[Q];
-    Linear_K --> K[K];
-    Linear_V --> V[V];
+    Linear_Q --> Q["查询 Query (Q)"]
+    Linear_K --> K["键 Key (K)"]
+    Linear_V --> V["值 Value (V)"]
 
-    subgraph Head_1
-        Q -- 1 --> Attn_1[Scaled Dot-Product Attention];
-        K -- 1 --> Attn_1;
-        V -- 1 --> Attn_1;
-        Attn_1 --> Output_1[输出 1];
+    %% 多头并行计算区
+    subgraph Head_1["Head 1"]
+        direction TB
+        Q --> Attn_1["Scaled Dot-Product Attention"]
+        K --> Attn_1
+        V --> Attn_1
+        Attn_1 --> Out_1["Head 1 输出"]
     end
 
-    subgraph Head_2
-        Q -- 2 --> Attn_2[Scaled Dot-Product Attention];
-        K -- 2 --> Attn_2;
-        V -- 2 --> Attn_2;
-        Attn_2 --> Output_2[输出 2];
+    subgraph Head_2["Head 2"]
+        direction TB
+        Q --> Attn_2["Scaled Dot-Product Attention"]
+        K --> Attn_2
+        V --> Attn_2
+        Attn_2 --> Out_2["Head 2 输出"]
     end
 
-    subgraph Head_h
-        Q -- h --> Attn_h[Scaled Dot-Product Attention];
-        K -- h --> Attn_h;
-        V -- h --> Attn_h;
-        Attn_h --> Output_h[输出 h];
+    subgraph Head_Dots["..."]
+        direction TB
+        DotsHead["其他并行 Attention Heads ..."]
     end
 
-    Output_1 & Output_2 & ... & Output_h --> Concat["拼接 (Concatenate)"];
-    Concat --> Linear_Output[线性变换 WO];
-    Linear_Output --> Final_Output[多头注意力输出];
+    subgraph Head_h["Head h"]
+        direction TB
+        Q --> Attn_h["Scaled Dot-Product Attention"]
+        K --> Attn_h
+        V --> Attn_h
+        Attn_h --> Out_h["Head h 输出"]
+    end
+
+    %% 汇聚与最终输出
+    Out_1 --> Concat["拼接 Concat(head₁ ... headₕ)"]
+    Out_2 --> Concat
+    DotsHead -.-> Concat
+    Out_h --> Concat
+
+    Concat --> Linear_O["输出线性变换 W_O"]
+    Linear_O --> Final_Out["多头注意力输出 (MHA Output)"]
+
+    %% 样式定义 (针对深色背景 Slate-800/900 调优)
+    classDef inputStyle fill:#0F172A,stroke:#38BDF8,stroke-width:1.5px,color:#F8FAFC;
+    classDef projStyle fill:#1E293B,stroke:#818CF8,stroke-width:1.5px,color:#F8FAFC;
+    classDef qkvStyle fill:#1E293B,stroke:#F59E0B,stroke-width:1.5px,color:#FDE68A;
+    classDef attnStyle fill:#1E293B,stroke:#EC4899,stroke-width:1.5px,color:#F8FAFC;
+    classDef concatStyle fill:#1E293B,stroke:#10B981,stroke-width:1.5px,color:#F8FAFC;
+    classDef dotsStyle fill:none,stroke:#475569,stroke-dasharray: 4 4,color:#94A3B8;
+
+    class Input_X inputStyle;
+    class Linear_Q,Linear_K,Linear_V,Linear_O projStyle;
+    class Q,K,V qkvStyle;
+    class Attn_1,Attn_2,Attn_h,Out_1,Out_2,Out_h attnStyle;
+    class Concat,Final_Out concatStyle;
+    class DotsHead dotsStyle;
 {% endmermaid %}
 
 ### 3.3 Add & Norm (残差连接与层归一化)
