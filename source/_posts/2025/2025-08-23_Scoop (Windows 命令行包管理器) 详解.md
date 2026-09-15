@@ -311,7 +311,7 @@ scoop cache rm * # 清理所有下载的安装包缓存
 **语法**：
 *   `scoop cleanup --dry-run`：查看可清理的版本。
 *   `scoop cleanup <app_name>`：清理指定应用的旧版本（保留当前版本）。
-*   `scoop cache rm *`：清理所有应用的旧版本（保留当前版本）。
+*   `scoop cleanup rm *`：清理所有应用的旧版本（保留当前版本）。
 
 **示例**：
 
