@@ -82,37 +82,72 @@ TLS 是用于在计算机网络上提供安全通信的协议，是 HTTPS 的核
     *   目标网站的响应反向经过 VLESS 封装，通过 WebSocket 帧，再通过 TLS 隧道传回客户端。
 
 {% mermaid %}
-graph TD
-    subgraph "客户端 (Client)"
-        A[应用层请求] --> |HTTP/S 请求| A1(TCP/IP 栈)
+flowchart TD
+    %% 阶段 1：客户端本地处理
+    subgraph Client [" 💻 客户端本地环境 (Local Client) "]
+        direction TB
+        App(["🌐 应用程序 (浏览器 / 终端)"])
+        Inbound["📥 本地入站代理<br/><code>SOCKS5 / HTTP (1080/10808)</code>"]
+        VLESS_Enc["📦 <b>VLESS 客户端封包</b><br/>添加 UUID 认证头 + 目标地址信息"]
+        WS_TLS_Client["🔒 <b>传输层封装 (WS over TLS)</b><br/>打包为 WebSocket 帧 ➔ TLS 加密封装 (SNI 伪装)"]
+
+        App -->|"原始明文/TLS 请求"| Inbound
+        Inbound --> VLESS_Enc
+        VLESS_Enc --> WS_TLS_Client
     end
 
-    subgraph "代理服务器 (Proxy Server)"
-        P1(入站流量处理 - TLS/WS)
-        P2(VLESS 核心处理)
-        P3(出站流量处理 - TCP/IP 栈)
+    %% 阶段 2：公网传输信道
+    subgraph Network [" 📡 公开互联网 (审查网络 / GFW) "]
+        Tunnel[("🛡️ <b>外层伪装 HTTPS 隧道</b><br/>仅可见目标端口 443、伪装域名 SNI 与 WS 流量特征")]
     end
 
-    subgraph "目标网站 (Target Website)"
-        D[目标服务器]
+    WS_TLS_Client -->|"发送伪装密文流量"| Tunnel
+
+    %% 阶段 3：远端代理服务端
+    subgraph Server [" 🚀 代理服务端 (Proxy Server / Xray) "]
+        direction TB
+        WS_TLS_Server["🔓 <b>传输层解封装</b><br/>终止 TLS 握手 ➔ 剥离 WebSocket 协议头"]
+        VLESS_Dec["🧩 <b>VLESS 核心验证与拆包</b><br/>校验 UUID 有效性 ➔ 提取真实目标地址"]
+        Outbound["📤 核心出站调度器<br/><code>freedom outbound (TCP/UDP)</code>"]
+
+        WS_TLS_Server --> VLESS_Dec
+        VLESS_Dec --> Outbound
     end
 
-    A1 --> |"1. TCP 连接建立 + <br/>2. TLS 握手 (SNI 伪装)"| P1
-    A1 --> |"3. WebSocket 升级请求 (在TLS内)"| P1
+    Tunnel -->|"到达远端节点"| WS_TLS_Server
 
-    P1 --> |4. WebSocket 隧道建立| P2
-    P2 --> |5. VLESS 认证 & 数据封装| P1
-    P1 --> |"6. 加密 VLESS 数据 (WS over TLS)"| A1
+    %% 阶段 4：目标网站
+    subgraph Target [" 🌐 最终目标服务 (Internet Target) "]
+        DestServer(["🎯 目标网站服务器<br/><code>(Web / API / Stream)</code>"])
+    end
 
-    P2 --> |7. VLESS 解封装 & 转发请求| P3
-    P3 --> |8. 发送原始请求| D
+    Outbound -->|"1. 建立 TCP/UDP 连接并转发原始请求"| DestServer
+    DestServer -.->|"2. 返回业务响应数据"| Outbound
 
-    D --> |9. 返回原始响应| P3
-    P3 --> |10. 接收原始响应| P2
-    P2 --> |11. VLESS 封装响应 & WS 封装| P1
-    P1 --> |"12. 加密 VLESS 响应 (WS over TLS)"| A1
-    A1 --> |"13. 解密 & 解封装响应"| A
+    %% 响应回流路径 (虚线回流)
+    Outbound -.->|"3. 响应经 VLESS 流式打包"| VLESS_Dec
+    VLESS_Dec -.->|"4. 经 WS/TLS 再次加密"| WS_TLS_Server
+    WS_TLS_Server -.->|"5. 加密回传穿越公网"| Tunnel
+    Tunnel -.->|"6. 客户端逐层剥离还原"| WS_TLS_Client
+    WS_TLS_Client -.->|"7. 交付原始响应"| App
 
+    %% 深色主题样式定制
+    style Client fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style Network fill:#0f172a,stroke:#334155,stroke-dasharray: 2 2,color:#94a3b8
+    style Server fill:#1e1035,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+    style Target fill:#0d1d18,stroke:#22c55e,stroke-dasharray: 4 4,color:#86efac
+
+    style App fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Inbound fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style VLESS_Enc fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style WS_TLS_Client fill:#075985,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+
+    style Tunnel fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+
+    style WS_TLS_Server fill:#581c87,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style VLESS_Dec fill:#6b21a8,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style Outbound fill:#1e293b,stroke:#a855f7,color:#f8fafc
+    style DestServer fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 ## 三、VLESS+WS+TLS 的优点

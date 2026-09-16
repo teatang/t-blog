@@ -91,42 +91,89 @@ Trojan 协议的结构非常简单，在 TLS 握手成功之后，客户端发�
 ## 四、Trojan 的工作流程
 
 {% mermaid %}
-graph TD
-    subgraph "客户端 (Client)"
-        A[应用层请求] --> |HTTP/S 请求| A1(Trojan 封装)
+flowchart TD
+    %% 阶段 1：客户端本地处理
+    subgraph Client [" 💻 客户端本地环境 (Local Client) "]
+        direction TB
+        App(["🌐 应用程序 (浏览器 / 终端)"])
+        Inbound["📥 本地入站监听<br/><code>SOCKS5 / HTTP (1080/10808)</code>"]
+        TrojanWrap["📦 <b>Trojan 协议封装</b><br/>构建首包: <code>SHA224(Password) + 目标地址</code>"]
+        ClientTLS["🔒 <b>标准 TLS 客户端封装</b><br/>携带伪装域名 SNI · 建立真实 HTTPS 握手"]
+
+        App --> Inbound --> TrojanWrap --> ClientTLS
     end
 
-    subgraph "Trojan 服务器 (Trojan-Go/Xray-core)"
-        S1(TLS 握手处理)
-        S2(Trojan 核心处理)
-        S3(回落处理 - 可选)
-        S4(目标连接)
+    %% 阶段 2：公共网络穿透
+    subgraph Channel [" 📡 公开互联网 (审查者 / GFW 视角) "]
+        Traffic[("🛡️ <b>不可区分的标准 HTTPS 流量</b><br/>443 端口 · 真实机构证书 · 规范 TLS 指纹")]
     end
 
-    subgraph "回落目标 (Fallback Target)"
-        F[Web 服务器/其他服务]
+    ClientTLS -->|"发送 TLS 加密流量"| Traffic
+
+    %% 阶段 3：Trojan 服务端鉴权与分流
+    subgraph Server [" 🚀 Trojan 服务端 (Trojan-Go / Xray) "]
+        direction TB
+        TLS_Term["🔑 <b>TLS 终结 (握手完成)</b><br/>终止外层加密 ➔ 解出明文 Application Data"]
+        AuthCheck{"首包特征校验<br/><b>匹配 SHA224 密码散列？</b>"}
+
+        subgraph Core [" ⚡ Trojan 代理核心中继 "]
+            ParseTarget["🧩 <b>解析 Trojan 指令头</b><br/>提取目标主机 <code>IP:Port</code> 及连接类型 (TCP/UDP)"]
+            Forwarder["📤 <b>直通中继 (Pass-Through)</b><br/>去除协议头，直接双向透传原始数据载荷"]
+            ParseTarget --> Forwarder
+        end
+
+        subgraph FallbackMod [" 🛡️ 防探测回落机制 (Fallback) "]
+            direction TB
+            ProxyFallback["🔄 <b>透明协议降级 / 反向代理</b><br/>不掐断连接，转交至本地 Web 服务"]
+        end
+
+        TLS_Term --> AuthCheck
+        AuthCheck -->|"✅ 密码哈希匹配 (合法代理流量)"| ParseTarget
+        AuthCheck -->|"❌ 密码错误 / GFW 主动嗅探 / 普通 HTTPS 访问"| ProxyFallback
     end
 
-    subgraph "目标网站 (Target Website)"
-        D[目标服务器]
+    Traffic -->|"入站流量"| TLS_Term
+
+    %% 阶段 4：出口去向
+    subgraph Destinations [" 🌐 最终出口服务 "]
+        direction TB
+        LocalWeb["🏢 <b>本地伪装站点 (Fallback Web)</b><br/>Nginx / Caddy 托管的真实合规网站"]
+        TargetWeb(["🎯 <b>目标外网站点 (Internet Target)</b><br/>真实目标 Web / API 服务器"])
     end
 
-    A1 --> |1. TCP 连接建立| S1
-    A1 --> |"2. TLS 握手 (SNI 伪装)"| S1
+    ProxyFallback -->|"回落到内部端口 (如 127.0.0.1:80/8080)"| LocalWeb
+    Forwarder -->|"1. 建立 TCP/UDP 连接并转发原始请求"| TargetWeb
+    TargetWeb -.->|"2. 返回原始响应数据"| Forwarder
 
-    S1 --> |3. 判断是否为 Trojan 认证| S2
-    S1 --(非 Trojan 认证或伪装探测)--> S3
-    S3 --> |4. 转发给回落目标| F
+    %% 响应数据回流路径 (虚线标记)
+    Forwarder -.->|"3. 响应载荷送入 TLS"| TLS_Term
+    TLS_Term -.->|"4. 封装为标准 TLS Record 回传"| Traffic
+    Traffic -.->|"5. 客户端 TLS 接收并解密"| ClientTLS
+    ClientTLS -.->|"6. 还原原始应用响应"| App
 
-    S1 --(Trojan 认证成功)--> S2
+    %% 深色主题样式定制
+    style Client fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style Channel fill:#0f172a,stroke:#334155,stroke-dasharray: 2 2,color:#94a3b8
+    style Server fill:#1e1035,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+    style Core fill:#170f2a,stroke:#c084fc,stroke-width:1px,color:#e9d5ff
+    style FallbackMod fill:#260d13,stroke:#f87171,stroke-dasharray: 3 3,color:#fca5a5
+    style Destinations fill:#0d1d18,stroke:#22c55e,stroke-dasharray: 4 4,color:#86efac
 
-    S2 --> |5. 解析请求头获取目标信息| S4
-    S4 --> |6. 发送原始请求| D
+    style App fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Inbound fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style TrojanWrap fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style ClientTLS fill:#075985,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
 
-    D --> |7. 返回原始响应| S4
-    S4 --> |8. 接收原始响应| S2
-    S2 --> |9. 直接通过 TLS application_data 传输响应| A1
-    A1 --> |10. TLS 解密 + Trojan 解封装| A
+    style Traffic fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+
+    style TLS_Term fill:#581c87,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style AuthCheck fill:#312e81,stroke:#818cf8,stroke-width:1.5px,color:#ffffff
+    style ParseTarget fill:#1e293b,stroke:#c084fc,color:#f8fafc
+    style Forwarder fill:#6b21a8,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+
+    style ProxyFallback fill:#3f1418,stroke:#ef4444,stroke-width:1.5px,color:#fecaca
+    style LocalWeb fill:#270f12,stroke:#f87171,color:#fca5a5
+    style TargetWeb fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 **流程说明：**

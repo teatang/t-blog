@@ -62,13 +62,43 @@ BBR 就是根据实时测量到的 `BtlBw` 和 `RTT_min` 来动态地维持 `Inf
 BBR 拥塞控制算法通过在四个不同的探测阶段（`Startup`, `Drain`, `ProbeBandwidth`, `ProbeRTT`）之间循环切换，来持续测量和维护 `BtlBw` 和 `RTT_min` 的估计值，并调整发送速率：
 
 {% mermaid %}
-graph TD
-    A[Idle] --> B[Startup]
-    B -- Bandwidth growth slows --> C[Drain]
-    C -- Inflight at BDP --> D[ProbeBandwidth]
-    D -- Periodically, to refresh RTT_min --> E[ProbeRTT]
-    E -- RTT_min refreshed --> D
-    D -- High loss / Congestion --> D
+flowchart TD
+    %% 阶段 0：空闲
+    Idle(["⚪ <b>空闲态 (Idle)</b><br/>等待连接建立"])
+
+    %% 阶段 1：指数激增
+    Startup["🚀 <b>Startup (快速启动)</b><br/>指数级推高发包率探测可用带宽<br/><code>pacing_gain = 2.89 (2/ln2)</code><br/><code>cwnd_gain = 2.89</code>"]
+
+    %% 阶段 2：排空队列
+    Drain["🌊 <b>Drain (排空排队)</b><br/>降低发包率，排空瓶颈路由器多余缓冲<br/><code>pacing_gain = 0.35 (ln2/2)</code><br/><code>cwnd_gain = 2.89</code>"]
+
+    %% 阶段 3：稳态带宽探测
+    subgraph SteadyState [" ⚡ 稳态运行区间 (Steady Operation) "]
+        direction TB
+        ProbeBW["🔄 <b>ProbeBW (周期性带宽探测)</b><br/>8 阶段循环轮转维持 BDP 管道满载<br/>• 1 阶段 1.25x (测高带宽)<br/>• 1 阶段 0.75x (排空膨胀)<br/>• 6 阶段 1.0x (定速稳态巡航)"]
+    end
+
+    %% 阶段 4：极简队列测 RTT
+    ProbeRTT["⏱️ <b>ProbeRTT (最小 RTT 探测)</b><br/>压低在途数据包 (Inflight = 4 pkts)<br/>持续至少 200ms 排空一切拥塞队列<br/><code>pacing_gain = 1.0</code> · <code>cwnd = 4</code>"]
+
+    Idle -->|"三次握手完成，发送首批数据"| Startup
+
+    Startup -->|"连续 3 轮 RTT 带宽增幅 &lt; 25%<br/>(找到瓶颈带宽 BtlBw)"| Drain
+    Drain -->|"在途数据降至估计的 BDP<br/>(Inflight ≤ BtlBw × RTprop)"| ProbeBW
+
+    ProbeBW -->|"周期循环 (每 10 秒超时)<br/>且 RTT_min 超期未刷新"| ProbeRTT
+    ProbeRTT -->|"已维持 200ms 并成功更新 RTT_min"| ProbeBW
+
+    Startup -.->|"若超过 10s 未能更新 RTT_min"| ProbeRTT
+
+    %% 深色主题样式定制
+    style SteadyState fill:#17112c,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+
+    style Idle fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#cbd5e1
+    style Startup fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style Drain fill:#78350f,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff
+    style ProbeBW fill:#4c1d95,stroke:#c084fc,stroke-width:2px,color:#ffffff
+    style ProbeRTT fill:#1e293b,stroke:#38bdf8,stroke-dasharray: 2 2,color:#f8fafc
 {% endmermaid %}
 
 1.  **Startup (启动阶段)**：

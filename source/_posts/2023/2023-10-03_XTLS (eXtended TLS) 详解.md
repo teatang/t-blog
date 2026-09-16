@@ -100,45 +100,90 @@ XTLS 提供了两种主要的流量模式来优化性能和抗探测能力：
 结合 VLESS 和 TLS 回落，XTLS 的完整工作流程如下：
 
 {% mermaid %}
-graph TD
-    subgraph "客户端 (Client)"
-        A[应用层请求] --> |HTTP/S 请求| A1(TCP/IP 栈)
+flowchart TD
+    %% 阶段 1：客户端本地环境
+    subgraph Client [" 💻 本地客户端 (Local Xray-core) "]
+        direction TB
+        App(["🌐 应用程序 (浏览器 / 终端)"])
+        Inbound["📥 本地入站代理<br/><code>SOCKS5 / HTTP / TUN (透明代理)</code>"]
+        XrayClient["⚡ <b>Xray 客户端出站</b><br/>打包 VLESS 认证头 (UUID)<br/>协商 <code>flow: xtls-rprx-vision</code>"]
+        ClientTLS["🔒 <b>标准 TLS 握手 (客户端)</b><br/>真实域名证书 / REALITY 伪装 SNI"]
+
+        App --> Inbound --> XrayClient --> ClientTLS
     end
 
-    subgraph "XTLS 服务器 (Xray-core)"
-        X1(TLS 握手处理)
-        X2(XTLS Flow Control / VLESS 核心)
-        X3(回落处理 - 可选)
-        X4(目标连接)
+    %% 公网信道
+    subgraph Channel [" 📡 公开互联网 (防火墙 / 审查者视角) "]
+        Traffic[("🛡️ <b>标准 TLS 443 密文流</b><br/>完全符合真实 Web 服务器指纹")]
     end
 
-    subgraph "回落目标 (Fallback Target)"
-        F[Web 服务器/其他服务]
+    ClientTLS -->|"发送标准 TLS 流量"| Traffic
+
+    %% 阶段 2：服务端入站分流与 XTLS 处理
+    subgraph Server [" 🚀 XTLS 服务端 (Server Xray-core) "]
+        direction TB
+        TLS_Term["🔑 <b>TLS 终结与鉴权</b><br/>完成真实 TLS 握手 / 检查 SNI + ALPN"]
+        CheckAuth{"流量鉴权检验<br/><b>VLESS UUID 校验</b>"}
+        
+        Fallback["🛡️ <b>回落处理 (Fallback)</b><br/>非代理请求 / 主动探测流量<br/><code>透明重定向至内部 80/8080</code>"]
+        
+        subgraph FlowCore [" ⚡ XTLS-Vision 核心流控处理 "]
+            direction TB
+            ParseVLESS["🧩 解构 VLESS 指令头 ➔ 提取目标 IP:Port"]
+            Filter["🔍 <b>动态识别内层协议 (Vision Padding)</b>"]
+            Splice["🚀 <b>零拷贝 / 直通 (Splice)</b><br/>内层是 TLS 则切除外层冗余加解密<br/>避免 <i>TLS-in-TLS</i> 特征与性能损耗"]
+
+            ParseVLESS --> Filter --> Splice
+        end
+
+        TLS_Term --> CheckAuth
+        CheckAuth -->|"❌ 密码错误 / 普通网页访问"| Fallback
+        CheckAuth -->|"✅ 合法 VLESS 代理流量"| FlowCore
     end
 
-    subgraph "目标网站 (Target Website)"
-        D[目标服务器]
+    Traffic -->|"入站流量"| TLS_Term
+
+    %% 阶段 3：下游目标环境
+    subgraph Destinations [" 🌐 最终出口目标 "]
+        direction TB
+        FallbackWeb["🏢 <b>回落站点 (伪装前置)</b><br/>本地 Nginx / 真实合规网站"]
+        TargetWeb(["🎯 <b>目标外网站点 (Internet)</b><br/>原始目标服务器 (TCP / UDP)"])
     end
 
-    A1 --> |1. TCP 连接建立| X1
-    A1 --> |"2. TLS 握手 (SNI + ALPN)"| X1
+    Fallback -->|"直接代理转发响应"| FallbackWeb
+    Splice -->|"1. 极速转发原始载荷"| TargetWeb
+    TargetWeb -.->|"2. 回传响应数据"| Splice
 
-    X1 --> |3. 判断 ALPN/SNI| X2
-    X1 --(非 XTLS 流量/无法识别)--> X3
-    X3 --> |4. 转发给回落目标| F
+    %% 响应回流 (虚线标注)
+    Splice -.->|"3. 响应直通封装"| TLS_Term
+    TLS_Term -.->|"4. TLS 密文回传"| Traffic
+    Traffic -.->|"5. 客户端解密交付"| ClientTLS
+    ClientTLS -.->|"6. 还原响应"| App
 
-    X1 --(XTLS 流量)--> X2
+    %% 深色主题样式定制
+    style Client fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style Channel fill:#0f172a,stroke:#334155,stroke-dasharray: 2 2,color:#94a3b8
+    style Server fill:#171625,stroke:#f59e0b,stroke-dasharray: 4 4,color:#fde68a
+    style FlowCore fill:#201934,stroke:#c084fc,stroke-width:1px,color:#e9d5ff
+    style Destinations fill:#0d1d18,stroke:#22c55e,stroke-dasharray: 4 4,color:#86efac
 
-    X2 --> |5. VLESS 认证 & 初始化 XTLS Flow Control| A1
-    A1 --> |"6. VLESS 数据 (直接封装到 TLS application_data)"| X2
+    style App fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Inbound fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style XrayClient fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style ClientTLS fill:#075985,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
 
-    X2 --> |7. VLESS 解封装 & 转发请求| X4
-    X4 --> |8. 发送原始请求| D
+    style Traffic fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
 
-    D --> |9. 返回原始响应| X4
-    X4 --> |10. 接收原始响应| X2
-    X2 --> |"11. VLESS 封装响应 (直接封装到 TLS application_data)"| A1
-    A1 --> |12. 解密 & 解封装响应| A
+    style TLS_Term fill:#78350f,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff
+    style CheckAuth fill:#312e81,stroke:#818cf8,stroke-width:1.5px,color:#ffffff
+    style Fallback fill:#3f1418,stroke:#ef4444,stroke-width:1.5px,color:#fecaca
+    style FallbackWeb fill:#270f12,stroke:#f87171,color:#fca5a5
+
+    style ParseVLESS fill:#1e293b,stroke:#c084fc,color:#f8fafc
+    style Filter fill:#1e293b,stroke:#c084fc,color:#f8fafc
+    style Splice fill:#581c87,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+
+    style TargetWeb fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 **流程说明：**

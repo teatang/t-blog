@@ -110,21 +110,47 @@ TUIC 的协议结构可以理解为在一个加密的 UDP 流之上承载多个�
 
 {% mermaid %}
 sequenceDiagram
-    participant client as 客户端 (TUIC Client)
-    participant tuic_server as TUIC 服务器
-    participant target_server as 目标网站/服务
+    autonumber
 
-    client->>tuic_server: 1. UDP 连接建立 (TUIC 握手, 伪装 SNI/TLS 指纹)
-    tuic_server->>tuic_server: 2. 验证 TUIC 握手
-    client->>tuic_server: 3. TLS 1.3 握手 (客户端验证服务器证书, 携带密码)
-    tuic_server->>tuic_server: 4. 验证 TLS 证书和客户端密码
-    alt 握手成功
-        client->>tuic_server: 5. TUIC 多路复用流 (通过 TLS 1.3 加密, BBR/Hybla 拥塞控制)
-        tuic_server->>target_server: 6. 转发请求 (解密 TUIC -> 原始请求)
-        target_server->>tuic_server: 7. 返回响应
-        tuic_server->>client: 8. TUIC 多路复用流 (原始响应 -> 加密 TUIC)
-    else 握手失败
-        tuic_server->>client: 9. 关闭连接 / 回落 (可选)
+    box rgba(15, 23, 42, 0.6) 本地客户端域 (Client)
+        participant Client as 💻 TUIC 客户端 (tuic-client)
+    end
+
+    box rgba(23, 17, 37, 0.6) 远端代理与目标域 (Server & Target)
+        participant Server as 🚀 TUIC 服务端 (tuic-server)
+        participant Target as 🌐 目标网站 (Web / UDP Server)
+    end
+
+    %% 阶段 1: QUIC + TLS 1.3 极速握手
+    Note over Client,Server: 阶段一：QUIC 传输层握手 (内嵌 TLS 1.3，1-RTT / 0-RTT 极速建连)
+    Client->>+Server: UDP 初始报文 (QUIC Initial: Client Hello + 伪装 SNI + ALPN)
+    Server-->>-Client: QUIC 应答 (Server Hello + 证书链 + 完成握手)
+
+    %% 阶段 2: TUIC 身份鉴权与指令交互
+    Note over Client,Server: 阶段二：在 QUIC 加密隧道内进行 TUIC 认证
+    Client->>+Server: 发送 AUTH 认证帧 (UUID / Token + 协商拥塞控制如 BBR)
+    Server->>Server: 验证用户凭据与签名
+
+    alt 认证失败 / 非法连接
+        Server-->>Client: 发送 CONNECTION_CLOSE 帧并直接掐断 UDP 会话
+    else 认证成功
+        Server-->>-Client: 认证通过确认 (Ready)
+
+        %% 阶段 3: 多路复用与代理数据转发
+        Note over Client,Target: 阶段三：原生多路复用中继 (无队头阻塞 / 支持 UDP Relay)
+        rect rgba(15, 23, 42, 0.5)
+            par 并发请求流 Stream 1 (TCP 业务)
+                Client->>+Server: 开启 Uni-Stream 发送 CONNECT [目标 A 域名:443]
+                Server->>+Target: 建立到目标 A 的 TCP 连接
+                Target-->>-Server: 目标 A 返回数据
+                Server-->>-Client: QUIC 流式回传响应 (独立 Stream 传输)
+            and 并发请求流 Stream 2 (UDP 业务 / 语音游戏)
+                Client->>+Server: 发送 PACKET 报文 [目标 B IP:端口 + UDP 载荷]
+                Server->>+Target: 转发原始 UDP 数据报
+                Target-->>-Server: 返回 UDP 响应报文
+                Server-->>-Client: 封装为 TUIC PACKET 帧极速返送
+            end
+        end
     end
 {% endmermaid %}
 

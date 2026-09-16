@@ -128,47 +128,123 @@ if __name__ == "__main__":
 假设客户端通过 TUN 隧道访问远程服务器：
 
 {% mermaid %}
-graph TD
-    subgraph Client Application
-        A[App Sends Data to Remote Server IP]
+flowchart TD
+    %% 阶段 1：客户端应用与内核网络栈
+    subgraph ClientHost [" 💻 客户端主机 (Client Device) "]
+        direction TB
+        subgraph ClientApp [" 用户空间应用程序 "]
+            App(["📱 应用程序 (Browser / App)<br/>发往目标外网 IP: <code>Dest_IP:Port</code>"])
+        end
+
+        subgraph ClientKernel [" 内核网络栈 (Kernel Space) "]
+            Socket["套接字接口 (Socket API) ➔ 组装原始 IP 数据包"]
+            RouteTable{"内核路由表匹配<br/><code>0.0.0.0/0 via tun0</code>"}
+            TUN_Dev["📟 <b>TUN 虚拟网卡设备</b><br/><code>/dev/net/tun0</code> (网络层 L3)"]
+            ClientNIC["🌐 <b>物理网卡 (Physical NIC)</b><br/><code>eth0 / wlan0</code> (策略路由直连)"]
+
+            Socket --> RouteTable
+            RouteTable -->|"默认网关命中"| TUN_Dev
+        end
+
+        subgraph VPNUserClient [" VPN / 代理客户端 (User Space) "]
+            direction TB
+            ReadTUN["📥 <code>read()</code> 读取原始 IP 报文"]
+            Encapsulate["🔒 <b>加密与隧道封装</b><br/>将原始 IP 包打包入 UDP/TCP 隧道载荷"]
+            SendTunnel["📤 <code>sendto()</code> 发往 VPN 服务端公网 IP"]
+
+            ReadTUN --> Encapsulate --> SendTunnel
+        end
+
+        App --> Socket
+        TUN_Dev -->|"文件描述符传递"| ReadTUN
+        SendTunnel -->|"绕过 tun 路由发往外网"| ClientNIC
     end
 
-    subgraph Client OS Kernel
-        B[IP Packet Generated] --> C{Routing Table}
-        C -- Route via TUN0 --> D[TUN0 Interface]
+    %% 阶段 2：公共互联网信道
+    subgraph Internet [" 📡 公开互联网 (Public Internet) "]
+        NetTunnel[("🛡️ <b>VPN 外层加密隧道</b><br/>外层报头: <code>Client_IP ➔ Server_IP</code><br/>内层载荷: 原始全密文数据")]
     end
 
-    subgraph User Space VPN Client
-        E[Reads IP Packet from TUN0] --> F[Encrypts/Encapsulates Packet] --> G[Sends Encapsulated Packet via Physical NIC]
+    ClientNIC -->|"发送隧道密文"| NetTunnel
+
+    %% 阶段 3：VPN 服务端解封与转发
+    subgraph ServerHost [" 🚀 VPN 服务端主机 (VPN Server) "]
+        direction TB
+        ServerNIC["🌐 <b>服务端物理网卡</b><br/>接收并解交隧道流量"]
+        
+        subgraph ServerDaemon [" 服务端核心进程 (User Space) "]
+            ServerRecv["📥 读取隧道数据包"]
+            Decapsulate["🔓 <b>解密并解封载荷</b><br/>还原出客户端的原始 L3 IP 报文"]
+            WriteTUN["📤 <code>write()</code> 写入服务端 TUN"]
+
+            ServerRecv --> Decapsulate --> WriteTUN
+        end
+
+        subgraph ServerKernel [" 服务端内核栈 (Kernel Space) "]
+            ServerTUN["📟 服务端 TUN 虚拟设备 (tun0)"]
+            NAT["🔀 <b>内核路由与 NAT 转发</b><br/><code>iptables / nftables MASQUERADE</code>"]
+
+            ServerTUN --> NAT
+        end
+
+        ServerNIC --> ServerRecv
+        WriteTUN --> ServerTUN
     end
 
-    subgraph Internet
-        H[Encapsulated Packet Travels Across Internet]
+    NetTunnel -->|"到达服务端"| ServerNIC
+
+    %% 阶段 4：最终目标服务器
+    subgraph TargetZone [" 🌐 外部目标环境 "]
+        RemoteServer(["🎯 <b>目标真实服务器</b><br/><code>Dest_IP:Port (Web / API)</code>"])
     end
 
-    subgraph VPN Server
-        I[Receives Encapsulated Packet] --> J[Decrypts/Decapsulates Packet] --> K[Writes Decapsulated IP Packet to Server's TUN Interface]
-    end
+    NAT -->|"1. 经公网转发原始请求"| RemoteServer
+    RemoteServer -.->|"2. 回传响应数据包"| NAT
 
-    subgraph Server OS Kernel
-        L[Receives IP Packet from Server's TUN] --> M{Routing Table}
-        M -- Route to Remote Server --> N[Remote Server]
-    end
+    %% 响应回流路径 (虚线整齐回送)
+    NAT -.->|"3. 响应送入服务端 TUN"| ServerTUN
+    ServerTUN -.->|"4. 用户态封装加密响应"| ServerDaemon
+    ServerDaemon -.->|"5. 物理网卡回传隧道流"| ServerNIC
+    ServerNIC -.->|"6. 穿越互联网"| NetTunnel
+    NetTunnel -.->|"7. 客户端网卡接收"| ClientNIC
+    ClientNIC -.->|"8. 用户态解密并写入 tun0"| VPNUserClient
+    VPNUserClient -.->|"9. 内核交付应用套接字"| Socket
+    Socket -.->|"10. 应用成功接收响应"| App
 
-    A --> B
-    D --> E
-    G --> H
-    H --> I
-    K --> L
-    N -- Response --> M
-    M -- Route back via Server's TUN --> K
-    K -- Encrypts/Encapsulates Response --> J
-    J -- Sends Encapsulated Response via Server's Physical NIC --> H
-    H -- Encapsulated Response Travels Across Internet --> G
-    G -- Decrypts/Decapsulates Response --> E
-    E -- Writes Decapsulated Response to TUN0 --> D
-    D -- Receives Response from TUN0 --> B
-    B -- Passes Response to App --> A
+    %% 深色主题样式定制
+    style ClientHost fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style ClientApp fill:#091220,stroke:#334155,color:#cbd5e1
+    style ClientKernel fill:#091220,stroke:#38bdf8,stroke-width:1px,color:#bae6fd
+    style VPNUserClient fill:#181829,stroke:#f59e0b,stroke-width:1.2px,color:#fde68a
+
+    style Internet fill:#0f172a,stroke:#334155,stroke-dasharray: 2 2,color:#94a3b8
+
+    style ServerHost fill:#17112c,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+    style ServerDaemon fill:#1e1438,stroke:#c084fc,stroke-width:1.2px,color:#e9d5ff
+    style ServerKernel fill:#130b24,stroke:#a855f7,stroke-width:1px,color:#d8b4fe
+
+    style TargetZone fill:#0d1d18,stroke:#22c55e,stroke-dasharray: 4 4,color:#86efac
+
+    style App fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Socket fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style RouteTable fill:#312e81,stroke:#818cf8,color:#ffffff
+    style TUN_Dev fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style ClientNIC fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+
+    style ReadTUN fill:#1e293b,stroke:#f59e0b,color:#f8fafc
+    style Encapsulate fill:#78350f,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff
+    style SendTunnel fill:#1e293b,stroke:#f59e0b,color:#f8fafc
+
+    style NetTunnel fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+
+    style ServerNIC fill:#1e293b,stroke:#a855f7,color:#f8fafc
+    style ServerRecv fill:#1e293b,stroke:#c084fc,color:#f8fafc
+    style Decapsulate fill:#581c87,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style WriteTUN fill:#1e293b,stroke:#c084fc,color:#f8fafc
+    style ServerTUN fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style NAT fill:#6b21a8,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+
+    style RemoteServer fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 ## 三、HTTP/SOCKS 代理详解
@@ -225,47 +301,87 @@ graph TD
 **总结差异可视化：**
 
 {% mermaid %}
-graph LR
-    subgraph OSI Reference Model
-        A[Application Layer L7]
-        B[Presentation Layer L6]
-        C[Session Layer L5]
-        D[Transport Layer L4]
-        E[Network Layer L3]
-        F[Data Link Layer L2]
-        G[Physical Layer L1]
+flowchart LR
+    %% 区域 1：OSI 标准七层参考栈
+    subgraph OSI [" 📚 OSI 7 层网络参考模型 "]
+        direction TB
+        L7["<b>Layer 7: 应用层 (Application)</b><br/>HTTP / HTTPS / DNS / SSH"]
+        L6["<b>Layer 6: 表示层 (Presentation)</b><br/>TLS / SSL / 数据加解密"]
+        L5["<b>Layer 5: 会话层 (Session)</b><br/>RPC / SOCKS / 会话管理"]
+        L4["<b>Layer 4: 传输层 (Transport)</b><br/>TCP / UDP / QUIC"]
+        L3["<b>Layer 3: 网络层 (Network)</b><br/>IP / ICMP / 路由寻址"]
+        L2["<b>Layer 2: 数据链路层 (Data Link)</b><br/>以太网帧 (MAC) / ARP"]
+        L1["<b>Layer 1: 物理层 (Physical)</b><br/>网线 / 光纤 / 射频信号"]
+
+        L7 --- L6 --- L5 --- L4 --- L3 --- L2 --- L1
     end
 
-    subgraph TUN Tunnel
-        H[VPN Client/Server App]
-        I[IP Packet]
-        J[Virtual TUN Interface]
+    %% 区域 2：应用级与会话级代理 (上层截获)
+    subgraph Proxies [" 🌐 用户态代理模式 (Proxy Modes) "]
+        direction TB
+        
+        subgraph HttpMode [" 🔶 HTTP/HTTPS 代理 (L7 应用级) "]
+            direction TB
+            HttpApp["📱 应用程序 (浏览器 / curl)<br/>需应用原生配置 Proxy 参数"]
+            HttpProto["⚙️ <b>HTTP CONNECT / GET 代理协议</b><br/>仅支持 HTTP/Web 流量，感知内容"]
+            HttpServer["🚀 HTTP 代理服务器<br/>(Squid / Nginx / 抓包工具)"]
+            HttpApp --> HttpProto --> HttpServer
+        end
+
+        subgraph SocksMode [" 🟣 SOCKS5 代理 (L5 会话级) "]
+            direction TB
+            SocksApp["📱 支持 SOCKS5 的客户端 (Telegram / Git)<br/>或通过 proxychains 挂钩拦截"]
+            SocksProto["⚙️ <b>SOCKS5 握手认证协议</b><br/>协商目标 IP:Port，透明转发 TCP/UDP"]
+            SocksServer["🚀 SOCKS5 代理服务器<br/>(ss-local / Shadowsocks / Xray)"]
+            SocksApp --> SocksProto --> SocksServer
+        end
     end
 
-    subgraph HTTP/SOCKS Proxy
-        K["Application (e.g., Browser)"]
-        L[HTTP or SOCKS Protocol]
-        M[Proxy Server]
+    %% 区域 3：虚拟网卡与透明隧道 (下层截获)
+    subgraph Tunnels [" 📟 虚拟网卡隧道模式 (VPN / 透明网关) "]
+        direction TB
+
+        subgraph TunMode [" 🔷 TUN 虚拟网卡 (L3 网络层) "]
+            direction TB
+            TunDev["📟 <b>TUN 虚拟设备 (/dev/net/tun)</b><br/>处理无以太网头的纯 IP 报文"]
+            TunApp["🛡️ <b>VPN / 内核客户端 (Xray TUN / WireGuard)</b><br/>从文件读取 IP 报文 ➔ 加密隧道转发<br/>🟢 <b>全局接管系统所有 TCP/UDP/ICMP</b>"]
+            TunDev --> TunApp
+        end
+
+        subgraph TapMode [" ⚪ TAP 虚拟设备 (L2 链路层) "]
+            TapDev["📟 <b>TAP 虚拟设备</b><br/>处理含 MAC 头的完整以太网帧<br/>常用于虚拟机桥接 / OpenVPN L2"]
+        end
     end
 
-    A --- K
-    C --- L
-    E --- J
+    %% 核心跨层映射连接 (高亮对齐)
+    L7 ===|精准拦截| HttpProto
+    L5 ===|精准拦截| SocksProto
+    L3 ===|全局捕获| TunDev
+    L2 ===|帧级桥接| TapDev
 
-    K --> L
-    L --> M
+    %% 深色主题样式定制
+    style OSI fill:#0f172a,stroke:#475569,stroke-dasharray: 4 4,color:#94a3b8
+    style Proxies fill:#130e24,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+    style Tunnels fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
 
-    I --> J
-    J -- Routes IP Traffic --> H
-    H -- Encapsulates/Encrypts --> E
+    style HttpMode fill:#1c1308,stroke:#f59e0b,stroke-width:1px,color:#fde68a
+    style SocksMode fill:#24123b,stroke:#c084fc,stroke-width:1px,color:#e9d5ff
+    style TunMode fill:#072740,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style TapMode fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#cbd5e1
 
-    E -- Data Flow --> D
-    D -- Data Flow --> C
-    C -- Data Flow --> B
-    B -- Data Flow --> A
+    %% OSI 各层色阶
+    style L7 fill:#78350f,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff
+    style L6 fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style L5 fill:#581c87,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style L4 fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style L3 fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style L2 fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style L1 fill:#0f172a,stroke:#334155,color:#64748b
 
-    M -- Application-level Proxying --> A
-    M -- Session-level Proxying --> C
+    style HttpProto fill:#1e293b,stroke:#f59e0b,color:#f8fafc
+    style SocksProto fill:#1e293b,stroke:#c084fc,color:#f8fafc
+    style TunDev fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style TunApp fill:#14532d,stroke:#22c55e,stroke-width:1.5px,color:#f0fdf4
 {% endmermaid %}
 
 ## 五、安全性考虑

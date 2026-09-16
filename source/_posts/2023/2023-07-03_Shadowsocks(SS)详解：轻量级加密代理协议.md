@@ -60,27 +60,54 @@ Shadowsocks 是一个无状态协议。每个连接都是独立的，服务器�
 
 {% mermaid %}
 sequenceDiagram
-    participant App as 应用程序
-    participant Local_SS as 本地 Shadowsocks 客户端
-    participant Internet as 互联网 / GFW
-    participant Remote_SS as 远程 Shadowsocks 服务器
-    participant Target as 目标网站/服务
+    autonumber
 
-    App->>Local_SS: 1. 发送 SOCKS5 代理请求 <br/>(目标地址, 端口)
-    Local_SS->>Local_SS: 2. 将 SOCKS5 请求数据 <br/>+ 目标地址进行加密
-    Local_SS->>Internet: 3. 与远程 Shadowsocks 服务器 <br/>建立 TCP 连接
-    Internet->>Remote_SS: 4. 加密数据包到达服务器
-    Remote_SS->>Remote_SS: 5. 使用预设密码解密数据包
-    alt 解密失败或密码错误
-        Remote_SS->>Local_SS: 5.1 关闭连接
-    else 解密成功且密码正确
-        Remote_SS->>Target: 5.2 建立到目标网站的连接 <br/>(通常是直接TCP连接或SOCKS5)
-        App-->>Local_SS: 6. 应用程序发送/接收数据
-        Local_SS-->>Remote_SS: 7. 加密数据传输
-        Remote_SS-->>Target: 8. 解密并转发数据
-        Target-->>Remote_SS: 9. 目标网站返回数据
-        Remote_SS-->>Local_SS: 10. 加密后传输
-        Local_SS-->>App: 11. 解密并返回给应用程序
+    box rgba(15, 23, 42, 0.6) 本地受限网络环境 (Local)
+        participant App as 💻 应用程序 (Browser)
+        participant Local_SS as 🛡️ SS 本地客户端 (ss-local)
+    end
+
+    box rgba(23, 17, 37, 0.6) 境外自由网络环境 (Remote)
+        participant Remote_SS as 🚀 SS 远程服务端 (ss-server)
+        participant Target as 🌐 目标网站 (Web Server)
+    end
+
+    %% 阶段 1: SOCKS5 本地握手与代理请求
+    Note over App,Local_SS: 阶段一：本地协商 (标准 SOCKS5 协议，明文/无须加密)
+    App->>+Local_SS: SOCKS5 握手并发送请求<br/>[目标域名/IP + 端口]
+    Local_SS->>Local_SS: 封装 SS 请求头 (包含目标地址)<br/>使用预共享密钥执行 AEAD 加密
+
+    %% 阶段 2: 穿越公网与服务端解密
+    Note over Local_SS,Remote_SS: 阶段二：穿越公网 / GFW (全密文流，无特征混淆)
+    Local_SS->>+Remote_SS: 建立 TCP 连接并发送加密请求载荷
+
+    Remote_SS->>Remote_SS: 校验密文并使用 AEAD 密钥解密
+    
+    alt 校验/解密失败 (非合法流量或密码错误)
+        Remote_SS-->>Local_SS: 静默断开 TCP 连接 (防主动探测)
+    else 验证成功并解析出目标地址
+        Remote_SS->>+Target: 建立到目标网站的真实 TCP/UDP 连接
+        Target-->>-Remote_SS: 目标连接建立成功
+        Remote_SS-->>Local_SS: 握手确认 (TCP ESTABLISHED)
+        Local_SS-->>-App: 返回 SOCKS5 连接成功响应 (0x00)
+
+        %% 阶段 3: 双向数据透传中继
+        Note over App,Target: 阶段三：双向透明加密中继 (Relay Loop)
+        rect rgba(15, 23, 42, 0.5)
+            loop 用户浏览网页数据流 (TCP Payload)
+                App->>+Local_SS: 发送明文 HTTP/TLS 请求数据
+                Local_SS->>Local_SS: 对称加密 (AEAD Encrypt)
+                Local_SS->>+Remote_SS: 发送加密数据包 (穿越公网)
+                Remote_SS->>Remote_SS: 对称解密 (AEAD Decrypt)
+                Remote_SS->>+Target: 发送原始明文/TLS 请求
+                
+                Target-->>-Remote_SS: 返回目标响应数据
+                Remote_SS->>Remote_SS: 对称加密响应数据
+                Remote_SS-->>-Local_SS: 返回加密响应包
+                Local_SS->>Local_SS: 对称解密
+                Local_SS-->>-App: 还原并交付目标响应
+            end
+        end
     end
 {% endmermaid %}
 

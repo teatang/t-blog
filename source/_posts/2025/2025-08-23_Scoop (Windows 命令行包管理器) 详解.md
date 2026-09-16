@@ -132,12 +132,50 @@ Scoop 针对这些问题提供了优雅的解决方案：
 **工作原理图示**：
 
 {% mermaid %}
-graph TD
-    A[命令行输入: git] --> B[查找 PATH]
-    B --> C{找到 ~/scoop/shims/git.exe}
-    C -- 调用 --> D["Shim (git.exe)"]
-    D -- 代理启动 --> E[实际应用: ~/scoop/apps/git/2.45.0/cmd/git.exe]
-    E -- 执行 --> F[Git 应用运行]
+flowchart TD
+    %% 阶段 1：命令行输入
+    subgraph Terminal [" 💻 终端环境 (Terminal Session) "]
+        Cmd["⌨️ 执行命令: <code>git status</code>"]
+    end
+
+    %% 阶段 2：PATH 解析与 Shim 命中
+    subgraph ShimLayer [" ⚡ Scoop Shim 垫片代理层 (~/scoop/shims) "]
+        direction TB
+        PathLookup["🔍 系统检索 <code>%PATH%</code> 环境变量"]
+        ShimHit["🎯 命中 Shim 二进制<br/><code>~/scoop/shims/git.exe</code>"]
+        ShimConfig["📄 解析垫片配置<br/><code>~/scoop/shims/git.shim</code><br/><i>(指向实际路径与参数)</i>"]
+
+        PathLookup -->|"优先匹配"| ShimHit
+        ShimHit --> ShimConfig
+    end
+
+    Cmd --> PathLookup
+
+    %% 阶段 3：实际应用目录
+    subgraph AppLayer [" 📦 实际版本安装目录 (~/scoop/apps/git) "]
+        direction TB
+        CurrentSymlink["🔗 版本软链接 (Current)<br/><code>~/scoop/apps/git/current/</code>"]
+        RealBinary["⚙️ 目标程序可执行文件<br/><code>.../current/cmd/git.exe</code>"]
+
+        CurrentSymlink --> RealBinary
+    end
+
+    ShimConfig -->|"代理透明转发 (Proxy Launch)"| CurrentSymlink
+    RealBinary --> Process(["🚀 <b>Git 进程启动并返回结果</b>"])
+
+    %% 深色主题样式定制
+    style Terminal fill:#0f172a,stroke:#475569,stroke-dasharray: 4 4,color:#94a3b8
+    style ShimLayer fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style AppLayer fill:#171625,stroke:#f59e0b,stroke-dasharray: 4 4,color:#fde68a
+
+    style Cmd fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style PathLookup fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style ShimHit fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style ShimConfig fill:#1e293b,stroke:#38bdf8,stroke-dasharray: 2 2,color:#cbd5e1
+
+    style CurrentSymlink fill:#1e293b,stroke:#f59e0b,color:#f8fafc
+    style RealBinary fill:#78350f,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff
+    style Process fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 **优点**：
