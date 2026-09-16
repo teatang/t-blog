@@ -65,24 +65,99 @@ S-box 通常有两种类型：
 **SPN 结构中的 S-box 示例：**
 
 {% mermaid %}
-graph TD
-    A[明文块] --> B{"SubBytes (S-boxes)"};
-    B --> C{ShiftRows};
-    C --> D{MixColumns};
-    D --> E{AddRoundKey};
-    E --> B; 
-    %% 多轮循环
+flowchart TD
+    Plain(["📄 128 位明文块<br/>(4×4 状态矩阵)"]) --> InitKey["🔑 初始轮密钥加 (Round 0)<br/><code>AddRoundKey(State, Key₀)</code>"]
 
-    subgraph "SubBytes (S-boxes 内部)"
-        S1[输入块1] --> S_BOX_1(S-box 1);
-        S2[输入块2] --> S_BOX_2(S-box 2);
-        S3[输入块3] --> S_BOX_3(S-box 3);
-        S4[输入块4] --> S_BOX_4(S-box 4);
-        S_BOX_1 --> O1[输出块1];
-        S_BOX_2 --> O2[输出块2];
-        S_BOX_3 --> O3[输出块3];
-        S_BOX_4 --> O4[输出块4];
+    %% 标准加密轮
+    subgraph MainRound [" 🔁 标准加密轮 (Round 1 至 Nr-1) "]
+        direction TB
+        SB["🔲 <b>SubBytes</b><br/>非线性字节代换 (S-box)"]
+        SR["↔️ <b>ShiftRows</b><br/>行循环左移位"]
+        MC["🔀 <b>MixColumns</b><br/>GF(2⁸) 矩阵列混淆"]
+        AK["🔑 <b>AddRoundKey</b><br/>异或当前轮密钥 <code>Keyᵣ</code>"]
+
+        SB --> SR --> MC --> AK
     end
+
+    InitKey --> MainRound
+    MainRound -->|"循环 Nr-1 次"| MainRound
+
+    %% 最终轮（无列混淆）
+    subgraph FinalRound [" 🏁 最终轮 (Round Nr) "]
+        direction TB
+        F_SB["🔲 SubBytes"]
+        F_SR["↔️ ShiftRows"]
+        F_AK["🔑 AddRoundKey (Key_Nr)"]
+
+        F_SB --> F_SR --> F_AK
+    end
+
+    MainRound -->|"进入最后一轮"| FinalRound
+    FinalRound --> Cipher(["📦 128 位密文块"])
+
+    %% SubBytes 内部并行结构放大图
+    subgraph Detail [" 🔍 SubBytes 内部变换原理 (16 字节并行查表) "]
+        direction LR
+        subgraph ByteIn [" 输入字节 "]
+            direction TB
+            B0["Byte S₀,₀"]
+            B1["Byte S₁,₀"]
+            BDot["..."]
+            B15["Byte S₃,₃"]
+        end
+
+        subgraph SBoxLook [" 查表映射 "]
+            direction TB
+            SB1["⚙️ Rijndael S-Box"]
+            SB2["⚙️ Rijndael S-Box"]
+            SBDot["..."]
+            SB16["⚙️ Rijndael S-Box"]
+        end
+
+        subgraph ByteOut [" 输出字节 "]
+            direction TB
+            O0["Byte S'₀,₀"]
+            O1["Byte S'₁,₀"]
+            ODot["..."]
+            O15["Byte S'₃,₃"]
+        end
+
+        B0 --> SB1 --> O0
+        B1 --> SB2 --> O1
+        BDot --> SBDot --> ODot
+        B15 --> SB16 --> O15
+    end
+
+    SB -.->|"细化架构"| Detail
+
+    %% 深色主题样式
+    style MainRound fill:#0f172a,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style FinalRound fill:#0f172a,stroke:#f59e0b,stroke-dasharray: 4 4,color:#fde68a
+    style Detail fill:#090d16,stroke:#475569,stroke-dasharray: 3 3,color:#cbd5e1
+
+    style ByteIn fill:#111827,stroke:#334155,color:#94a3b8
+    style SBoxLook fill:#111827,stroke:#334155,color:#94a3b8
+    style ByteOut fill:#111827,stroke:#334155,color:#94a3b8
+
+    style Plain fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Cipher fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
+    style InitKey fill:#1e293b,stroke:#a855f7,stroke-width:1.5px,color:#f8fafc
+
+    style SB fill:#1e3a5f,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style SR fill:#1e293b,stroke:#0ea5e9,stroke-width:1.2px,color:#f8fafc
+    style MC fill:#1e293b,stroke:#0ea5e9,stroke-width:1.2px,color:#f8fafc
+    style AK fill:#3b1d54,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+
+    style F_SB fill:#1e3a5f,stroke:#38bdf8,stroke-width:1px,color:#ffffff
+    style F_SR fill:#1e293b,stroke:#0ea5e9,stroke-width:1px,color:#f8fafc
+    style F_AK fill:#3b1d54,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+
+    style SB1 fill:#1e293b,stroke:#38bdf8,color:#f8fafc
+    style SB2 fill:#1e293b,stroke:#38bdf8,color:#f8fafc
+    style SBDot fill:#0b0f19,stroke:none,color:#64748b
+    style SB16 fill:#1e293b,stroke:#38bdf8,color:#f8fafc
+    style BDot fill:#0b0f19,stroke:none,color:#64748b
+    style ODot fill:#0b0f19,stroke:none,color:#64748b
 {% endmermaid %}
 
 在 AES 算法中，`SubBytes` 步骤就广泛使用了 S-box。每个字节作为一个 8 位输入进入 $8 \times 8$ 的 S-box, 并输出一个 8 位结果。

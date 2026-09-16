@@ -94,41 +94,84 @@ Eve 知道 $p, g, A, B$。但她不知道 $a$ 和 $b$。要推导出共享秘密
 ### **DH 密钥交换流程图：**
 
 {% mermaid %}
-graph TD
-    subgraph 公开参数
-        P[公开参数: p, g]
+flowchart TD
+    %% 阶段 1：公共参数
+    subgraph Params [" 🌐 公开参数 (协商或标准设定) "]
+        P["大素数 <b>p</b> & 原根 <b>g</b>"]
     end
 
-    subgraph Alice
-        Alice_Private[Alice 私钥: 'a']
-        Alice_Calc_PubKey[计算 Alice 公钥: A = g^a mod p]
+    %% 阶段 2：双方私钥与公钥生成
+    subgraph Alice [" 👩‍💻 Alice (本地安全环境) "]
+        direction TB
+        PrivA["🔐 随机私钥 <b>a</b>"]
+        PubA["📤 计算公钥<br/><code>A = gᵃ mod p</code>"]
+        PrivA --> PubA
     end
 
-    subgraph Bob
-        Bob_Private[Bob 私钥: 'b']
-        Bob_Calc_PubKey[计算 Bob 公钥: B = g^b mod p]
+    subgraph Bob [" 👨‍💻 Bob (本地安全环境) "]
+        direction TB
+        PrivB["🔐 随机私钥 <b>b</b>"]
+        PubB["📤 计算公钥<br/><code>B = gᵇ mod p</code>"]
+        PrivB --> PubB
     end
 
-    subgraph 窃听者 Eve
-        Eve_Observation[Eve 观察: p, g, A, B]
+    P --> PubA
+    P --> PubB
+
+    %% 阶段 3：网络交换与窃听者
+    subgraph Network [" 📡 不安全信道 (公开网络) "]
+        direction LR
+        ChanA["公钥 <b>A</b> 传输"]
+        ChanB["公钥 <b>B</b> 传输"]
     end
 
-    P --> Alice_Private;
-    P --> Bob_Private;
+    subgraph Eve [" 🕵️‍♀️ 窃听者 Eve (中间人/旁路) "]
+        direction TB
+        Eve_Obs["👀 截获公开数据:<br/><code>p, g, A, B</code>"]
+        Eve_DLP["🛑 <b>计算困境 (DLP / CDH)</b><br/>无法在多项式时间内<br/>从 A, B 反推 a 或 b"]
+        Eve_Obs --> Eve_DLP
+    end
 
-    Alice_Calc_PubKey --> Alice_Send_A[Alice 发送 A] --> Bob_Receive_A[Bob 接收 A];
-    Bob_Calc_PubKey --> Bob_Send_B[Bob 发送 B] --> Alice_Receive_B[Alice 接收 B];
+    PubA -->|"发送公钥 A"| ChanA -->|"接收 A"| BobCalc
+    PubB -->|"发送公钥 B"| ChanB -->|"接收 B"| AliceCalc
 
-    Alice_Send_A -- A --> Eve_Observation;
-    Bob_Send_B -- B --> Eve_Observation;
+    ChanA -.->|"窃听 A"| Eve_Obs
+    ChanB -.->|"窃听 B"| Eve_Obs
+    P -.-> Eve_Obs
 
-    Alice_Receive_B --> Alice_Calc_Shared[Alice 计算共享秘密: S = B^a mod p];
-    Bob_Receive_A --> Bob_Calc_Shared[Bob 计算共享秘密: S = A^b mod p];
+    %% 阶段 4：计算共享秘密
+    AliceCalc["🧮 计算协商秘密<br/><code>S_A = Bᵃ mod p</code>"]
+    BobCalc["🧮 计算协商秘密<br/><code>S_B = Aᵇ mod p</code>"]
 
-    Alice_Calc_Shared --> Shared_Secret["共享秘密 S = g^(ab) mod p"];
-    Bob_Calc_Shared --> Shared_Secret;
+    PrivA --> AliceCalc
+    PrivB --> BobCalc
 
-    Eve_Observation -- 尝试破解 --> Eve_Problem[Eve 需解决离散对数问题以获取 a 或 b];
+    %% 最终结果
+    SharedSecret(["✨ <b>达成一致的共享密钥</b><br/><code>S = gᵃᵇ mod p</code>"])
+    AliceCalc --> SharedSecret
+    BobCalc --> SharedSecret
+
+    %% 深色 UI 风格定制
+    style Params fill:#0f172a,stroke:#64748b,stroke-dasharray: 4 4,color:#cbd5e1
+    style Alice fill:#0c192c,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style Bob fill:#1e1035,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+    style Network fill:#0f172a,stroke:#334155,stroke-width:1.5px,color:#94a3b8
+    style Eve fill:#260d13,stroke:#f87171,stroke-dasharray: 3 3,color:#fca5a5
+
+    style P fill:#1e293b,stroke:#94a3b8,color:#f8fafc
+    style PrivA fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style PubA fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style PrivB fill:#1e293b,stroke:#9333ea,color:#f8fafc
+    style PubB fill:#6b21a8,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+
+    style ChanA fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style ChanB fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style Eve_Obs fill:#3f1418,stroke:#ef4444,color:#fecaca
+    style Eve_DLP fill:#1f1315,stroke:#b91c1c,color:#fca5a5
+
+    style AliceCalc fill:#075985,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style BobCalc fill:#581c87,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style SharedSecret fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 ## 四、DH 算法示例

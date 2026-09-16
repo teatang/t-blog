@@ -151,18 +151,56 @@ AES 算法需要为每一轮生成一个独立的轮密钥。密钥扩展算法�
 **AES 加密过程示意图：**
 
 {% mermaid %}
-graph TD
-    A["明文块 (128 bits)"] --> B(初始 AddRoundKey);
-    B --> C{轮 1};
-    C --> D(SubBytes);
-    D --> E(ShiftRows);
-    E --> F(MixColumns);
-    F --> G(AddRoundKey);
-    G -- ... N-1 轮 ... --> H{"轮 N (最后一轮)"};
-    H --> I(SubBytes);
-    I --> J(ShiftRows);
-    J --> K(AddRoundKey);
-    K --> L["密文块 (128 bits)"];
+flowchart TD
+    Plain(["📄 明文块 (128 bits)<br/>4×4 状态矩阵"]) --> InitKey["🔑 <b>初始轮 (Round 0)</b><br/>AddRoundKey ⊕ Key₀"]
+
+    %% 标准轮结构 (Round 1 ~ Nr-1)
+    subgraph StdRounds [" 🔁 标准轮变换 (Round 1 ~ Nr-1) "]
+        direction TB
+        SB1["🔲 SubBytes (字节代换)"]
+        SR1["↔️ ShiftRows (行移位)"]
+        MC1["🔀 MixColumns (列混淆)"]
+        AK1["🔑 AddRoundKey ⊕ Keyᵣ"]
+
+        SB1 --> SR1 --> MC1 --> AK1
+    end
+
+    InitKey -->|"Round 1 开始"| StdRounds
+    StdRounds -->|"重复迭代至第 Nr-1 轮"| StdRounds
+
+    %% 最终轮结构 (Round Nr)
+    subgraph FinalRound [" 🏁 最终轮 (Round Nr) "]
+        direction TB
+        SB2["🔲 SubBytes"]
+        SR2["↔️ ShiftRows"]
+        NoMC["⚠️ <i>无 MixColumns 操作</i>"]
+        AK2["🔑 AddRoundKey ⊕ Key_Nr"]
+
+        SB2 --> SR2 -.-> NoMC -.-> AK2
+    end
+
+    StdRounds -->|"进入第 Nr 轮"| FinalRound
+    FinalRound --> Cipher(["📦 密文块 (128 bits)"])
+
+    %% 深色主题样式
+    style StdRounds fill:#0f172a,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style FinalRound fill:#0f172a,stroke:#f59e0b,stroke-dasharray: 4 4,color:#fde68a
+
+    style Plain fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Cipher fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
+    style InitKey fill:#3b1d54,stroke:#c084fc,stroke-width:1.5px,color:#f8fafc
+
+    %% 标准轮节点
+    style SB1 fill:#1e3a5f,stroke:#38bdf8,stroke-width:1.2px,color:#ffffff
+    style SR1 fill:#1e293b,stroke:#0ea5e9,stroke-width:1px,color:#f8fafc
+    style MC1 fill:#1e293b,stroke:#0ea5e9,stroke-width:1px,color:#f8fafc
+    style AK1 fill:#3b1d54,stroke:#c084fc,stroke-width:1.2px,color:#ffffff
+
+    %% 最终轮节点
+    style SB2 fill:#1e3a5f,stroke:#38bdf8,stroke-width:1.2px,color:#ffffff
+    style SR2 fill:#1e293b,stroke:#0ea5e9,stroke-width:1px,color:#f8fafc
+    style NoMC fill:#1c1917,stroke:#78716c,stroke-dasharray: 2 2,color:#a8a29e
+    style AK2 fill:#3b1d54,stroke:#c084fc,stroke-width:1.2px,color:#ffffff
 {% endmermaid %}
 其中，`N` 是总轮数 (10, 12 或 14)。
 

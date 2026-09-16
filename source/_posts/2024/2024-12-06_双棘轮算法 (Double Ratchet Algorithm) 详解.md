@@ -98,56 +98,100 @@ mathjax: true
 ### 4.3 整体流程与状态更新
 
 {% mermaid %}
-graph LR
-    subgraph "Initial Setup (X3DH)"
-        Alice_X3DH[Alice IK, EK] -->|X3DH Shared Secret| RK_initial["Initial Root Key (RK)"];
-        Bob_X3DH[Bob IK, SPK, OPK] -->|X3DH Shared Secret| RK_initial;
-        RK_initial --> KDF_RK(RK_initial, Zeroes) --> RKP_initial_chains["(SCK_A_init, RCK_B_init)"];
-    end
-
-    subgraph "Double Ratchet Algorithm (Message 1 from Alice)"
+flowchart TD
+    %% 阶段 1：X3DH 握手与初始密钥建立
+    subgraph X3DH [" 🤝 阶段 1: X3DH 密钥协商与根密钥初始化 "]
         direction LR
+        Alice_Keys["👩‍💻 Alice 密钥<br/><code>IK_A · EK_A</code>"]
+        Bob_Prekeys["👨‍💻 Bob 预共享密钥<br/><code>IK_B · SPK_B · OPK_B</code>"]
+        X3DH_Calc["🧮 <b>X3DH 共享密钥计算</b><br/><code>SK = DH1 ‖ DH2 ‖ DH3 (‖ DH4)</code>"]
+        Init_RK["🔑 <b>初始根密钥 (Root Key)</b><br/><code>RK₀ = KDF(SK)</code>"]
 
-        subgraph Alice's State
-            RK_A_0[RK_A]
-            SCK_A_0["SCK_A (for current DH Ratchet Period)"] --> MK_A1[Message Key 1]
-            SCK_A_0 --> SCK_A_1["SCK_A (for next message)"]
-            EK_A_0["Ephemeral Key Pair (Current)"]
-        end
-
-        subgraph Bob's State
-            RK_B_0[RK_B]
-            RCK_B_0["RCK_B (for current DH Ratchet Period)"] --> MK_B1[Message Key 1]
-            RCK_B_0 --> RCK_B_1["RCK_B (for next message)"]
-            EK_B_0["Ephemeral Key Pair (Current)"]
-            RCK_Period_SkippedKeys_Bob["Skipped MKs (Current RCK Period)"]
-        end
-
-        Alice_Msg1_Start(Alice wants to send msg 1)
-        Alice_Msg1_Start --> A_S_R(Alice: Symmetric Ratchet Step)
-        A_S_R --> A_Derive_MK1(Derive MK1 from SCK_A_0)
-        A_Derive_MK1 --> A_Update_SCK1(Update SCK_A_0 -> SCK_A_1)
-        A_Update_SCK1 --> A_Encrypt_M1(Encrypt msg 1 with MK1)
-        A_Encrypt_M1 -->|Includes EK_A_0.pub| Message1(Message 1);
-
-        Message1 --> B_R_M1(Bob receives Message 1);
-        B_R_M1 --> |"Is EK_A_0.pub new? Yes (Initial DH Ratchet)"| B_DH_R(Bob: DH Ratchet Step);
-        B_DH_R --> B_Derive_Secret(Derive DH Secret from Bob's Priv + EK_A_0.pub);
-        B_Derive_Secret --> B_Update_RK_RCK(Update RK_B_0 -> RK_B_1, RCK_B_0 -> RCK_B_1_start from RK_B_0 + DH Secret);
-        B_Update_RK_RCK --> B_S_R(Bob: Symmetric Ratchet Step from RCK_B_1_start);
-        B_S_R --> B_Derive_MK1(Derive MK1 from RCK_B_1_start);
-        B_Derive_MK1 --> B_Update_RCK1(Update RCK_B_1_start -> RCK_B_1);
-        B_Update_RCK1 --> B_Decrypt_M1(Decrypt msg 1 with MK1);
-        B_Decrypt_M1 --> B_Process(Bob processes msg 1);
-
-        RK_A_0 --KDF_RK(RK_A_0, DH(EK_B_0.priv, EK_A_0.pub))--> RK_A_1[New RK_A];
-        RK_A_1 --> SCK_A_new_start["SCK_A (for next DH Ratchet Period)"];
-        RK_A_1 --> RCK_A_new_start["RCK_A (for next DH Ratchet Period)"];
-
-        RK_B_0 --KDF_RK(RK_B_0, DH(EK_A_0.priv, EK_B_0.pub))--> RK_B_1[New RK_B];
-        RK_B_1 --> RCK_B_new_start["SCK_B (for next DH Ratchet Period)"];
-        RK_B_1 --> RCK_B_new_start["RCK_B (for next DH Ratchet Period)"];
+        Alice_Keys --> X3DH_Calc
+        Bob_Prekeys --> X3DH_Calc
+        X3DH_Calc --> Init_RK
     end
+
+    %% 阶段 2：Alice 发送第一条消息（对称棘轮步进）
+    subgraph AliceSend [" 👩‍💻 阶段 2: Alice 发送 Message 1 (对称链步进) "]
+        direction TB
+        A_CK["📤 初始发送链密钥 <code>CK_s</code><br/><i>(由 X3DH 初始派生)</i>"]
+        A_SymRatchet["⚡ <b>KDF_CK (对称棘轮步进)</b>"]
+        A_NextCK["➡️ 更新发送链密钥 <code>CK_s'</code><br/><i>(留给下一条发送消息)</i>"]
+        A_MK["🔐 <b>消息密钥 (MK₁)</b>"]
+        A_Enc["🔒 <b>AEAD 加密消息</b><br/>包含 Alice 临时公钥 <code>EK_A.pub</code>"]
+
+        A_CK --> A_SymRatchet
+        A_SymRatchet -->|"推进链"| A_NextCK
+        A_SymRatchet -->|"派生 MK"| A_MK
+        A_MK --> A_Enc
+    end
+
+    Init_RK -->|"建立初始发送/接收链"| A_CK
+
+    %% 网络信道传输
+    Msg1[("📦 <b>Message 1</b> (密文 + 报头: <code>EK_A.pub</code>)")]
+    A_Enc -->|"公网发送"| Msg1
+
+    %% 阶段 3：Bob 接收第一条消息（DH 棘轮 + 对称棘轮解密）
+    subgraph BobRecv [" 👨‍💻 阶段 3: Bob 接收并解密 (DH 棘轮 + 对称棘轮) "]
+        direction TB
+        B_Check{"是否包含新公钥？<br/><b>检查 EK_A.pub</b>"}
+        
+        subgraph DHRatchet [" 🔄 DH 棘轮步进 (DH Ratchet Step) "]
+            direction TB
+            B_DH["⚡ 计算 DH 输出<br/><code>DH_Secret = DH(Bob_Priv, EK_A.pub)</code>"]
+            B_KDF_RK["🧮 <b>KDF_RK 根链步进</b><br/><code>(RK₁, CK_r) = KDF(RK₀, DH_Secret)</code>"]
+            B_DH --> B_KDF_RK
+        end
+
+        subgraph SymRatchet [" ⚡ 接收对称棘轮步进 (Symmetric Ratchet) "]
+            direction TB
+            B_KDF_CK["🧮 <b>KDF_CK 对称步进</b><br/><code>(CK_r', MK₁) = KDF(CK_r)</code>"]
+            B_Dec["🔓 <b>AEAD 解密</b><br/>用 <code>MK₁</code> 还原明文"]
+            B_KDF_CK -->|"解密密钥"| B_Dec
+        end
+
+        B_Check -->|"是: 触发 DH 棘轮"| B_DH
+        B_KDF_RK -->|"产出接收链 CK_r"| B_KDF_CK
+    end
+
+    Msg1 -->|"网络接收"| B_Check
+    B_Dec --> Plaintext(["📄 <b>Bob 成功处理明文消息 1</b>"])
+
+    %% 状态更新标注
+    subgraph ReadyNext [" ⏭️ 后续双向棘轮轮转准备 "]
+        NextState["Bob 生成新临时公钥 <code>EK_B</code> 并附在下一次回复中<br/>双方进入持续的 <b>DH 棘轮 ↔ 发送/接收对称链</b> 自动交替滚动"]
+    end
+    Plaintext -.-> ReadyNext
+
+    %% 深色主题样式定制
+    style X3DH fill:#0f172a,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style AliceSend fill:#0c192c,stroke:#0ea5e9,stroke-width:1.5px,color:#bae6fd
+    style BobRecv fill:#1e1035,stroke:#a855f7,stroke-width:1.5px,color:#d8b4fe
+    style DHRatchet fill:#130b24,stroke:#c084fc,stroke-dasharray: 3 3,color:#e9d5ff
+    style SymRatchet fill:#130b24,stroke:#c084fc,stroke-dasharray: 3 3,color:#e9d5ff
+    style ReadyNext fill:#091624,stroke:#64748b,stroke-dasharray: 2 2,color:#94a3b8
+
+    style Alice_Keys fill:#1e293b,stroke:#0ea5e9,color:#f8fafc
+    style Bob_Prekeys fill:#1e293b,stroke:#a855f7,color:#f8fafc
+    style X3DH_Calc fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+    style Init_RK fill:#1e3a5f,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+
+    style A_CK fill:#1e293b,stroke:#0ea5e9,color:#cbd5e1
+    style A_SymRatchet fill:#0284c7,stroke:#38bdf8,color:#ffffff
+    style A_NextCK fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style A_MK fill:#075985,stroke:#38bdf8,color:#ffffff
+    style A_Enc fill:#0369a1,stroke:#38bdf8,stroke-width:1.5px,color:#ffffff
+
+    style Msg1 fill:#334155,stroke:#94a3b8,stroke-width:2px,color:#f1f5f9
+    style B_Check fill:#312e81,stroke:#818cf8,color:#ffffff
+    style B_DH fill:#581c87,stroke:#c084fc,color:#ffffff
+    style B_KDF_RK fill:#6b21a8,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style B_KDF_CK fill:#581c87,stroke:#c084fc,color:#ffffff
+    style B_Dec fill:#4c1d95,stroke:#c084fc,stroke-width:1.5px,color:#ffffff
+    style Plaintext fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
+    style NextState fill:#1e293b,stroke:#475569,color:#cbd5e1
 {% endmermaid %}
 
 **简化流程 (以 Alice 向 Bob 发送消息为例):**

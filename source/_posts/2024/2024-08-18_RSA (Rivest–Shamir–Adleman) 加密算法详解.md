@@ -92,12 +92,30 @@ RSA 算法包含三个主要阶段：密钥生成、加密和解密。
 **密钥生成流程图：**
 
 {% mermaid %}
-graph TD
-    A[选择两个大素数 p 和 q] --> B{计算模数 n = p * q};
-    B --> C{"计算欧拉函数 φ(n) = (p-1)(q-1)"};
-    C --> D{选择公钥指数 e};
-    D -- 满足 1 < e < φ(n) 且 gcd(e, φ(n)) = 1 --> E{计算私钥指数 d};
-    E -- 满足 d * e ≡ 1 (mod φ(n)) --> F["公钥: (e, n) & 私钥: (d, n)"];
+flowchart TD
+    A(["🔑 选择两个大素数<br/><b>p</b> 与 <b>q</b>"]) --> B["🧮 计算模数<br/><b>n = p × q</b>"]
+    B --> C["📐 计算欧拉函数<br/><b>φ(n) = (p - 1)(q - 1)</b>"]
+    C --> D["🎯 选择公钥指数 <b>e</b>"]
+    
+    D -->|"1 &lt; e &lt; φ(n)<br/>gcd(e, φ(n)) = 1"| E["🔐 计算私钥指数 <b>d</b>"]
+    E -->|"d · e ≡ 1 (mod φ(n))"| Keys
+
+    subgraph Keys [" 密钥生成结果 "]
+        direction LR
+        F1["🌐 <b>公钥 (Public Key)</b><br/><code>(e, n)</code>"]
+        F2["🔒 <b>私钥 (Private Key)</b><br/><code>(d, n)</code>"]
+    end
+
+    %% 节点深色样式
+    style A fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+    style B fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style C fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style D fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style E fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    
+    style Keys fill:#0b1329,stroke:#334155,stroke-dasharray: 4 4,color:#94a3b8
+    style F1 fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style F2 fill:#581c87,stroke:#c084fc,stroke-width:2px,color:#ffffff
 {% endmermaid %}
 
 ### 3.2 加密 (Encryption)
@@ -121,18 +139,34 @@ Bob 收到密文 $C$ 后，使用自己的私钥 $(d, n)$ 解密消息。
 **加密/解密流程图：**
 
 {% mermaid %}
-graph TD
-    subgraph A["Alice (发送方)"]
-        A1[原始消息 M] --> A2{"使用 Bob 的公钥 (e, n) 加密"};
-        A2 -- C = M^e mod n --> A3[密文 C];
+flowchart TD
+    subgraph Alice ["👩‍💻 Alice (发送方)"]
+        direction TB
+        M1(["📄 明文消息 <b>M</b>"])
+        Enc["🔒 加密计算<br/>使用 Bob 公钥 <code>(e, n)</code>"]
+        M1 --> Enc
     end
 
-    subgraph B["Bob (接收方)"]
-        B1[密文 C] --> B2{"使用自己的私钥 (d, n) 解密"};
-        B2 -- M = C^d mod n --> B3[解密后的消息 M];
+    Enc -->|"密文: C ≡ M<sup>e</sup> (mod n)"| Channel[("🌐 公开信道传输 (密文 C)")]
+
+    Channel -->|"接收密文 C"| Dec
+
+    subgraph Bob ["👨‍💻 Bob (接收方)"]
+        direction TB
+        Dec["🔓 解密计算<br/>使用自身私钥 <code>(d, n)</code>"]
+        M2(["📄 还原明文 <b>M</b>"])
+        Dec -->|"明文: M ≡ C<sup>d</sup> (mod n)"| M2
     end
 
-    A3 --> B1;
+    %% 节点样式美化 (深色UI)
+    style Alice fill:#0f172a,stroke:#38bdf8,stroke-dasharray: 4 4,color:#93c5fd
+    style Bob fill:#0f172a,stroke:#a855f7,stroke-dasharray: 4 4,color:#d8b4fe
+
+    style M1 fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style M2 fill:#1e293b,stroke:#22c55e,stroke-width:2px,color:#f8fafc
+    style Enc fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style Dec fill:#581c87,stroke:#c084fc,stroke-width:2px,color:#ffffff
+    style Channel fill:#334155,stroke:#94a3b8,stroke-width:1.5px,color:#e2e8f0
 {% endmermaid %}
 
 ### 3.4 数字签名 (Digital Signatures)

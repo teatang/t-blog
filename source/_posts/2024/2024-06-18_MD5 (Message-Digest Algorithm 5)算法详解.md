@@ -87,18 +87,58 @@ MD5 算法使用一个 128 位的缓冲区来存储中间哈希结果。这个�
 **MD5 块处理流程图：**
 
 {% mermaid %}
-graph TD
-    A[512位消息块] --> B{初始化寄存器 A, B, C, D};
-    B --> C[保存 A,B,C,D 到 AA,BB,CC,DD];
-    C --> D{"处理 4 轮 (每轮 16 步)"};
-    D --> E[第 i 步操作];
-    E -- 非线性函数 F, G, H, I --> F1[循环左移 ROL_s];
-    E -- 消息子块 M_j --> F2[32位常数 T_k];
-    F1 & F2 --> G[32位模加];
-    G --> H[更新 A,B,C,D];
-    D -- 64 步完成后 --> I[A, B, C, D 加上 AA, BB, CC, DD];
-    I --> J[输出新的 A, B, C, D];
-    J -- 所有消息块处理完 --> K[连接 A, B, C, D 为 128 位哈希值];
+flowchart TD
+    In(["📦 原始消息 (经填充与分块)"]) --> Init["⚙️ 初始化 4 个 32位寄存器<br/><code>A, B, C, D (常数 IV)</code>"]
+    
+    Init --> BlockStart["🔄 载入当前 512 位消息块 <code>M[i]</code>"]
+    BlockStart --> Save["💾 备份当前寄存器状态<br/><code>AA=A, BB=B, CC=C, DD=D</code>"]
+
+    subgraph CoreLoop [" 🔁 核心压缩函数 (共 4 轮，合计 64 步) "]
+        direction TB
+        StepHead["▶️ 执行第 <code>t</code> 步 (t = 0 ... 63)"]
+        
+        subgraph StepDetail [" 单步变换内部逻辑 "]
+            direction TB
+            Func["🧩 非线性布尔函数<br/><b>F / G / H / I (B, C, D)</b>"]
+            Add1["➕ 32位模加<br/><b>A + f + M[j] + T[k]</b>"]
+            Shift["🔀 循环左移 <code>s</code> 位<br/><b>ROL_s</b>"]
+            Add2["➕ 再次模加加回 <code>B</code>"]
+            RotReg["🔃 寄存器循环移位更新<br/><code>(A, B, C, D) ← (D, 新A, B, C)</code>"]
+
+            Func --> Add1 --> Shift --> Add2 --> RotReg
+        end
+
+        StepHead --> StepDetail
+        RotReg -->|"t &lt; 63 (步递增)"| StepHead
+    end
+
+    Save --> CoreLoop
+    
+    CoreLoop -->|"64 步完成"| Accumulate["➕ 与初始备份累加 (模 2^32)<br/><code>A += AA, B += BB, C += CC, D += DD</code>"]
+
+    Accumulate --> CheckBlock{"还有未处理的<br/>512 位消息块？"}
+    CheckBlock -->|"是 (处理下一块)"| BlockStart
+    CheckBlock -->|"否 (全部完成)"| Finalize(["✨ 级联低位优先输出<br/><b>128 位 MD5 哈希值</b>"])
+
+    %% 样式定制 (深色主题)
+    style CoreLoop fill:#090d16,stroke:#f59e0b,stroke-dasharray: 4 4,color:#fde68a
+    style StepDetail fill:#111c30,stroke:#3b82f6,stroke-width:1px,color:#93c5fd
+
+    style In fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style Init fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style BlockStart fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style Save fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#cbd5e1
+
+    style StepHead fill:#1e293b,stroke:#f59e0b,stroke-width:1.5px,color:#fef08a
+    style Func fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#f8fafc
+    style Add1 fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#f8fafc
+    style Shift fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#f8fafc
+    style Add2 fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#f8fafc
+    style RotReg fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#f8fafc
+
+    style Accumulate fill:#1e293b,stroke:#f59e0b,stroke-width:1.5px,color:#f8fafc
+    style CheckBlock fill:#1e293b,stroke:#a855f7,stroke-width:1.5px,color:#f8fafc
+    style Finalize fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#f0fdf4
 {% endmermaid %}
 
 ### 2.5 输出 (Output)

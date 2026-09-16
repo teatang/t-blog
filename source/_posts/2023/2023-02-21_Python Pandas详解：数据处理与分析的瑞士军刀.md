@@ -411,18 +411,71 @@ print(f"\n按月重采样求平均:\n{ts.resample('M').mean()}")
 ```
 
 {% mermaid %}
-graph TD
-    A[数据源: CSV, Excel, DB, JSON] --> B(pd.read_csv/excel/sql/json)
-    B --> C[DataFrame/Series]
-    C -- 探索性数据分析 (EDA) --> D["df.head(), df.info(), <br>df.describe(), nunique(), <br>value_counts()"]
-    C -- 数据选择 & 过滤 --> E["df[], df.loc[], df.iloc[], <br>布尔索引, query()"]
-    C -- 数据清洗 --> F["df.fillna(), df.dropna(), <br>df.drop_duplicates(), replace(), <br>rename()"]
-    C -- 数据转换 & 特征工程 --> G["df.apply(), df.astype(), <br>df.groupby(), df.merge(), <br>df.pivot_table(), pd.concat(), <br>pd.get_dummies()"]
-    G --> H{分析结果/处理后的数据}
-    H -- 可视化 --> I[Matplotlib, Seaborn, Plotly]
-    H -- 存储 --> J["df.to_csv/excel/sql/json, <br>to_pickle()"]
-    J --> K[报告/模型训练/进一步分析]
+flowchart TD
+    %% 阶段 1：数据摄取
+    subgraph Ingestion [" 📥 数据源摄取 (Data Ingestion) "]
+        direction LR
+        Sources["📁 多样数据源<br/><code>CSV / Excel / SQL / JSON / Parquet</code>"]
+        Reader["⚙️ 载入函数<br/><code>pd.read_csv() / read_excel() / read_sql()</code>"]
+        Sources --> Reader
+    end
 
+    DF["🐼 <b>核心数据结构</b><br/><code>pandas.DataFrame / Series</code>"]
+    Reader --> DF
+
+    %% 阶段 2：数据探索与质检
+    subgraph Exploration [" 🔍 探索性分析与质检 (EDA) "]
+        direction TB
+        EDA["<b>结构概览与分布检查</b><br/><code>df.info()</code> · <code>df.describe()</code><br/><code>df.head()</code> · <code>df.value_counts()</code>"]
+    end
+    DF -.->|"只读观察"| EDA
+
+    %% 阶段 3：核心清洗与加工管线
+    subgraph Pipeline [" 🛠️ 数据处理流水线 (Processing Pipeline) "]
+        direction TB
+        Clean["🧹 <b>数据清洗与过滤</b><br/>缺失值: <code>dropna()</code>, <code>fillna()</code><br/>去重/替换: <code>drop_duplicates()</code>, <code>replace()</code><br/>切片过滤: <code>loc[]</code>, <code>iloc[]</code>, <code>query()</code>"]
+        
+        Transform["⚡ <b>转换与特征工程</b><br/>类型/映射: <code>astype()</code>, <code>apply()</code>, <code>map()</code><br/>聚合/透视: <code>groupby()</code>, <code>pivot_table()</code><br/>合并连接: <code>merge()</code>, <code>pd.concat()</code>"]
+
+        Clean --> Transform
+    end
+
+    DF --> Clean
+
+    %% 阶段 4：精炼结果
+    Processed["✨ <b>加工后的洁净数据集 (Processed DF)</b>"]
+    Transform --> Processed
+
+    %% 阶段 5：下游应用与落地
+    subgraph Downstream [" 🚀 下游落地与消费 (Downstream) "]
+        direction LR
+        Viz["📊 <b>数据可视化</b><br/><code>Matplotlib / Seaborn / Plotly</code>"]
+        Export["💾 <b>持久化存储</b><br/><code>to_csv() / to_parquet() / to_sql()</code>"]
+        ML["🤖 <b>建模与业务洞察</b><br/>特征矩阵训练 / BI Dashboard / 报告"]
+    end
+
+    Processed --> Viz
+    Processed --> Export
+    Export --> ML
+
+    %% 深色主题样式定制
+    style Ingestion fill:#0f172a,stroke:#475569,stroke-dasharray: 4 4,color:#94a3b8
+    style Exploration fill:#131127,stroke:#a855f7,stroke-dasharray: 3 3,color:#d8b4fe
+    style Pipeline fill:#091624,stroke:#0ea5e9,stroke-dasharray: 4 4,color:#bae6fd
+    style Downstream fill:#0d1d18,stroke:#22c55e,stroke-dasharray: 4 4,color:#86efac
+
+    style Sources fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style Reader fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style DF fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+
+    style EDA fill:#1e293b,stroke:#a855f7,stroke-width:1.2px,color:#f8fafc
+    style Clean fill:#1e293b,stroke:#f59e0b,stroke-width:1.5px,color:#f8fafc
+    style Transform fill:#1e293b,stroke:#0ea5e9,stroke-width:1.5px,color:#f8fafc
+
+    style Processed fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ffffff
+    style Viz fill:#1e293b,stroke:#38bdf8,color:#f8fafc
+    style Export fill:#1e293b,stroke:#f59e0b,color:#f8fafc
+    style ML fill:#14532d,stroke:#22c55e,stroke-width:1.5px,color:#f0fdf4
 {% endmermaid %}
 
 
