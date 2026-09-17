@@ -33,41 +33,76 @@ categories:
 OSI 模型从下到上依次分为物理层、数据链路层、网络层、传输层、会话层、表示层和应用层。数据在发送端从上层向下层传输，每层会添加自己的**协议头 (Header)** 或帧尾 (Trailer) 进行封装 (Encapsulation)；在接收端则从下层向上层传输，每层剥离 (Decapsulation) 自己的协议头。
 {% mermaid %}
 graph TD
-    %% 发送方
-    subgraph Sender [发送方 - 封装过程 Encapsulation]
+    subgraph Sender["发送端：逐层封装 (Encapsulation)"]
         direction TB
-        L7S[L7 应用层] --- D7S(Data: 应用数据)
-        L6S[L6 表示层] --- D6S(Data: 编码/加密)
-        L5S[L5 会话层] --- D5S(Data: 会话管理)
-        L4S[L4 传输层] --- D4S(Segment: 段)
-        L3S[L3 网络层] --- D3S(Packet: 包)
-        L2S[L2 数据链路层] --- D2S(Frame: 帧)
-        L1S[L1 物理层] --- D1S(Bit: 比特流)
+        S7["L7 应用层 (Application)<br/>PDU: 原始业务数据 Data"]
+        S6["L6 表示层 (Presentation)<br/>PDU: 格式转换/压缩/加密 Data"]
+        S5["L5 会话层 (Session)<br/>PDU: 建立/维护会话 Data"]
+        S4["L4 传输层 (Transport)<br/>PDU: 报文段 Segment (加端口)"]
+        S3["L3 网络层 (Network)<br/>PDU: 数据包 Packet (加 IP)"]
+        S2["L2 数据链路层 (Data Link)<br/>PDU: 帧 Frame (加 MAC 与 FCS)"]
+        S1["L1 物理层 (Physical)<br/>PDU: 比特流 Bits (光电信号)"]
 
-        D7S ==> D6S ==> D5S ==> D4S ==> D3S ==> D2S ==> D1S
+        S7 ==>|"下沉封装"| S6
+        S6 ==>|"下沉封装"| S5
+        S5 ==>|"添加传输首部"| S4
+        S4 ==>|"添加网络首部"| S3
+        S3 ==>|"添加链路首尾"| S2
+        S2 ==>|"信号转换"| S1
     end
 
-    %% 物理传输
-    D1S ==>|物理介质 / 光电信号| D1R
+    subgraph Receiver["接收端：逐层解封装 (Decapsulation)"]
+        direction TB
+        R7["L7 应用层 (Application)<br/>PDU: 还原业务数据 Data"]
+        R6["L6 表示层 (Presentation)<br/>PDU: 解密/解压缩 Data"]
+        R5["L5 会话层 (Session)<br/>PDU: 会话状态处理 Data"]
+        R4["L4 传输层 (Transport)<br/>PDU: 端口分流与保序 Segment"]
+        R3["L3 网络层 (Network)<br/>PDU: 路由验证 Packet"]
+        R2["L2 数据链路层 (Data Link)<br/>PDU: 校验 MAC 并剥离帧头尾"]
+        R1["L1 物理层 (Physical)<br/>PDU: 信号还原为比特流 Bits"]
 
-    %% 接收方
-    subgraph Receiver [接收方 - 解封装过程 Decapsulation]
-        direction BT
-        L1R[L1 物理层] --- D1R(Bit: 比特流)
-        L2R[L2 数据链路层] --- D2R(Frame: 帧)
-        L3R[L3 网络层] --- D3R(Packet: 包)
-        L4R[L4 传输层] --- D4R(Segment: 段)
-        L5R[L5 会话层] --- D5R(Data: 会话管理)
-        L6R[L6 表示层] --- D6R(Data: 编码/加密)
-        L7R[L7 应用层] --- D7R(Data: 应用数据)
-
-        D1R ==> D2R ==> D3R ==> D4R ==> D5R ==> D6R ==> D7R
+        R1 ==>|"逐层上浮"| R2
+        R2 ==>|"逐层上浮"| R3
+        R3 ==>|"逐层上浮"| R4
+        R4 ==>|"逐层上浮"| R5
+        R5 ==>|"逐层上浮"| R6
+        R6 ==>|"逐层上浮"| R7
     end
 
-    %% 逻辑对等层连接 (虚线表示)
-    L7S -. 虚位通信 .- L7R
-    L4S -. 端到端校验 .- L4R
-    L3S -. IP 路由寻址 .- L3R
+    %% 物理传输底座
+    S1 ==>|"物理网线 / 光纤 / 射频信道"| R1
+
+    %% 逻辑对等层交互（同高度平齐对照）
+    S7 -.->|"虚拟对等通信 (App-to-App)"| R7
+    S4 -.->|"端到端控制 (Port-to-Port)"| R4
+    S3 -.->|"逐跳寻址路由 (IP-to-IP)"| R3
+
+    %% 容器深色面板
+    style Sender fill:#0f172a,stroke:#3b82f6,stroke-width:1.5px,color:#93c5fd
+    style Receiver fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+
+    %% 发送端协议层深色样式
+    style S7 fill:#1e293b,stroke:#60a5fa,color:#f8fafc
+    style S6 fill:#1e293b,stroke:#60a5fa,color:#f8fafc
+    style S5 fill:#1e293b,stroke:#60a5fa,color:#f8fafc
+    style S4 fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff
+    style S3 fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style S2 fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style S1 fill:#334155,stroke:#94a3b8,color:#f1f5f9
+
+    %% 接收端协议层深色样式
+    style R7 fill:#1e293b,stroke:#34d399,color:#f8fafc
+    style R6 fill:#1e293b,stroke:#34d399,color:#f8fafc
+    style R5 fill:#1e293b,stroke:#34d399,color:#f8fafc
+    style R4 fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff
+    style R3 fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style R2 fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style R1 fill:#334155,stroke:#94a3b8,color:#f1f5f9
+
+    %% 虚线对等通信样式
+    linkStyle 13 stroke:#60a5fa,stroke-dasharray: 4 4;
+    linkStyle 14 stroke:#38bdf8,stroke-dasharray: 4 4;
+    linkStyle 15 stroke:#818cf8,stroke-dasharray: 4 4;
 {% endmermaid %}
 
 ### 2.1 物理层 (Physical Layer) - 第 1 层
@@ -174,32 +209,63 @@ graph TD
 6.  **应用层**：应用程序接收最终处理好的**数据**。
 
 {% mermaid %}
-graph LR
-    App_Data(应用数据)
-    Transport_Segment(传输层段)<--TCP/UDP Header-->App_Data
-    Network_Packet(网络层包)<--IP Header-->Transport_Segment
-    DataLink_Frame(数据链路层帧)<--MAC Header + Trailer-->Network_Packet
-    Physical_Bits(物理层比特流)<--编码-->DataLink_Frame
+graph TD
+    subgraph Sender["发送端：封装流程 (Encapsulation)"]
+        direction TB
+        S_Data["应用数据 (Data)"]
+        S_Seg["传输层报文段 (Segment)<br/>+ TCP/UDP Header"]
+        S_Pkt["网络层数据包 (Packet)<br/>+ IP Header"]
+        S_Frm["链路层数据帧 (Frame)<br/>+ MAC Header & FCS Trailer"]
+        S_Bit["物理层比特流 (Bits)"]
 
-    subgraph "Data Flow (发送方)"
-        App_Data --[应用层]--> Transport_Segment
-        Transport_Segment --[传输层]--> Network_Packet
-        Network_Packet --[网络层]--> DataLink_Frame
-        DataLink_Frame --[数据链路层]--> Physical_Bits
+        S_Data ==>|"添加传输层头部"| S_Seg
+        S_Seg ==>|"添加网络层头部"| S_Pkt
+        S_Pkt ==>|"添加链路层首尾"| S_Frm
+        S_Frm ==>|"信号调制/编码"| S_Bit
     end
 
-    subgraph "Data Flow (接收方)"
-        Physical_Bits_R(物理层比特流) --> DataLink_Frame_R
-        DataLink_Frame_R(数据链路层帧) --> Network_Packet_R
-        Network_Packet_R(网络层包) --> Transport_Segment_R
-        Transport_Segment_R(传输层段) --> App_Data_R
-        App_Data_R(应用数据)
-
-        Physical_Bits_R --[物理层]--> DataLink_Frame_R
-        DataLink_Frame_R --[数据链路层]--> Network_Packet_R
-        Network_Packet_R --[网络层]--> Transport_Segment_R
-        Transport_Segment_R --[传输层]--> App_Data_R
+    subgraph Channel["物理传输"]
+        direction TB
+        Media["传输介质 (光纤 / 双绞线 / 射频电波)"]
     end
+
+    subgraph Receiver["接收端：解封装流程 (Decapsulation)"]
+        direction TB
+        R_Bit["物理层比特流 (Bits)"]
+        R_Frm["链路层数据帧 (Frame)<br/>校验并剥离 MAC & Trailer"]
+        R_Pkt["网络层数据包 (Packet)<br/>校验并剥离 IP Header"]
+        R_Seg["传输层报文段 (Segment)<br/>校验并剥离 TCP/UDP Header"]
+        R_Data["应用数据 (Data)"]
+
+        R_Bit ==>|"信号解调/时钟同步"| R_Frm
+        R_Frm ==>|"移交网络层"| R_Pkt
+        R_Pkt ==>|"移交传输层"| R_Seg
+        R_Seg ==>|"移交应用进程"| R_Data
+    end
+
+    %% 发送与接收贯通
+    S_Bit ==>|"发送物理信号"| Media
+    Media ==>|"接收物理信号"| R_Bit
+
+    %% 容器深色面板
+    style Sender fill:#0f172a,stroke:#3b82f6,stroke-width:1.5px,color:#93c5fd
+    style Receiver fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+    style Channel fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,stroke-dasharray: 4 4,color:#c7d2fe
+
+    %% 节点精细配色
+    style S_Data fill:#1e293b,stroke:#60a5fa,color:#f8fafc
+    style S_Seg fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff
+    style S_Pkt fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style S_Frm fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style S_Bit fill:#334155,stroke:#94a3b8,color:#f1f5f9
+
+    style R_Bit fill:#334155,stroke:#94a3b8,color:#f1f5f9
+    style R_Frm fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style R_Pkt fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style R_Seg fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff
+    style R_Data fill:#1e293b,stroke:#34d399,color:#f8fafc
+
+    style Media fill:#1e1b4b,stroke:#a5b4fc,stroke-width:2px,color:#e0e7ff
 {% endmermaid %}
 
 ## 四、与 TCP/IP 模型的比较

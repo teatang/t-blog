@@ -84,31 +84,41 @@ _443._tcp.www.example.com. IN HTTPS 1 . echconfig="..." alpn="..."
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as 客户端
-    participant DNS as DNS 解析器
-    participant FrontingServer as 前置服务器 (例如 Cloudflare Edge)
-    participant OriginServer as 源站服务器
+    autonumber
+    participant Client as 客户端<br/>(Browser / OS)
+    participant DNS as DoH / DNS 解析器<br/>(Secure DNS)
+    participant Edge as 前置节点 (Client-Facing Server)<br/>(如 Cloudflare Edge)
+    participant Origin as 真实源站 (Backend Server)<br/>(real_name: example.com)
 
-    Client->>DNS: 1. 查询 www.example.com 的 HTTPS RR (包含 ECHConfig)
-    DNS-->>Client: 2. 返回 HTTPS RR (包含 ECHConfigValue)
-
-    Client->>Client: 3. 使用 ECHConfigValue 中的公钥加密真实的 SNI (real_name) 和其他敏感扩展，生成 Inner Client Hello (ICH)
-    Client->>Client: 4. 构建 Outer Client Hello (OCH)，包含假的 SNI (public_name) 和加密的 ICH
-    Client->>FrontingServer: 5. 发送 OCH (包含 public_name 和加密的 ICH)
-
-    FrontingServer->>FrontingServer: 6. 尝试使用其私钥解密 ECH 扩展中的 ICH
-    alt 解密成功 (说明客户端尝试连接到由FrontingServer管理的域名)
-        FrontingServer->>FrontingServer: 7. 获取真实的 SNI (real_name) 和其他扩展
-        alt FrontingServer是实际的OriginServer
-            FrontingServer->>Client: 8a. 使用 real_name 对应的证书继续 TLS 握手
-        else FrontingServer是代理 (如CDN)
-            FrontingServer->>OriginServer: 8b. 将请求转发到 OriginServer (可能通过内部加密通道)
-            OriginServer->>FrontingServer: 9. 返回响应
-            FrontingServer->>Client: 10. 将响应返回给客户端
-        end
-    else 解密失败 (可能不是ECH流量，或公钥不匹配)
-        FrontingServer->>Client: 8c. 发送 TLS Alert (例如 "unrecognized_name") 或回退到传统 TLS 握手 (取决于配置)
+    rect rgb(15, 23, 42)
+        Note over Client,DNS: 阶段一：通过安全 DNS 获取 ECH 配置
+        Client->>+DNS: 解析 HTTPS 资源记录 (Type 65 RR)
+        DNS-->>-Client: 返回 HTTPS RR (内含 ECHConfigList 公钥与加密参数)
     end
+
+    rect rgb(15, 23, 42)
+        Note over Client,Edge: 阶段二：构造双层握手报文 (Outer & Inner ClientHello)
+        Client->>Client: 1. 封装 Inner ClientHello (真实 SNI: real_name 及敏感扩展)<br/>2. 使用 ECH 公钥加密 Inner ClientHello<br/>3. 构造 Outer ClientHello (明文假 SNI: public_name + 加密载荷)
+        Client->>+Edge: 发送 TLS ClientHello (仅暴露 public_name)
+    end
+
+    rect rgb(15, 23, 42)
+        Note over Edge: 阶段三：前置服务器解密与分流判定
+        Edge->>Edge: 尝试使用本地私钥解密 ech 扩展
+        alt 解密成功 (ECH 命中)
+            Edge->>Edge: 提取真实 Inner ClientHello (获取 real_name)
+            alt 模式 A：Edge 即源站 (Terminating)
+                Edge-->>Client: 使用 real_name 对应证书继续 TLS 握手
+            else 模式 B：Edge 为 CDN 代理转发
+                Edge->>+Origin: 内部安全专线回源 (Forward Request)
+                Origin-->>-Edge: 返回源站业务响应
+                Edge-->>Client: 封装响应并加密返回客户端
+            end
+        else 解密失败 (密钥过期 / 伪造流量)
+            Edge-->>Client: 发送 Retry-Config 携带最新公钥 或 拒绝连接
+        end
+    end
+    deactivate Edge
 {% endmermaid %}
 
 **详细步骤解析：**

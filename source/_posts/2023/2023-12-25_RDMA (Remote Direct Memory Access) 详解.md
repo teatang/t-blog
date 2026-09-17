@@ -38,19 +38,89 @@ categories:
 
 {% mermaid %}
 graph TD
-    A["应用 (用户空间)"] --> B{"系统调用 (e.g., send())"};
-    B --> C["操作系统内核空间 (TCP/IP 协议栈)"];
-    C --> D["TCP 缓冲区 (内核空间)"];
-    D --> E["内存拷贝 (Kernel to NIC)"];
-    E --> F["网卡 (NIC)"];
-    F --> G[网络];
+    subgraph HostA["发送端主机 (Host A)"]
+        direction TB
+        subgraph UserA["用户空间 (User Space)"]
+            AppA["应用程序 (Client/Sender)<br/>用户态缓冲区 Buffer"]
+        end
 
-    G --> F1["网卡 (NIC)"];
-    F1 --> E1["内存拷贝 (NIC to Kernel)"];
-    E1 --> D1["TCP 缓冲区 (内核空间)"];
-    D1 --> C1["操作系统内核空间 (TCP/IP 协议栈)"];
-    C1 --> B1{"系统调用 (e.g., recv())"};
-    B1 --> A1["应用 (用户空间)"];
+        subgraph KernelA["内核空间 (Kernel Space)"]
+            direction TB
+            SysSend["系统调用接口<br/>send() / write()"]
+            SockBufA["Socket 发送缓冲区<br/>(TCP Send Buffer)"]
+            ProtoA["TCP/IP 协议栈<br/>(封装 TCP/IP/MAC 首部)"]
+            RingBufA["网卡驱动发送队列<br/>(TX Ring Buffer)"]
+
+            SysSend -->|"CPU 内存拷贝 (User to Kernel)"| SockBufA
+            SockBufA -->|"协议栈处理与封包"| ProtoA
+            ProtoA -->|"构造描述符"| RingBufA
+        end
+
+        subgraph HwA["硬件层 (Hardware)"]
+            NICA["网络适配器 (NIC)<br/>内部 FIFO 缓存"]
+        end
+
+        AppA -->|"陷入内核态 (Context Switch)"| SysSend
+        RingBufA ==>|"DMA 数据拷贝 (Kernel to NIC)"| NICA
+    end
+
+    subgraph Network["物理传输网络"]
+        direction TB
+        Media["交换机 / 路由器 / 传输介质 (光纤/双绞线)"]
+    end
+
+    subgraph HostB["接收端主机 (Host B)"]
+        direction TB
+        subgraph HwB["硬件层 (Hardware)"]
+            NICB["网络适配器 (NIC)<br/>校验 FCS / 拆包暂存"]
+        end
+
+        subgraph KernelB["内核空间 (Kernel Space)"]
+            direction TB
+            RingBufB["网卡驱动接收队列<br/>(RX Ring Buffer)"]
+            ProtoB["TCP/IP 协议栈<br/>(硬中断/软中断 NAPI 解封装)"]
+            SockBufB["Socket 接收缓冲区<br/>(TCP Receive Buffer)"]
+            SysRecv["系统调用接口<br/>recv() / read()"]
+
+            RingBufB -->|"协议栈解析报文"| ProtoB
+            ProtoB -->|"校验保序并放入队列"| SockBufB
+            SockBufB -->|"CPU 内存拷贝 (Kernel to User)"| SysRecv
+        end
+
+        subgraph UserB["用户空间 (User Space)"]
+            AppB["应用程序 (Server/Receiver)<br/>应用层数据还原"]
+        end
+
+        NICB ==>|"DMA 数据拷贝 (NIC to Kernel)"| RingBufB
+        SysRecv -->|"从内核态返回"| AppB
+    end
+
+    %% 主干网络互联
+    NICA ==>|"以太网数据帧 (物理信号)"| Media
+    Media ==>|"以太网数据帧 (物理信号)"| NICB
+
+    %% 容器深色面板与边框样式
+    style HostA fill:#0a0f1d,stroke:#334155,stroke-width:1.5px,color:#94a3b8
+    style HostB fill:#0a0f1d,stroke:#334155,stroke-width:1.5px,color:#94a3b8
+    style Network fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,stroke-dasharray: 4 4,color:#c7d2fe
+
+    %% 分层空间样式
+    style UserA fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#93c5fd
+    style KernelA fill:#0f172a,stroke:#818cf8,stroke-width:1px,color:#c7d2fe
+    style HwA fill:#0f172a,stroke:#10b981,stroke-width:1px,color:#6ee7b7
+
+    style UserB fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#93c5fd
+    style KernelB fill:#0f172a,stroke:#818cf8,stroke-width:1px,color:#c7d2fe
+    style HwB fill:#0f172a,stroke:#10b981,stroke-width:1px,color:#6ee7b7
+
+    %% 关键节点强调色
+    style AppA fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style AppB fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style SockBufA fill:#1e1b4b,stroke:#a5b4fc,color:#e0e7ff
+    style SockBufB fill:#1e1b4b,stroke:#a5b4fc,color:#e0e7ff
+    style NICA fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style NICB fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style Media fill:#312e81,stroke:#a5b4fc,stroke-width:2px,color:#f8fafc
 {% endmermaid %}
 
 这些开销在数据量小、延迟要求不高的场景可能微不足道，但在需要极低延迟和极高吞吐率的场景（如 HPC 或大规模分布式系统）中，将成为严重的性能瓶颈。
@@ -70,13 +140,83 @@ RDMA 的设计目标是解决传统网络通信中的上述痛点，其核心理
 
 {% mermaid %}
 graph TD
-    A["应用 (用户空间)"] <--> B{"RDMA API (Verbs)"};
-    B <--> C[RDma 网卡 / HCA];
-    C <--> D[网络];
+    subgraph HostA["发送端主机 (Host A)"]
+        direction TB
+        subgraph UserSpaceA["用户空间 (User Space)"]
+            AppA["应用程序 (Client/Sender)"]
+            MR_A["注册内存区域 (Memory Region)<br/>直接向操作系统锁定物理内存"]
+            VerbsA["用户态驱动 / 库<br/>(libibverbs / RDMA API)"]
+        end
 
-    D <--> C1[RDMA 网卡 / HCA];
-    C1 <--> B1{"RDMA API (Verbs)"};
-    B1 <--> A1["应用 (用户空间)"];
+        subgraph KernelSpaceA["操作系统内核 (Kernel Space)"]
+            KernelBypassA["内核旁路 (Kernel Bypass)<br/>🚫 无系统调用 · 零 CPU 拷贝 · 零协议栈开销"]
+        end
+
+        subgraph HwA["硬件层 (Hardware)"]
+            RNIC_A["RDMA 网卡 / HCA<br/>(专用网络处理芯片)"]
+        end
+
+        AppA -->|"直接下发工作请求 (WQE)"| VerbsA
+        VerbsA -->|"用户态 Doorbell 机制"| RNIC_A
+        RNIC_A ==>|"零拷贝：直接内存访问 (DMA)"| MR_A
+    end
+
+    subgraph Fabric["高性能网络 (Fabric)"]
+        Net["InfiniBand / RoCE / iWARP 交换网络<br/>(全线速 · 极低时延 · 无损网络 PFC/ECN)"]
+    end
+
+    subgraph HostB["接收端主机 (Host B)"]
+        direction TB
+        subgraph HwB["硬件层 (Hardware)"]
+            RNIC_B["RDMA 网卡 / HCA<br/>(解析报文并校验密钥 rkey)"]
+        end
+
+        subgraph KernelSpaceB["操作系统内核 (Kernel Space)"]
+            KernelBypassB["内核旁路 (Kernel Bypass)<br/>🚫 远程读写无需对端 CPU / OS 介入"]
+        end
+
+        subgraph UserSpaceB["用户空间 (User Space)"]
+            VerbsB["用户态通知与完成队列<br/>(Completion Queue - CQ)"]
+            MR_B["注册内存区域 (Memory Region)<br/>数据直达用户态内存"]
+            AppB["应用程序 (Server/Receiver)"]
+        end
+
+        RNIC_B ==>|"零拷贝：直接内存访问 (DMA)"| MR_B
+        RNIC_B -->|"写入完成事件 (CQE)"| VerbsB
+        VerbsB -->|"轮询获取就绪状态 (Poll CQ)"| AppB
+    end
+
+    %% 硬件间直连
+    RNIC_A ==>|"RDMA 数据包传输 (Write/Read/Send)"| Net
+    Net ==>|"线速直达"| RNIC_B
+
+    %% 容器与分组深色面板
+    style HostA fill:#0a0f1d,stroke:#334155,stroke-width:1.5px,color:#94a3b8
+    style HostB fill:#0a0f1d,stroke:#334155,stroke-width:1.5px,color:#94a3b8
+    style Fabric fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,stroke-dasharray: 4 4,color:#c7d2fe
+
+    %% 分层空间样式
+    style UserSpaceA fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#93c5fd
+    style UserSpaceB fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#93c5fd
+    style HwA fill:#0f172a,stroke:#10b981,stroke-width:1px,color:#6ee7b7
+    style HwB fill:#0f172a,stroke:#10b981,stroke-width:1px,color:#6ee7b7
+    
+    %% 内核旁路虚化与警示背景
+    style KernelSpaceA fill:#170b13,stroke:#ef4444,stroke-width:1px,stroke-dasharray: 3 3,color:#f87171
+    style KernelSpaceB fill:#170b13,stroke:#ef4444,stroke-width:1px,stroke-dasharray: 3 3,color:#f87171
+    style KernelBypassA fill:#260d1b,stroke:#f87171,color:#fca5a5
+    style KernelBypassB fill:#260d1b,stroke:#f87171,color:#fca5a5
+
+    %% 节点高亮配色
+    style AppA fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style AppB fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style MR_A fill:#0c4a6e,stroke:#38bdf8,stroke-width:2px,color:#f0f9ff
+    style MR_B fill:#0c4a6e,stroke:#38bdf8,stroke-width:2px,color:#f0f9ff
+    style VerbsA fill:#1e293b,stroke:#94a3b8,color:#f1f5f9
+    style VerbsB fill:#1e293b,stroke:#94a3b8,color:#f1f5f9
+    style RNIC_A fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5
+    style RNIC_B fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5
+    style Net fill:#312e81,stroke:#a5b4fc,stroke-width:2px,color:#f8fafc
 {% endmermaid %}
 
 通过这种机制，RDMA 极大地减少了数据传输的路径和 CPU 的参与，从而实现了相比传统网络数量级降低的延迟和更高的吞吐量。

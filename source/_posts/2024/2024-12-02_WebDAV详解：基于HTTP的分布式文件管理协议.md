@@ -102,20 +102,35 @@ WebDAV 允许资源拥有任意的 XML 格式属性，这些属性可以是预�
 
 {% mermaid %}
 sequenceDiagram
-    participant Client
-    participant WebDAVServer
+    autonumber
+    participant C1 as 授权客户端 (Client 1)
+    participant Server as WebDAV 服务器<br/>(RFC 4918 Lock Manager)
+    participant C2 as 外部客户端 (Client 2)
 
-    Client->>WebDAVServer: LOCK /document/report.doc (独占锁，无限深度)
-    WebDAVServer->>Client: 200 OK (返回锁 Token)
+    rect rgb(15, 23, 42)
+        Note over C1,Server: 阶段一：申请独占排他锁 (Exclusive Write Lock)
+        C1->>+Server: LOCK /document/report.doc<br/>Header: Scope=exclusive, Depth=infinity
+        Note over Server: 资源锁定成功，生成 Lock-Token (UUID)
+        Server-->>-C1: 200 OK<br/>Response XML: <locktoken>urn:uuid:12345...
+    end
 
-    Client->>WebDAVServer: PUT /document/report.doc (更新文件，请求头带锁 Token)
-    WebDAVServer->>Client: 204 No Content
+    rect rgb(15, 23, 42)
+        Note over C1,Server: 阶段二：持锁安全更新资源
+        C1->>+Server: PUT /document/report.doc<br/>Header: If: (<urn:uuid:12345...>)
+        Server-->>-C1: 204 No Content (匹配 Token 校验成功，资源已覆盖)
+    end
 
-    OtherClient->>WebDAVServer: PUT /document/report.doc (尝试更新文件，无锁 Token)
-    WebDAVServer->>OtherClient: 423 Locked (拒绝访问)
+    rect rgb(30, 20, 25)
+        Note over Server,C2: 阶段三：无锁冲突拦截 (Conflict Protection)
+        C2->>+Server: PUT /document/report.doc<br/>(未携带合法 Lock-Token)
+        Server--x-C2: 423 Locked (资源已被锁定，写入拒绝)
+    end
 
-    Client->>WebDAVServer: UNLOCK /document/report.doc (带锁 Token)
-    WebDAVServer->>Client: 204 No Content
+    rect rgb(15, 23, 42)
+        Note over C1,Server: 阶段四：释放文件锁
+        C1->>+Server: UNLOCK /document/report.doc<br/>Header: Lock-Token: <urn:uuid:12345...>
+        Server-->>-C1: 204 No Content (锁已释放，资源恢复公开展开)
+    end
 {% endmermaid %}
 
 #### 2.2.4 d. 版本管理 (Versioning - WebDAV Delta-V)

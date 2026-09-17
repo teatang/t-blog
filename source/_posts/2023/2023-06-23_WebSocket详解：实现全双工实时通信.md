@@ -50,25 +50,6 @@ WebSocket 协议 (RFC 6455) 于 2011 年标准化，具有以下显著特点和�
 WebSocket 连接的建立过程是一个特殊的 HTTP 请求-响应机制，称为**握手 (Handshake)**，通常发生在 TCP 连接建立之后。
 
 {% mermaid %}
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'darkMode': true,
-    'background': '#1e1e2e',
-    'primaryColor': '#313244',
-    'primaryTextColor': '#cdd6f4',
-    'primaryBorderColor': '#89b4fa',
-    'lineColor': '#a6adc8',
-    'secondaryColor': '#181825',
-    'tertiaryColor': '#11111b',
-    'noteBkgColor': '#181825',
-    'noteTextColor': '#f9e2af',
-    'noteBorderColor': '#f38ba8',
-    'activationBorderColor': '#89b4fa',
-    'activationBkgColor': '#45475a',
-    'sequenceNumberColor': '#11111b'
-  }
-}}%%
 sequenceDiagram
     autonumber
     actor C as 客户端 (Client/Browser)

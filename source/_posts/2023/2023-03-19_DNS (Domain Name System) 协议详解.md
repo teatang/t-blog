@@ -104,27 +104,35 @@ TLD 服务器负责管理其管辖范围内的所有二级域的权威域名服�
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as 客户端 (浏览器/OS)
-    participant LocalResolver as 本地 DNS 解析器
-    participant RootServer as 根域名服务器
-    participant TLDServer as TLD 域名服务器 (.com)
-    participant AuthoritativeServer as 权威域名服务器 (example.com)
+    autonumber
+    participant Client as 客户端<br/>(浏览器 / OS)
+    participant LocalResolver as 本地递归 DNS<br/>(ISP / 8.8.8.8)
+    participant RootServer as 根域名服务器<br/>(Root .)
+    participant TLDServer as TLD 域名服务器<br/>(.com)
+    participant AuthoritativeServer as 权威域名服务器<br/>(example.com)
+    participant TargetServer as 目标 Web 服务器<br/>(www.example.com)
 
-    Client->>LocalResolver: 1. 递归查询 www.example.com?
-    LocalResolver->>LocalResolver: 2. 检查本地缓存
-    alt 缓存命中
-        LocalResolver-->>Client: 3. 返回 IP 地址 (缓存)
-    else 缓存未命中
-        LocalResolver->>RootServer: 3. 迭代查询 www.example.com?
-        RootServer-->>LocalResolver: 4. 返回 .com TLD 服务器地址
-        LocalResolver->>TLDServer: 5. 迭代查询 www.example.com?
-        TLDServer-->>LocalResolver: 6. 返回 example.com 权威服务器地址
-        LocalResolver->>AuthoritativeServer: 7. 迭代查询 www.example.com?
-        AuthoritativeServer-->>LocalResolver: 8. 返回 www.example.com 的 IP 地址
-        LocalResolver->>LocalResolver: 9. 缓存 IP 地址及其 TTL
-        LocalResolver-->>Client: 10. 返回 IP 地址
+    Client->>+LocalResolver: 递归查询：www.example.com 的 A 记录
+    LocalResolver->>LocalResolver: 检查本地 Cache 是否有效
+
+    alt 缓存命中 (Cache Hit)
+        LocalResolver-->>Client: 直接返回缓存的 IP 地址与剩余 TTL
+    else 缓存未命中 (Cache Miss - 迭代查询)
+        LocalResolver->>+RootServer: 查询 www.example.com
+        RootServer-->>-LocalResolver: 返回 .com TLD 域名服务器列表
+        
+        LocalResolver->>+TLDServer: 查询 www.example.com
+        TLDServer-->>-LocalResolver: 返回 example.com 权威服务器 NS/A 记录
+        
+        LocalResolver->>+AuthoritativeServer: 查询 www.example.com
+        AuthoritativeServer-->>-LocalResolver: 返回目标主机 A 记录 (IP 地址) 与 TTL
+        
+        LocalResolver->>LocalResolver: 按 TTL 写入本地缓存
+        LocalResolver-->>Client: 递归结果返回 IP 地址
     end
-    Client->>www.example.com: 11. 使用 IP 地址建立 TCP 连接并发送 HTTP 请求
+    deactivate LocalResolver
+
+    Client->>TargetServer: 建立 TCP / TLS 连接并请求应用数据
 {% endmermaid %}
 
 ## 五、DNS 记录类型 (Resource Records, RRs)

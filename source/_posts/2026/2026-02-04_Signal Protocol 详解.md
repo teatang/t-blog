@@ -102,30 +102,102 @@ X3DH 协议确保了即使 Bob 不在线，Alice 也能安全地开始与 Bob �
 通过这两种棘轮机制的结合，确保了无论攻击者何时获取了通信方的秘密信息（只要不是持续的完全控制），都能最大程度地限制泄露的范围。
 
 {% mermaid %}
-graph LR
-    subgraph "Initial Setup (X3DH)"
-        A[Alice IK, SPK, OPK] -->|Upload Public Keys| Server;
-        B[Bob IK, SPK, OPK] -->|Upload Public Keys| Server;
-        Alice[Alice] --Request Bob's Key Bundle--> Server;
-        Alice --"Calculates Initial RK, SCK(Alice), RCK(Bob) (via 4 ECDH)"--> Bob;
-    end
-
-    subgraph Double Ratchet Algorithm
+graph TB
+    %% 阶段一：X3DH 初始握手
+    subgraph X3DH["阶段一：X3DH 初始密钥协商 (Extended Triple Diffie-Hellman)"]
         direction LR
-        A_DR[Alice's Double Ratchet State]
-        B_DR[Bob's Double Ratchet State]
+        subgraph PreKeyServer["Signal 密钥分发服务器 (Untrusted Server)"]
+            BundleBob["Bob 公钥包 (Prekey Bundle)<br/>身份公钥 IK_B · 已签公钥 SPK_B · 一次性公钥 OPK_B"]
+        end
 
-        A_DR -->|Generate new Ephemeral Key EK_A| A_DR
-        A_DR -->|Derive SCK, RCK from RK; MK from SCK| A_DR
+        Alice_Init["Alice (发起方)"]
+        Bob_Init["Bob (接收方 / 可离线)"]
 
-        A_DR -->|"Encrypt Message (MK_A), Attach EK_A"| B_DR;
-        B_DR -->|Update RCK, derive MK_A from RCK, Decrypt Message| B_DR;
-        B_DR -->|Generate new Ephemeral Key EK_B| B_DR
-        B_DR -->|Derive SCK, RCK from RK; MK from SCK| B_DR
-
-        B_DR -->|"Encrypt Message (MK_B), Attach EK_B"| A_DR;
-        A_DR -->|Update RCK, derive MK_B from RCK, Decrypt Message| A_DR;
+        Bob_Init -.->|"预先上传公钥包"| BundleBob
+        Alice_Init -->|"1. 获取 Bob 公钥包"| BundleBob
+        Alice_Init -->|"2. 生成临时公私钥对 (EK_A)<br/>执行 3~4 次 DH 计算 (X3DH)"| Alice_KDF["Alice 计算得到：<br/>初始根密钥 (Root Key - RK)<br/>发送链密钥 (CK_s)"]
+        
+        Alice_KDF ==>|"3. 携带 EK_A 与首条密文消息"| Bob_Init
+        Bob_Init -->|"4. 结合私钥执行对应 3~4 次 DH"| Bob_KDF["Bob 计算得到：<br/>完全相同的根密钥 (RK)<br/>接收链密钥 (CK_r)"]
     end
+
+    %% 阶段二：双棘轮状态演进
+    subgraph DR["阶段二：双棘轮算法演进 (Double Ratchet Algorithm)"]
+        direction LR
+        
+        %% Alice 侧棘轮
+        subgraph Alice_Side["Alice 棘轮状态"]
+            direction TB
+            A_DH["DH 棘轮 (非对称步进)<br/>持有私钥与 Bob 最新公钥"]
+            A_RK["根 KDF 链 (Root KDF)<br/>输出新 RK 与发送/接收链密钥"]
+            A_CK_Send["发送 KDF 链 (Symmetric Ratchet)<br/>每发一包链密钥向前滚动一步"]
+            A_MK["消息密钥 (Message Key - MK)<br/>用于真正加密消息 payload (一次一密)"]
+
+            A_DH --> A_RK
+            A_RK --> A_CK_Send
+            A_CK_Send -->|"每包派生"| A_MK
+        end
+
+        %% 跨端通信与对端棘轮同步
+        subgraph InFlight["信道传输 (Over The Wire)"]
+            direction TB
+            MsgA2B["Alice 发送密文：<br/>[密文 Payload (加密由 MK)]<br/>+ [携带 Alice 最新 DH 公钥 EK_A]"]
+            MsgB2A["Bob 发送密文：<br/>[密文 Payload (加密由 MK)]<br/>+ [携带 Bob 最新 DH 公钥 EK_B]"]
+        end
+
+        %% Bob 侧棘轮
+        subgraph Bob_Side["Bob 棘轮状态"]
+            direction TB
+            B_DH["DH 棘轮 (检测到对端公钥变化)<br/>立即执行 DH 计算驱动棘轮步进"]
+            B_RK["根 KDF 链 (Root KDF)<br/>更新 RK 与接收链密钥 CK_r"]
+            B_CK_Recv["接收 KDF 链 (Symmetric Ratchet)<br/>步进派生出对应序号的 MK"]
+            B_Decrypt["解密得到明文<br/>(前向安全性与自愈性生效)"]
+
+            B_DH --> B_RK
+            B_RK --> B_CK_Recv
+            B_CK_Recv -->|"派生对应 MK"| B_Decrypt
+        end
+
+        %% 跨端信号流动
+        A_MK ==>|"封包发送"| MsgA2B
+        MsgA2B ==>|"接收报文"| B_DH
+        MsgA2B -.->|"递交密文解密"| B_Decrypt
+
+        Bob_Side -.->|"Bob 回复并推进 DH 棘轮"| MsgB2A
+        MsgB2A -.->|"Alice 接收推进对等棘轮"| Alice_Side
+    end
+
+    %% 衔接连接线
+    Alice_KDF ==>|"初始化状态注入"| A_DH
+    Bob_KDF ==>|"初始化状态注入"| B_DH
+
+    %% 容器深色面板
+    style X3DH fill:#0f172a,stroke:#3b82f6,stroke-width:1.5px,color:#93c5fd
+    style DR fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+    style PreKeyServer fill:#111827,stroke:#64748b,stroke-width:1px,color:#cbd5e1
+    style Alice_Side fill:#111827,stroke:#38bdf8,stroke-width:1px,color:#93c5fd
+    style Bob_Side fill:#111827,stroke:#34d399,stroke-width:1px,color:#6ee7b7
+    style InFlight fill:#1e1b4b,stroke:#818cf8,stroke-width:1px,stroke-dasharray: 4 4,color:#e0e7ff
+
+    %% 核心状态与秘钥高亮
+    style Alice_Init fill:#1e293b,stroke:#38bdf8,color:#f8fafc
+    style Bob_Init fill:#1e293b,stroke:#34d399,color:#f8fafc
+    style BundleBob fill:#1e293b,stroke:#94a3b8,color:#cbd5e1
+    style Alice_KDF fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff
+    style Bob_KDF fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+
+    style A_DH fill:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px,color:#f0f9ff
+    style A_RK fill:#1e1b4b,stroke:#818cf8,color:#e0e7ff
+    style A_CK_Send fill:#1e293b,stroke:#38bdf8,color:#f8fafc
+    style A_MK fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+
+    style B_DH fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style B_RK fill:#1e1b4b,stroke:#818cf8,color:#e0e7ff
+    style B_CK_Recv fill:#1e293b,stroke:#34d399,color:#f8fafc
+    style B_Decrypt fill:#1e293b,stroke:#64748b,color:#f8fafc
+
+    style MsgA2B fill:#312e81,stroke:#a5b4fc,stroke-width:1.5px,color:#f8fafc
+    style MsgB2A fill:#312e81,stroke:#a5b4fc,stroke-width:1.5px,color:#f8fafc
 {% endmermaid %}
 
 

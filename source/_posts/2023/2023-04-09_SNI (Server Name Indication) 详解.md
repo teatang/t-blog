@@ -51,16 +51,33 @@ SNI 的作用机制其实非常简单直观：
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as 客户端 (浏览器)
-    participant Server as 服务器 (多个域名共享IP)
+    autonumber
+    participant Client as 客户端<br/>(浏览器 / OS)
+    participant Server as 目标服务器<br/>(共享单 IP: 198.51.100.1)
 
-    Client->>Server: 1. TCP 连接 (到 ServerIP:443)
-    Note over Client,Server: 开始 TLS 握手
-    Client->>Server: 2. Client Hello <br/> (包含 SNI: www.example.com)
-    Server->>Server: 3. 解析 Client Hello，<br/>根据 SNI 找到 www.example.com 的证书
-    Server->>Client: 4. Server Hello <br/> (包含 www.example.com 的证书)
-    Client->>Client: 5. 验证证书，协商密钥
-    Client<<->>Server: 6. 建立安全连接并开始加密通信 (HTTP 请求/响应)
+    Client->>+Server: TCP 三次握手 (连接至 198.51.100.1:443)
+    Server-->>-Client: TCP 连接就绪 (Established)
+
+    rect rgb(15, 23, 42)
+        Note over Client,Server: TLS 握手阶段 (SNI 扩展解析与多域名证书匹配)
+        Client->>+Server: Client Hello<br/>扩展字段携带 SNI: server_name = "www.example.com"
+        
+        Note over Server: 1. 读取明文 SNI 扩展字段<br/>2. 检索虚拟主机配置 (Virtual Hosts)<br/>3. 精确匹配出 www.example.com 的 SSL 证书与私钥
+        
+        Server-->>Client: Server Hello (选定加密套件)
+        Server-->>-Client: Certificate (返回 www.example.com 专用证书链)
+    end
+
+    Client->>Client: 验证证书域名、有效期及 CA 签发链
+
+    rect rgb(15, 23, 42)
+        Note over Client,Server: 完成密钥派生与加密信道切换
+        Client->>+Server: 密钥协商 (Key Exchange) 与 Finished 消息
+        Server-->>-Client: Finished (握手验证完成，会话密钥生效)
+    end
+
+    Client->>+Server: 加密通信：HTTPS 请求 (Host: www.example.com)
+    Server-->>-Client: 加密通信：HTTPS 响应 (HTML / 业务数据)
 {% endmermaid %}
 
 ## 三、SNI 的关键特性与版本支持

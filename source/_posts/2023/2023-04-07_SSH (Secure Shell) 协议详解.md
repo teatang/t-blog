@@ -98,37 +98,47 @@ SSH 提供两种主要的用户认证方式：
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as SSH 客户端
-    participant Server as SSH 服务器
+    autonumber
+    participant Client as SSH 客户端<br/>(Client / OpenSSH)
+    participant Server as SSH 服务端<br/>(sshd Port 22)
 
-    Client->>Server: 1. 建立 TCP 连接 (默认端口 22)
-    Server->>Client: 2. Server 发送协议版本字符串
-    Client->>Server: 3. Client 发送协议版本字符串
-    Client->>Server: 4. 协商加密算法和会话密钥 (Diffie-Hellman)
-    Server->>Client: 5. Server 发送自己的公钥 (Host Key)
-    Client->>Client: 6. 验证 Server 公钥 (检查 known_hosts)
-    alt Server 公钥未经确认或不匹配
-        Client->>Client: 警告用户，可能存在 MITM 攻击
-        Client--xServer: 连接中断 (或用户选择继续)
+    rect rgb(15, 23, 42)
+        Note over Client,Server: 阶段一：传输层协商与主机验证
+        Client->>+Server: TCP 三次握手建连 (默认端口 22)
+        Server-->>Client: 发送服务端版本标识 (SSH-2.0-OpenSSH_...)
+        Client-->>Server: 发送客户端版本标识 (SSH-2.0-OpenSSH_...)
+        
+        Client->>Server: 算法协商 (KEXINIT) 与 Diffie-Hellman 密钥交换
+        Server-->>Client: 返回 Host Key 公钥与 DH 签名参数
+        
+        Client->>Client: 验证 Host Key 指纹 (匹配 ~/.ssh/known_hosts)
+        opt 主机指纹不匹配或未知
+            Client->>Client: 终端警告：疑似中间人攻击 (MITM)
+        end
+        Client->>Server: 派生会话密钥 (Session Key)，后续通信全链路加密
     end
-    Client->>Server: 7. 用户认证开始 (密码或公钥)
-    alt 密码认证
-        Client->>Server: 发送用户名和加密后的密码
-        Server->>Server: 验证用户密码
-    else 公钥认证
-        Client->>Server: 发送用户名和公钥认证请求
-        Server->>Server: (a) 查找用户 ~/.ssh/authorized_keys 中的公钥
-        Server->>Client: (b) 使用对应公钥加密一个随机字符串
-        Client->>Client: (c) 使用本地私钥解密字符串
-        Client->>Server: (d) 发送解密后的字符串
-        Server->>Server: (e) 验证字符串是否匹配
+
+    rect rgb(15, 23, 42)
+        Note over Client,Server: 阶段二：用户身份认证 (User Authentication)
+        alt 密码认证 (Password Auth)
+            Client->>Server: 加密传输用户名与用户登录密码
+            Server->>Server: 校验 /etc/shadow 密码哈希
+        else 公钥认证 (Public Key Auth - RFC 4252 签名机制)
+            Client->>Server: 尝试提供客户端公钥指纹
+            Server->>Server: 匹配 ~/.ssh/authorized_keys 授权列表
+            Server-->>Client: 允许使用该公钥认证
+            Client->>Client: 使用本地私钥对 (Session ID + 挑战数据) 生成数字签名
+            Client->>Server: 发送该签名数据
+            Server->>Server: 使用用户公钥验证签名真实性
+        end
     end
-    alt 认证成功
-        Server-->>Client: 8. 认证成功
-        Client->>Server: 9. 请求开启一个 Shell 会话或端口转发等
-        Server-->>Client: 10. 开启安全会话
+
+    alt 认证结果判定
+        Server-->>Client: SSH_MSG_USERAUTH_SUCCESS (认证通过)
+        Client->>Server: 请求开启 Channel (PTY / Shell / 端口转发)
+        Server-->>-Client: 会话就绪，进入交互式加密 Shell 通信
     else 认证失败
-        Server--xClient: 8. 认证失败，连接中断
+        Server--xClient: SSH_MSG_USERAUTH_FAILURE (断开连接)
     end
 {% endmermaid %}
 

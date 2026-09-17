@@ -46,23 +46,65 @@ QUIC 协议运行在 UDP 之上，但提供了所有 TCP 的可靠性和流控�
 
 {% mermaid %}
 graph TD
-    subgraph TCP with HTTP/2
-        A[Client] -- 1 (Stream 1) --> B[Server]
-        A -- 2 (Stream 2) --> B
-        A -- 3 (Stream 3) --> B
-        direction LR
-        B -- Loss of Data (Stream 1) --> B_retrans[TCP Stack Blocked]
-        B_retrans --> B[All Streams Wait]
+    subgraph H2["HTTP/2 over TCP：单物理连接队头阻塞 (Head-of-Line Blocking)"]
+        direction TB
+        subgraph H2_Streams["多路复用发送流"]
+            T_S1["Stream 1 数据帧"]
+            T_S2["Stream 2 数据帧"]
+            T_S3["Stream 3 数据帧"]
+        end
+
+        TCP_Pipe["单一 TCP 字节流通道 (滑动窗口按序重组)"]
+        
+        T_S1 -->|"丢包 Packet Loss"| T_Drop["❌ Stream 1 丢包"]
+        T_S2 -->|"正常到达"| TCP_Pipe
+        T_S3 -->|"正常到达"| TCP_Pipe
+        T_Drop ==>|"TCP 严格保序机制"| TCP_Block["🛑 传输层整条通道挂起 (HOLB)<br/>等待超时重传修复 Stream 1"]
+
+        TCP_Block ==>|"连锁阻塞"| H2_Result["⛔ 全部流被挂起 (Stream 2, 3 无关数据无法递交 App)"]
     end
 
-    subgraph QUIC with HTTP/3
-        X[Client] -- S1 (Stream 1) --> Y[Server]
-        X -- S2 (Stream 2) --> Y
-        X -- S3 (Stream 3) --> Y
-        direction LR
-        Y -- Loss of Data (Stream 1) --> Y_retrans[Only Stream 1 Blocked]
-        Y_retrans --> Y[Other Streams Continue]
+    subgraph H3["HTTP/3 over QUIC：独立的传输层流 (Native Stream Isolation)"]
+        direction TB
+        subgraph H3_Streams["独立 QUIC 双向流"]
+            Q_S1["Stream 1 帧"]
+            Q_S2["Stream 2 帧"]
+            Q_S3["Stream 3 帧"]
+        end
+
+        Q_S1 -->|"丢包 Packet Loss"| Q_Drop["❌ Stream 1 丢包"]
+        Q_S2 -->|"正常到达"| Q_Recv2["Stream 2 立即重组递交"]
+        Q_S3 -->|"正常到达"| Q_Recv3["Stream 3 立即重组递交"]
+
+        Q_Drop ==>|"仅单流隔离重传"| Q_Block["⚠️ 仅 Stream 1 单独等待补发"]
+
+        Q_Recv2 ==>|"完全零阻塞"| H3_Result["✅ Stream 2, 3 正常交付应用层，业务零延迟"]
+        Q_Recv3 ==>|"完全零阻塞"| H3_Result
     end
+
+    %% 容器深色面板与边框样式
+    style H2 fill:#0f172a,stroke:#ef4444,stroke-width:1.5px,color:#fca5a5
+    style H3 fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+
+    style H2_Streams fill:#111827,stroke:#64748b,stroke-width:1px,color:#94a3b8
+    style H3_Streams fill:#111827,stroke:#64748b,stroke-width:1px,color:#94a3b8
+
+    %% 状态节点配色
+    style T_Drop fill:#450a0a,stroke:#f87171,color:#fecaca
+    style Q_Drop fill:#450a0a,stroke:#f87171,color:#fecaca
+
+    style TCP_Pipe fill:#1e293b,stroke:#64748b,color:#cbd5e1
+    style TCP_Block fill:#3b1d11,stroke:#f97316,stroke-width:2px,color:#ffedd5
+    style H2_Result fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fee2e2
+
+    style Q_Block fill:#3b1d11,stroke:#f59e0b,color:#fef3c7
+    style Q_Recv2 fill:#064e3b,stroke:#34d399,color:#ecfdf5
+    style Q_Recv3 fill:#064e3b,stroke:#34d399,color:#ecfdf5
+    style H3_Result fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#d1fae5
+
+    %% 连线色调强化
+    linkStyle 3,4 stroke:#ef4444,stroke-width:2px;
+    linkStyle 9,10 stroke:#10b981,stroke-width:2px;
 {% endmermaid %}
 
 ### 2.3 传输层加密 (TLS 1.3 内置)

@@ -88,16 +88,40 @@ Origin: http://example.com
 
 {% mermaid %}
 graph TD
-    A[客户端发送 GET 请求] --> B{请求头包含<br/>Upgrade: <protocol><br/>Connection: Upgrade}
-    B -- 请求发送 --> C[服务器接收请求]
+    A["客户端构建并发送 GET 请求<br/>(含 Upgrade: [protocol] & Connection: Upgrade)"] --> B["服务器接收并校验请求头"]
 
-    C -- 服务器支持并同意升级 --> D{服务器发送<br/>101 Switching Protocols 响应<br/>Upgrade: <protocol><br/>Connection: Upgrade}
-    D -- 响应发送 --> E[客户端接收 101 响应]
-    E -- 握手完成 --> F["客户端和服务器<br/>开始使用新协议 (<protocol>) 通信"]
+    B --> C{"服务器是否支持<br/>并同意升级该协议？"}
 
-    C -- 服务器不支持或不同意升级 --> G{"服务器发送<br/>普通 HTTP 响应<br/>(例如 200 OK 或 400 Bad Request)"}
-    G -- 响应发送 --> H[客户端接收普通响应]
-    H -- 维持或结束 HTTP 连接 --> I[客户端和服务器<br/>继续使用 HTTP/1.1 或关闭连接]
+    %% 升级成功分支（翡翠绿系）
+    C -->|"同意 (Success)"| D["返回 101 Switching Protocols<br/>(携带确认的 Upgrade 与 Connection 首部)"]
+    D --> E["客户端接收并验证 101 状态码"]
+    E --> F["协议升级完成<br/>底层 TCP 连接切换为新协议通信 (如 WebSocket)"]
+
+    %% 升级拒绝/回退分支（琥珀橙/深红系）
+    C -->|"拒绝 / 不支持 (Fallback)"| G["返回标准 HTTP 响应<br/>(如 200 OK 处理常规请求，或 400 拒绝)"]
+    G --> H["客户端处理标准 HTTP 响应"]
+    H --> I["维持 HTTP/1.1 现状<br/>或根据 Connection 首部关闭连接"]
+
+    %% 容器与分支深色样式注入
+    style A fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style B fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    
+    %% 判断节点高亮
+    style C fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#e0e7ff
+
+    %% 成功路径高亮
+    style D fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style E fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#ecfdf5
+    style F fill:#0c4a6e,stroke:#38bdf8,stroke-width:2px,color:#f0f9ff
+
+    %% 回退路径样式
+    style G fill:#451a03,stroke:#fb923c,stroke-width:1.5px,color:#ffedd5
+    style H fill:#451a03,stroke:#fb923c,stroke-width:1.5px,color:#ffedd5
+    style I fill:#334155,stroke:#94a3b8,stroke-width:1.5px,color:#e2e8f0
+
+    %% 连线色彩强调
+    linkStyle 2 stroke:#34d399,stroke-width:2px;
+    linkStyle 6 stroke:#fb923c,stroke-width:2px;
 {% endmermaid %}
 
 ## 三、`Upgrade` 头的通用性与 `Connection` 头的作用

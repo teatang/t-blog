@@ -44,28 +44,36 @@ DoT 的工作流程与传统 DNS 类似，但在发送 DNS 查询之前，客户
 
 {% mermaid %}
 sequenceDiagram
-    participant User as 用户
-    participant Client as 客户端 (OS/App)
-    participant DoT_Resolver as DoT 解析器
-    participant Trad_DNS_Resolver as 传统 DNS 解析器
-    participant Auth_DNS as 权威 DNS 服务器
+    autonumber
+    actor User as 终端用户
+    participant Client as 客户端操作系统<br/>(Stub Resolver)
+    participant DoT as DoT 递归解析器<br/>(Port 853 TLS)
+    participant Auth as 权威 DNS 集群<br/>(Port 53 UDP/TCP)
+    participant Web as 目标 Web 服务器<br/>(www.example.com)
 
-    User->>Client: 1. 请求解析 `www.example.com`
-    Client->>Client: 2. 检查本地 DNS 缓存
-    alt 域名不在缓存中
-        Client->>DoT_Resolver: 3. **建立 TLS 连接 (TCP 853)**
-        DoT_Resolver->>Client: 4. TLS 握手完成，连接加密
-        Client->>DoT_Resolver: 5. 发送加密的 DNS 查询 (`www.example.com`)
-        Note over DoT_Resolver: 6. 解密 DNS 查询
-        DoT_Resolver->>Trad_DNS_Resolver: 7. 发送传统 DNS 查询 (UDP/TCP 53)
-        Trad_DNS_Resolver->>Auth_DNS: 8. 递归查询 `www.example.com`
-        Auth_DNS-->>Trad_DNS_Resolver: 9. 返回 `www.example.com` 的 IP 地址
-        Trad_DNS_Resolver-->>DoT_Resolver: 10. 返回 `www.example.com` 的 IP 地址
-        Note over DoT_Resolver: 11. 将 IP 地址加密
-        DoT_Resolver-->>Client: 12. 返回加密的 DNS 响应
-        Client->>Client: 13. 解密 DNS 响应，获取 IP 地址
+    User->>Client: 访问网址 www.example.com
+    Client->>Client: 检索系统本地 DNS 缓存
+
+    alt 缓存未命中 (Cache Miss)
+        Client->>+DoT: TCP 握手与 TLS 协商 (Port 853)
+        DoT-->>Client: TLS 建立成功（双向加密信道构建完成）
+        
+        Client->>DoT: 发送 TLS 加密的 DNS 查询 (A 记录)
+        Note over DoT: 服务端解密报文，提取域名查询
+        
+        DoT->>+Auth: 迭代/递归向权威服务发起解析 (标准 DNS 53)
+        Auth-->>-DoT: 应答返回 www.example.com 的 IP 结果
+        
+        Note over DoT: 对解析结果使用 TLS 会话重新加密
+        DoT-->>-Client: 返回加密 DNS 响应数据包
+        
+        Client->>Client: 解密解析结果并写入本地缓存
+    else 缓存命中 (Cache Hit)
+        Client->>Client: 直接复用本地未过期的 IP 地址
     end
-    Client->>www.example.com: 14. 连接到 `www.example.com`
+
+    Client->>+Web: 使用解析到的 IP 发起 HTTPS/TCP 连接
+    Web-->>-Client: 返回应用层网页数据
 {% endmermaid %}
 
 **详细步骤解析：**
@@ -153,28 +161,36 @@ DoH 的核心在于将 DNS 查询作为 HTTP 请求的负载 (payload)，通过 
 
 {% mermaid %}
 sequenceDiagram
-    participant User as 用户
-    participant Client as 客户端 (浏览器/OS)
-    participant DoH_Resolver as DoH 解析器
-    participant Trad_DNS_Resolver as 传统 DNS 解析器
-    participant Auth_DNS as 权威 DNS 服务器
+    autonumber
+    actor User as 终端用户
+    participant Client as 客户端<br/>(浏览器 / OS)
+    participant DoH as DoH 递归解析器<br/>(Port 443 HTTPS)
+    participant Auth as 权威 DNS 集群<br/>(Port 53 UDP/TCP)
+    participant Web as 目标 Web 服务器<br/>(www.example.com)
 
-    User->>Client: 1. 请求解析 `www.example.com`
-    Client->>Client: 2. 检查本地 DNS 缓存
-    alt 域名不在缓存中
-        Client->>DoH_Resolver: 3. **建立 HTTPS 连接 (TCP 443)**
-        DoH_Resolver->>Client: 4. HTTPS 握手完成，连接加密
-        Client->>DoH_Resolver: 5. **HTTPS POST/GET 请求** <br/>携带加密的 DNS 查询 (`www.example.com`)
-        Note over DoH_Resolver: 6. 解密 HTTPS 请求，提取 DNS 查询
-        DoH_Resolver->>Trad_DNS_Resolver: 7. 发送传统 DNS 查询 (UDP/TCP 53)
-        Trad_DNS_Resolver->>Auth_DNS: 8. 递归查询 `www.example.com`
-        Auth_DNS-->>Trad_DNS_Resolver: 9. 返回 `www.example.com` 的 IP 地址
-        Trad_DNS_Resolver-->>DoH_Resolver: 10. 返回 `www.example.com` 的 IP 地址
-        Note over DoH_Resolver: 11. 将 IP 地址封装并加密到 HTTPS 响应中
-        DoH_Resolver-->>Client: 12. **HTTPS 响应** <br/>携带加密的 IP 地址
-        Client->>Client: 13. 解密 HTTPS 响应，获取 IP 地址
+    User->>Client: 访问网址 www.example.com
+    Client->>Client: 检索系统本地 DNS 缓存
+
+    alt 缓存未命中 (Cache Miss)
+        Client->>+DoH: 建立 TLS 握手 (TCP 443 HTTPS)
+        DoH-->>Client: HTTPS 加密信道就绪
+        
+        Client->>DoH: HTTP POST / GET 请求 (携带 application/dns-message)
+        Note over DoH: 解密 HTTPS 报文，提取 DNS Wire Format 查询
+        
+        DoH->>+Auth: 发起标准递归解析 (Port 53)
+        Auth-->>-DoH: 应答返回 www.example.com 的 A 记录
+        
+        Note over DoH: 封装 DNS 响应并进行 HTTPS 会话层加密
+        DoH-->>-Client: 200 OK (返回加密 DNS 响应体)
+        
+        Client->>Client: 解密 HTTP 响应，解析并写入本地缓存
+    else 缓存命中 (Cache Hit)
+        Client->>Client: 直接复用本地未过期的 IP 地址
     end
-    Client->>www.example.com: 14. 连接到 `www.example.com`
+
+    Client->>+Web: 发起标准 HTTPS 连接与业务请求
+    Web-->>-Client: 传输 Web 页面数据
 {% endmermaid %}
 
 **详细步骤解析：**

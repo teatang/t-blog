@@ -45,15 +45,53 @@ categories:
 HTTPS 的核心是 **TLS 协议**。它在 HTTP 协议和 TCP 协议之间，插入了一个安全层。
 
 {% mermaid %}
-graph LR
-    A[应用层] --> B(HTTP)
-    B --> C(SSL/TLS)
-    C --> D[传输层]
-    D --> E(TCP)
-    E --> F[网络层]
-    F --> G(IP)
-    G --> H[数据链路层]
-    H --> I[物理层]
+graph TD
+    subgraph L5["应用层 Application"]
+        P_HTTP["HTTP 协议"]
+    end
+
+    subgraph L_SEC["安全表示/会话层 Security"]
+        P_TLS["SSL / TLS 加密"]
+    end
+
+    subgraph L4["传输层 Transport"]
+        P_TCP["TCP 协议"]
+    end
+
+    subgraph L3["网络层 Network"]
+        P_IP["IP 协议"]
+    end
+
+    subgraph L2["数据链路层 Data Link"]
+        P_LINK["以太网 / Wi-Fi 帧"]
+    end
+
+    subgraph L1["物理层 Physical"]
+        P_PHY["网线 / 光纤 / 射频比特流"]
+    end
+
+    %% 横向数据流向
+    P_HTTP ==>|"明文数据"| P_TLS
+    P_TLS ==>|"密文封装"| P_TCP
+    P_TCP ==>|"报文段 (Segment)"| P_IP
+    P_IP ==>|"数据包 (Packet)"| P_LINK
+    P_LINK ==>|"转换为信号"| P_PHY
+
+    %% 容器深色面板
+    style L5 fill:#0f172a,stroke:#3b82f6,stroke-width:1.5px,color:#93c5fd
+    style L_SEC fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#c7d2fe
+    style L4 fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+    style L3 fill:#0f172a,stroke:#f59e0b,stroke-width:1.5px,color:#fde68a
+    style L2 fill:#0f172a,stroke:#64748b,stroke-width:1.5px,color:#cbd5e1
+    style L1 fill:#0f172a,stroke:#475569,stroke-width:1.5px,color:#94a3b8
+
+    %% 协议/实体节点样式
+    style P_HTTP fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#f8fafc
+    style P_TLS fill:#312e81,stroke:#a5b4fc,stroke-width:1.5px,color:#e0e7ff
+    style P_TCP fill:#064e3b,stroke:#34d399,stroke-width:1.5px,color:#f8fafc
+    style P_IP fill:#451a03,stroke:#fbbf24,stroke-width:1.5px,color:#f8fafc
+    style P_LINK fill:#1e293b,stroke:#94a3b8,stroke-width:1.5px,color:#f8fafc
+    style P_PHY fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
 {% endmermaid %}
 
 当您在浏览器中输入 `https://www.example.com` 时：

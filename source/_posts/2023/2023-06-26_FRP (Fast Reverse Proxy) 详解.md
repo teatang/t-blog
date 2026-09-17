@@ -41,12 +41,43 @@ FRP 的核心原理是**反向代理 (Reverse Proxy)** 和**隧道 (Tunneling)**
 
 {% mermaid %}
 graph TD
-    A[公网用户] -->|访问公网IP:PortA| B(FRP Server - frps)
-    B -->|"转发请求 (FRP隧道)"| C(FRP Client - frpc)
-    C -->|访问内网服务IP:PortB| D[内网服务]
-    D -->|返回响应| C
-    C -->|"返回响应 (FRP隧道)"| B
-    B -->|返回响应| A
+    User["外部公网用户<br/>(Client)"]
+
+    subgraph PublicNet["公网服务器环境 (VPS / Public Cloud)"]
+        FRPS["FRP 服务端 (frps)<br/>监听: 绑定端口 / 业务映射 Port A"]
+    end
+
+    subgraph PrivateNet["内网私有环境 (NAT / 局域网无公网 IP)"]
+        FRPC["FRP 客户端 (frpc)<br/>主动向外建连 (Outbound)"]
+        LAN_Service["本地内网服务<br/>(SSH / Web / NAS: Port B)"]
+    end
+
+    %% 阶段 1：隧道建立 (反向打通 NAT)
+    FRPC -.->|"1. 主动出站建立控制隧道 (TCP/KCP)"| FRPS
+
+    %% 阶段 2：用户访问与双向传输
+    User ==>|"2. 访问公网 IP:Port A"| FRPS
+    FRPS ==>|"3. 多路复用隧道转发流量"| FRPC
+    FRPC ==>|"4. 本地代理转发至 Port B"| LAN_Service
+    LAN_Service -.->|"5. 响应数据原路返回"| FRPC
+    FRPC -.->|"6. 隧道回传响应"| FRPS
+    FRPS -.->|"7. 返回数据给用户"| User
+
+    %% 容器与分组深色面板
+    style PublicNet fill:#0f172a,stroke:#38bdf8,stroke-width:1.5px,color:#93c5fd
+    style PrivateNet fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+
+    %% 节点精细配色
+    style User fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#f8fafc
+    style FRPS fill:#0c4a6e,stroke:#38bdf8,stroke-width:2px,color:#f0f9ff
+    style FRPC fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5
+    style LAN_Service fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+
+    %% 链路区分
+    linkStyle 0 stroke:#6366f1,stroke-width:1.5px,stroke-dasharray: 4 4;
+    linkStyle 1 stroke:#38bdf8,stroke-width:2px;
+    linkStyle 2 stroke:#38bdf8,stroke-width:2px;
+    linkStyle 3 stroke:#34d399,stroke-width:2px;
 {% endmermaid %}
 
 **详细步骤如下：**

@@ -82,26 +82,93 @@ STUN 报文通常基于 UDP 传输，报文结构包含：
     *   STUN 客户端无法直接通过 STUN 协议获取对称型 NAT 的外部映射，因为它每次与不同目标通信时，外部映射都会改变。对于对称型 NAT，通常需要 **TURN (Traversal Using Relays around NAT)** 服务器进行中继。
 
 {% mermaid %}
-graph LR
-    A[客户端] --> B{NAT 设备}
-    B -- UDP 请求 --> C[STUN 服务器 IP1:Port1]
+graph TD
+    %% 测试一：基础连通性与公网映射
+    subgraph Test1["测试 I：探测公网 IP 与端口映射 (Send to IP1:Port1)"]
+        direction TB
+        T1_Req["客户端发送 Binding Request<br/>目标: STUN_A (IP1:Port1)"]
+        T1_Chk{"是否收到响应？"}
+        T1_Fail["❌ UDP 阻断 / 防火墙拦截<br/>(UDP Blocked)"]
+        T1_Map{"Mapped-Address<br/>== 本地 Local Socket？"}
 
-    subgraph 客户端NAT类型识别流程
-        A1[1. 发送 Binding Request <br/>到 STUN_A IP1:Port1] --> A2[获取 STUN_A 返回的 <br/>Mapped Address: <br/>PublicIP:PublicPort]
-
-        A2 --> A3{比较 PublicIP:PublicPort <br/>与 LocalIP:LocalPort}
-        A3 -- 相同 --> A4["结果: 无NAT (或 全锥型-DMZ)"]
-        A3 -- 不同 --> A5[存在NAT]
-
-        A5 --> A6[2. 发送 Binding Request <br/>到 STUN_A IP1:Port1, <br/>请求 STUN_A 从 IP2:Port2 回复]
-        A6 -- 收到回复 --> A7["结果: 全锥型 NAT <br/>(Full Cone NAT)"]
-        A6 -- 未收到回复 --> A8[3. 发送 Binding Request <br/>到 STUN_A IP1:Port1, <br/>请求 STUN_A 从 <br/>IP2:Port1 回复]
-        A8 -- 收到回复 --> A9["结果: 地址受限锥型 NAT <br/>(Address-Restricted <br/>Cone NAT)"]
-        A8 -- 未收到回复 --> A10["结果: 端口受限锥型 NAT <br/>(Port-Restricted <br/>Cone NAT) 或 <br/>对称型 NAT (Symmetric <br/>NAT)"]
-
-        A10 -- 进一步判断（例如，<br/>与不同远程对等体通信<br/>是否改变映射端口） --> A11["结果: 对称型 NAT (需要TURN)"]
-        A10 -- 否则视为 --> A12[结果: 端口受限锥型 NAT]
+        T1_Req --> T1_Chk
+        T1_Chk -->|"否 (超时)"| T1_Fail
+        T1_Chk -->|"是"| T1_Map
     end
+
+    %% 无 NAT 分支
+    subgraph NoNAT["公开 IP 分支 (Public IP)"]
+        direction TB
+        T1_Change{"测试 II (改变 IP & Port)<br/>能否收到对端跨 IP 回复？"}
+        R_Open["✅ 开放因特网 (Open Internet)<br/>直连无 NAT / 公网宿主机"]
+        R_SymUDP["⚠️ 对称防火墙 (Symmetric UDP Firewall)<br/>无地址转换但限制入站"]
+
+        T1_Change -->|"收到回复"| R_Open
+        T1_Change -->|"超时未收到"| R_SymUDP
+    end
+
+    %% 存在 NAT 分支
+    subgraph HasNAT["NAT 存在分支 (检测锥型与对称型)"]
+        direction TB
+        T2_Req["测试 II：请求服务端从 (IP2:Port2) 跨地址回包"]
+        T2_Chk{"是否收到回包？"}
+        R_FullCone["🟢 全锥型 NAT (Full Cone / NAT 1)<br/>任意外部主机均可主动打通端口"]
+
+        %% 判定对称 NAT
+        T3_Req["测试 III：向另一独立服务器 STUN_B (IP2:Port1) 发包"]
+        T3_Map{"映射公网端口是否改变？<br/>(New Mapped-Port == Old Port?)"}
+        R_Symmetric["🔴 对称型 NAT (Symmetric / NAT 4)<br/>每次通信端口动态分配 (必须 TURN 中继)"]
+
+        %% 细分限制型
+        T4_Req["测试 IV：向 STUN_A 请求仅改变端口 (从 IP1:Port2 回复)"]
+        T4_Chk{"是否收到回包？"}
+        R_Restricted["🟡 受限锥型 / 地址限制 (NAT 2)<br/>仅允许已发过包的远端 IP 访问"]
+        R_PortRestricted["🟠 端口受限锥型 (NAT 3)<br/>必须精确匹配远端 IP + Port"]
+
+        T2_Req --> T2_Chk
+        T2_Chk -->|"收到"| R_FullCone
+        T2_Chk -->|"超时"| T3_Req
+
+        T3_Req --> T3_Map
+        T3_Map -->|"端口改变"| R_Symmetric
+        T3_Map -->|"端口一致 (依然是锥型)"| T4_Req
+
+        T4_Req --> T4_Chk
+        T4_Chk -->|"收到"| R_Restricted
+        T4_Chk -->|"超时"| R_PortRestricted
+    end
+
+    %% 跨子图决策流转
+    T1_Map -->|"相同"| T1_Change
+    T1_Map -->|"不同"| T2_Req
+
+    %% 容器深色面板样式
+    style Test1 fill:#0f172a,stroke:#334155,stroke-width:1.5px,color:#94a3b8
+    style NoNAT fill:#0f172a,stroke:#38bdf8,stroke-width:1.5px,color:#93c5fd
+    style HasNAT fill:#0f172a,stroke:#10b981,stroke-width:1.5px,color:#6ee7b7
+
+    %% 判定菱形深色样式
+    style T1_Chk fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style T1_Map fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style T1_Change fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style T2_Chk fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style T3_Map fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+    style T4_Chk fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff
+
+    %% 流程执行节点
+    style T1_Req fill:#1e293b,stroke:#64748b,color:#f8fafc
+    style T2_Req fill:#1e293b,stroke:#64748b,color:#f8fafc
+    style T3_Req fill:#1e293b,stroke:#64748b,color:#f8fafc
+    style T4_Req fill:#1e293b,stroke:#64748b,color:#f8fafc
+
+    %% 结果节点配色（绿 -> 黄 -> 橙 -> 红）
+    style R_Open fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5
+    style R_FullCone fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5
+    style R_Restricted fill:#451a03,stroke:#fbbf24,stroke-width:2px,color:#fef3c7
+    style R_PortRestricted fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#ffedd5
+    style R_Symmetric fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fee2e2
+    style T1_Fail fill:#450a0a,stroke:#ef4444,color:#fee2e2
+    style R_SymUDP fill:#334155,stroke:#94a3b8,color:#f1f5f9
 
 {% endmermaid %}
 
