@@ -34,26 +34,40 @@ L7 负载均衡器在 HTTP/HTTPS 请求的整个生命周期中发挥关键作�
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as 客户端 (浏览器/App)
-    participant LBL7 as L7 负载均衡器
-    participant Backend as 后端服务器池 (App Server)
+    autonumber
+    actor Client as 📱 客户端 (Browser/App)
+    participant LBL7 as ⚖️ L7 负载均衡器 (Reverse Proxy)
+    participant Backend as 🖥️ 后端应用池 (Upstream App)
 
-    Client->>LBL7: 1. 建立 TCP 连接 (L4)
-    alt HTTPS 请求
-        Client->>LBL7: 2. SSL/TLS 握手
-        LBL7->>LBL7: 3. SSL/TLS 终止 (解密 HTTPS 请求)
+    rect rgba(56, 189, 248, 0.08)
+        Note over Client,LBL7: 前端连接与握手 (Client ↔ L7)
+        Client->>+LBL7: 建立 TCP 连接 (SYN / ACK)
+        opt HTTPS 请求
+            Client->>LBL7: TLS 握手协商
+            Note over LBL7: TLS 卸载 / 终止 (解密流量获取明文 HTTP)
+        end
+        Client->>LBL7: 发送 HTTP 请求 (Path / Header / Cookie / Body)
     end
-    Client->>LBL7: 4. 发送 HTTP/HTTPS 请求 (包含 URL, Header, Body, Cookie等)
-    LBL7->>LBL7: 5. **解析应用层数据** (URL路径, 请求头, Cookie, 请求方法等)
-    LBL7->>LBL7: 6. **根据预定义策略决策路由**
-        Note right of LBL7: - 内容路由 (URL, Header)<br>- 会话持久性 (Cookie)<br>- 健康检查结果<br>- 权重, 最小连接数等
-    LBL7->>Backend: 7. 将请求转发到选定的后端服务器 (通常是新的 TCP 连接，可以是 HTTP 或 HTTPS)
-    Backend->>LBL7: 8. 处理请求并返回 HTTP 响应
-    LBL7->>LBL7: 9. 可选：修改响应头/内容
-    alt HTTPS 请求
-        LBL7->>LBL7: 10. SSL/TLS 加密响应
+
+    rect rgba(129, 140, 248, 0.08)
+        Note over LBL7: 核心应用层决策与调度
+        Note over LBL7: 深度解析报文：<br/>• 路径路由 (e.g. /api vs /static)<br/>• 粘性会话 (Cookie Affinity)<br/>• 权重 / 最小连接算法
     end
-    LBL7->>Client: 11. 将响应发送回客户端
+
+    rect rgba(52, 211, 153, 0.08)
+        Note over LBL7,Backend: 后端代理交互 (L7 ↔ Upstream)
+        LBL7->>+Backend: 建立独立 TCP/HTTP 连接并转发请求<br/>(注入 X-Forwarded-For / X-Real-IP)
+        Backend-->>-LBL7: 处理业务并返回 HTTP 响应
+    end
+
+    rect rgba(168, 85, 247, 0.08)
+        Note over Client,LBL7: 响应加工与回传
+        Note over LBL7: 可选处理：Gzip压缩 / 安全头增删 / 缓存写入
+        opt HTTPS 响应
+            Note over LBL7: TLS 重新加密响应载荷
+        end
+        LBL7-->>-Client: 返回最终 HTTP 响应报文
+    end
 {% endmermaid %}
 
 **详细步骤解析：**

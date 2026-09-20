@@ -35,25 +35,30 @@ L4 负载均衡器在 OSI 模型的传输层（TCP/UDP）工作。当客户端�
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as 客户端 (浏览器/App)
-    participant L4LB as L4 负载均衡器
-    participant BackendA as 后端服务器 A
-    participant BackendB as 后端服务器 B
-    participant BackendC as 后端服务器 C
+    autonumber
+    actor Client as 📱 客户端 (Browser/App)
+    participant L4LB as ⚖️ L4 负载均衡器 (VIP)
+    participant BackendA as 🖥️ 后端 A (10.0.0.1)
+    participant BackendB as 🖥️ 后端 B (10.0.0.2)
+    participant BackendC as 🖥️ 后端 C (10.0.0.3)
 
-    Client->>L4LB: 1. 客户端发起连接请求 (e.g., TCP SYN, Dest IP: VIP, Dest Port: 80/443)
-    L4LB->>L4LB: 2. **选择后端** (基于 IP, Port 和负载均衡算法)
-    alt 选择 Backend A
-        L4LB->>BackendA: 3. 将请求转发到后端服务器 A (e.g., 修改目标 IP/Port)
-        BackendA->>L4LB: 4. 返回响应
-    else 选择 Backend B
-        L4LB->>BackendB: 3. 将请求转发到后端服务器 B
-        BackendB->>L4LB: 4. 返回响应
-    else 选择 Backend C
-        L4LB->>BackendC: 3. 将请求转发到后端服务器 C
-        BackendC->>L4LB: 4. 返回响应
+    Client->>+L4LB: 建立连接 / 发送请求<br/>[TCP SYN | Dst: VIP:Port]
+    
+    Note over L4LB: 负载均衡算法调度 (轮询/加权/哈希)<br/>四层 NAT: 替换 Dst IP 为选中后端
+
+    alt 命中节点 A
+        L4LB->>+BackendA: 转发数据包 (DNAT: 10.0.0.1)
+        BackendA-->>-L4LB: 返回响应报文
+    else 命中节点 B
+        L4LB->>+BackendB: 转发数据包 (DNAT: 10.0.0.2)
+        BackendB-->>-L4LB: 返回响应报文
+    else 命中节点 C
+        L4LB->>+BackendC: 转发数据包 (DNAT: 10.0.0.3)
+        BackendC-->>-L4LB: 返回响应报文
     end
-    L4LB->>Client: 5. 返回最终响应给客户端
+
+    Note over L4LB: 逆向 SNAT: 还原源 IP 为 VIP
+    L4LB-->>-Client: 返回最终响应报文
 {% endmermaid %}
 
 **关键机制与实现方式**：

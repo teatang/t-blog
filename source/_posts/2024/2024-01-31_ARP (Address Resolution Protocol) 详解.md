@@ -29,7 +29,7 @@ categories:
     主机 A 知道主机 B 的 IP 地址，但为了在物理网络上直接发送数据帧（如以太网帧），它需要将目标 IP 地址解析成目标 MAC 地址。以太网帧头中包含目标 MAC 地址，物理网络设备（如交换机）根据 MAC 地址进行转发。**此时，ARP 协议登场。**
 
 2.  **如果目标主机 B 与主机 A 不在同一个局域网内**：
-    主机 A 知道主机 B 的 IP 地址，但它不会直接寻找主机 B 的 MAC 地址。相反，它会寻找**本地网关 (路由器)**的 MAC 地址，并将数据包发送给网关。网关收到数据包后，会根据目标 IP 地址进行路由，可能再次使用 ARP 来寻找下一跳路由器的 MAC 地址，直到数据包到达目标网络的网关。最后，目标网络的网关会使用 ARP 找到目标主机 B 的 MAC 地址，并将数据包发送给它。
+    主机 A 知道主机 B 的 IP 地址，但它不会直接寻找主机 B 的 MAC 地址。相反，它会寻找本地网关 (路由器)的 MAC 地址，并将数据包发送给网关。网关收到数据包后，会根据目标 IP 地址进行路由，可能再次使用 ARP 来寻找下一跳路由器的 MAC 地址，直到数据包到达目标网络的网关。最后，目标网络的网关会使用 ARP 找到目标主机 B 的 MAC 地址，并将数据包发送给它。
 
 简而言之，ARP 的作用就像一个**电话簿**，你输入一个人的名字 (IP 地址)，它会告诉你这个人的电话号码 (MAC 地址)，以便你能够直接联系到他（在本地网络）。
 
@@ -39,27 +39,40 @@ ARP 协议的运作基于**请求 (Request)** 和 **响应 (Reply)** 机制。�
 
 {% mermaid %}
 sequenceDiagram
-    participant HostA as 主机 A (192.168.1.10)
-    participant Switch as 交换机
-    participant HostB as 主机 B (192.168.1.20)
-    participant OtherHosts as 其他主机
+    autonumber
+    actor HostA as 💻 主机 A<br/>192.168.1.10 (MAC: AAAA)
+    participant Switch as 🔀 二层交换机
+    actor HostB as 🖥️ 主机 B<br/>192.168.1.20 (MAC: BBBB)
+    actor Other as 👥 同网段其他主机
 
-    HostA->>HostA: 1. 需要发送IP数据包到192.168.1.20
-    HostA->>HostA: 2. 检查ARP缓存，未找到192.168.1.20的MAC
-    HostA->>Switch: 3. 发送ARP请求 (广播帧)<br/>(目标IP: 192.168.1.20, 目标MAC: FF:FF:FF:FF:FF:FF)
-    Switch->>HostB: 4. 广播ARP请求
-    Switch->>OtherHosts: 5. 广播ARP请求
+    Note over HostA: 准备向 192.168.1.20 发包<br/>查询本地 ARP 缓存：<b>未命中 (Miss)</b>
 
-    HostB->>HostB: 6. 收到ARP请求，发现目标IP匹配
-    HostB->>HostB: 7. 将主机A的IP-MAC映射加入ARP缓存
-    HostB->>HostA: 8. 发送ARP响应 (单播帧)<br/>(源IP: 192.168.1.20, 源MAC: BBBB,<br/>目标IP: 192.168.1.10, 目标MAC: AAAA)
-    OtherHosts->>OtherHosts: 9. 收到ARP请求，目标IP不匹配，丢弃
+    rect rgba(56, 189, 248, 0.08)
+        Note over HostA,Other: 阶段一：ARP 广播请求 (Request)
+        HostA->>+Switch: 发送 ARP 请求 (广播)<br/>[Dst MAC: FF:FF:FF:FF:FF:FF]
+        Switch->>HostB: 泛洪广播 ARP 请求
+        Switch-->>Other: 泛洪广播 ARP 请求
+        deactivate Switch
 
-    HostA->>HostA: 10. 收到ARP响应，获取192.168.1.20的MAC (BBBB)
-    HostA->>HostA: 11. 将192.168.1.20 -> BBBB 映射加入ARP缓存
-    HostA->>Switch: 12. 封装数据包到帧，目标MAC: BBBB
-    Switch->>HostB: 13. 转发数据帧
-    HostB->>HostB: 14. 收到数据帧并处理
+        Note over Other: 检查目标 IP 不匹配 ➔ <b>直接丢弃</b>
+        Note over HostB: 检查目标 IP 匹配：<br/>1. 记录 A 的映射 (192.168.1.10 ➔ AAAA)<br/>2. 准备单播回包
+    end
+
+    rect rgba(52, 211, 153, 0.08)
+        Note over HostA,HostB: 阶段二：ARP 单播响应 (Reply)
+        HostB->>+Switch: 发送 ARP 响应 (单播)<br/>[Src MAC: BBBB, Dst MAC: AAAA]
+        Switch->>HostA: 查 MAC 表精准转发单播帧
+        deactivate Switch
+
+        Note over HostA: 收到响应，学习并写入 ARP 缓存：<br/><b>192.168.1.20 ➔ BBBB</b>
+    end
+
+    rect rgba(129, 140, 248, 0.08)
+        Note over HostA,HostB: 阶段三：正常单播数据传输 (Data)
+        HostA->>Switch: 发送 IP 数据包 (封装 Dst MAC: BBBB)
+        Switch->>HostB: 精准单播转发
+        Note over HostB: 解封装并交付上层网络栈处理
+    end
 {% endmermaid %}
 
 1.  **主机 A 检查 ARP 缓存**：在发送 IP 数据包之前，主机 A 会首先检查其本地的 ARP 缓存表，看是否已经有目标 IP 地址 192.168.1.20 对应的 MAC 地址。
@@ -132,22 +145,34 @@ ARP 协议在设计时并没有考虑安全性，导致它容易受到攻击。�
 
 {% mermaid %}
 sequenceDiagram
-    participant HostA as 主机 A (192.168.1.10, AAAA)
-    participant Attacker as 攻击者 (192.168.1.30, CCCC)
-    participant HostB as 主机 B (192.168.1.20, BBBB)
+    autonumber
+    actor HostA as 💻 主机 A<br/>192.168.1.10 (MAC: AAAA)
+    actor Attacker as 🥷 攻击者 (中间人)<br/>192.168.1.30 (MAC: CCCC)
+    actor HostB as 🖥️ 主机 B<br/>192.168.1.20 (MAC: BBBB)
 
-    HostA->>HostB: (正常通信前) Host A 要发数据给 Host B
-    Attacker->>HostA: 1. 伪造ARP响应: 192.168.1.20 的MAC是 CCCC
-    HostA->>HostA: 2. ARP缓存: 192.168.1.20 -> CCCC
-    Attacker->>HostB: 3. 伪造ARP响应: 192.168.1.10 的MAC是 CCCC
-    HostB->>HostB: 4. ARP缓存: 192.168.1.10 -> CCCC
+    rect rgba(239, 68, 68, 0.08)
+        Note over HostA,HostB: 阶段一：双向 ARP 缓存投毒 (ARP Poisoning)
+        Attacker->>HostA: 伪造 ARP 响应：192.168.1.20 is-at CCCC
+        Note over HostA: 缓存被毒化 (Poisoned)：<br/>192.168.1.20 ➔ <b>CCCC (攻击者)</b>
 
-    HostA->>Attacker: 5. 发送给 192.168.1.20 的数据包 (目标MAC: CCCC)
-    Attacker->>HostB: 6. 攻击者转发数据包给 192.168.1.20 (可选修改)
-    HostB->>Attacker: 7. 发送给 192.168.1.10 的数据包 (目标MAC: CCCC)
-    Attacker->>HostA: 8. 攻击者转发数据包给 192.168.1.10 (可选修改)
+        Attacker->>HostB: 伪造 ARP 响应：192.168.1.10 is-at CCCC
+        Note over HostB: 缓存被毒化 (Poisoned)：<br/>192.168.1.10 ➔ <b>CCCC (攻击者)</b>
+    end
 
-    Note over Attacker: 攻击者现在是中间人，可以监听、修改或丢弃所有流量
+    rect rgba(168, 85, 247, 0.08)
+        Note over HostA,HostB: 阶段二：流量全面被劫持 (MITM 窃听 / 篡改)
+        HostA->>+Attacker: 发往 192.168.1.20 的数据包<br/>[IP: 192.168.1.20, Dst MAC: CCCC]
+        Note over Attacker: 嗅探 (Sniff) / 篡改数据 (Tamper)
+        Attacker->>HostB: 转发数据包给主机 B<br/>[IP: 192.168.1.20, Dst MAC: BBBB]
+        deactivate Attacker
+
+        HostB->>+Attacker: 发往 192.168.1.10 的响应包<br/>[IP: 192.168.1.10, Dst MAC: CCCC]
+        Note over Attacker: 嗅探 (Sniff) / 记录敏感信息
+        Attacker->>HostA: 转发响应包给主机 A<br/>[IP: 192.168.1.10, Dst MAC: AAAA]
+        deactivate Attacker
+    end
+
+    Note over HostA,HostB: ⚠️ 攻击成果：两端主机在无感知状态下，所有明文流量（密码/会话/凭据）均被攻击者完全控制
 {% endmermaid %}
 
 ### 5.2 攻击后果

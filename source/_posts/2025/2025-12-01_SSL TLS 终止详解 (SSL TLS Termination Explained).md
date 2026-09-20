@@ -46,19 +46,36 @@ SSL/TLS 终止的基本流程涉及到客户端、终止设备和后端服务器
 
 {% mermaid %}
 sequenceDiagram
-    participant Client as 客户端 (浏览器)
-    participant Terminator as SSL/TLS 终止设备 (负载均衡器/反向代理)
-    participant Backend as 后端应用服务器
+    autonumber
+    actor Client as 💻 客户端 (Browser)
+    participant Terminator as 🛡️ TLS 终止设备 (LB / Nginx)
+    participant Backend as 🖥️ 后端应用集群 (HTTP)
 
-    Client->>Terminator: 1. 客户端发起 HTTPS 连接 (TCP 连接)
-    Terminator-->>Client: 2. SSL/TLS 握手开始 (发送证书, 协商加密套件)
-    Client->>Terminator: 3. 握手完成，客户端发送加密的 HTTP 请求
-    Terminator->>Terminator: 4. **解密** HTTP 请求
-    Terminator->>Backend: 5. 将解密后的 HTTP 请求转发给后端 (通常是 HTTP 协议)
-    Backend->>Terminator: 6. 处理请求并返回 HTTP 响应
-    Terminator->>Terminator: 7. **加密** HTTP 响应
-    Terminator-->>Client: 8. 将加密后的 HTTPS 响应发送给客户端
-    Client->>Client: 9. 客户端解密并显示内容
+    rect rgba(56, 189, 248, 0.08)
+        Note over Client,Terminator: 阶段一：公网加密通道建立 (HTTPS / TLS 握手)
+        Client->>+Terminator: 发起 TCP 连接 & TLS Client Hello
+        Terminator-->>Client: TLS Server Hello (下发证书 / 协商密钥)
+        Client->>Terminator: 客户端密钥交换 & 握手完成
+    end
+
+    rect rgba(244, 63, 94, 0.08)
+        Note over Client,Terminator: 阶段二：加密请求到达与卸载
+        Client->>Terminator: 发送密文 HTTP 请求 (HTTPS)
+        Note over Terminator: 🔑 SSL/TLS 终止 (解密为明文 HTTP)
+    end
+
+    rect rgba(52, 211, 153, 0.08)
+        Note over Terminator,Backend: 阶段三：内网明文转发与业务处理
+        Terminator->>+Backend: 转发明文 HTTP 请求 (内网可信链路)
+        Backend-->>-Terminator: 处理业务，返回明文 HTTP 响应
+    end
+
+    rect rgba(168, 85, 247, 0.08)
+        Note over Client,Terminator: 阶段四：重新加密与安全回传
+        Note over Terminator: 🔒 使用会话密钥重新加密响应体
+        Terminator-->>-Client: 返回密文 HTTPS 响应报文
+        Note over Client: 客户端本地解密并渲染内容
+    end
 {% endmermaid %}
 
 **详细步骤解析：**

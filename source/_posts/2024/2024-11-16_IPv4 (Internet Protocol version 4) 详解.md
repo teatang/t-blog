@@ -121,29 +121,54 @@ IP 地址：`192.168.1.1`
 IPv4 数据报文由**头部 (Header)** 和**数据部分 (Payload/Data)** 组成。头部包含控制信息，数据部分是上层协议（如 TCP、UDP）的数据。
 
 {% mermaid %}
-graph TD
-    A[IPv4 数据报文] --> B["IPv4 头部 (Header)"]
-    A --> C["数据部分 (Payload)"]
+flowchart TD
+    A["IPv4 数据报文 (IPv4 Datagram)"] --> B["头部 (Header - 20~60 字节)"]
+    A --> C["数据载荷 (Payload)"]
 
-    subgraph "IPv4 头部 (20-60 字节)"
-        B1["版本 (4 bits) \n IHL (4 bits)"]
-        B2["服务类型 (8 bits)"]
-        B3["总长度 (16 bits)"]
-        B4["标识 (16 bits)"]
-        B5["标志 (3 bits) \n 片偏移 (13 bits)"]
-        B6["生存时间 (TTL - 8 bits)"]
-        B7["协议 (8 bits)"]
-        B8["头部校验和 (16 bits)"]
-        B9["源 IP 地址 (32 bits)"]
-        B10["目的 IP 地址 (32 bits)"]
-        B11["选项 (0-40 字节)"]
-        B12["填充 (Padding)"]
+    subgraph Header["IPv4 首部字段 (每行 32 bits)"]
+        direction TB
+        
+        subgraph Row1["0 ~ 31 bit"]
+            direction LR
+            B1["版本 (4b)"] --- B2["首部长度 IHL (4b)"] --- B3["服务类型 DSCP/ECN (8b)"] --- B4["总长度 (16b)"]
+        end
+
+        subgraph Row2["32 ~ 63 bit"]
+            direction LR
+            B5["标识符 (16b)"] --- B6["标志 Flags (3b)"] --- B7["片偏移 Fragment Offset (13b)"]
+        end
+
+        subgraph Row3["64 ~ 95 bit"]
+            direction LR
+            B8["生存时间 TTL (8b)"] --- B9["协议 Protocol (8b)"] --- B10["首部校验和 (16b)"]
+        end
+
+        subgraph Row4["96 ~ 127 bit"]
+            direction LR
+            B11["源 IP 地址 (32b)"]
+        end
+
+        subgraph Row5["128 ~ 159 bit"]
+            direction LR
+            B12["目的 IP 地址 (32b)"]
+        end
+
+        subgraph Row6["可选字段"]
+            direction LR
+            B13["选项 Options (0~40 字节) + 填充 Padding"]
+        end
+
+        Row1 --> Row2 --> Row3 --> Row4 --> Row5 --> Row6
     end
 
-    B1 --- B2 --- B3
-    B4 --- B5 --- B6
-    B7 --- B8 --- B9
-    B10 --- B11 --- B12
+    B -.-> Header
+
+    style A fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style B fill:#0f766e,stroke:#2dd4bf,stroke-width:2px,color:#ffffff
+    style C fill:#334155,stroke:#64748b,stroke-width:1px,color:#e2e8f0
+    style B11 fill:#1e3a8a,stroke:#60a5fa,stroke-width:1px,color:#ffffff
+    style B12 fill:#1e3a8a,stroke:#60a5fa,stroke-width:1px,color:#ffffff
+    style B13 fill:#1e293b,stroke:#64748b,stroke-dasharray: 5 5,color:#94a3b8
 {% endmermaid %}
 
 **IPv4 头部字段解释：**
@@ -190,41 +215,58 @@ IP 路由是根据目标 IP 地址选择数据包转发路径的过程。
 4.  **TTL 机制**：TTL 字段确保数据包不会在网络中无限循环，一旦 TTL 归零即被丢弃。
 
 {% mermaid %}
-graph TD
-    ClientA["Client A (192.168.1.10/24)"] --> L2SwitchA[L2 Switch A]
-    ServerB["Server B (192.168.1.20/24)"] --> L2SwitchA
+flowchart TD
 
-    ClientC["Client C (10.0.0.10/8)"] --> L2SwitchB[L2 Switch B]
-    ServerD["Server D (10.0.0.20/8)"] --> L2SwitchB
+    Internet["🌐 Core WAN / Internet"]
 
-    L2SwitchA --- RouterA["Router A (GW: 192.168.1.1)"]
-    L2SwitchB --- RouterB["Router B (GW: 10.0.0.1)"]
+    subgraph Net1["Network 1 (192.168.1.0/24)"]
+        direction TB
+        ClientA["💻 Client A<br/>192.168.1.10/24"]
+        ServerB["🖥️ Server B<br/>192.168.1.20/24"]
+        L2SwitchA["🔀 L2 Switch A"]
+        RouterA["📡 Router A (GW)<br/>LAN: 192.168.1.1"]
 
-    RouterA --- Internet[Internet / Core Router]
-    RouterB --- Internet
-
-    subgraph "Network 1 (192.168.1.0/24)"
-        ClientA
-        ServerB
-        L2SwitchA
-        RouterA
+        ClientA --- L2SwitchA
+        ServerB --- L2SwitchA
+        L2SwitchA --- RouterA
     end
 
-    subgraph "Network 2 (10.0.0.0/8)"
-        ClientC
-        ServerD
-        L2SwitchB
-        RouterB
+    subgraph Net2["Network 2 (10.0.0.0/8)"]
+        direction TB
+        RouterB["📡 Router B (GW)<br/>LAN: 10.0.0.1"]
+        L2SwitchB["🔀 L2 Switch B"]
+        ClientC["💻 Client C<br/>10.0.0.10/8"]
+        ServerD["🖥️ Server D<br/>10.0.0.20/8"]
+
+        RouterB --- L2SwitchB
+        L2SwitchB --- ClientC
+        L2SwitchB --- ServerD
     end
-  
-    ClientA -- PING 192.168.1.20 --> ServerB
-    ClientA -- PING 10.0.0.10 (跨网络) --> RouterA
-    RouterA -- Forward --> Internet
-    Internet -- Forward --> RouterB
-    RouterB -- Forward --> ClientC
-  
-    style RouterA fill:#DAE8FC,stroke:#1E90FF,stroke-width:2px;
-    style RouterB fill:#DAE8FC,stroke:#1E90FF,stroke-width:2px;
+
+    RouterA === Internet
+    Internet === RouterB
+
+    ClientA -. "<span style='color:#34d399'>① 同网段 PING</span>" .-> ServerB
+
+    ClientA -. "<span style='color:#7dd3fc'>② 跨网段发往网关</span>" .-> RouterA
+    RouterA -. "<span style='color:#7dd3fc'>路由转发</span>" .-> Internet
+    Internet -. "<span style='color:#7dd3fc'>核心转发</span>" .-> RouterB
+    RouterB -. "<span style='color:#7dd3fc'>网段内投递</span>" .-> ClientC
+
+    classDef default fill:#1e293b,stroke:#475569,stroke-width:1.5px,color:#f8fafc;
+    classDef router fill:#0f3b5c,stroke:#38bdf8,stroke-width:2px,color:#e0f2fe;
+    classDef wan fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
+    classDef switch fill:#1e293b,stroke:#64748b,stroke-width:1.5px,stroke-dasharray: 3 3,color:#cbd5e1;
+
+    class RouterA,RouterB router;
+    class Internet wan;
+    class L2SwitchA,L2SwitchB switch;
+
+    linkStyle 7 stroke:#10b981,stroke-width:2px;
+    linkStyle 8 stroke:#38bdf8,stroke-width:2px;
+    linkStyle 9 stroke:#38bdf8,stroke-width:2px;
+    linkStyle 10 stroke:#38bdf8,stroke-width:2px;
+    linkStyle 11 stroke:#38bdf8,stroke-width:2px;
 {% endmermaid %}
 
 ## 六、IPv4 地址枯竭问题
