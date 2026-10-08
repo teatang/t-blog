@@ -294,15 +294,52 @@ func main() {
 将多个 Goroutine 的输出合并到一个单一的 Channel 中。
 
 {% mermaid %}
-graph LR
-    P1[Producer 1] --> C1[Channel 1]
-    P2[Producer 2] --> C2[Channel 2]
-    P3[Producer 3] --> C3[Channel 3]
-    C1 --> M{"Multiplexer (select)"}
-    C2 --> M
-    C3 --> M
-    M --> Out[Output Channel]
-    Out --> Consumer[Consumer]
+flowchart LR
+    %% 生产者集群
+    subgraph Producers [并发生产者集群 Goroutines]
+        P1(["生产者 1"]):::producerNode
+        P2(["生产者 2"]):::producerNode
+        P3(["生产者 3"]):::producerNode
+    end
+
+    %% 缓冲通道输入层
+    subgraph InChannels [输入通道缓冲层 Inputs]
+        C1[("通道 1 - ch1")]:::chanNode
+        C2[("通道 2 - ch2")]:::chanNode
+        C3[("通道 3 - ch3")]:::chanNode
+    end
+
+    %% 多路复用核心逻辑
+    subgraph Core [多路复用处理核心 Core]
+        M{"select 调度器<br/>伪随机选择就绪分支"}:::muxNode
+    end
+
+    %% 下游流转
+    subgraph OutGroup [消费交付层 Outputs]
+        OutChan[("汇聚通道 - out")]:::outChanNode
+        Consumer(["下游消费者 Goroutine"]):::consumerNode
+    end
+
+    %% 生产与写入
+    P1 -->|写入 data1| C1
+    P2 -->|写入 data2| C2
+    P3 -->|写入 data3| C3
+
+    %% 多路监听与汇聚
+    C1 -->|case msg1 := ch1| M
+    C2 -->|case msg2 := ch2| M
+    C3 -->|case msg3 := ch3| M
+
+    %% 聚合输出与消费
+    M ==>|转发就绪数据 out <- msg| OutChan
+    OutChan -->|读取 <-out| Consumer
+
+    %% 样式表 (Dark UI 调色板)
+    classDef producerNode fill:#313244,stroke:#a6e3a1,stroke-width:2px,color:#a6e3a1;
+    classDef chanNode fill:#1e1e2e,stroke:#89b4fa,stroke-width:1.5px,color:#cdd6f4;
+    classDef muxNode fill:#313244,stroke:#f9e2af,stroke-width:2px,color:#f9e2af;
+    classDef outChanNode fill:#181825,stroke:#cba6f7,stroke-width:2px,color:#cba6f7;
+    classDef consumerNode fill:#313244,stroke:#fab387,stroke-width:2px,color:#fab387;
 {% endmermaid %}
 
 **代码示例：**

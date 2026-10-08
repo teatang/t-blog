@@ -67,47 +67,63 @@ Go 调度器是实现 Goroutine 规模化的关键。它采用了一种称为 **
 ### 2.2 具体流程图
 
 {% mermaid %}
-graph TD
-    subgraph Go 运行时
-        G_Queue_Global[全局 Goroutine 队列]
-        subgraph P1[逻辑处理器 P]
-            G_Queue_Local_1[本地 Goroutine 队列]
-            M1(OS 线程 M)
+flowchart LR
+    %% 1. 顶层：Goroutine 产生
+    subgraph Produce [ 协程创建 Production ]
+        NewG["创建新协程 go func()"]:::gNode
+    end
+
+    %% 2. 中层：GMP 调度拓扑
+    subgraph Core [ GMP 运行时调度拓扑 Core Architecture ]
+        GRQ[("全局队列 GRQ<br/>Global Run Queue")]:::grqNode
+
+        subgraph P1_Group [ 逻辑处理器 P1 单元 ]
+            LRQ1["本地队列 LRQ1<br/>(容量: 256 G)"]:::lrqNode
+            M1(["OS 线程 M1"]):::mNode
+            RunG1["当前运行 G"]:::runGNode
         end
-        subgraph P2[逻辑处理器 P]
-            G_Queue_Local_2[本地 Goroutine 队列]
-            M2(OS 线程 M)
-        end
-        subgraph Pn[...]
-            Gn[...]
-            Mn[...]
+
+        subgraph P2_Group [ 逻辑处理器 P2 单元 ]
+            LRQ2["本地队列 LRQ2<br/>(空闲/待窃取)"]:::lrqNode
+            M2(["OS 线程 M2"]):::mNode
+            RunG2["当前运行 G"]:::runGNode
         end
     end
 
-    Client[用户/主 Goroutine] --> G1[Goroutine 1]
-    Client --> G2[Goroutine 2]
-    Client --> G3[Goroutine 3]
-    G1 --> G_Queue_Local_1
-    G2 --> G_Queue_Local_1
-    G3 --> G_Queue_Local_2
-
-    M1 -- 执行 --> G_Queue_Local_1
-    M2 -- 执行 --> G_Queue_Local_2
-
-    G_Queue_Local_1 -- 完成/阻塞 --> G_Queue_Global
-    G_Queue_Local_2 -- 完成/阻塞 --> G_Queue_Global
-
-    M1 -- 从 P1 获取 G --> G_Queue_Local_1
-    M2 -- 从 P2 获取 G --> G_Queue_Local_2
-
-    M1 -- 阻塞 (系统调用) --> M1_Blocked(M 阻塞)
-    P1 -- 解绑 M1 --> P1_Available(P 空闲)
-    P1_Available -- 绑定新 M --> M_New(新 OS 线程 M)
-
-
-    subgraph Work-Stealing
-        P2 --- 窃取 ---> G_Queue_Local_1
+    %% 3. 底层：异常与自适应机制
+    subgraph Mechanics [ 容灾与调度机制 Mechanisms ]
+        Steal["工作窃取 (Work-Stealing)<br/>P2 窃取 P1 队列的 50% G"]:::stealNode
+        Syscall["系统调用阻塞 (Syscall)<br/>M 阻塞时，P 剥离并转绑空闲 M"]:::syscallNode
     end
+
+    %% 主业务流向
+    NewG -->|1. 优先放入当前 P| LRQ1
+    NewG -.->|队列满时溢出| GRQ
+
+    %% P1 单元内执行流
+    LRQ1 -->|调度取 G| RunG1
+    M1 ---|绑定执行| RunG1
+    GRQ -.->|1/61 周期拉取| LRQ1
+
+    %% P2 单元内执行流
+    LRQ2 -->|调度取 G| RunG2
+    M2 ---|绑定执行| RunG2
+
+    %% 机制联动
+    LRQ2 ===>|队列为空触发| Steal
+    Steal ===>|从 LRQ1 窃取| LRQ1
+
+    RunG1 -.->|发生系统调用| Syscall
+    Syscall -.->|解绑释放| P1_Group
+
+    %% 样式体系 (Dark UI 调色板)
+    classDef gNode fill:#313244,stroke:#a6e3a1,stroke-width:2px,color:#a6e3a1;
+    classDef runGNode fill:#45475a,stroke:#a6e3a1,stroke-width:2px,color:#ffffff;
+    classDef mNode fill:#313244,stroke:#fab387,stroke-width:2px,color:#fab387;
+    classDef lrqNode fill:#1e1e2e,stroke:#89b4fa,stroke-width:1.5px,color:#cdd6f4;
+    classDef grqNode fill:#181825,stroke:#f9e2af,stroke-width:2px,color:#f9e2af;
+    classDef stealNode fill:#313244,stroke:#94e2d5,stroke-width:1.5px,stroke-dasharray: 3 3,color:#94e2d5;
+    classDef syscallNode fill:#313244,stroke:#f38ba8,stroke-width:1.5px,stroke-dasharray: 3 3,color:#f38ba8;
 {% endmermaid %}
 
 ## 三、Goroutine 规模化的具体原因

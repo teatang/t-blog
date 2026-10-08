@@ -40,25 +40,48 @@ categories:
 
 {% mermaid %}
 sequenceDiagram
-    participant Main as 主 Goroutine
-    participant Worker1 as 工作 Goroutine 1
-    participant Worker2 as 工作 Goroutine 2
-    participant WaitGroup as WaitGroup
+    autonumber
+    actor Main as 主协程 Main
+    participant WG as sync.WaitGroup
+    actor W1 as 工作协程 W1
+    actor W2 as 工作协程 W2
 
-    Main->>WaitGroup: Add(1)
-    Main->>Worker1: go Worker1()
-    Main->>WaitGroup: Add(1)
-    Main->>Worker2: go Worker2()
+    %% 阶段 1：注册与派生
+    rect rgb(30, 35, 55)
+        Note over Main,WG: 阶段 1：递增计数并派生协程
+        Main->>WG: wg.Add(2) 预设计数 counter = 2
+        Main-->>W1: go worker1() 启动
+        Main-->>W2: go worker2() 启动
+    end
 
-    Worker1->>Worker1: 执行任务...
-    Worker2->>Worker2: 执行任务...
+    %% 阶段 2：并发运行与主协程阻塞挂起
+    rect rgb(50, 35, 45)
+        Note over Main,W2: 阶段 2：Main 阻塞挂起，Workers 并发执行
+        activate W1
+        activate W2
+        Main->>WG: wg.Wait() 调用进入等待
+        activate Main
+        Note over Main,WG: 计数器 counter > 0<br/>Main 协程挂起休眠 (gopark)
 
-    Worker1->>WaitGroup: Done()
-    Worker2->>WaitGroup: Done()
+        W1->>W1: 执行独立计算或 I/O
+        W2->>W2: 执行独立计算或 I/O
 
-    Main->>WaitGroup: Wait()
-    Note over WaitGroup,Main: 计数器归零，Main Goroutine 继续执行
-    Main->>Main: 所有工作完成，继续后续操作
+        W1->>WG: wg.Done() 计数递减 (counter = 1)
+        deactivate W1
+        Note over WG: 计数仍大于 0，Main 继续保持休眠
+    end
+
+    %% 阶段 3：计数归零与唤醒
+    rect rgb(35, 48, 55)
+        Note over Main,W2: 阶段 3：计数归零并唤醒 Main
+        W2->>WG: wg.Done() 计数递减 (counter = 0)
+        deactivate W2
+        Note over WG: 计数归零，触发唤醒 (goready)
+        WG-->>Main: 唤醒主协程解除阻塞
+        deactivate Main
+    end
+
+    Main->>Main: 汇总结果，继续后续业务流程
 {% endmermaid %}
 
 **代码示例**：
@@ -238,37 +261,65 @@ func main() {
 
 {% mermaid %}
 sequenceDiagram
-    participant Main as 主 Goroutine
-    participant ErrGroup as errgroup.Group
-    participant Worker1 as 工作 Goroutine 1
-    participant Worker2 as 工作 Goroutine 2
-    participant Worker3 as 工作 Goroutine 3
+    autonumber
+    actor Main as 主协程 Main
+    participant EG as errgroup.Group
+    participant Ctx as Context (派生上下文)
+    actor W1 as 工作协程 W1
+    actor W2 as 工作协程 W2 (异常者)
+    actor W3 as 工作协程 W3
 
-    Main->>ErrGroup: g, ctx := WithContext(background)
-    Main->>Worker1: g.Go(func(){...})
-    Main->>Worker2: g.Go(func(){...})
-    Main->>Worker3: g.Go(func(){...})
-
-    Worker1->>Worker1: 执行任务...
-    Worker2->>Worker2: 执行任务... (可能出错)
-    Worker3->>Worker3: 执行任务...
-
-    alt Worker2 返回错误
-        Worker2->>ErrGroup: return error
-        ErrGroup->>Main: 设置错误
-        ErrGroup->>Worker1: ctx.Done() 发送取消信号
-        ErrGroup->>Worker3: ctx.Done() 发送取消信号
-        Worker1->>Worker1: 收到取消，优雅退出
-        Worker3->>Worker3: 收到取消，优雅退出
-    else 所有 Worker 成功
-        Worker1->>ErrGroup: return nil
-        Worker2->>ErrGroup: return nil
-        Worker3->>ErrGroup: return nil
+    %% 阶段 1：初始化与派发
+    rect rgb(30, 35, 55)
+        Note over Main,Ctx: 阶段 1：创建绑定 Context 的 ErrGroup 并启动子任务
+        Main->>EG: g, ctx := errgroup.WithContext(parentCtx)
+        EG-->>Ctx: 内部持有 cancelFunc
+        Main->>EG: g.Go(task1) 内部启动 W1
+        Main->>EG: g.Go(task2) 内部启动 W2
+        Main->>EG: g.Go(task3) 内部启动 W3
     end
 
-    Main->>ErrGroup: err := g.Wait()
-    Note over ErrGroup,Main: 如果有错误则返回第一个错误，否则返回 nil
-    Main->>Main: 根据 err 进行后续处理
+    %% 阶段 2：主协程阻塞挂起，子任务并行
+    rect rgb(50, 35, 45)
+        Note over Main,W3: 阶段 2：Main 陷入等待，协程并发运行
+        activate W1
+        activate W2
+        activate W3
+        Main->>EG: err := g.Wait() 阻塞等待内部 WaitGroup 归零
+        activate Main
+        Note over Main: Main 挂起休眠 (gopark)
+    end
+
+    %% 阶段 3：分支判断（报错 vs 正常完成）
+    alt 异常分支：W2 执行失败返回错误
+        W2->>EG: return fmt.Errorf("task2 failed")
+        deactivate W2
+        Note over EG: sync.Once 记录第一个错误 errOnce.Do
+        EG->>Ctx: 调用内部 cancelFunc() 广播关闭
+        
+        par 级联取消监听
+            Ctx-->>W1: <-ctx.Done() 信号触发
+            W1->>W1: 检测到取消，清理资源并提前 return ctx.Err()
+            deactivate W1
+        and
+            Ctx-->>W3: <-ctx.Done() 信号触发
+            W3->>W3: 检测到取消，清理资源并提前 return ctx.Err()
+            deactivate W3
+        end
+
+        EG-->>Main: g.Wait() 解除阻塞，返回首个记录的 err
+        deactivate Main
+
+    else 正常分支：所有任务均成功
+        W1->>EG: return nil
+        W2->>EG: return nil
+        W3->>EG: return nil
+        Note over EG: 内部计数归零且无任何非空错误
+        EG-->>Main: g.Wait() 解除阻塞，返回 nil
+    end
+
+    %% 阶段 4：后续处理
+    Main->>Main: 根据 err 是否为 nil 决定回滚或继续后续业务
 {% endmermaid %}
 
 **代码示例**：

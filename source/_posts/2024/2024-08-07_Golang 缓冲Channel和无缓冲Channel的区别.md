@@ -68,21 +68,42 @@ ch := make(chan int) // 默认容量为 0
 ### 2.3 工作流程示例
 
 {% mermaid %}
-sequenceDiagram
-    participant G1 as Goroutine 1 (发送方)
-    participant G2 as Goroutine 2 (接收方)
-    participant Channel as 无缓冲 Channel
 
-    G1->>G1: 准备发送数据 (ch <- "data")
-    G1->>Channel: 尝试发送 "data"
-    Note over G1,Channel: G1 阻塞，等待接收方
-    G2->>G2: 准备接收数据 (data := <-ch)
-    G2->>Channel: 尝试接收数据
-    Note over Channel,G2: G2 找到发送方
-    Channel->>G1: 允许 G1 发送
-    Channel->>G2: 传递 "data" 给 G2
-    G1->>G1: G1 解除阻塞，继续执行
-    G2->>G2: G2 解除阻塞，data = "data"
+sequenceDiagram
+    autonumber
+    actor G1 as Goroutine 1 (发送方)
+    participant Ch as 无缓冲 Channel (hchan)
+    actor G2 as Goroutine 2 (接收方)
+
+    %% 发送阶段
+    G1->>Ch: 尝试发送: ch <- "data"
+    activate G1
+    Note over G1,Ch: 此时无接收方就绪<br/>G1 挂入等待队列 (sendq) 并休眠 (gopark)
+    deactivate G1
+
+    %% 接收阶段与直接交付
+    G2->>Ch: 尝试接收: data := <-ch
+    activate G2
+    Note over Ch,G2: 命中等待队列中的 G1 (发现就绪发送方)
+
+    rect rgb(30, 40, 60)
+        Note over G1,G2: 内存直拷: 数据无需暂存 Channel，直接从 G1 栈拷入 G2 栈 (memmove)
+        Ch-->>G2: 赋值完成: data = "data"
+    end
+    deactivate G2
+
+    %% 唤醒发送方
+    Ch-->>G1: 唤醒协程 (goready)
+    activate G1
+    Note over G1: G1 移入调度队列，等待重新调度执行
+    deactivate G1
+
+    %% 两者继续推进
+    par 并行执行后续逻辑
+        G1->>G1: 继续向下执行业务
+    and
+        G2->>G2: 使用 data 处理后续业务
+    end
 {% endmermaid %}
 
 ### 2.4 适用场景
@@ -153,34 +174,44 @@ ch := make(chan int, 5) // 容量为 5 的缓冲 Channel
 
 {% mermaid %}
 sequenceDiagram
-    participant G1 as Goroutine 1 (发送方)
-    participant G2 as Goroutine 2 (接收方)
-    participant Channel as 缓冲 Channel (容量: N)
+    autonumber
+    actor G1 as Goroutine 1 (发送方)
+    participant Ch as 缓冲 Channel (容量: N)
+    actor G2 as Goroutine 2 (接收方)
 
-    G1->>G1: 准备发送数据 (ch <- "data1")
-    G1->>Channel: 尝试发送 "data1"
-    Note over Channel: Channel 容量未满，接收 "data1"
-    G1->>G1: G1 解除阻塞，继续执行 (立即返回)
+    %% 阶段 1：未满写入（非阻塞）
+    rect rgb(30, 35, 55)
+        Note over G1,Ch: 阶段 1：容量未满，非阻塞写入
+        G1->>Ch: 发送数据: ch <- "data1"
+        Note over Ch: 写入环形缓冲区 buf[sendx]<br/>qcount++，无阻塞直接返回
+        G1->>Ch: 连续发送至 buf 满载 (qcount == N)
+        Note over Ch: 缓冲区此时已占满
+    end
 
-    G1->>G1: 准备发送数据 (ch <- "data2")
-    G1->>Channel: 尝试发送 "data2"
-    Note over Channel: Channel 容量未满，接收 "data2"
-    G1->>G1: G1 解除阻塞，继续执行 (立即返回)
+    %% 阶段 2：满载写入导致阻塞
+    rect rgb(50, 35, 45)
+        Note over G1,Ch: 阶段 2：满载写入，协程挂起
+        G1->>Ch: 尝试发送溢出数据: ch <- "dataN+1"
+        activate G1
+        Note over G1,Ch: buf 已满，写入无法完成<br/>G1 挂入等待队列 (sendq) 并休眠 (gopark)
+        deactivate G1
+    end
 
-    Note over Channel: 假设此时 Channel 已满
-    G1->>G1: 准备发送数据 (ch <- "dataN+1")
-    G1->>Channel: 尝试发送 "dataN+1"
-    Note over G1,Channel: G1 阻塞，等待 Channel 有空位
+    %% 阶段 3：接收方消费与直接补位
+    rect rgb(35, 48, 55)
+        Note over Ch,G2: 阶段 3：消费数据与出队补位
+        G2->>Ch: 接收数据: d1 := <-ch
+        activate G2
+        Note over Ch,G2: 从 buf[recvx] 读取 "data1"<br/>buf 产生空缺槽位
+        Ch-->>G2: 赋值完成: d1 = "data1"
+        deactivate G2
 
-    G2->>G2: 准备接收数据 (d1 := <-ch)
-    G2->>Channel: 尝试接收数据
-    Note over Channel,G2: Channel 不空
-    Channel->>G2: 传递 "data1" 给 G2
-    G2->>G2: G2 解除阻塞，d1 = "data1"
-    Note over G1,Channel: Channel 腾出空位，G1 解除阻塞
-    Channel->>G1: 允许 G1 发送
-    Channel->>Channel: 接收 "dataN+1"
-    G1->>G1: G1 解除阻塞，继续执行
+        Note over G1,Ch: 关键动作：运行时从 sendq 出队 G1<br/>将 "dataN+1" 直接存入刚刚空出的槽位
+        Ch-->>G1: 唤醒发送方 (goready)
+        activate G1
+        Note over G1: 写入动作在唤醒前已由运行时代为完成<br/>G1 恢复运行状态，继续向下执行
+        deactivate G1
+    end
 {% endmermaid %}
 
 ### 3.4 适用场景

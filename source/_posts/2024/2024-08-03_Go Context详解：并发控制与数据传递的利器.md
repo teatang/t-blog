@@ -354,24 +354,54 @@ func main() {
 `Context` 的核心优势在于其层次化的取消传播机制。
 
 {% mermaid %}
-graph TD
-    A["Root Context (e.g., Background)"] --> B{"HTTP Request Handler (WithCancel)"}
-    B --> C{"Database Query (WithTimeout)"}
-    B --> D{"External Service Call (WithCancel)"}
-    C --> E[DB Connection Goroutine]
-    D --> F[RPC Client Goroutine]
-    D --> G[Log Goroutine]
+flowchart TD
+    subgraph Tree [上下文派生拓扑 Context Hierarchy]
+        Root(["context.Background()"]):::rootNode
+        Handler["HTTP Handler (WithCancel)"]:::ctxNode
+        DB["DB Query (WithTimeout)"]:::ctxNode
+        RPC["External RPC (WithCancel)"]:::ctxNode
 
-    subgraph "Cancellation Scenarios"
-        B_Cancel[调用 B 的 CancelFunc] --> B_Cancelled(B Cancelled)
-        B_Cancelled --> C_Cancelled(C Cancelled)
-        B_Cancelled --> D_Cancelled(D Cancelled)
-        C_Timeout[C 超时] --> C_Cancelled(C Cancelled)
+        G_DB[("DB Worker")]:::workerNode
+        G_RPC[("RPC Client")]:::workerNode
+        G_Log[("Log Worker")]:::workerNode
 
-        C_Cancelled --> E_Stopped[E 收到取消信号并停止]
-        D_Cancelled --> F_Stopped[F 收到取消信号并停止]
-        D_Cancelled --> G_Stopped[G 收到取消信号并停止]
+        Root --> Handler
+        Handler --> DB
+        Handler --> RPC
+        DB -.->|监听 Done| G_DB
+        RPC -.->|监听 Done| G_RPC
+        RPC -.->|监听 Done| G_Log
     end
+
+    subgraph Signal [取消信号与级联传播 Cancellation Propagation]
+        Trigger_B["手动调用 B CancelFunc"]:::triggerNode
+        Trigger_C["C 达超时阈值 Deadline"]:::triggerNode
+
+        Sig_B["Handler 上下文关闭"]:::cancelNode
+        Sig_C["DB 上下文关闭"]:::cancelNode
+        Sig_RPC["RPC 上下文关闭"]:::cancelNode
+
+        Stop_DB["DB Worker 释放连接"]:::stopNode
+        Stop_RPC["RPC Client 中断请求"]:::stopNode
+        Stop_Log["Log Worker 优雅退出"]:::stopNode
+
+        Trigger_B ==> Sig_B
+        Trigger_C ==> Sig_C
+
+        Sig_B ==>|级联向下广播| Sig_C
+        Sig_B ==>|级联向下广播| Sig_RPC
+
+        Sig_C -.-> Stop_DB
+        Sig_RPC -.-> Stop_RPC
+        Sig_RPC -.-> Stop_Log
+    end
+
+    classDef rootNode fill:#313244,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4;
+    classDef ctxNode fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4;
+    classDef workerNode fill:#181825,stroke:#94e2d5,stroke-dasharray: 3 3,color:#a6adc8;
+    classDef triggerNode fill:#45475a,stroke:#f9e2af,stroke-width:2px,color:#f9e2af;
+    classDef cancelNode fill:#313244,stroke:#f38ba8,stroke-width:2px,color:#f38ba8;
+    classDef stopNode fill:#181825,stroke:#fab387,stroke-width:1px,color:#fab387;
 {% endmermaid %}
 
 *   如果 `HTTP Request Handler` (Context B) 的 `CancelFunc` 被调用，或者其父 `Context` 被取消，那么 `B` 及其所有子 `Context` (`C`, `D`) 都会被取消。

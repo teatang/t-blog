@@ -171,30 +171,49 @@ func main() {
 
 **结构示意图**：
 {% mermaid %}
-graph TD
-    subgraph Goroutine A
-        A_START(开始) --> A1[ch1 <- dataA]
-        A1 --> A_BLOCK(阻塞等待ch2数据)
-        A_BLOCK --> A2[dataB := <-ch2]
-        A2 --> A_END(结束)
+flowchart TD
+    %% 协程 A
+    subgraph GA [Goroutine A]
+        A_Start(["启动"]):::nodeNormal
+        A_Send["1. 执行发送: ch1 <- dataA"]:::nodeDeadlock
+        A_Unreachable["2. 永远无法到达: <-ch2"]:::nodeUnreach
+        A_End(["结束"]):::nodeUnreach
+
+        A_Start --> A_Send
+        A_Send -.->|被阻塞无法推进| A_Unreachable
+        A_Unreachable -.-> A_End
     end
 
-    subgraph Goroutine B
-        B_START(开始) --> B1[ch2 <- dataB]
-        B1 --> B_BLOCK(阻塞等待ch1数据)
-        B_BLOCK --> B2[dataA := <-ch1]
-        B2 --> B_END(结束)
+    %% 中间通道实体
+    subgraph Channels [无缓冲通道资源 Unbuffered Channels]
+        Ch1[("Channel 1 - ch1<br/>容量: 0")]:::chanNode
+        Ch2[("Channel 2 - ch2<br/>容量: 0")]:::chanNode
     end
 
-    A1 -.->|发送数据| B2
-    B1 -.->|发送数据| A2
+    %% 协程 B
+    subgraph GB [Goroutine B]
+        B_Start(["启动"]):::nodeNormal
+        B_Send["1. 执行发送: ch2 <- dataB"]:::nodeDeadlock
+        B_Unreachable["2. 永远无法到达: <-ch1"]:::nodeUnreach
+        B_End(["结束"]):::nodeUnreach
 
-    class A_BLOCK,B_BLOCK block;
-    class A_START,A1,A2,A_END,B_START,B1,B2,B_END goroutine;
-    
-    %% 暗色调连线修正
-    linkStyle default stroke:#8b949e,stroke-width:1px;
-    linkStyle 4,5 stroke:#33bbee,stroke-width:1.5px,stroke-dasharray: 5 5;
+        B_Start --> B_Send
+        B_Send -.->|被阻塞无法推进| B_Unreachable
+        B_Unreachable -.-> B_End
+    end
+
+    %% 死锁环依赖流
+    A_Send ==>|阻塞等待接收者读 ch1| Ch1
+    B_Send ==>|阻塞等待接收者读 ch2| Ch2
+
+    Ch1 -.->|期望 B 执行 <-ch1 唤醒| B_Unreachable
+    Ch2 -.->|期望 A 执行 <-ch2 唤醒| A_Unreachable
+
+    %% 样式体系 (Dark Theme 调色板)
+    classDef nodeNormal fill:#313244,stroke:#a6e3a1,stroke-width:1.5px,color:#cdd6f4;
+    classDef nodeDeadlock fill:#45475a,stroke:#f38ba8,stroke-width:2px,color:#f38ba8;
+    classDef nodeUnreach fill:#181825,stroke:#585b70,stroke-dasharray: 4 4,stroke-width:1px,color:#6c7086;
+    classDef chanNode fill:#1e1e2e,stroke:#89b4fa,stroke-width:1.5px,color:#cdd6f4;
 {% endmermaid %}
 
 **示例代码**：
