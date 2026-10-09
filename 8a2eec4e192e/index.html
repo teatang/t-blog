@@ -5,22 +5,22 @@
 <meta property="og:site_name" content="1024 维度">
 <meta property="og:description" content="LSP (Language Server Protocol) 是一个开放的、基于 JSON-RPC 的协议，用于在编程语言特有的服务（通常称为 Language Server）和开发工具（通常是 Editor 或 IDE，称为 Client）之间进行通信。其核心目标是解耦语言特有的功能实现与开发工具的用户界面，从而极大地简化了多语言、多工具环境下的开发体验。  核心思想：将语言的智能特性（如代码">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-17.jpg">
 <meta property="article:published_time" content="2025-06-29T22:24:00.000Z">
-<meta property="article:modified_time" content="2026-10-08T09:35:14.845Z">
+<meta property="article:modified_time" content="2026-10-09T02:11:53.761Z">
 <meta property="article:author" content="TeaTang">
 <meta property="article:tag" content="计算机网络">
 <meta property="article:tag" content="网络协议">
 <meta property="article:tag" content="2025">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg"><script type="application/ld+json">{
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-17.jpg"><script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "LSP (Language Server Protocol) 详解",
   "url": "https://blog.tbf1211.xx.kg/8a2eec4e192e/",
-  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-20.jpg",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-17.jpg",
   "datePublished": "2025-06-29T22:24:00.000Z",
-  "dateModified": "2026-10-08T09:35:14.845Z",
+  "dateModified": "2026-10-09T02:11:53.761Z",
   "author": [
     {
       "@type": "Person",
@@ -28,92 +28,51 @@
       "url": "https://blog.tbf1211.xx.kg"
     }
   ]
-}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/8a2eec4e192e/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css?v=5.7.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/8a2eec4e192e/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
     (() => {
       
     const saveToLocal = {
       set: (key, value, ttl) => {
-        const data = { value }
-
-        if (ttl != null) {
-          data.expiry = Date.now() + ttl * 86400000
-        }
-
-        localStorage.setItem(key, JSON.stringify(data))
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
       },
       get: key => {
         const itemStr = localStorage.getItem(key)
-        if (!itemStr) return
-
-        try {
-          const data = JSON.parse(itemStr)
-
-          if (data.expiry && Date.now() > data.expiry) {
-            localStorage.removeItem(key)
-            return
-          }
-
-          return data.value
-        } catch {
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
           localStorage.removeItem(key)
+          return undefined
         }
+        return value
       }
     }
 
-    const scriptCache = new Map()
-    const cssCache = new Map()
     window.btf = {
       saveToLocal,
-      getScript: (url, attr = {}) => {
-        if (scriptCache.has(url)) {
-          return scriptCache.get(url)
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
         }
-
-        const promise = new Promise((resolve, reject) => {
-          const script = document.createElement('script')
-
-          script.src = url
-          script.async = true
-
-          for (const key in attr) {
-            script.setAttribute(key, attr[key])
-          }
-
-          script.onload = resolve
-          script.onerror = reject
-
-          document.head.appendChild(script)
-        })
-
-        scriptCache.set(url, promise)
-
-        return promise
-      },
-      getCSS: (url, id) => {
-        if (cssCache.has(url)) {
-          return cssCache.get(url)
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
         }
-
-        const promise = new Promise((resolve, reject) => {
-          const link = document.createElement('link')
-
-          link.rel = 'stylesheet'
-          link.href = url
-
-          if (id) {
-            link.id = id
-          }
-
-          link.onload = resolve
-          link.onerror = reject
-
-          document.head.appendChild(link)
-        })
-
-        cssCache.set(url, promise)
-
-        return promise
-      },
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
       addGlobalFn: (key, fn, name = false, parent = window) => {
         if (!true && key.startsWith('pjax')) return
         const globalFn = parent.globalFn || {}
@@ -124,17 +83,16 @@
     }
   
       
-      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
       const activateDarkMode = () => {
-        document.documentElement.dataset.theme = 'dark'
-        if (metaThemeColor !== null) {
-          metaThemeColor.setAttribute('content', '#0d0d0d')
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
         }
       }
       const activateLightMode = () => {
-        document.documentElement.dataset.theme = 'light'
-        if (metaThemeColor !== null) {
-          metaThemeColor.setAttribute('content', '#ffffff')
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
         }
       }
 
@@ -144,12 +102,7 @@
       const theme = saveToLocal.get('theme')
     
           const hour = new Date().getHours()
-          const start = 6
-          const end = 7
-          const isNight =
-            start < end
-                ? hour < start || hour >= end
-                : hour >= start || hour < end
+          const isNight = hour <= 6 || hour >= 7
           if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
           else theme === 'light' ? activateLightMode() : activateDarkMode()
         
@@ -171,7 +124,7 @@
   </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
   root: '/',
   algolia: undefined,
-  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":true,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
   translate: undefined,
   highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
   copy: {
@@ -195,7 +148,7 @@
   lightbox: 'fancybox',
   Snackbar: undefined,
   infinitegrid: {
-    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
     buttonText: '加载更多'
   },
   isPhotoFigcaption: false,
@@ -212,7 +165,7 @@
   isToc: true,
   pageType: 'post'
 }</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
-</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">697</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-20.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">LSP (Language Server Protocol) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">LSP (Language Server Protocol) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-06-29T22:24:00.000Z" title="发表于 2025-06-30 06:24:00">2025-06-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>21分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src= "/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">697</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-17.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">LSP (Language Server Protocol) 详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">LSP (Language Server Protocol) 详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-06-29T22:24:00.000Z" title="发表于 2025-06-30 06:24:00">2025-06-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>21分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
 <p><strong>LSP (Language Server Protocol)</strong> 是一个<strong>开放的、基于 JSON-RPC 的协议</strong>，用于在编程语言特有的服务（通常称为 <strong>Language Server</strong>）和开发工具（通常是 <strong>Editor 或 IDE</strong>，称为 <strong>Client</strong>）之间进行通信。其核心目标是<strong>解耦语言特有的功能实现与开发工具的用户界面</strong>，从而极大地简化了多语言、多工具环境下的开发体验。</p>
 </blockquote>
 <div class="note info flat"><p>核心思想：<strong>将语言的智能特性（如代码补全、跳转定义、错误检查等）从开发工具中抽离出来，放入一个独立的进程（Language Server），然后开发工具通过标准协议（LSP）与这个进程通信。</strong></p>
@@ -236,7 +189,7 @@
 <li><strong>M 个 LSP Client</strong> (每个编辑器只需要实现一次 LSP 客户端逻辑)</li>
 </ul>
 <p>通过这种方式，编辑器只需实现一次 LSP 客户端逻辑，就可以与任何支持 LSP 的语言服务器通信；而语言服务器只需实现一次 LSP 协议，就可以为任何支持 LSP 的编辑器提供服务。</p>
-<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
     graph TD
     subgraph &quot;传统模式 (N*M)&quot;
         E1_traditional[Editor 1]
@@ -302,7 +255,7 @@
 <li><strong>文档 URI (Document URI)</strong>：LSP 使用标准的 URI (Uniform Resource Identifier) 来唯一标识文件。例如，<code>file:///home/user/project/src/main.go</code>。这确保了跨平台和跨系统的文件引用一致性。</li>
 </ul>
 <h2 id="三、LSP-的生命周期"><a href="#三、LSP-的生命周期" class="headerlink" title="三、LSP 的生命周期"></a>三、LSP 的生命周期</h2><p>一个典型的 LSP 客户端和服务器的交互生命周期如下：</p>
-<div class="mermaid-wrap"><pre class="mermaid-src" data-config="{}" hidden>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
     sequenceDiagram
     participant Client as LSP Client (Editor)
     participant Server as Language Server
@@ -428,339 +381,29 @@
 <li><strong>高级功能限制</strong>：LSP 主要关注文本编辑和静态分析功能，对于更高级的 IDE 功能（如调试器集成、图形化重构工具、特定构建系统集成），LSP 无法直接提供支持，仍需编辑器自行实现。</li>
 </ol>
 <h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>LSP 是现代开发工具生态系统中的一个革命性协议。它成功地解决了多语言、多编辑器环境下的重复开发和功能碎片化问题，为开发者提供了统一、高效且高质量的语言智能服务。尽管存在一定的复杂性和性能考量，但其带来的巨大收益使得 LSP 成为构建未来开发体验不可或缺的基石。</p>
-</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/8a2eec4e192e/">https://blog.tbf1211.xx.kg/8a2eec4e192e/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-20.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/886395cef116/" title="婴儿流口水（流涎）详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">婴儿流口水（流涎）详解</div></div><div class="info-2"><div class="info-item-1"> 婴儿流口水，医学上称为流涎 (Sialorrhea)，是婴幼儿期常见的生理现象。很多新手父母可能会担心宝宝流口水是不是身体不适，但绝大多数情况下，流口水是宝宝生长发育过程中的正常标志。了解流口水的原因、可能伴随的问题以及如何护理，能帮助父母们更好地应对这一阶段。  核心思想：婴儿流口水主要与唾液腺发育、口腔吞咽功能不成熟、出牙、味觉和触觉刺激以及辅食添加等生理性因素有关。通常是暂时的，并且会在宝宝成长过程中逐渐改善。   一、什么是婴儿流口水？婴儿流口水是指婴儿期唾液分泌量增加，且由于口腔吞咽协调能力尚未完善，导致唾液从口角溢出的现象。 1.1 不同阶段的流口水表现 新生儿期 (0-3个月)：新生儿期的唾液腺分泌功能相对不活跃，口腔吞咽反射也较为频繁，所以新生儿通常很少流口水。如果新生儿有大量流口水，需警惕口腔发育异常或疾病。 3-6个月：随着唾液腺的发育，唾液分泌量开始增加。但此时婴儿口腔吞咽能力仍不成熟，不会主动将多余的唾液吞咽下去，流口水现象开始明显。 6个月-2岁：这是婴儿流口水的高峰期。主要与出牙、辅食添加以及口腔探索有关。随着年龄增长和口腔肌肉协调性的提高，流口水现...</div></div></div></a><a class="pagination-related" href="/61c38bc3ecba/" title="乐理中的调号详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-14.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">乐理中的调号详解</div></div><div class="info-2"><div class="info-item-1"> 调号 (Key Signature) 是音乐记谱法中的一个核心元素，它位于乐谱的开头，谱号 (Clef) 之后、拍号 (Time Signature) 之前。调号由一组升号 (♯) 或降号 (♭) 组成，表示在整个乐曲中，某些音高将始终被升高或降低半音，除非遇到临时升降号 (Accidental) 的指示。调号的存在明确了乐曲的调性 (Key)，即乐曲围绕哪个主音 (Tonic) 构建，并定义了其所使用音阶的基本音高结构。  核心思想：  音高约定：规定了乐曲中所有特定音级的持续性升降。 调性指示：明确了乐曲所处的调性（大调或小调），从而揭示了乐曲的听觉中心和色彩。 简化记谱：避免在每个音符前重复书写升降号，提高乐谱的可读性和书写效率。 结构基础：是理解音阶、和弦功能以及旋律走向的基础。     一、调号的必要性：简化与明确在没有调号的情况下，如果一首乐曲使用了非 C 大调或 A 小调的音阶，作曲家将不得不在每个需要升降的音符前都标注临时升降号。这无疑会使乐谱变得异常复杂和难以阅读。调号正是为了解决这一问题而生。 1.1 避免冗余标记考虑 G 大调的音阶构成：G A B C D...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/d244228688e5/" title="HLS (HTTP Live Streaming) 协议详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-27.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-22</div><div class="info-item-2">HLS (HTTP Live Streaming) 协议详解</div></div><div class="info-2"><div class="info-item-1"> HLS (HTTP Live Streaming) 是一种由 Apple 公司提出的、基于 HTTP 协议的自适应比特率流媒体通信协议。它旨在通过将媒体内容切割成一系列小的、基于 HTTP 的媒体文件片段，并提供一个描述这些片段的索引文件（M3U8 播放列表），从而实现在各种网络条件下为用户提供流畅和高质量的视频播放体验。HLS 最初为 iOS 设备开发，但如今已成为事实上的行业标准，广泛应用于视频点播 (VOD) 和直播 (Live Streaming) 服务中，几乎所有主流浏览器和设备都支持 HLS 播放。  核心思想：  自适应性：根据客户端网络带宽和设备性能动态选择并切换媒体流质量。 基于 HTTP：利用现有的全球 HTTP 服务器和 CDN 基础设施进行内容分发。 M3U8 播放列表：文本格式的索引文件，描述了可用的媒体流、它们的质量选项和媒体片段的 URI。 媒体分段：将原始媒体内容分割成短小的 MPEG-2 TS (Transport Stream) 或 fMP4 (Fragmented MP4) 片段。     一、为什么需要 HLS？在 HLS 出现之前，流媒...</div></div></div></a><a class="pagination-related" href="/58c22dd09757/" title="DASH (Dynamic Adaptive Streaming over HTTP) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-24</div><div class="info-item-2">DASH (Dynamic Adaptive Streaming over HTTP) 详解</div></div><div class="info-2"><div class="info-item-1"> DASH (Dynamic Adaptive Streaming over HTTP)，即基于 HTTP 的动态自适应流媒体，是一种国际标准（ISO&#x2F;IEC 23009-1），旨在提供一种高效、灵活且可伸缩的机制，通过标准的 HTTP 协议传输媒体内容。其核心目标是根据客户端的网络带宽、CPU 负载以及显示能力等实时条件，动态地调整所请求媒体内容的质量（如分辨率、码率），从而在多变的网络环境下尽可能地提供最佳的用户观看体验。DASH 是目前主流的自适应流媒体技术之一，广泛应用于视频点播 (VOD) 和直播 (Live Streaming) 服务中。  核心思想：  自适应性：根据播放环境（网络带宽、设备性能）动态调整媒体质量。 基于 HTTP：利用成熟的 HTTP 基础设施，便于缓存和传输。 分段传输：将媒体内容分割成小片段，独立编码和传输。 MPD (Media Presentation Description)：描述媒体内容的各个片段及其可用质量选项的 XML 文件。     一、为什么需要 DASH？在互联网环境中传输视频等媒体内容面临诸多挑战，其中最核心的问题...</div></div></div></a><a class="pagination-related" href="/bfc3178a0093/" title="FRP (Fast Reverse Proxy) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-06-26</div><div class="info-item-2">FRP (Fast Reverse Proxy) 详解</div></div><div class="info-2"><div class="info-item-1"> FRP (Fast Reverse Proxy) 是一个高性能的内网穿透和反向代理工具，它允许您将位于内网（局域网）中的服务（如 Web 服务器、SSH、数据库等）通过一台具有公网 IP 的服务器暴露给公网用户访问。在当前 IPv4 地址资源日益紧张，许多家庭和小型办公室难以获取公网 IP 的背景下，FRP 提供了便捷、高效的解决方案。  核心思想：FRP 通过在公网服务器上运行一个 frps (服务端) 和在内网机器上运行一个 frpc (客户端) 来建立连接。内网流量经由 frpc 转发到 frps，再由 frps 转发到公网用户，实现内网服务的公网访问。   一、为什么需要 FRP？在许多场景下，我们需要从外部网络访问位于内网的服务，但常常面临以下问题：  没有公网 IP：大多数家庭宽带用户和一些小型企业用户不再拥有独立的公网 IPv4 地址。他们处于运营商的 NAT (Network Address Translation) 之后，无法直接从外部访问内网设备。 端口转发困难：即使有公网 IP，也可能需要手动在路由器上配置端口转发规则，这对于不熟悉网络配置的用户来说可能比...</div></div></div></a><a class="pagination-related" href="/17bcd938fa86/" title="NDP (Neighbor Discovery Protocol) 详解"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-29</div><div class="info-item-2">NDP (Neighbor Discovery Protocol) 详解</div></div><div class="info-2"><div class="info-item-1"> NDP (Neighbor Discovery Protocol)，即邻居发现协议，是 IPv6 (Internet Protocol version 6) 中的一个关键协议。它属于 ICMPv6 (Internet Control Message Protocol for IPv6) 的一部分，旨在替代 IPv4 中的 ARP (Address Resolution Protocol)、ICMP Router Discovery (路由器发现) 和 ICMP Redirect (重定向) 等功能，为 IPv6 主机和路由器提供在同一链路 (link) 上发现彼此、确定链路层地址、发现路由器、处理地址自动配置以及检测重复地址等服务。  核心思想：为 IPv6 提供无状态、多功能、更安全且效率更高的本地链路通信机制。它通过一系列 ICMPv6 消息，实现了 IPv4 中分散的多个协议功能，支持 IPv6 的核心特性如无状态地址自动配置 (SLAAC) 和高效的邻居管理。   一、为什么需要 NDP？(与 IPv4 协议的对比)IPv4 网络中的一些协议在 IPv6 环境下存在局限...</div></div></div></a><a class="pagination-related" href="/2dc209b3606e/" title="OSI 七层模型详解 (The OSI 7-Layer Model Explained)"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-12-12</div><div class="info-item-2">OSI 七层模型详解 (The OSI 7-Layer Model Explained)</div></div><div class="info-2"><div class="info-item-1"> OSI (Open Systems Interconnection) 参考模型 是由国际标准化组织 (ISO) 于 1980 年代初期推出的一套概念性框架，旨在提供一个开放、标准化的通信协议分层结构。它将网络通信过程划分为七个不同的功能层，每个层级负责特定的网络通信任务，并向上层提供服务，向下层请求服务。OSI 模型是一个重要的理论基石，帮助人们理解和设计复杂的网络系统，尽管在实际应用中更常见的是 TCP&#x2F;IP 四层或五层模型，但 OSI 模型的分层思想对网络学科产生了深远影响。  核心思想：将复杂的网络通信过程分解为七个逻辑上独立的功能层，每层只关注自己的职责，通过标准接口与相邻层交互，从而简化网络设计、实现和故障排除。   一、为什么需要 OSI 模型？在早期，计算机网络发展非常混乱，各个厂商都有自己独有的网络架构和协议，导致不同厂商的设备之间无法通信。为了解决这种“信息孤岛”的问题，急需一个统一的标准来指导网络系统的设计和实现。OSI 模型应运而生，其主要目标包括：  标准化：提供一个通用的框架，使得不同厂商、不同系统之间可以进行互操作。 模块化：将复杂的网络通...</div></div></div></a><a class="pagination-related" href="/22aa4c322dbd/" title="TLS (传输层安全协议) 深度详解：网络通信的守护者"><img class="cover" src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-04-02</div><div class="info-item-2">TLS (传输层安全协议) 深度详解：网络通信的守护者</div></div><div class="info-2"><div class="info-item-1"> TLS (Transport Layer Security)，即传输层安全性协议，是用于在计算机网络上提供端到端安全通信的加密协议。它是 SSL (Secure Sockets Layer) 协议的继任者，两者常被混用，但技术上，现代网络浏览器及服务器都已使用 TLS 协议。TLS 主要提供数据隐私、数据完整性以及通信双方的身份认证，是互联网上最广泛使用的安全协议，例如 HTTPS (HTTP over TLS)、SMTPS、LDAPS 等都依赖于 TLS。  核心思想：在不可信的网络上，通过加密、认证和完整性校验，建立一个可信的加密通信通道。   一、为什么需要 TLS？互联网的早期（例如纯 HTTP 时代），数据在传输过程中是明文的。这意味着：  窃听 (Eavesdropping)：任何中间人（如 ISP、路由器管理员、恶意攻击者）都可以截获并读取传输中的数据，包括用户密码、银行卡信息、私人消息等。 篡改 (Tampering)：中间人不仅可以读取数据，还可以修改数据，例如在网页中植入恶意代码，或者更改用户提交的表单内容。 身份伪装 (Impersonation)：客户端...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">697</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-LSP%EF%BC%9F"><span class="toc-text">一、为什么需要 LSP？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81LSP-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、LSP 的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Language-Server-%E8%AF%AD%E8%A8%80%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="toc-text">2.1 Language Server (语言服务器)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-LSP-Client-LSP-%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-text">2.2 LSP Client (LSP 客户端)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-JSON-RPC"><span class="toc-text">2.3 JSON-RPC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E9%80%9A%E4%BF%A1%E7%AE%A1%E9%81%93"><span class="toc-text">2.4 通信管道</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E5%B7%A5%E4%BD%9C%E7%A9%BA%E9%97%B4%E4%B8%8E%E6%96%87%E6%A1%A3-URI"><span class="toc-text">2.5 工作空间与文档 URI</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81LSP-%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">三、LSP 的生命周期</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81LSP-%E7%9A%84%E4%B8%BB%E8%A6%81%E5%8A%9F%E8%83%BD"><span class="toc-text">四、LSP 的主要功能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E4%BB%A3%E7%A0%81%E8%A1%A5%E5%85%A8-Completion"><span class="toc-text">4.1 代码补全 (Completion)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%AE%9A%E4%B9%89%E8%B7%B3%E8%BD%AC-Go-to-Definition"><span class="toc-text">4.2 定义跳转 (Go to Definition)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%BC%95%E7%94%A8%E6%9F%A5%E6%89%BE-Find-All-References"><span class="toc-text">4.3 引用查找 (Find All References)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E8%AF%8A%E6%96%AD%E4%BF%A1%E6%81%AF-Diagnostics"><span class="toc-text">4.4 诊断信息 (Diagnostics)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E6%82%AC%E5%81%9C%E6%8F%90%E7%A4%BA-Hover"><span class="toc-text">4.5 悬停提示 (Hover)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E7%AC%A6%E5%8F%B7%E9%87%8D%E5%91%BD%E5%90%8D-Rename-Symbol"><span class="toc-text">4.6 符号重命名 (Rename Symbol)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-7-%E4%BB%A3%E7%A0%81%E6%A0%BC%E5%BC%8F%E5%8C%96-Formatting"><span class="toc-text">4.7 代码格式化 (Formatting)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B%EF%BC%9ALSP-%E6%B6%88%E6%81%AF%E7%9A%84%E5%8F%91%E9%80%81%E4%B8%8E%E6%8E%A5%E6%94%B6"><span class="toc-text">五、代码示例：LSP 消息的发送与接收</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-Python-%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%A8%A1%E6%8B%9F%E5%8F%91%E9%80%81-textDocument-definition-%E8%AF%B7%E6%B1%82"><span class="toc-text">5.1 Python 客户端模拟发送 textDocument&#x2F;definition 请求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-Golang-%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%A8%A1%E6%8B%9F%E6%8E%A5%E6%94%B6%E8%AF%B7%E6%B1%82%E5%B9%B6%E5%8F%91%E9%80%81-textDocument-definition-%E5%93%8D%E5%BA%94"><span class="toc-text">5.2 Golang 服务器模拟接收请求并发送 textDocument&#x2F;definition 响应</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81LSP-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">六、LSP 的优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9"><span class="toc-text">6.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9%E4%B8%8E%E6%8C%91%E6%88%98"><span class="toc-text">6.2 缺点与挑战</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-11.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang ErrWriter 模式详解"/></a><div class="content"><a class="title" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解">Golang ErrWriter 模式详解</a><time datetime="2026-10-07T22:24:00.000Z" title="发表于 2026-10-08 06:24:00">2026-10-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Radix Tree (基数树/压缩前缀树) 详解"/></a><div class="content"><a class="title" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解">Radix Tree (基数树/压缩前缀树) 详解</a><time datetime="2026-08-17T22:24:00.000Z" title="发表于 2026-08-18 06:24:00">2026-08-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2b11785b795e/" title="T-Digest 算法详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-13.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="T-Digest 算法详解"/></a><div class="content"><a class="title" href="/2b11785b795e/" title="T-Digest 算法详解">T-Digest 算法详解</a><time datetime="2026-08-11T22:24:00.000Z" title="发表于 2026-08-12 06:24:00">2026-08-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-08.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 方法与结构体的设计哲学：对比 Java 类方法"/></a><div class="content"><a class="title" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法">Golang 方法与结构体的设计哲学：对比 Java 类方法</a><time datetime="2026-08-09T22:24:00.000Z" title="发表于 2026-08-10 06:24:00">2026-08-10</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/07eaba5d2468/" title="Python concurrent 包详解"><img src="/img/loading.gif" data-lazy-src="/img/cover/default_cover-18.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Python concurrent 包详解"/></a><div class="content"><a class="title" href="/07eaba5d2468/" title="Python concurrent 包详解">Python concurrent 包详解</a><time datetime="2026-07-28T22:24:00.000Z" title="发表于 2026-07-29 06:24:00">2026-07-29</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-20.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.7.0"></script><script src="/js/main.js?v=5.7.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
-  const parseViewBox = viewBox => {
-    if (!viewBox) return null
-    const parts = viewBox.trim().split(/[\s,]+/).map(n => Number(n))
-    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return null
-    return parts
-  }
-
-  const getSvgViewBox = svg => {
-    const attr = parseViewBox(svg.getAttribute('viewBox'))
-    if (attr) return attr
-
-    // Fallback: use bbox to build a viewBox
-    try {
-      const bbox = svg.getBBox()
-      if (bbox && bbox.width && bbox.height) return [bbox.x, bbox.y, bbox.width, bbox.height]
-    } catch (e) {
-      // getBBox may fail on some edge cases; ignore
-    }
-
-    const w = Number(svg.getAttribute('width')) || 0
-    const h = Number(svg.getAttribute('height')) || 0
-    if (w > 0 && h > 0) return [0, 0, w, h]
-    return [0, 0, 100, 100]
-  }
-
-  const setSvgViewBox = (svg, vb) => {
-    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]} ${vb[2]} ${vb[3]}`)
-  }
-
-  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
-
-  const openSvgInNewTab = ({ source, initViewBox }) => {
-    const getClonedSvg = () => {
-      if (typeof source === 'string') {
-        const template = document.createElement('template')
-        template.innerHTML = source.trim()
-        const svg = template.content.querySelector('svg')
-        return svg ? svg.cloneNode(true) : null
-      }
-      if (source && typeof source.cloneNode === 'function') {
-        return source.cloneNode(true)
-      }
-      return null
-    }
-
-    const clone = getClonedSvg()
-    if (!clone) return
-    if (initViewBox && initViewBox.length === 4) {
-      clone.setAttribute('viewBox', initViewBox.join(' '))
-    }
-    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-    if (!clone.getAttribute('xmlns:xlink') && clone.innerHTML.includes('xlink:')) {
-      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
-    }
-    // inject background to match current theme
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
-    const bg = getComputedStyle(document.body).backgroundColor || (isDark ? '#1e1e1e' : '#ffffff')
-    if (!clone.style.background) clone.style.background = bg
-
-    const serializer = new XMLSerializer()
-    const svgSource = serializer.serializeToString(clone)
-    const htmlSource = `<!doctype html><html><head><meta charset="utf-8" />
-      <style>
-        html, body { width: 100%; height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; background: ${bg}; }
-        svg { max-width: 100%; max-height: 100%; height: auto; width: auto; }
-      </style>
-      </head><body>${svgSource}</body></html>`
-    const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank', 'noopener')
-
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-  }
-
-  const attachMermaidViewerButton = wrap => {
-    let btn = wrap.querySelector('.mermaid-open-btn')
-    if (!btn) {
-      btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'mermaid-open-btn'
-      wrap.appendChild(btn)
-    }
-
-    btn.innerHTML = '<i class="fa fa-search fa-fw" aria-hidden="true"></i>'
-
-    if (!btn.__mermaidViewerBound) {
-      btn.addEventListener('click', e => {
-        e.preventDefault()
-        e.stopPropagation()
-        const svg = wrap.__mermaidOriginalSvg || wrap.querySelector('svg')
-        if (!svg) return
-        const initViewBox = wrap.__mermaidInitViewBox
-        openSvgInNewTab({ source: svg, initViewBox })
-      })
-      btn.__mermaidViewerBound = true
-    }
-  }
-
-  // Zoom around a point (px, py) in the SVG viewport (in viewBox coordinates)
-  const zoomAtPoint = (vb, factor, px, py) => {
-    const w = vb[2] * factor
-    const h = vb[3] * factor
-    const nx = px - (px - vb[0]) * factor
-    const ny = py - (py - vb[1]) * factor
-    return [nx, ny, w, h]
-  }
-
-  const initMermaidGestures = wrap => {
-    // Clean up previous event listeners and pending frames
-    if (wrap.__mermaidAbortController) {
-      wrap.__mermaidAbortController.abort()
-      if (wrap.__mermaidRafId) cancelAnimationFrame(wrap.__mermaidRafId)
-    }
-    const ac = new AbortController()
-    wrap.__mermaidAbortController = ac
-    const svg = wrap.querySelector('svg')
-    if (!svg) return
-
-    // Ensure viewBox exists so gestures always work
-    const initVb = getSvgViewBox(svg)
-    wrap.__mermaidInitViewBox = initVb
-    wrap.__mermaidCurViewBox = initVb.slice()
-    setSvgViewBox(svg, initVb)
-    // Disable default gestures to prevent scroll chaining and pinch-zoom penetration in Chrome
-    svg.style.touchAction = 'none'
-
-    // Cache BoundingClientRect, throttled on scroll to reduce reflow
-    let cachedRect = svg.getBoundingClientRect()
-    let rectDirty = false
-    const markRectDirty = () => { rectDirty = true }
-    window.addEventListener('resize', markRectDirty, { signal: ac.signal })
-    window.addEventListener('scroll', markRectDirty, { signal: ac.signal, capture: true })
-    const getRect = () => {
-      if (rectDirty) {
-        cachedRect = svg.getBoundingClientRect()
-        rectDirty = false
-      }
-      return cachedRect
-    }
-
-    // Precompute clamp bounds from initial viewBox
-    const minW = initVb[2] * 0.1
-    const maxW = initVb[2] * 10
-    const minH = initVb[3] * 0.1
-    const maxH = initVb[3] * 10
-    const clampVb = vb => {
-      const out = vb.slice()
-      out[2] = clamp(out[2], minW, maxW)
-      out[3] = clamp(out[3], minH, maxH)
-      return out
-    }
-
-    // Throttle DOM updates using requestAnimationFrame
-    let pendingVb = null
-    let rafId = null
-    const applyVb = () => {
-      if (pendingVb) {
-        wrap.__mermaidCurViewBox = pendingVb
-        setSvgViewBox(svg, pendingVb)
-        pendingVb = null
-      }
-      rafId = null
-      wrap.__mermaidRafId = null
-    }
-    const setCurVb = vb => {
-      pendingVb = clampVb(vb)
-      if (!rafId) {
-        rafId = requestAnimationFrame(applyVb)
-        wrap.__mermaidRafId = rafId
-      }
-    }
-
-    const state = {
-      pointers: new Map(),
-      startVb: null,
-      startDist: 0,
-      lastPointerX: 0,
-      lastPointerY: 0
-    }
-
-    const onPointerDown = e => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return
-      svg.setPointerCapture(e.pointerId)
-      const curVb = wrap.__mermaidCurViewBox
-      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      if (state.pointers.size === 1) {
-        state.startVb = curVb.slice()
-        state.lastPointerX = e.clientX
-        state.lastPointerY = e.clientY
-      } else if (state.pointers.size === 2) {
-        const pts = [...state.pointers.values()]
-        const dx = pts[0].x - pts[1].x
-        const dy = pts[0].y - pts[1].y
-        state.startDist = Math.hypot(dx, dy)
-        state.startVb = curVb.slice()
-      }
-    }
-
-    const onPointerMove = e => {
-      if (!state.pointers.has(e.pointerId)) return
-      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-      const curVb = wrap.__mermaidCurViewBox
-      const rect = getRect()
-      if (state.pointers.size === 1 && state.startVb) {
-        const p = state.pointers.values().next().value
-        const dxClient = p.x - state.lastPointerX
-        const dyClient = p.y - state.lastPointerY
-        state.lastPointerX = p.x
-        state.lastPointerY = p.y
-        const dx = dxClient * (curVb[2] / rect.width)
-        const dy = dyClient * (curVb[3] / rect.height)
-        setCurVb([curVb[0] - dx, curVb[1] - dy, curVb[2], curVb[3]])
-        return
-      }
-      if (state.pointers.size === 2 && state.startVb && state.startDist > 0) {
-        const pts = [...state.pointers.values()]
-        const dx = pts[0].x - pts[1].x
-        const dy = pts[0].y - pts[1].y
-        const dist = Math.hypot(dx, dy)
-        if (!dist) return
-        const factor = state.startDist / dist
-        const cx = (pts[0].x + pts[1].x) / 2
-        const cy = (pts[0].y + pts[1].y) / 2
-        const px = curVb[0] + (cx - rect.left) * (curVb[2] / rect.width)
-        const py = curVb[1] + (cy - rect.top) * (curVb[3] / rect.height)
-        setCurVb(zoomAtPoint(state.startVb, factor, px, py))
-      }
-    }
-
-    const onPointerUpOrCancel = e => {
-      // Release PointerCapture to avoid event capture anomalies
-      if (svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) {
-        svg.releasePointerCapture(e.pointerId)
-      }
-      state.pointers.delete(e.pointerId)
-      if (state.pointers.size === 0) {
-        state.startVb = null
-        state.startDist = 0
-      } else if (state.pointers.size === 1) {
-        const p = state.pointers.values().next().value
-        state.lastPointerX = p.x
-        state.lastPointerY = p.y
-      }
-    }
-
-    const onWheel = e => {
-      // Prevent event bubbling from triggering external scroll
-      e.preventDefault()
-      e.stopPropagation()
-      // Normalize deltaY across deltaMode (Chrome uses pixels, Safari uses lines)
-      let delta = e.deltaY
-      if (e.deltaMode === 1) delta *= 16
-      else if (e.deltaMode === 2) delta *= 400
-
-      // Continuous zoom factor: smoother than fixed 1.1/0.9 steps
-      const zoomFactor = Math.pow(1.001, delta)
-
-      const curVb = wrap.__mermaidCurViewBox
-      const rect = getRect()
-      const px = curVb[0] + (e.clientX - rect.left) * (curVb[2] / rect.width)
-      const py = curVb[1] + (e.clientY - rect.top) * (curVb[3] / rect.height)
-      setCurVb(zoomAtPoint(curVb, zoomFactor, px, py))
-    }
-
-    const onDblClick = () => {
-      const init = wrap.__mermaidInitViewBox
-      if (init) setCurVb(init)
-    }
-
-    svg.addEventListener('pointerdown', onPointerDown, { signal: ac.signal })
-    svg.addEventListener('pointermove', onPointerMove, { signal: ac.signal })
-    svg.addEventListener('pointerup', onPointerUpOrCancel, { signal: ac.signal })
-    svg.addEventListener('pointercancel', onPointerUpOrCancel, { signal: ac.signal })
-    svg.addEventListener('wheel', onWheel, { passive: false, signal: ac.signal })
-    svg.addEventListener('dblclick', onDblClick, { signal: ac.signal })
-  }
-
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/8a2eec4e192e/">https://blog.tbf1211.xx.kg/8a2eec4e192e/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a><a class="post-meta__tags" href="/tags/2025/">2025</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-17.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/886395cef116/" title="婴儿流口水（流涎）详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-28.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">婴儿流口水（流涎）详解</div></div><div class="info-2"><div class="info-item-1"> 婴儿流口水，医学上称为流涎 (Sialorrhea)，是婴幼儿期常见的生理现象。很多新手父母可能会担心宝宝流口水是不是身体不适，但绝大多数情况下，流口水是宝宝生长发育过程中的正常标志。了解流口水的原因、可能伴随的问题以及如何护理，能帮助父母们更好地应对这一阶段。  核心思想：婴儿流口水主要与唾液腺发育、口腔吞咽功能不成熟、出牙、味觉和触觉刺激以及辅食添加等生理性因素有关。通常是暂时的，并且会在宝宝成长过程中逐渐改善。   一、什么是婴儿流口水？婴儿流口水是指婴儿期唾液分泌量增加，且由于口腔吞咽协调能力尚未完善，导致唾液从口角溢出的现象。 1.1 不同阶段的流口水表现 新生儿期 (0-3个月)：新生儿期的唾液腺分泌功能相对不活跃，口腔吞咽反射也较为频繁，所以新生儿通常很少流口水。如果新生儿有大量流口水，需警惕口腔发育异常或疾病。 3-6个月：随着唾液腺的发育，唾液分泌量开始增加。但此时婴儿口腔吞咽能力仍不成熟，不会主动将多余的唾液吞咽下去，流口水现象开始明显。 6个月-2岁：这是婴儿流口水的高峰期。主要与出牙、辅食添加以及口腔探索有关。随着年龄增长和口腔肌肉协调性的提高，流口水现...</div></div></div></a><a class="pagination-related" href="/61c38bc3ecba/" title="乐理中的调号详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-24.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">乐理中的调号详解</div></div><div class="info-2"><div class="info-item-1"> 调号 (Key Signature) 是音乐记谱法中的一个核心元素，它位于乐谱的开头，谱号 (Clef) 之后、拍号 (Time Signature) 之前。调号由一组升号 (♯) 或降号 (♭) 组成，表示在整个乐曲中，某些音高将始终被升高或降低半音，除非遇到临时升降号 (Accidental) 的指示。调号的存在明确了乐曲的调性 (Key)，即乐曲围绕哪个主音 (Tonic) 构建，并定义了其所使用音阶的基本音高结构。  核心思想：  音高约定：规定了乐曲中所有特定音级的持续性升降。 调性指示：明确了乐曲所处的调性（大调或小调），从而揭示了乐曲的听觉中心和色彩。 简化记谱：避免在每个音符前重复书写升降号，提高乐谱的可读性和书写效率。 结构基础：是理解音阶、和弦功能以及旋律走向的基础。     一、调号的必要性：简化与明确在没有调号的情况下，如果一首乐曲使用了非 C 大调或 A 小调的音阶，作曲家将不得不在每个需要升降的音符前都标注临时升降号。这无疑会使乐谱变得异常复杂和难以阅读。调号正是为了解决这一问题而生。 1.1 避免冗余标记考虑 G 大调的音阶构成：G A B C D...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/58c22dd09757/" title="DASH (Dynamic Adaptive Streaming over HTTP) 详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-24</div><div class="info-item-2">DASH (Dynamic Adaptive Streaming over HTTP) 详解</div></div><div class="info-2"><div class="info-item-1"> DASH (Dynamic Adaptive Streaming over HTTP)，即基于 HTTP 的动态自适应流媒体，是一种国际标准（ISO&#x2F;IEC 23009-1），旨在提供一种高效、灵活且可伸缩的机制，通过标准的 HTTP 协议传输媒体内容。其核心目标是根据客户端的网络带宽、CPU 负载以及显示能力等实时条件，动态地调整所请求媒体内容的质量（如分辨率、码率），从而在多变的网络环境下尽可能地提供最佳的用户观看体验。DASH 是目前主流的自适应流媒体技术之一，广泛应用于视频点播 (VOD) 和直播 (Live Streaming) 服务中。  核心思想：  自适应性：根据播放环境（网络带宽、设备性能）动态调整媒体质量。 基于 HTTP：利用成熟的 HTTP 基础设施，便于缓存和传输。 分段传输：将媒体内容分割成小片段，独立编码和传输。 MPD (Media Presentation Description)：描述媒体内容的各个片段及其可用质量选项的 XML 文件。     一、为什么需要 DASH？在互联网环境中传输视频等媒体内容面临诸多挑战，其中最核心的问题...</div></div></div></a><a class="pagination-related" href="/d244228688e5/" title="HLS (HTTP Live Streaming) 协议详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-06-22</div><div class="info-item-2">HLS (HTTP Live Streaming) 协议详解</div></div><div class="info-2"><div class="info-item-1"> HLS (HTTP Live Streaming) 是一种由 Apple 公司提出的、基于 HTTP 协议的自适应比特率流媒体通信协议。它旨在通过将媒体内容切割成一系列小的、基于 HTTP 的媒体文件片段，并提供一个描述这些片段的索引文件（M3U8 播放列表），从而实现在各种网络条件下为用户提供流畅和高质量的视频播放体验。HLS 最初为 iOS 设备开发，但如今已成为事实上的行业标准，广泛应用于视频点播 (VOD) 和直播 (Live Streaming) 服务中，几乎所有主流浏览器和设备都支持 HLS 播放。  核心思想：  自适应性：根据客户端网络带宽和设备性能动态选择并切换媒体流质量。 基于 HTTP：利用现有的全球 HTTP 服务器和 CDN 基础设施进行内容分发。 M3U8 播放列表：文本格式的索引文件，描述了可用的媒体流、它们的质量选项和媒体片段的 URI。 媒体分段：将原始媒体内容分割成短小的 MPEG-2 TS (Transport Stream) 或 fMP4 (Fragmented MP4) 片段。     一、为什么需要 HLS？在 HLS 出现之前，流媒...</div></div></div></a><a class="pagination-related" href="/8c33e0b80528/" title="MTProto 加密协议详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-13</div><div class="info-item-2">MTProto 加密协议详解</div></div><div class="info-2"><div class="info-item-1"> MTProto 是 Telegram 即时通讯应用使用的自定义加密协议。它由尼古拉·杜罗夫 (Nikolai Durov) 设计，旨在实现高速、安全、多设备同步和抗审查的消息传输。MTProto 并非基于现有标准加密协议，而是为适应 Telegram 的特定需求而从头构建。它是一个多层级的协议，涵盖了传输、加密和 API 抽象，是 Telegram 提供其核心价值主张（速度和安全性）的基石。  核心思想：MTProto 是一个专为移动设备和分布式架构优化的加密协议，通过其分层设计和高效二进制格式，在保证强大加密安全性的同时，提供极速响应和无缝的多设备云同步能力。它是 Telegram 服务得以运行的底层技术支柱。   一、背景与起源Telegram 于 2013 年推出时，其创始人帕维尔·杜罗夫 (Pavel Durov) 及其 брат尼古拉·杜罗夫 (Nikolai Durov) 对当时市场上主流的即时通讯协议的性能和安全性感到不满。他们认为这些协议在移动网络环境下效率低下，且未充分考虑多设备同步的需求。因此，尼古拉·杜罗夫着手设计了一个全新的协议，即 MTProto，其目...</div></div></div></a><a class="pagination-related" href="/10349b09ff78/" title="Signal Protocol 详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-02-04</div><div class="info-item-2">Signal Protocol 详解</div></div><div class="info-2"><div class="info-item-1"> Signal Protocol（前身为 TextSecure Protocol）是一个现代的、开源的、密码学加强的端到端加密 (End-to-End Encryption, E2EE) 协议，旨在为异步和同步即时通讯应用提供消息的机密性、完整性、认证性和不可抵赖性。它由 Open Whisper Systems（现为 Signal Foundation 和 Signal Messenger LLC）开发，最初用于 Signal 应用，现已被WhatsApp、Facebook Messenger（在“秘密对话”模式下）、Google Messages（在 RCS 聊天中）等主流通讯应用广泛采用，成为业界公认的E2EE黄金标准之一。  核心思想：Signal Protocol 通过巧妙结合双棘轮算法 (Double Ratchet Algorithm)、预密钥 (Pre-keys) 和 扩展的 Diffie-Hellman 密钥交换 (X3DH)，实现了前向保密性 (Forward Secrecy) 和 未来保密性&#x2F;后向保密性 (Future Secrecy&#x2F;P...</div></div></div></a><a class="pagination-related" href="/17bcd938fa86/" title="NDP (Neighbor Discovery Protocol) 详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-29</div><div class="info-item-2">NDP (Neighbor Discovery Protocol) 详解</div></div><div class="info-2"><div class="info-item-1"> NDP (Neighbor Discovery Protocol)，即邻居发现协议，是 IPv6 (Internet Protocol version 6) 中的一个关键协议。它属于 ICMPv6 (Internet Control Message Protocol for IPv6) 的一部分，旨在替代 IPv4 中的 ARP (Address Resolution Protocol)、ICMP Router Discovery (路由器发现) 和 ICMP Redirect (重定向) 等功能，为 IPv6 主机和路由器提供在同一链路 (link) 上发现彼此、确定链路层地址、发现路由器、处理地址自动配置以及检测重复地址等服务。  核心思想：为 IPv6 提供无状态、多功能、更安全且效率更高的本地链路通信机制。它通过一系列 ICMPv6 消息，实现了 IPv4 中分散的多个协议功能，支持 IPv6 的核心特性如无状态地址自动配置 (SLAAC) 和高效的邻居管理。   一、为什么需要 NDP？(与 IPv4 协议的对比)IPv4 网络中的一些协议在 IPv6 环境下存在局限...</div></div></div></a><a class="pagination-related" href="/6014745b242a/" title="ARP (Address Resolution Protocol) 详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-12.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2024-01-31</div><div class="info-item-2">ARP (Address Resolution Protocol) 详解</div></div><div class="info-2"><div class="info-item-1"> ARP (Address Resolution Protocol)，即地址解析协议，是一个在局域网 (LAN) 内使用的网络层协议，主要用于将IP 地址 (网络层地址)解析为MAC 地址 (数据链路层地址)。在 TCP&#x2F;IP 协议栈中，当一台主机知道目标主机的 IP 地址，但需要知道其在同一物理网络上的 MAC 地址才能进行数据帧的发送时，就会使用 ARP 协议。  核心思想：将逻辑地址 (IP) 映射到物理地址 (MAC)，使得 IP 数据包能够在数据链路层封装成帧并通过物理网络介质传输到正确的目标设备。   一、为什么需要 ARP？在理解 ARP 之前，我们需要明确 IP 地址和 MAC 地址在网络通信中的角色：  IP 地址 (Internet Protocol Address)：工作在 OSI 模型的第三层 (网络层)。它是一个逻辑地址，用于在不同网络之间识别和路由数据包。IP 地址是分层的，包含网络部分和主机部分，使得路由器能够根据网络部分将数据包转发到正确的网络。 MAC 地址 (Media Access Control Address)：工作在 OSI ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src= "/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">697</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-LSP%EF%BC%9F"><span class="toc-text">一、为什么需要 LSP？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81LSP-%E7%9A%84%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="toc-text">二、LSP 的核心概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Language-Server-%E8%AF%AD%E8%A8%80%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="toc-text">2.1 Language Server (语言服务器)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-LSP-Client-LSP-%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-text">2.2 LSP Client (LSP 客户端)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-JSON-RPC"><span class="toc-text">2.3 JSON-RPC</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E9%80%9A%E4%BF%A1%E7%AE%A1%E9%81%93"><span class="toc-text">2.4 通信管道</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E5%B7%A5%E4%BD%9C%E7%A9%BA%E9%97%B4%E4%B8%8E%E6%96%87%E6%A1%A3-URI"><span class="toc-text">2.5 工作空间与文档 URI</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81LSP-%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">三、LSP 的生命周期</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81LSP-%E7%9A%84%E4%B8%BB%E8%A6%81%E5%8A%9F%E8%83%BD"><span class="toc-text">四、LSP 的主要功能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E4%BB%A3%E7%A0%81%E8%A1%A5%E5%85%A8-Completion"><span class="toc-text">4.1 代码补全 (Completion)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%AE%9A%E4%B9%89%E8%B7%B3%E8%BD%AC-Go-to-Definition"><span class="toc-text">4.2 定义跳转 (Go to Definition)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%BC%95%E7%94%A8%E6%9F%A5%E6%89%BE-Find-All-References"><span class="toc-text">4.3 引用查找 (Find All References)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E8%AF%8A%E6%96%AD%E4%BF%A1%E6%81%AF-Diagnostics"><span class="toc-text">4.4 诊断信息 (Diagnostics)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E6%82%AC%E5%81%9C%E6%8F%90%E7%A4%BA-Hover"><span class="toc-text">4.5 悬停提示 (Hover)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-6-%E7%AC%A6%E5%8F%B7%E9%87%8D%E5%91%BD%E5%90%8D-Rename-Symbol"><span class="toc-text">4.6 符号重命名 (Rename Symbol)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-7-%E4%BB%A3%E7%A0%81%E6%A0%BC%E5%BC%8F%E5%8C%96-Formatting"><span class="toc-text">4.7 代码格式化 (Formatting)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B%EF%BC%9ALSP-%E6%B6%88%E6%81%AF%E7%9A%84%E5%8F%91%E9%80%81%E4%B8%8E%E6%8E%A5%E6%94%B6"><span class="toc-text">五、代码示例：LSP 消息的发送与接收</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-Python-%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%A8%A1%E6%8B%9F%E5%8F%91%E9%80%81-textDocument-definition-%E8%AF%B7%E6%B1%82"><span class="toc-text">5.1 Python 客户端模拟发送 textDocument&#x2F;definition 请求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-Golang-%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%A8%A1%E6%8B%9F%E6%8E%A5%E6%94%B6%E8%AF%B7%E6%B1%82%E5%B9%B6%E5%8F%91%E9%80%81-textDocument-definition-%E5%93%8D%E5%BA%94"><span class="toc-text">5.2 Golang 服务器模拟接收请求并发送 textDocument&#x2F;definition 响应</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81LSP-%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="toc-text">六、LSP 的优缺点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%BC%98%E7%82%B9"><span class="toc-text">6.1 优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BC%BA%E7%82%B9%E4%B8%8E%E6%8C%91%E6%88%98"><span class="toc-text">6.2 缺点与挑战</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang ErrWriter 模式详解"/></a><div class="content"><a class="title" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解">Golang ErrWriter 模式详解</a><time datetime="2026-10-07T22:24:00.000Z" title="发表于 2026-10-08 06:24:00">2026-10-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Radix Tree (基数树/压缩前缀树) 详解"/></a><div class="content"><a class="title" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解">Radix Tree (基数树/压缩前缀树) 详解</a><time datetime="2026-08-17T22:24:00.000Z" title="发表于 2026-08-18 06:24:00">2026-08-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2b11785b795e/" title="T-Digest 算法详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="T-Digest 算法详解"/></a><div class="content"><a class="title" href="/2b11785b795e/" title="T-Digest 算法详解">T-Digest 算法详解</a><time datetime="2026-08-11T22:24:00.000Z" title="发表于 2026-08-12 06:24:00">2026-08-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 方法与结构体的设计哲学：对比 Java 类方法"/></a><div class="content"><a class="title" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法">Golang 方法与结构体的设计哲学：对比 Java 类方法</a><time datetime="2026-08-09T22:24:00.000Z" title="发表于 2026-08-10 06:24:00">2026-08-10</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/07eaba5d2468/" title="Python concurrent 包详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-17.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Python concurrent 包详解"/></a><div class="content"><a class="title" href="/07eaba5d2468/" title="Python concurrent 包详解">Python concurrent 包详解</a><time datetime="2026-07-28T22:24:00.000Z" title="发表于 2026-07-29 06:24:00">2026-07-29</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-17.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
   const runMermaid = ele => {
     window.loadMermaid = true
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
     ele.forEach((item, index) => {
       const mermaidSrc = item.firstElementChild
-      // Clean up event listeners before removing old SVG
-      if (item.__mermaidAbortController) {
-        item.__mermaidAbortController.abort()
-      }
-      const oldSvg = item.querySelector('svg')
-      if (oldSvg) oldSvg.remove()
-      let config = {}
-      try {
-        config = mermaidSrc.dataset.config ? JSON.parse(mermaidSrc.dataset.config) : {}
-      } catch (e) {
-        console.warn('[mermaid] failed to parse dataset.config:', e)
-      }
-      if (!config.theme) {
-        config.theme = theme
-      }
-      const mermaidThemeConfig = `%%{init: ${JSON.stringify(config)}}%%\n`
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
       const mermaidID = `mermaid-${index}`
       const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
 
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
       const renderMermaid = svg => {
         mermaidSrc.insertAdjacentHTML('afterend', svg)
-        if (false) initMermaidGestures(item)
-        item.__mermaidOriginalSvg = svg
-        if (true) attachMermaidViewerButton(item)
       }
 
-      const handleError = err => {
-        console.error(`[mermaid] render failed for block #${index}:`, err)
-        const errorEl = document.createElement('div')
-        errorEl.className = 'mermaid-error'
-        errorEl.textContent = `Mermaid render error: ${err.message || err}`
-        mermaidSrc.insertAdjacentElement('afterend', errorEl)
-      }
-
-      try {
-        const renderFn = mermaid.render(mermaidID, mermaidDefinition)
-        // mermaid v9 and v10 compatibility
-        if (typeof renderFn === 'string') {
-          renderMermaid(renderFn)
-        } else {
-          renderFn.then(({ svg }) => renderMermaid(svg)).catch(handleError)
-        }
-      } catch (err) {
-        handleError(err)
-      }
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
     })
   }
 
-  const codeToMermaid = $article => {
-    const codeMermaidEle = $article.querySelectorAll('pre > code.mermaid')
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
     if (codeMermaidEle.length === 0) return
 
     codeMermaidEle.forEach(ele => {
@@ -776,16 +419,13 @@
   }
 
   const loadMermaid = () => {
-    const $article = document.getElementById('article-container')
-    if (!$article) return
-
-    if (true) codeToMermaid($article)
-    const $mermaid = $article.querySelectorAll('.mermaid-wrap')
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
     if ($mermaid.length === 0) return
 
     const runMermaidFn = () => runMermaid($mermaid)
     btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
-    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js').then(runMermaidFn)
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js').then(runMermaidFn)
   }
 
   btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
@@ -869,7 +509,7 @@
     const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
     if (chartJSEle.length === 0) return
 
-    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
   }
 
   // Listen for theme change events
@@ -877,11 +517,11 @@
   btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
 
   window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
-})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-ribbon.min.js" size="40" alpha="0.4" zIndex="1000" mobile="false" data-click="ture"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-ribbon.min.js" size="40" alpha="0.4" zIndex="1000" mobile="false" data-click="ture"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script><script>(() => {
   const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 
   window.pjax = new Pjax({
-    elements: 'a:not([target="_blank"]):not([data-fancybox])',
+    elements: 'a:not([target="_blank"])',
     selectors: pjaxSelectors,
     cacheBust: false,
     analytics: false,
@@ -890,13 +530,7 @@
 
   const triggerPjaxFn = (val) => {
     if (!val) return
-    Object.values(val).forEach(fn => {
-      try {
-        fn()
-      } catch (err) {
-        console.debug('Pjax callback failed:', err)
-      }
-    })
+    Object.values(val).forEach(fn => fn())
   }
 
   document.addEventListener('pjax:send', () => {
@@ -914,9 +548,8 @@
   document.addEventListener('pjax:complete', () => {
     btf.removeGlobalFnEvent('pjaxCompleteOnce')
     document.querySelectorAll('script[data-pjax]').forEach(item => {
-      if (!item.parentNode) return
       const newScript = document.createElement('script')
-      const content = item.text || item.textContent || ''
+      const content = item.text || item.textContent || item.innerHTML || ""
       Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
       newScript.appendChild(document.createTextNode(content))
       item.parentNode.replaceChild(newScript, item)
@@ -926,13 +559,11 @@
   })
 
   document.addEventListener('pjax:error', e => {
-    const responseURL = e.request && e.request.responseURL
-    if (e.request && e.request.status === 404) {
+    if (e.request.status === 404) {
+      const usePjax = true
       true
-        ? pjax.loadUrl('/404.html')
-        : responseURL && (window.location.href = responseURL)
-    } else if (responseURL) {
-      window.location.href = responseURL
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
     }
   })
-})</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.7.0"></script></div></div></body></html>
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><span id="loading-status"></span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="search-wrap"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div><hr/><div id="local-search-results"></div><div id="local-search-stats-wrap"></div></div></div><div id="search-mask"></div><script src="/js/search/local-search.js"></script></div></div></body></html>
