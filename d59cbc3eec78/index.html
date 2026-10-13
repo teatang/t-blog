@@ -1,0 +1,530 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Claude Code 架构与核心机制详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Claude Code 是 Anthropic 推出的基于命令行的实验性代理编码工具（Agentic Coding CLI）。它以终端为原生交互环境，依托 Anthropic Claude 系列模型（尤其是 Claude 3.5 Sonnet &#x2F; Claude 3.7 Sonnet）的代码理解与推理能力，能够在无需人工干预的情况下自主理解代码库架构、定位依赖、执行系统级 Shell 命">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code 架构与核心机制详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/d59cbc3eec78/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="Claude Code 是 Anthropic 推出的基于命令行的实验性代理编码工具（Agentic Coding CLI）。它以终端为原生交互环境，依托 Anthropic Claude 系列模型（尤其是 Claude 3.5 Sonnet &#x2F; Claude 3.7 Sonnet）的代码理解与推理能力，能够在无需人工干预的情况下自主理解代码库架构、定位依赖、执行系统级 Shell 命">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg">
+<meta property="article:published_time" content="2025-11-05T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-10-13T08:28:51.637Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="代码生成">
+<meta property="article:tag" content="2025">
+<meta property="article:tag" content="AI">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Claude Code 架构与核心机制详解",
+  "url": "https://blog.tbf1211.xx.kg/d59cbc3eec78/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-08.jpg",
+  "datePublished": "2025-11-05T22:24:00.000Z",
+  "dateModified": "2026-10-13T08:28:51.637Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/d59cbc3eec78/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Claude Code 架构与核心机制详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src= "/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">699</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-08.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">Claude Code 架构与核心机制详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Claude Code 架构与核心机制详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2025-11-05T22:24:00.000Z" title="发表于 2025-11-06 06:24:00">2025-11-06</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/">AI</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/">开发工具</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.2k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>12分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>Claude Code</strong> 是 Anthropic 推出的基于命令行的实验性代理编码工具（Agentic Coding CLI）。它以终端为原生交互环境，依托 Anthropic Claude 系列模型（尤其是 Claude 3.5 Sonnet &#x2F; Claude 3.7 Sonnet）的代码理解与推理能力，能够在无需人工干预的情况下自主理解代码库架构、定位依赖、执行系统级 Shell 命令、编辑文件并协调 Git 版本管理，标志着代码辅助工具从“行内自动补全 (Inline Copilot)”向“自驱动软件工程代理 (Agentic SWE)”的技术演进。</p>
+</blockquote>
+<div class="note info flat"><p>核心思想：以终端为交互界面，将大语言模型（LLM）的逻辑推理能力与系统级工具（Bash、AST 检索、Git）闭环集成，实现端到端的自动化软件开发生命周期调度。</p>
+</div>
+
+<hr>
+<h2 id="一、关键概念定义"><a href="#一、关键概念定义" class="headerlink" title="一、关键概念定义"></a>一、关键概念定义</h2><h3 id="1-1-代理编码系统-Agentic-Coding-System"><a href="#1-1-代理编码系统-Agentic-Coding-System" class="headerlink" title="1.1 代理编码系统 (Agentic Coding System)"></a>1.1 代理编码系统 (Agentic Coding System)</h3><p>一种超越传统基于代码补全（Auto-completion）的技术架构。该系统由 LLM 驱动并构成**感知-思考-行动（Perception-Reasoning-Action）**状态机，具备对开发上下文（文件树、Git Log、编译诊断信息）的主动检索能力，并在受控沙箱或本地操作系统中调用外部工具以完成既定工程目标。</p>
+<h3 id="1-2-上下文动态压缩-Context-Dynamic-Compression"><a href="#1-2-上下文动态压缩-Context-Dynamic-Compression" class="headerlink" title="1.2 上下文动态压缩 (Context Dynamic Compression)"></a>1.2 上下文动态压缩 (Context Dynamic Compression)</h3><p>在交互式终端中，持续的多轮执行（如连续调用测试工具、输出大型日志）会迅速消耗模型的上下文窗口（Context Window）。上下文动态压缩是指系统通过提取 AST 摘要、对构建输出进行差异化抽取（Diffing）或通过滑动语义窗口淘汰陈旧元数据，在保证关键工程信息不丢失的前提下将上下文占用最小化的算法策略。</p>
+<h3 id="1-3-显式工具调用协议-Tool-Calling-Protocol"><a href="#1-3-显式工具调用协议-Tool-Calling-Protocol" class="headerlink" title="1.3 显式工具调用协议 (Tool-Calling Protocol)"></a>1.3 显式工具调用协议 (Tool-Calling Protocol)</h3><p>LLM 决定执行特定系统操作（例如创建文件、运行测试套件）的标准格式。系统利用特定模式解析模型的结构化输出，捕获针对 Shell、文件系统或 API 的调用请求，在权限边界校验通过后由宿主环境执行，并将标准输出（Stdout）与标准错误（Stderr）重新反馈至 LLM 作为下一步决策依据。</p>
+<hr>
+<h2 id="二、Claude-Code-的核心系统架构"><a href="#二、Claude-Code-的核心系统架构" class="headerlink" title="二、Claude Code 的核心系统架构"></a>二、Claude Code 的核心系统架构</h2><p>Claude Code 的底层运转逻辑是一个高频迭代的 ReAct (Reasoning + Acting) 闭环。</p>
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    flowchart TD
+    %% 核心交互与入口
+    User([👤 开发者输入自然语言任务]):::highlightNode --&gt; REPL[终端 REPL 交互层]:::ioNode
+    REPL --&gt; PromptEngine[上下文组装与 Prompt 引擎]:::coreNode
+
+    %% 环境上下文采集子图
+    subgraph ContextGathering [📦 环境上下文采集]
+        GitStatus[Git 状态与 Diff]
+        FileTree[项目目录树与 .claude.json]
+        RepoRules[CLAUDE.md 工程规范]
+    end
+    class ContextGathering,GitStatus,FileTree,RepoRules ctxNode
+
+    ContextGathering -.-&gt;|注入动态上下文| PromptEngine
+    PromptEngine --&gt; LLM[🧠 Claude 模型接口]:::modelNode
+
+    %% 决策流转
+    LLM --&gt; Decision{决策类型}:::decisionNode
+    Decision --&gt;|直接回复| Render[终端格式化渲染]:::ioNode
+    Decision --&gt;|工具调用| ToolExec[受控执行引擎]:::execNode
+
+    %% 工具沙箱子图
+    subgraph ToolSandbox [⚡ 工具执行层]
+        ToolBash[Bash 命令执行器]
+        ToolEdit[文件差异化修补引擎]
+        ToolGlob[文件遍历与检索 Glob]
+        ToolGrep[正则内容搜索 Grep]
+    end
+    class ToolSandbox,ToolBash,ToolEdit,ToolGlob,ToolGrep sandboxNode
+
+    ToolExec --&gt; ToolSandbox
+    ToolSandbox --&gt; ToolFeedback[执行状态 &#x2F; Stdout &#x2F; Stderr]:::feedbackNode
+    ToolFeedback --&gt; ContextManager[上下文压缩与截断管理]:::coreNode
+    ContextManager --&gt;|回传执行日志| PromptEngine
+    Render --&gt; User
+
+    %% 样式声明 (暗色模式高辨识度调色)
+    classDef default fill:#1e293b,stroke:#475569,stroke-width:1.5px,color:#e2e8f0;
+    classDef highlightNode fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef ioNode fill:#0f766e,stroke:#2dd4bf,stroke-width:1.5px,color:#f8fafc;
+    classDef coreNode fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#e0e7ff;
+    classDef modelNode fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#f5f3ff;
+    classDef decisionNode fill:#78350f,stroke:#fbbf24,stroke-width:1.5px,color:#fef3c7;
+    classDef execNode fill:#831843,stroke:#f472b6,stroke-width:1.5px,color:#fdf2f8;
+    classDef ctxNode fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#cbd5e1;
+    classDef sandboxNode fill:#064e3b,stroke:#34d399,stroke-width:1px,color:#ecfdf5;
+    classDef feedbackNode fill:#374151,stroke:#9ca3af,stroke-width:1.5px,color:#f3f4f6;
+  </pre></div>
+
+<h3 id="2-1-会话管理与上下文控制"><a href="#2-1-会话管理与上下文控制" class="headerlink" title="2.1 会话管理与上下文控制"></a>2.1 会话管理与上下文控制</h3><p>Claude Code 通过本地服务进程维护一个长生存周期的交互会话（Session）。在项目初始阶段，系统会自动抓取当前项目的配置：</p>
+<ol>
+<li><strong><code>CLAUDE.md</code> 规范提取</strong>：定位仓库根目录或各级子目录中的工程规约文件，将构建命令、代码规范和测试要求作为持久系统提示（System Prompt）注入。</li>
+<li><strong>环境拓扑探测</strong>：探测系统的 Git 提交历史、未提交更改（Working Tree）、构建工具链（如 <code>go.mod</code>, <code>package.json</code>, <code>Cargo.toml</code>）并生成项目元数据映射。</li>
+</ol>
+<h3 id="2-2-工具执行引擎"><a href="#2-2-工具执行引擎" class="headerlink" title="2.2 工具执行引擎"></a>2.2 工具执行引擎</h3><p>系统为 LLM 暴露了一套经过严格类型约束的原语工具：</p>
+<ul>
+<li><strong><code>Bash</code></strong>：在当前工作目录下执行任意合法 Shell 命令（带有预定义的风险等级控制与人工确认门禁）。</li>
+<li><strong><code>FileEdit</code> &#x2F; <code>FileWrite</code></strong>：基于代码块匹配（Hunk Replacement）而非覆盖式重写，确保在修改数千行的大文件时，仅针对变更范围（Range）进行精密替换，降低 Token 消耗并规避幻觉错误。</li>
+<li><strong><code>Glob</code> 与 <code>Grep</code></strong>：取代简单暴力读取全部文件的高效只读搜索工具，优先通过正则和路径模式遍历代码库，以实现亚秒级的代码拓扑梳理。</li>
+</ul>
+<hr>
+<h2 id="三、核心技术机制深度剖析"><a href="#三、核心技术机制深度剖析" class="headerlink" title="三、核心技术机制深度剖析"></a>三、核心技术机制深度剖析</h2><h3 id="3-1-差异化修补机制-Differential-Patching"><a href="#3-1-差异化修补机制-Differential-Patching" class="headerlink" title="3.1 差异化修补机制 (Differential Patching)"></a>3.1 差异化修补机制 (Differential Patching)</h3><p>常规基于 LLM 的代码编写工具若采取全文件重写，其 Token 消耗量随着文件行数成正比上升，且极易因最大输出 Token 截断导致文件损坏。Claude Code 的底层采用了严格的<strong>基于模式匹配的补丁策略</strong>。</p>
+<p>设原始代码段为集合 $S$，模型生成目标差异块 $\Delta &#x3D; (S_{target}, S_{replace})$，补丁算法需满足：</p>
+<p>$$S’ &#x3D; (S \setminus S_{target}) \cup S_{replace}$$</p>
+<p>其中，$S_{target}$ 必须在源码中具有单义性（Uniqueness）。若检索发现多个匹配或匹配缺失，工具层将向模型抛出状态错误，触发模型的重新自省，而非强制覆盖。</p>
+<p>以下为一个模拟其底层文件差异修补逻辑的 Go 语言核心实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> patcher</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;errors&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;strings&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> (</span><br><span class="line">	ErrPatternNotFound = errors.New(<span class="string">&quot;target pattern not found in source&quot;</span>)</span><br><span class="line">	ErrAmbiguousMatch  = errors.New(<span class="string">&quot;target pattern matches multiple locations; disambiguation required&quot;</span>)</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">// PatchOp 定义一次局部的修补操作</span></span><br><span class="line"><span class="keyword">type</span> PatchOp <span class="keyword">struct</span> &#123;</span><br><span class="line">	Target  <span class="type">string</span> <span class="comment">// 需要被替换的旧代码段</span></span><br><span class="line">	Replace <span class="type">string</span> <span class="comment">// 准备注入的新代码段</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ApplyPatch 执行严格上下文匹配的原子修补</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ApplyPatch</span><span class="params">(source <span class="type">string</span>, op PatchOp)</span></span> (<span class="type">string</span>, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="comment">// 1. 规范化处理，避免跨平台换行符导致的哈希不一致</span></span><br><span class="line">	normSource := strings.ReplaceAll(source, <span class="string">&quot;\r\n&quot;</span>, <span class="string">&quot;\n&quot;</span>)</span><br><span class="line">	normTarget := strings.ReplaceAll(op.Target, <span class="string">&quot;\r\n&quot;</span>, <span class="string">&quot;\n&quot;</span>)</span><br><span class="line">	normReplace := strings.ReplaceAll(op.Replace, <span class="string">&quot;\r\n&quot;</span>, <span class="string">&quot;\n&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2. 统计目标块在源文件中的匹配频次</span></span><br><span class="line">	matchCount := strings.Count(normSource, normTarget)</span><br><span class="line">	<span class="keyword">if</span> matchCount == <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="string">&quot;&quot;</span>, ErrPatternNotFound</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> matchCount &gt; <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="string">&quot;&quot;</span>, fmt.Errorf(<span class="string">&quot;%w: matched %d times&quot;</span>, ErrAmbiguousMatch, matchCount)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3. 执行原子单次替换，确保不会错误修改同名逻辑</span></span><br><span class="line">	patched := strings.Replace(normSource, normTarget, normReplace, <span class="number">1</span>)</span><br><span class="line">	<span class="keyword">return</span> patched, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-动态上下文修剪算法-Dynamic-Context-Pruning"><a href="#3-2-动态上下文修剪算法-Dynamic-Context-Pruning" class="headerlink" title="3.2 动态上下文修剪算法 (Dynamic Context Pruning)"></a>3.2 动态上下文修剪算法 (Dynamic Context Pruning)</h3><p>当终端执行构建或测试（如 <code>go test -v ./...</code>）遇到大规模错误堆栈时，标准输出可能达到数十万字节。Claude Code 不会将所有原始日志输入上下文，而是对其进行<strong>拓扑过滤与头部&#x2F;尾部加权保留</strong>。</p>
+<p>其数据截断模型可形式化为：给定最大 Token 上限 $T_{max}$，以及输入日志流 $L &#x3D; {l_1, l_2, \dots, l_n}$。如果 $\sum \text{Token}(l_i) &gt; T_{max}$，则截断函数 $f(L)$ 定义为：</p>
+<p>$$f(L) &#x3D; L_{head} \cup {\text{“… [Truncated: } k \text{ lines suppressed] …”}} \cup L_{tail}$$</p>
+<p>其中：<br>$$\text{Size}(L_{head}) &#x3D; \alpha \cdot T_{max}, \quad \text{Size}(L_{tail}) &#x3D; (1 - \alpha) \cdot T_{max} \quad (0 &lt; \alpha &lt; 1)$$</p>
+<p>通常，编译器在初始阶段输出配置与首个 Panic 堆栈（保留在 $L_{head}$），而在末尾输出总结报告（保留在 $L_{tail}$），该算法能最大化保障大模型的诊断准确度。</p>
+<hr>
+<h2 id="四、Claude-Code-工作流示例"><a href="#四、Claude-Code-工作流示例" class="headerlink" title="四、Claude Code 工作流示例"></a>四、Claude Code 工作流示例</h2><p>以下展示使用 Claude Code 在真实工程中修复并发竞态（Data Race）问题的终端交互闭环过程：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line">$ claude &quot;修复 internal/cache 包中的数据竞态问题并确保测试全绿&quot;</span><br><span class="line"></span><br><span class="line">&gt; Analyzing repository structure...</span><br><span class="line">&gt; Loaded context from CLAUDE.md:</span><br><span class="line">  - Build command: go build ./...</span><br><span class="line">  - Test command: go test -race ./...</span><br><span class="line"></span><br><span class="line">&gt; Tool: Bash(&quot;go test -race ./internal/cache&quot;)</span><br><span class="line">  Stdout:</span><br><span class="line">  ==================</span><br><span class="line">  WARNING: DATA RACE</span><br><span class="line">  Write at 0x00c0000a4040 by goroutine 7:</span><br><span class="line">    example.com/project/internal/cache.(*MemoryCache).Set()</span><br><span class="line">        /workspace/internal/cache/cache.go:28 +0x6b</span><br><span class="line">  Previous read at 0x00c0000a4040 by goroutine 6:</span><br><span class="line">    example.com/project/internal/cache.(*MemoryCache).Get()</span><br><span class="line">        /workspace/internal/cache/cache.go:19 +0x44</span><br><span class="line">  ==================</span><br><span class="line">  FAIL  example.com/project/internal/cache 0.042s</span><br><span class="line"></span><br><span class="line">&gt; Thinking:</span><br><span class="line">  - The `MemoryCache` struct uses a plain map without synchronization primitives.</span><br><span class="line">  - Line 28 has a concurrent write, while Line 19 performs a concurrent read.</span><br><span class="line">  - Need to inspect `internal/cache/cache.go` to see the struct definition.</span><br><span class="line"></span><br><span class="line">&gt; Tool: FileRead(&quot;internal/cache/cache.go&quot;)</span><br><span class="line">  Stdout: [Returns 45 lines of code]</span><br><span class="line"></span><br><span class="line">&gt; Thinking:</span><br><span class="line">  - `MemoryCache` needs an embedded `sync.RWMutex`.</span><br><span class="line">  - Update `Get` to use `RLock()` and `RUnlock()`.</span><br><span class="line">  - Update `Set` to use `Lock()` and `Unlock()`.</span><br><span class="line"></span><br><span class="line">&gt; Tool: FileEdit(</span><br><span class="line">    FilePath: &quot;internal/cache/cache.go&quot;,</span><br><span class="line">    Target: </span><br><span class="line">      &quot;type MemoryCache struct &#123;\n\titems map[string][]byte\n&#125;&quot;,</span><br><span class="line">    Replace: </span><br><span class="line">      &quot;type MemoryCache struct &#123;\n\tmu    sync.RWMutex\n\titems map[string][]byte\n&#125;&quot;</span><br><span class="line">  )</span><br><span class="line">  Success: File patched.</span><br><span class="line"></span><br><span class="line">&gt; Tool: FileEdit(</span><br><span class="line">    FilePath: &quot;internal/cache/cache.go&quot;,</span><br><span class="line">    Target: </span><br><span class="line">      &quot;func (c *MemoryCache) Get(key string) ([]byte, bool) &#123;\n\tv, ok := c.items[key]\n\treturn v, ok\n&#125;&quot;,</span><br><span class="line">    Replace: </span><br><span class="line">      &quot;func (c *MemoryCache) Get(key string) ([]byte, bool) &#123;\n\tc.mu.RLock()\n\tdefer c.mu.RUnlock()\n\tv, ok := c.items[key]\n\treturn v, ok\n&#125;&quot;</span><br><span class="line">  )</span><br><span class="line">  Success: File patched.</span><br><span class="line"></span><br><span class="line">&gt; Tool: Bash(&quot;go test -race ./internal/cache&quot;)</span><br><span class="line">  Stdout:</span><br><span class="line">  PASS</span><br><span class="line">  ok      example.com/project/internal/cache 0.124s</span><br><span class="line"></span><br><span class="line">&gt; Result:</span><br><span class="line">  已修复 internal/cache/cache.go 中的并发读写冲突：</span><br><span class="line">  1. 为 `MemoryCache` 结构体注入了 `sync.RWMutex` 锁机制；</span><br><span class="line">  2. 在 `Get` 方法中实施读锁保护（RLock/RUnlock）；</span><br><span class="line">  3. 执行了 `go test -race ./internal/cache`，竞态检测已通过。</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="五、安全防护与权限隔离模型"><a href="#五、安全防护与权限隔离模型" class="headerlink" title="五、安全防护与权限隔离模型"></a>五、安全防护与权限隔离模型</h2><p>在代理模式下，模型能够直接向底层操作系统下发指令。如果失控，可能引发敏感凭证泄露或灾难性的数据破坏。Claude Code 在架构上实现了三级安全边界：</p>
+<table>
+<thead>
+<tr>
+<th align="left">级别</th>
+<th align="left">行为类型</th>
+<th align="left">审计策略</th>
+<th align="left">典型命令</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>Tier 1: 安全&#x2F;只读 (Safe Read-Only)</strong></td>
+<td align="left">代码检索、目录列出、只读状态检查</td>
+<td align="left">自动放行 (Auto-approved)</td>
+<td align="left"><code>git status</code>, <code>grep</code>, <code>cat</code></td>
+</tr>
+<tr>
+<td align="left"><strong>Tier 2: 本地变更 (Local Mutation)</strong></td>
+<td align="left">本地代码编辑、构建调试、添加本地分支</td>
+<td align="left">依据配置放行或静默预检</td>
+<td align="left"><code>go build</code>, <code>npm test</code>, 文件修改</td>
+</tr>
+<tr>
+<td align="left"><strong>Tier 3: 危险操作 (High Impact)</strong></td>
+<td align="left">破坏性文件系统写操作、网络外发、远程仓库覆写</td>
+<td align="left"><strong>强制终端人工确认交互 (User Confirmation Prompt)</strong></td>
+<td align="left"><code>rm -rf</code>, <code>git push --force</code>, <code>curl -X POST</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="六、技术优劣势对比分析"><a href="#六、技术优劣势对比分析" class="headerlink" title="六、技术优劣势对比分析"></a>六、技术优劣势对比分析</h2><h3 id="6-1-核心优势"><a href="#6-1-核心优势" class="headerlink" title="6.1 核心优势"></a>6.1 核心优势</h3><ol>
+<li><strong>认知负载降低</strong>：开发者不再需要频繁在 IDE、终端以及浏览器之间切换上下文。</li>
+<li><strong>闭环自动调试（Closed-Loop Debugging）</strong>：通过“编码 -&gt; 编译 -&gt; 失败分析 -&gt; 自主修改 -&gt; 验证”的自主闭环，大幅度减少琐碎语法和环境排错的人工消耗。</li>
+<li><strong>架构感知度深</strong>：通过解析全局文件索引并配合子目录的工程文档，相比仅依赖当前打开文件窗口（Editor Window Tab）的传统 Copilot，具备更优的系统级上下文理解能力。</li>
+</ol>
+<h3 id="6-2-现存局限性"><a href="#6-2-现存局限性" class="headerlink" title="6.2 现存局限性"></a>6.2 现存局限性</h3><ol>
+<li><strong>Token 消耗与成本</strong>：由于多轮 ReAct 工具调用循环需要反复重送上下文基准（Base Context），复杂的重构或调试任务极易消耗高额 API 配额。</li>
+<li><strong>极端复杂度的状态漂移</strong>：在超过 15 轮以上的复杂调试循环中，随着工具失败输出的累积，系统可能出现目标漂移（Goal Drift），陷入局部循环或无效的代码变更。</li>
+<li><strong>网络与交互延迟</strong>：每一次“思考”均需依赖大参数量推理模型的往返（RTT），整体响应延迟显著高于本地静态分析工具。</li>
+</ol>
+<hr>
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>Claude Code 代表了软件工程工具演进的关键分水岭：<strong>开发工具正由“被动辅助代码补全器”转向“受控自动执行代理”</strong>。通过将终端原生命令、高效差异补丁逻辑与高逻辑推理能力的 LLM 深度集成，它能够在遵循既定规范的前提下，端到端解决中等复杂度的研发任务。</p>
+<p>然而，这一范式并未否定开发者的核心价值，而是将软件工程师的职责从“逐行编写与手动排错”上移至更高层级的<strong>系统架构定义、安全门禁把控与工程规约设计（Prompt&#x2F;CLAUDE.md Engineering）</strong>。理解其内部运行机制、工具调用边界以及上下文限制，是未来在工业级研发中高效驾驭此类工具的前提。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/d59cbc3eec78/">https://blog.tbf1211.xx.kg/d59cbc3eec78/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90/">代码生成</a><a class="post-meta__tags" href="/tags/2025/">2025</a><a class="post-meta__tags" href="/tags/AI/">AI</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-08.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Codex 详解与使用技巧：OpenAI 的代码智能模型</div></div><div class="info-2"><div class="info-item-1">我注意到您请求的是关于 “Codex” 的指令详解，但在人工智能和编程领域有几个不同的 “Codex”：  OpenAI Codex: 这是一个由 OpenAI 训练的模型，是 GitHub Copilot 等代码生成工具的底层技术。它本身没有 “指令” (commands)，而是接受自然语言描述或代码上下文来生成代码。 您是否是指 claude-code? 因为在上一轮对话中我们讨论了 claude-code 的指令。  请您明确指出您指的是哪个 “Codex”，或者确认您是否想让我继续讲解 claude-code 的指令。 如果您指的是 OpenAI Codex 模型，我可以提供一份关于如何有效与该模型交互（即提示工程，Prompt Engineering）的详细说明，但它不会是像 CLI 工具那样的“指令”列表。 </div></div></div></a><a class="pagination-related" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Claude Code 详解：Anthropic 的代码智能模型</div></div><div class="info-2"><div class="info-item-1"> Claude Code 是 Anthropic 公司推出的官方命令行界面 (CLI) 工具，旨在将 Claude AI 模型强大的代码智能能力直接集成到开发者的终端工作流中。它不仅提供智能代码生成和辅助功能，更是一个能够理解项目上下文、执行复杂多步骤任务的 AI 智能体，显著提升开发效率和代码质量。  核心功能集：Claude Code 的指令系统覆盖了软件开发的整个生命周期，包括代码编写、调试、测试、重构、审查以及系统命令执行和文件系统交互。它通过自然语言驱动，实现从微观的代码修改到宏观的任务编排。    一、Claude Code 概述与安装1.1 什么是 Claude Code？Claude Code 不仅仅是一个代码补全工具，它是一个具备智能体能力（Agentic Capabilities）的编程助手。它能够扮演开发者的角色，理解高层次的开发意图，并分解为具体的编程步骤，利用内置的工具（如文件读写、Shell 执行、Web 搜索等）与环境进行交互，最终达成目标。其强调安全性和精确性，旨在成为开发者日常编程工作中不可或缺的伙伴。 1.2 安装指南Claude Code 支...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/e520aa0d37e4/" title="Ollama 深度解析"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-03-03</div><div class="info-item-2">Ollama 深度解析</div></div><div class="info-2"><div class="info-item-1"> Ollama 是一个开源项目，旨在简化在本地机器上运行大型语言模型 (LLM) 的过程。它提供了一个易于使用的命令行界面和 API，让用户能够快速下载、运行、创建和管理各种预训练的开源 LLM，如 Llama 2, Mistral, Gemma 等。Ollama 专注于提供流畅的用户体验，使个人开发者、研究人员和企业能够在自己的硬件上，以隐私保护和成本效益的方式探索和利用 LLM 的强大功能。  核心思想：将复杂的大语言模型本地化运行过程封装成简单命令，让用户能轻松部署、交互和定制开源 LLM，实现AI的民主化和去中心化。   一、Ollama 简介随着大语言模型技术的飞速发展，越来越多的开发者和企业希望在本地环境中运行这些模型，以实现数据隐私、降低成本、离线可用以及更灵活的定制化。然而，直接在本地部署和管理 LLM 往往涉及复杂的依赖安装、模型格式转换、GPU 配置等挑战。 Ollama 应运而生，它旨在解决这些痛点，提供一个“一站式”解决方案：  极简的用户体验：通过单个可执行文件和直观的命令行指令，即可完成模型的下载、运行和管理。 广泛的模型支持：支持多种流行的开源 LL...</div></div></div></a><a class="pagination-related" href="/6d28d801758d/" title="Claude Code 详解：Anthropic 的代码智能模型"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-15.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-05</div><div class="info-item-2">Claude Code 详解：Anthropic 的代码智能模型</div></div><div class="info-2"><div class="info-item-1"> Claude Code 是 Anthropic 公司推出的官方命令行界面 (CLI) 工具，旨在将 Claude AI 模型强大的代码智能能力直接集成到开发者的终端工作流中。它不仅提供智能代码生成和辅助功能，更是一个能够理解项目上下文、执行复杂多步骤任务的 AI 智能体，显著提升开发效率和代码质量。  核心功能集：Claude Code 的指令系统覆盖了软件开发的整个生命周期，包括代码编写、调试、测试、重构、审查以及系统命令执行和文件系统交互。它通过自然语言驱动，实现从微观的代码修改到宏观的任务编排。    一、Claude Code 概述与安装1.1 什么是 Claude Code？Claude Code 不仅仅是一个代码补全工具，它是一个具备智能体能力（Agentic Capabilities）的编程助手。它能够扮演开发者的角色，理解高层次的开发意图，并分解为具体的编程步骤，利用内置的工具（如文件读写、Shell 执行、Web 搜索等）与环境进行交互，最终达成目标。其强调安全性和精确性，旨在成为开发者日常编程工作中不可或缺的伙伴。 1.2 安装指南Claude Code 支...</div></div></div></a><a class="pagination-related" href="/b100840425a8/" title="Codex 详解与使用技巧：OpenAI 的代码智能模型"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-07.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-11-07</div><div class="info-item-2">Codex 详解与使用技巧：OpenAI 的代码智能模型</div></div><div class="info-2"><div class="info-item-1">我注意到您请求的是关于 “Codex” 的指令详解，但在人工智能和编程领域有几个不同的 “Codex”：  OpenAI Codex: 这是一个由 OpenAI 训练的模型，是 GitHub Copilot 等代码生成工具的底层技术。它本身没有 “指令” (commands)，而是接受自然语言描述或代码上下文来生成代码。 您是否是指 claude-code? 因为在上一轮对话中我们讨论了 claude-code 的指令。  请您明确指出您指的是哪个 “Codex”，或者确认您是否想让我继续讲解 claude-code 的指令。 如果您指的是 OpenAI Codex 模型，我可以提供一份关于如何有效与该模型交互（即提示工程，Prompt Engineering）的详细说明，但它不会是像 CLI 工具那样的“指令”列表。 </div></div></div></a><a class="pagination-related" href="/e62a1e8acade/" title="AI 辅助编程的关键要点与代码幻觉防范"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-16</div><div class="info-item-2">AI 辅助编程的关键要点与代码幻觉防范</div></div><div class="info-2"><div class="info-item-1"> AI 辅助编程，通常指利用大型语言模型 (LLM) 如 GPT、Claude、Copilot 等来帮助开发者完成代码生成、代码补全、错误检查、文档编写等任务。它极大地提高了开发效率，但同时也引入了新的挑战，其中最突出的就是 “代码幻觉 (Code Hallucinations)”。代码幻觉是指 AI 生成了看似合理但实际上错误、不存在、或与需求不符的代码、API 调用或概念。  核心思想：AI 是强大的工具而非万能的替代品。在使用 AI 辅助编程时，开发者必须保持批判性思维，通过有效的“提示工程”和严谨的“人工验证”来驾驭 AI，防止其产生误导性的“代码幻觉”。   一、AI 辅助编程的核心优势与风险1.1 核心优势 提高效率：快速生成样板代码、函数骨架、测试用例等，减少重复劳动。 知识获取：作为“超级Stack Overflow”，快速查询 API 用法、框架最佳实践、算法实现等。 学习辅助：解释复杂代码、概念，帮助新手快速理解。 跨语言&#x2F;框架能力：在不熟悉的语言或框架中提供初步帮助。 重构与优化建议：提出改进代码结构、性能或可读性的建议。  1.2 主要风险 代码...</div></div></div></a><a class="pagination-related" href="/21e140c78f80/" title="大型语言模型如何理解人类文字：从Token到语义表征"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-16</div><div class="info-item-2">大型语言模型如何理解人类文字：从Token到语义表征</div></div><div class="info-2"><div class="info-item-1"> 大型语言模型 (Large Language Models, LLMs) 在处理和生成人类语言方面展现出了前所未有的能力，这引发了一个核心问题：它们是如何“理解”人类文字的？这种理解并非传统意义上的认知或意识，而是通过对海量文本数据中统计模式和语义关联的深度学习，构建出高度复杂的语言表征。  核心思想：LLMs 将人类语言转化为高维数学向量，并通过 Transformer 架构中的注意力机制，捕捉词语、句子乃至篇章间的复杂关联，从而在统计层面模拟人类对语言的理解和生成。   一、基础构建模块：从文本到向量LLMs 的“理解”始于将人类可读的文字转化为机器可处理的数值形式。这一过程主要依赖于分词 (Tokenization) 和词嵌入 (Word Embeddings)。 1.1 分词 (Tokenization)分词是将连续的文本序列切分成有意义的最小单位——Token 的过程。Token 可以是一个词、一个子词 (subword) 甚至一个字符。  词级别分词 (Word-level Tokenization)：以空格或标点符号为界，将文本切分为词。简单直观，但词汇量庞大，且...</div></div></div></a><a class="pagination-related" href="/1bd89b02cd88/" title="大型语言模型中的Token详解：数据、处理与意义"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-20</div><div class="info-item-2">大型语言模型中的Token详解：数据、处理与意义</div></div><div class="info-2"><div class="info-item-1"> Token 是大型语言模型 (Large Language Models, LLMs) 处理文本的基本单位。它不是传统意义上的“词”，而是模型将人类可读的文字序列（如句子、段落）切分、编码并最终用于学习和生成文本的离散符号表示。理解 Token 的概念对于深入了解 LLMs 的工作原理、能力边界以及成本核算至关重要。  核心思想：LLMs 不直接处理原始文本，而是将其分解为一系列经过特殊编码的 Token。这些 Token 构成了模型输入和输出的最小单元，并直接影响模型的性能、效率和成本。   一、什么是 Token？在自然语言处理 (NLP) 领域，尤其是在 LLMs 中，Token 是指模型进行训练和推理时所使用的文本片段。它可能是：  一个完整的词 (Word)：例如 “cat”, “run”。 一个词的一部分 (Subword)：例如 “un”, “believe”, “able” 组合成 “unbelievable”。 一个标点符号 (Punctuation)：例如 “.”, “,”, “!”。 一个特殊符号或控制字符 (Special Token)：例如 [CLS]...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src= "/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">699</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%85%B3%E9%94%AE%E6%A6%82%E5%BF%B5%E5%AE%9A%E4%B9%89"><span class="toc-text">一、关键概念定义</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E4%BB%A3%E7%90%86%E7%BC%96%E7%A0%81%E7%B3%BB%E7%BB%9F-Agentic-Coding-System"><span class="toc-text">1.1 代理编码系统 (Agentic Coding System)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E4%B8%8A%E4%B8%8B%E6%96%87%E5%8A%A8%E6%80%81%E5%8E%8B%E7%BC%A9-Context-Dynamic-Compression"><span class="toc-text">1.2 上下文动态压缩 (Context Dynamic Compression)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E6%98%BE%E5%BC%8F%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E5%8D%8F%E8%AE%AE-Tool-Calling-Protocol"><span class="toc-text">1.3 显式工具调用协议 (Tool-Calling Protocol)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Claude-Code-%E7%9A%84%E6%A0%B8%E5%BF%83%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84"><span class="toc-text">二、Claude Code 的核心系统架构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E4%BC%9A%E8%AF%9D%E7%AE%A1%E7%90%86%E4%B8%8E%E4%B8%8A%E4%B8%8B%E6%96%87%E6%8E%A7%E5%88%B6"><span class="toc-text">2.1 会话管理与上下文控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%B7%A5%E5%85%B7%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E"><span class="toc-text">2.2 工具执行引擎</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%A0%B8%E5%BF%83%E6%8A%80%E6%9C%AF%E6%9C%BA%E5%88%B6%E6%B7%B1%E5%BA%A6%E5%89%96%E6%9E%90"><span class="toc-text">三、核心技术机制深度剖析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%B7%AE%E5%BC%82%E5%8C%96%E4%BF%AE%E8%A1%A5%E6%9C%BA%E5%88%B6-Differential-Patching"><span class="toc-text">3.1 差异化修补机制 (Differential Patching)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%8A%A8%E6%80%81%E4%B8%8A%E4%B8%8B%E6%96%87%E4%BF%AE%E5%89%AA%E7%AE%97%E6%B3%95-Dynamic-Context-Pruning"><span class="toc-text">3.2 动态上下文修剪算法 (Dynamic Context Pruning)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Claude-Code-%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A4%BA%E4%BE%8B"><span class="toc-text">四、Claude Code 工作流示例</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%AE%89%E5%85%A8%E9%98%B2%E6%8A%A4%E4%B8%8E%E6%9D%83%E9%99%90%E9%9A%94%E7%A6%BB%E6%A8%A1%E5%9E%8B"><span class="toc-text">五、安全防护与权限隔离模型</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%8A%80%E6%9C%AF%E4%BC%98%E5%8A%A3%E5%8A%BF%E5%AF%B9%E6%AF%94%E5%88%86%E6%9E%90"><span class="toc-text">六、技术优劣势对比分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E6%A0%B8%E5%BF%83%E4%BC%98%E5%8A%BF"><span class="toc-text">6.1 核心优势</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%8E%B0%E5%AD%98%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">6.2 现存局限性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-22.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang ErrWriter 模式详解"/></a><div class="content"><a class="title" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解">Golang ErrWriter 模式详解</a><time datetime="2026-10-07T22:24:00.000Z" title="发表于 2026-10-08 06:24:00">2026-10-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/72310ccfd409/" title="Golang map nil 读写删除操作详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-29.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang map nil 读写删除操作详解"/></a><div class="content"><a class="title" href="/72310ccfd409/" title="Golang map nil 读写删除操作详解">Golang map nil 读写删除操作详解</a><time datetime="2026-08-31T22:24:00.000Z" title="发表于 2026-09-01 06:24:00">2026-09-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-05.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Radix Tree (基数树/压缩前缀树) 详解"/></a><div class="content"><a class="title" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解">Radix Tree (基数树/压缩前缀树) 详解</a><time datetime="2026-08-17T22:24:00.000Z" title="发表于 2026-08-18 06:24:00">2026-08-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2b11785b795e/" title="T-Digest 算法详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-30.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="T-Digest 算法详解"/></a><div class="content"><a class="title" href="/2b11785b795e/" title="T-Digest 算法详解">T-Digest 算法详解</a><time datetime="2026-08-11T22:24:00.000Z" title="发表于 2026-08-12 06:24:00">2026-08-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-21.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 方法与结构体的设计哲学：对比 Java 类方法"/></a><div class="content"><a class="title" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法">Golang 方法与结构体的设计哲学：对比 Java 类方法</a><time datetime="2026-08-09T22:24:00.000Z" title="发表于 2026-08-10 06:24:00">2026-08-10</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-08.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const loadMathjax = () => {
+    if (!window.MathJax) {
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          enableMenu: true,
+          renderActions: {
+            findScript: [10, doc => {
+              for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+                const display = !!node.type.match(/; *mode=display/)
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+                const text = document.createTextNode('')
+                node.parentNode.replaceChild(text, node)
+                math.start = {node: text, delim: '', n: 0}
+                math.end = {node: text, delim: '', n: 0}
+                doc.math.push(math)
+              }
+            }, '']
+          }
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax/es5/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.startup.document.state(0)
+      MathJax.texReset()
+      MathJax.typesetPromise()
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-ribbon.min.js" size="40" alpha="0.4" zIndex="1000" mobile="false" data-click="ture"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => fn())
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><span id="loading-status"></span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="search-wrap"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div><hr/><div id="local-search-results"></div><div id="local-search-stats-wrap"></div></div></div><div id="search-mask"></div><script src="/js/search/local-search.js"></script></div></div></body></html>
