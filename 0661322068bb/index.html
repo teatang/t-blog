@@ -1,0 +1,528 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>DNS 泄漏详解 | 1024 维度</title><meta name="author" content="TeaTang"><meta name="copyright" content="TeaTang"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="DNS 泄漏 (DNS Leak) 是指在使用 VPN (虚拟私人网络) 或其他代理服务时，用户的 DNS 查询未能通过 VPN&#x2F;代理的加密隧道发送，而是直接发送到了 ISP (互联网服务提供商) 或其他第三方 DNS 服务器，从而暴露了用户的真实 IP 地址和网络活动信息的一种安全漏洞。尽管用户的其他网络流量可能已通过 VPN 加密和隧道传输，但 DNS 查询的泄露会使得 VPN 的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DNS 泄漏详解">
+<meta property="og:url" content="https://blog.tbf1211.xx.kg/0661322068bb/index.html">
+<meta property="og:site_name" content="1024 维度">
+<meta property="og:description" content="DNS 泄漏 (DNS Leak) 是指在使用 VPN (虚拟私人网络) 或其他代理服务时，用户的 DNS 查询未能通过 VPN&#x2F;代理的加密隧道发送，而是直接发送到了 ISP (互联网服务提供商) 或其他第三方 DNS 服务器，从而暴露了用户的真实 IP 地址和网络活动信息的一种安全漏洞。尽管用户的其他网络流量可能已通过 VPN 加密和隧道传输，但 DNS 查询的泄露会使得 VPN 的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg">
+<meta property="article:published_time" content="2023-03-19T22:24:00.000Z">
+<meta property="article:modified_time" content="2026-10-15T09:57:58.412Z">
+<meta property="article:author" content="TeaTang">
+<meta property="article:tag" content="2023">
+<meta property="article:tag" content="计算机网络">
+<meta property="article:tag" content="网络协议">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "DNS 泄漏详解",
+  "url": "https://blog.tbf1211.xx.kg/0661322068bb/",
+  "image": "https://blog.tbf1211.xx.kg/img/cover/default_cover-11.jpg",
+  "datePublished": "2023-03-19T22:24:00.000Z",
+  "dateModified": "2026-10-15T09:57:58.412Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "TeaTang",
+      "url": "https://blog.tbf1211.xx.kg"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon-1.ico"><link rel="canonical" href="https://blog.tbf1211.xx.kg/0661322068bb/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//fonts.googleapis.com" crossorigin=""/><meta name="google-site-verification" content="NdIUXAOVyGnnBhcrip0ksCawbdAzT0hlBZDE9u4jx6k"/><meta name="msvalidate.01" content="567E47D75E8DCF1282B9623AD914701E"/><meta name="baidu-site-verification" content="code-pE5rnuxcfD"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const hour = new Date().getHours()
+          const isNight = hour <= 6 || hour >= 7
+          if (theme === undefined) isNight ? activateDarkMode() : activateLightMode()
+          else theme === 'light' ? activateLightMode() : activateDarkMode()
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web&amp;display=swap" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.json","preload":false,"top_n_per_article":1,"unescape":false,"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":400,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: {"limitCount":150,"languages":{"author":"作者: TeaTang","link":"链接: ","source":"来源: 1024 维度","info":"著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。"}},
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'DNS 泄漏详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="preconnect" href="https://jsd.012700.xyz"><link href="/self/btf.css" rel="stylesheet"><meta name="generator" content="Hexo 7.3.0"><link rel="alternate" href="/atom.xml" title="1024 维度" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src= "/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">700</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/cover/default_cover-11.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">1024 维度</span></a><a class="nav-page-title" href="/"><span class="site-name">DNS 泄漏详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 我的轨迹</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/archives/2023/"><i class="fa-fw fa-solid fa-bug"></i><span> 2023</span></a></li><li><a class="site-page child" href="/archives/2024/"><i class="fa-fw fa-solid fa-code"></i><span> 2024</span></a></li><li><a class="site-page child" href="/archives/2025/"><i class="fa-fw fa-solid fa-network-wired"></i><span> 2025</span></a></li><li><a class="site-page child" href="/archives/2026/"><i class="fa-fw fa-solid fa-code-branch"></i><span> 2026</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa-solid fa-calendar-days"></i><span> 时间线</span></a></div><div class="menus_item"><a class="site-page" href="/shuoshuo"><i class="fa-fw fas fa-comment"></i><span> 说说</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">DNS 泄漏详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="fa-fw post-meta-icon far fa-calendar-alt"></i><span class="post-meta-label">发表于</span><time datetime="2023-03-19T22:24:00.000Z" title="发表于 2023-03-20 06:24:00">2023-03-20</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">总字数:</span><span class="word-count">3.5k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>11分钟</span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p><strong>DNS 泄漏 (DNS Leak)</strong> 是指在使用 VPN (虚拟私人网络) 或其他代理服务时，用户的 <strong>DNS 查询未能通过 VPN&#x2F;代理的加密隧道发送</strong>，而是直接发送到了 ISP (互联网服务提供商) 或其他第三方 DNS 服务器，从而<strong>暴露了用户的真实 IP 地址和网络活动信息</strong>的一种安全漏洞。尽管用户的其他网络流量可能已通过 VPN 加密和隧道传输，但 DNS 查询的泄露会使得 VPN 的隐私保护功能失效。</p>
+</blockquote>
+<div class="note info flat"><p><strong>核心概念：</strong></p>
+<ul>
+<li><strong>VPN 的目的：</strong> 隐藏真实 IP 地址、加密网络流量、防止 ISP 监控用户的在线活动。</li>
+<li><strong>DNS 泄漏的危害：</strong> 尽管 VPN 隧道可能已建立，但 DNS 查询却绕过隧道直接发给 ISP 或其他未受保护的服务器，从而泄露了用户的真实身份和访问记录。</li>
+<li><strong>根本原因：</strong> 操作系统与 VPN 客户端之间在处理 DNS 解析请求时，配置或实现上存在不一致或漏洞。</li>
+</ul>
+</div>
+
+<hr>
+<h2 id="一、关键概念定义"><a href="#一、关键概念定义" class="headerlink" title="一、关键概念定义"></a>一、关键概念定义</h2><p>在深入理解 DNS 泄漏之前，需要先明确几个相关概念：</p>
+<h3 id="1-1-DNS-Domain-Name-System"><a href="#1-1-DNS-Domain-Name-System" class="headerlink" title="1.1 DNS (Domain Name System)"></a>1.1 DNS (Domain Name System)</h3><p><strong>定义：</strong> 域名系统是互联网的一项服务，它将用户易于记忆的域名（如 <code>www.example.com</code>）解析为机器可读的 IP 地址（如 <code>192.0.2.1</code>），使得设备能够找到并连接到正确的服务器。每当用户访问一个网站或服务时，第一步通常是进行 DNS 查询。</p>
+<h3 id="1-2-VPN-Virtual-Private-Network"><a href="#1-2-VPN-Virtual-Private-Network" class="headerlink" title="1.2 VPN (Virtual Private Network)"></a>1.2 VPN (Virtual Private Network)</h3><p><strong>定义：</strong> 虚拟私人网络旨在创建一个加密的、安全的网络连接。当用户连接到 VPN 时，其所有网络流量（包括 DNS 查询）理论上都应通过 VPN 服务器进行加密和隧道传输。这意味着用户的 ISP 只能看到用户连接到了 VPN 服务器的 IP 地址，而无法看到用户访问的具体网站或服务。VPN 服务器通常会提供自己的 DNS 解析服务，或者将用户的 DNS 请求转发到特定的第三方 DNS 服务器。</p>
+<h3 id="1-3-ISP-DNS-服务器"><a href="#1-3-ISP-DNS-服务器" class="headerlink" title="1.3 ISP DNS 服务器"></a>1.3 ISP DNS 服务器</h3><p><strong>定义：</strong> 互联网服务提供商 (ISP) 通常会为用户自动配置其自己的 DNS 服务器。在不使用 VPN 的情况下，用户的 DNS 查询会直接发送到这些 ISP DNS 服务器。如果在使用 VPN 时 DNS 查询依然发送到 ISP DNS 服务器，就发生了 DNS 泄漏。</p>
+<h3 id="1-4-第三方-DNS-服务器"><a href="#1-4-第三方-DNS-服务器" class="headerlink" title="1.4 第三方 DNS 服务器"></a>1.4 第三方 DNS 服务器</h3><p><strong>定义：</strong> 除了 ISP 提供的 DNS 服务器外，还有许多公共 DNS 服务，例如 Google Public DNS (8.8.8.8, 8.8.4.4) 和 Cloudflare DNS (1.1.1.1, 1.0.0.1)。一些 VPN 服务也会使用这些或自己的私有 DNS 服务器。</p>
+<h2 id="二、DNS-泄漏的工作原理与常见原因"><a href="#二、DNS-泄漏的工作原理与常见原因" class="headerlink" title="二、DNS 泄漏的工作原理与常见原因"></a>二、DNS 泄漏的工作原理与常见原因</h2><p>DNS 泄漏发生的原因多种多样，主要在于操作系统处理 DNS 请求的方式与 VPN 客户端的预期行为之间存在冲突或不完善的配置。</p>
+<h3 id="2-1-操作系统默认-DNS-配置优先级"><a href="#2-1-操作系统默认-DNS-配置优先级" class="headerlink" title="2.1 操作系统默认 DNS 配置优先级"></a>2.1 操作系统默认 DNS 配置优先级</h3><ul>
+<li><strong>工作原理：</strong> 大多数操作系统（Windows, macOS, Linux）在连接到 VPN 时，VPN 客户端会尝试修改系统的 DNS 设置，将 DNS 查询重定向到 VPN 服务器的 DNS 或 VPN 指定的 DNS 服务器。然而，系统在某些情况下可能仍然优先使用原有的（如 ISP 提供的）DNS 服务器。</li>
+<li><strong>常见原因：</strong><ul>
+<li><strong>DNS 缓存：</strong> 操作系统可能存在 DNS 缓存，即使 VPN 更改了设置，旧的缓存记录仍可能导致查询绕过 VPN。</li>
+<li><strong>多个网络接口：</strong> 当存在多个网络接口（如以太网和 Wi-Fi）时，系统可能未能正确更新所有接口的 DNS 设置。</li>
+<li><strong>DHCP 租约刷新：</strong> 有些操作系统在 VPN 连接后没有强制刷新 DHCP 租约，可能导致 DNS 配置未能及时更新。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-2-VPN-客户端配置不当或功能缺失"><a href="#2-2-VPN-客户端配置不当或功能缺失" class="headerlink" title="2.2 VPN 客户端配置不当或功能缺失"></a>2.2 VPN 客户端配置不当或功能缺失</h3><ul>
+<li><strong>工作原理：</strong> 某些 VPN 客户端可能没有正确实现 DNS 重定向机制，或者在特定场景下无法完全控制系统的 DNS 解析。</li>
+<li><strong>常见原因：</strong><ul>
+<li><strong>缺少 DNS 泄漏保护功能：</strong> 低质量或配置不当的 VPN 客户端可能没有内置的 DNS 泄漏保护功能，无法阻止 DNS 查询绕过隧道。</li>
+<li><strong>手动配置错误：</strong> 用户手动配置 VPN 时，可能未正确设置 VPN 提供的 DNS 服务器。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-3-IPv6-DNS-泄漏"><a href="#2-3-IPv6-DNS-泄漏" class="headerlink" title="2.3 IPv6 DNS 泄漏"></a>2.3 IPv6 DNS 泄漏</h3><ul>
+<li><strong>工作原理：</strong> 许多 VPN 客户端在设计时主要关注 IPv4 流量的隧道化和 DNS 重定向。然而，如果用户的 ISP 同时提供 IPv4 和 IPv6 连接，并且 VPN 客户端没有正确处理 IPv6 流量，那么操作系统可能会尝试通过 IPv6 协议向 ISP 的 IPv6 DNS 服务器发送查询。即使 IPv4 流量通过 VPN，IPv6 DNS 查询也会直接泄漏。</li>
+<li><strong>示意图：</strong><div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+    graph TD
+    %% 节点定义
+    subgraph ClientHost[&quot;💻 本地设备 (User Device)&quot;]
+        direction TB
+        App[应用程序]
+        VPN_Client[&quot;VPN 客户端&lt;br&#x2F;&gt;(Tun&#x2F;Tap 网卡)&quot;]
+        OS_NetStack[&quot;系统网络栈&lt;br&#x2F;&gt;(Dual Stack)&quot;]
+    end
+
+    subgraph EncryptedTunnel[&quot;🛡️ VPN 加密链路 (IPv4 Secure)&quot;]
+        direction TB
+        VPN_Server[&quot;VPN 网关服务器&quot;]
+        VPN_DNS[&quot;VPN 安全 DNS&lt;br&#x2F;&gt;(10.x.x.x)&quot;]
+    end
+
+    subgraph ISPRoute[&quot;⚠️ ISP &#x2F; 公网路由 (IPv6 Leak Path)&quot;]
+        direction TB
+        ISP_Router[&quot;ISP 宽带网关&#x2F;路由器&quot;]
+        ISP_IPv6_DNS[&quot;ISP 原生 IPv6 DNS&lt;br&#x2F;&gt;(2001:db8::...)&quot;]
+    end
+
+    %% 客户端内部流量分发
+    App --&gt;|IPv4 目标流量| VPN_Client
+    App -.-&gt;|IPv6 未接管流量| OS_NetStack
+
+    %% 安全 VPN 通道
+    VPN_Client &#x3D;&#x3D;&gt;|IPv4 加密隧道| VPN_Server
+    VPN_Server --&gt;|隧道内 DNS 解析| VPN_DNS
+
+    %% 泄漏通道 (使用双引号避免括号冲突)
+    OS_NetStack -.-&gt;|绕过 VPN 隧道| ISP_Router
+    ISP_Router -- &quot;IPv6 DNS 泄漏 (DNS Leak)&quot; --&gt; ISP_IPv6_DNS
+
+    %% 样式与暗色微调
+    classDef safe stroke:#10b981,stroke-width:2px,fill:#064e3b,color:#ecfdf5;
+    classDef leak stroke:#ef4444,stroke-width:2px,stroke-dasharray: 4 4,fill:#450a0a,color:#fee2e2;
+    classDef default stroke:#475
+  </pre></div>
+<ul>
+<li><strong>红色虚线</strong>表示 IPv6 DNS 查询绕过了 VPN 隧道，直接发送给了 ISP 的 IPv6 DNS 服务器。</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-4-WebRTC-泄漏"><a href="#2-4-WebRTC-泄漏" class="headerlink" title="2.4 WebRTC 泄漏"></a>2.4 WebRTC 泄漏</h3><ul>
+<li><strong>工作原理：</strong> WebRTC (Web Real-Time Communication) 是一种允许浏览器之间直接进行音视频通信的技术。为了建立直接连接，WebRTC 接口需要发现彼此的真实 IP 地址。在某些浏览器实现中，WebRTC 可能会使用 STUN&#x2F;TURN 服务器来获取用户的本地和公共 IP 地址，包括通过本地网络适配器的 DNS 解析来发现这些地址，即使 VPN 处于活动状态，也可能绕过 VPN 隧道。</li>
+<li><strong>影响：</strong> 主要泄露用户的真实 IP 地址，而不是 DNS 查询本身，但常常与 DNS 泄漏一同被提及，因为它也是 VPN 隐私保护的常见漏洞。</li>
+</ul>
+<h3 id="2-5-强制-DNS-Forced-DNS"><a href="#2-5-强制-DNS-Forced-DNS" class="headerlink" title="2.5 强制 DNS (Forced DNS)"></a>2.5 强制 DNS (Forced DNS)</h3><ul>
+<li><strong>工作原理：</strong> 某些 VPN 软件可能没有强制所有 DNS 查询都通过 VPN 隧道。例如，它可能只修改了主要的 DNS 设置，而忽略了备用的 DNS 服务器配置，或者在网络连接短暂中断后未能正确恢复。</li>
+</ul>
+<h3 id="2-6-恶意软件或广告软件"><a href="#2-6-恶意软件或广告软件" class="headerlink" title="2.6 恶意软件或广告软件"></a>2.6 恶意软件或广告软件</h3><ul>
+<li><strong>工作原理：</strong> 某些恶意软件或广告软件可能会修改系统的 DNS 设置，将其指向不受信任的服务器，以劫持用户的流量或监控活动。在这种情况下，即使 VPN 正常工作，恶意 DNS 配置也可能导致泄漏。</li>
+</ul>
+<h2 id="三、DNS-泄漏的风险与危害"><a href="#三、DNS-泄漏的风险与危害" class="headerlink" title="三、DNS 泄漏的风险与危害"></a>三、DNS 泄漏的风险与危害</h2><p>DNS 泄漏破坏了 VPN 的核心隐私承诺，带来多重风险：</p>
+<ol>
+<li><p><strong>隐私泄露：</strong></p>
+<ul>
+<li><strong>ISP 监控：</strong> ISP 可以看到用户访问的每一个网站域名，即使网站内容是加密的。这意味着 ISP 可以记录用户的浏览历史、在线习惯和兴趣，从而构建用户画像，用于定向广告或出售数据。</li>
+<li><strong>政府监控：</strong> 在一些国家，ISP 必须根据法律要求保留用户的网络活动日志，并通过 DNS 泄漏可以轻松获取这些信息。</li>
+<li><strong>身份识别：</strong> 通过 DNS 查询记录，可以非常精确地追踪到用户的真实 IP 地址和位置。</li>
+</ul>
+</li>
+<li><p><strong>规避地理限制失效：</strong></p>
+<ul>
+<li>如果用户使用 VPN 访问受地理限制的内容（如流媒体服务），但 DNS 查询却泄漏到了其真实地理位置的 DNS 服务器，流媒体平台可能会检测到这种不一致，从而阻止用户访问。</li>
+</ul>
+</li>
+<li><p><strong>安全风险：</strong></p>
+<ul>
+<li><strong>DNS 劫持&#x2F;欺骗 (DNS Spoofing):</strong> 恶意攻击者可以利用泄露的 DNS 查询，通过 DNS 欺骗技术将用户重定向到钓鱼网站或恶意网站，而不是用户预期的合法网站。</li>
+<li><strong>中间人攻击 (Man-in-the-Middle Attacks):</strong> 泄露的 DNS 查询可能使攻击者更容易进行中间人攻击，监听和篡改用户与网站之间的通信。</li>
+</ul>
+</li>
+</ol>
+<h2 id="四、如何检测-DNS-泄漏？"><a href="#四、如何检测-DNS-泄漏？" class="headerlink" title="四、如何检测 DNS 泄漏？"></a>四、如何检测 DNS 泄漏？</h2><p>检测 DNS 泄漏相对简单，通常需要借助在线工具。</p>
+<ol>
+<li><strong>断开 VPN 连接。</strong></li>
+<li><strong>访问一个 DNS 泄漏检测网站：</strong><ul>
+<li><a target="_blank" rel="noopener external nofollow noreferrer" href="https://www.dnsleaktest.com/">DNSLeakTest.com</a></li>
+<li><a target="_blank" rel="noopener external nofollow noreferrer" href="https://ipleak.net/">IPLeak.net</a></li>
+<li><a target="_blank" rel="noopener external nofollow noreferrer" href="https://browserleaks.com/dns">BrowserLeaks.com&#x2F;dns</a></li>
+</ul>
+</li>
+<li><strong>记录显示的 DNS 服务器 IP 地址和位置。</strong> 这通常是你的 ISP 的 DNS 服务器。</li>
+<li><strong>连接到你的 VPN。</strong></li>
+<li><strong>再次访问同一个 DNS 泄漏检测网站。</strong></li>
+<li><strong>比较结果：</strong><ul>
+<li><strong>无泄漏 (Secure):</strong> 如果显示的 DNS 服务器 IP 地址属于你的 VPN 提供商，或者是一个你信任的第三方公共 DNS (如 Google DNS 8.8.8.8, Cloudflare DNS 1.1.1.1)，并且其地理位置与你的 VPN 服务器位置一致（或合理），则表示没有 DNS 泄漏。</li>
+<li><strong>有泄漏 (Leaked):</strong> 如果显示的 DNS 服务器 IP 地址仍然是你 ISP 的 DNS 服务器，或者显示了你真实的地理位置信息，那么就发生了 DNS 泄漏。</li>
+</ul>
+</li>
+</ol>
+<h2 id="五、如何防止-DNS-泄漏？"><a href="#五、如何防止-DNS-泄漏？" class="headerlink" title="五、如何防止 DNS 泄漏？"></a>五、如何防止 DNS 泄漏？</h2><p>防止 DNS 泄漏是维护在线隐私和安全的关键一步。可以采取以下措施：</p>
+<ol>
+<li><p><strong>选择可靠的 VPN 服务：</strong></p>
+<ul>
+<li><strong>内置 DNS 泄漏保护：</strong> 优先选择那些明确宣传并内置了 DNS 泄漏保护功能的 VPN 服务。这些服务通常会强制所有 DNS 查询通过其自身的 DNS 服务器，并在必要时阻止非 VPN DNS 请求。</li>
+<li><strong>断开开关 (Kill Switch)：</strong> 优秀的 VPN 通常提供 Kill Switch 功能，当 VPN 连接意外中断时，它会自动切断所有网络连接，防止任何流量（包括 DNS 查询）绕过 VPN。</li>
+<li><strong>专门的 DNS 服务器：</strong> 确认 VPN 客户端是否提供了自己的专用 DNS 服务器，并确保其被正确使用。</li>
+</ul>
+</li>
+<li><p><strong>手动配置 DNS 服务器 (临时解决方案或辅助手段)：</strong></p>
+<ul>
+<li>在操作系统网络设置中，手动将 DNS 服务器配置为公共的、隐私友好的 DNS 服务，如 Cloudflare DNS (1.1.1.1) 或 Google Public DNS (8.8.8.8)。虽然这有助于防止 ISP 监控，但如果没有 VPN 隧道，这些查询仍然是未加密的，且不会改变你的 IP 地址。</li>
+<li><strong>注意：</strong> 在连接 VPN 后，优秀的 VPN 客户端应能覆盖这些手动设置。如果不能，可能反而会导致泄漏。</li>
+</ul>
+</li>
+<li><p><strong>禁用 IPv6 (如果不需要或 VPN 不支持)：</strong></p>
+<ul>
+<li>在操作系统的网络适配器设置中禁用 IPv6，可以有效防止 IPv6 DNS 泄漏。这是最直接的解决方案，但如果你的网络或应用依赖 IPv6，可能不适用。</li>
+<li>**Windows: ** <code>网络和共享中心</code> -&gt; 你的适配器 -&gt; <code>属性</code> -&gt; 取消勾选 <code>Internet 协议版本 6 (TCP/IPv6)</code>。</li>
+<li>**macOS&#x2F;Linux: ** 具体方法因版本和发行版而异，通常在网络设置中或通过命令行实现。</li>
+</ul>
+</li>
+<li><p><strong>使用支持 DNS-over-HTTPS (DoH) 或 DNS-over-TLS (DoT) 的浏览器或系统：</strong></p>
+<ul>
+<li><strong>定义：</strong> DoH 和 DoT 都是将 DNS 查询加密并通过 HTTPS 或 TLS 协议发送，增加了 DNS 查询的隐私和安全性。</li>
+<li><strong>浏览器支持：</strong> 现代浏览器（如 Chrome, Firefox, Edge）通常内置了 DoH 支持，可以在浏览器设置中启用，并选择信任的 DoH 提供商（如 Cloudflare 或 Google）。</li>
+<li><strong>系统级支持：</strong> 某些操作系统（如 Windows 10&#x2F;11, macOS, Linux）也开始原生支持 DoH&#x2F;DoT。</li>
+<li><strong>优点：</strong> 即使没有 VPN，DoH&#x2F;DoT 也能加密 DNS 查询，防止中间人窃听。但它仍不能隐藏你的 IP 地址。</li>
+</ul>
+</li>
+<li><p><strong>浏览器扩展阻止 WebRTC 泄漏：</strong></p>
+<ul>
+<li>对于 WebRTC 泄漏，可以在浏览器中安装专门的 WebRTC 阻止扩展（例如适用于 Chrome 的 “WebRTC Network Limiter” 或 Firefox 的内置选项）。</li>
+<li>在某些情况下，也可以通过浏览器本身的设置禁用 WebRTC。</li>
+</ul>
+</li>
+<li><p><strong>配置防火墙规则：</strong></p>
+<ul>
+<li>高级用户可以配置防火墙规则，强制所有出站 DNS 查询 (端口 53 UDP&#x2F;TCP, 端口 853 TCP for DoT, 端口 443 TCP for DoH) 都只能通过 VPN 接口或 VPN 提供的 DNS 服务器发送。</li>
+<li><strong>优点：</strong> 这是最彻底的防止泄漏方法之一。</li>
+<li><strong>缺点：</strong> 配置复杂，容易出错，可能导致无法上网。</li>
+</ul>
+</li>
+</ol>
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>DNS 泄漏是使用 VPN 时一个不容忽视的隐私和安全威胁。它会削弱 VPN 的主要优势，使用户的真实身份和在线活动面临暴露的风险。通过选择一个功能完善且提供 DNS 泄漏保护的 VPN 服务，并结合必要的系统配置（如禁用 IPv6 或启用 DoH&#x2F;DoT），可以显著降低 DNS 泄漏的风险，从而更安全、更私密地享受互联网服务。定期进行 DNS 泄漏测试是验证防护措施是否有效的关键步骤。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg">TeaTang</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://blog.tbf1211.xx.kg/0661322068bb/">https://blog.tbf1211.xx.kg/0661322068bb/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="external nofollow noreferrer" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://blog.tbf1211.xx.kg" target="_blank">1024 维度</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/2023/">2023</a><a class="post-meta__tags" href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/">计算机网络</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/">网络协议</a></div><div class="post-share"><div class="social-share" data-image="/img/cover/default_cover-11.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/832eaf04ac40/" title="Python多线程实现生产者-消费者模式详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-19.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Python多线程实现生产者-消费者模式详解</div></div><div class="info-2"><div class="info-item-1"> 生产者-消费者模式是并发编程中一个非常常见的设计模式，用于解决生产者和消费者之间由于生产和消费的速度不一致而导致的同步问题。在 Python 中，由于全局解释器锁 (GIL) 的存在，多线程在 CPU 密集型任务上并不能真正并行，但在 I&#x2F;O 密集型任务上，多线程仍然可以有效地提高程序的效率和响应速度。本篇将详细介绍如何使用 Python 的 threading 模块和 queue 模块实现多线程版的生产者-消费者模式。  核心思想：利用线程安全的共享队列作为缓冲，实现生产者与消费者解耦，并通过队列自带的互斥锁和条件变量进行同步，避免数据不一致和资源竞争。   一、生产者-消费者模式与多线程概述1.1 生产者-消费者模式参考 Python 多进程生产者-消费者模式详解 中的概述，其核心构成和解决的问题在多线程场景下是相同的：  生产者 (Producer)：生成数据并放入队列。 消费者 (Consumer)：从队列取出数据并处理。 缓冲区 (Queue)：共享的、线程安全的数据容器。  1.2 Python 多线程与 GIL threading 模块：Python 标...</div></div></div></a><a class="pagination-related" href="/65edca489ee4/" title="DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解</div></div><div class="info-2"><div class="info-item-1"> DNS over TLS (DoT) 和 DNS over HTTPS (DoH) 是旨在增强 DNS (Domain Name System) 查询和响应隐私性 (Privacy) 与安全性 (Security) 的两种协议。它们通过对 DNS 流量进行加密，防止网络中间方（如 ISP、政府机构或恶意攻击者）窥探用户的域名解析请求或篡改 DNS 响应，从而解决了传统 DNS 协议固有的安全和隐私缺陷。  核心思想：将明文传输的 DNS 查询封装到加密的传输层安全 (TLS) 或超文本传输安全 (HTTPS) 连接中，以保护用户隐私、防止 DNS 劫持和对抗网络审查。   一、传统 DNS 的隐私与安全痛点传统的 DNS 协议通常通过 UDP (User Datagram Protocol) 或 TCP (Transmission Control Protocol) 的 53 号端口进行通信。这种通信方式存在以下固有的安全和隐私缺陷：  明文传输 (Plaintext Transmission)：DNS 查询和响应在网络上以明文形式传输。  隐私泄露：任何能够嗅探网络流量的中间...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/058452c6e7a6/" title="TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-10</div><div class="info-item-2">TCP (传输控制协议) 深度详解：可靠、面向连接的字节流基石</div></div><div class="info-2"><div class="info-item-1"> TCP (Transmission Control Protocol)，即传输控制协议，是 Internet 协议套件 (Internet Protocol Suite) 中的核心协议之一，位于传输层。它提供可靠的、面向连接的、基于字节流的全双工通信服务。TCP 协议确保了数据能够按序、无差错地从一个应用进程传输到另一个应用进程。  核心思想：在不可靠的 IP 层之上，通过一系列机制（如序号、确认、重传、流量控制、拥塞控制）构建一个高度可靠、有序的数据传输通道。   一、为什么需要 TCP？在网络模型中，IP 协议（网络层）提供了尽力而为 (best-effort) 的数据报服务，它不保证数据包的到达、顺序或不重复。然而，大多数应用（如网页浏览、文件传输、电子邮件）都需要一个可靠的数据传输服务。TCP 正是为了弥补 IP 协议的这些不足而设计的，它在应用层和网络层之间提供了一个可靠的、虚拟的通信管道。 TCP 的主要职责包括：  可靠性：确保数据无损、无错地到达目的地。 有序性：确保数据包以正确的顺序交付给接收方。 流量控制：防止发送方发送数据过快，导致接收方缓冲区溢出。 拥塞...</div></div></div></a><a class="pagination-related" href="/7bd4a820ad36/" title="TCP&#x2F;IP协议栈深度详解：因特网的核心基石"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-20.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-11</div><div class="info-item-2">TCP&#x2F;IP协议栈深度详解：因特网的核心基石</div></div><div class="info-2"><div class="info-item-1"> TCP&#x2F;IP 协议 (Transmission Control Protocol&#x2F;Internet Protocol) 是一组用于互联网通信的协议集合，通常被称为 TCP&#x2F;IP 协议族 (TCP&#x2F;IP Protocol Suite) 或 TCP&#x2F;IP 协议栈 (TCP&#x2F;IP Protocol Stack)。它是现代互联网和局域网 (LAN) 的基石，定义了数据如何在网络中传输、路由和接收。TCP&#x2F;IP 协议族以其分层结构而闻名，将复杂的网络通信任务分解为更小、更易于管理的子任务。  核心思想：将复杂的网络通信过程划分为独立的层次，每层负责特定的功能，并通过协议进行协作，从而实现高效、可靠且可扩展的全球通信。   一、为什么需要 TCP&#x2F;IP 协议？在计算机网络发展的早期，各种网络设备和操作系统拥有各自不兼容的通信协议，导致不同厂商的设备之间难以互联互通。为了解决这一问题，美国国防部高级研究计划局 (ARPA) 资助开发了 ARPANET 项目，并在此基础上逐步发展出了 TCP&#x2F;IP 协议。...</div></div></div></a><a class="pagination-related" href="/dff8568b9553/" title="UDP (用户数据报协议) 深度详解：轻量、高效、无连接的传输基石"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-12</div><div class="info-item-2">UDP (用户数据报协议) 深度详解：轻量、高效、无连接的传输基石</div></div><div class="info-2"><div class="info-item-1"> 用户数据报协议 (UDP - User Datagram Protocol) 是互联网协议套件 (TCP&#x2F;IP) 中位于传输层的一个简单而高效的协议。与复杂的 TCP 不同，UDP 提供了一种无连接 (Connectionless)、不可靠 (Unreliable) 的数据报服务，强调传输速度和资源效率，而非数据的完整性和顺序性。它不对数据包进行排序、不保证送达、不进行错误重传、不提供流量控制和拥塞控制。  核心思想：UDP 就像邮局的平信服务。你把信投进去，邮局尽力送达，但不保证一定能送到，也不告诉你有没有送到。它不操心信的顺序，不提供回执，也不管你的信封里装了多少页纸。   一、UDP 的核心特性与设计哲学UDP 的设计目标是提供一个最小化的传输层协议，只做传输层最基本的事情——多路复用和少量的错误校验。它将大部分的可靠性职责留给应用程序自行处理。  无连接 (Connectionless)：  在数据传输之前，通信双方无需建立或维护任何连接状态。 发送方可以直接向目的端发送数据报。 每个数据报都是独立的，包含完整的源地址和目的地址信息。   不可靠传输 (Unr...</div></div></div></a><a class="pagination-related" href="/9be87a9e79b5/" title="KCP协议详解：一个快速可靠的UDP上层协议"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-01.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-13</div><div class="info-item-2">KCP协议详解：一个快速可靠的UDP上层协议</div></div><div class="info-2"><div class="info-item-1"> KCP (Fast and Reliable UDP protocol) 是一个由 skywind3000 (吴云) 在 2014 年开源的快速可靠的 UDP 上层协议。它的设计目标是在网络状况不佳（高延迟、高丢包率）的环境下，提供比 TCP 更快的传输速度和更低的延迟，同时保持数据的可靠性。KCP 并不是一个完整的网络协议栈，而是一个可嵌入式的库，它运行在 UDP 协议之上，提供了 TCP 所具备的可靠性、流量控制和拥塞控制等机制，但针对延迟和重传进行了优化。  核心思想：在保障数据可靠性的前提下，通过优化重传机制、激进发送和控制重传间隔等方法，尽可能地减少传输延迟，以适应游戏、实时音视频等对延迟高度敏感的应用。   一、为什么需要 KCP？TCP 协议是互联网上最常用的可靠传输协议，但它在一些场景下存在明显的局限性：  慢启动 (Slow Start)：TCP 为了避免网络拥塞，在连接建立初期会限制发送速率，逐渐增加。这对于短连接或突发数据传输会增加初始延迟。 队头阻塞 (Head-of-Line Blocking, HOLB)：TCP 的报文是严格按序到达的。如果某个数据...</div></div></div></a><a class="pagination-related" href="/82faa099bd25/" title="FTP (File Transfer Protocol) 协议详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-10.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-18</div><div class="info-item-2">FTP (File Transfer Protocol) 协议详解</div></div><div class="info-2"><div class="info-item-1"> FTP (File Transfer Protocol) 是一个用于在网络上进行文件传输的标准网络协议，是 TCP&#x2F;IP 协议族中的一个应用层协议。它允许客户端和服务器之间传输文件，支持上传、下载、删除、重命名文件，以及创建和删除目录等操作。FTP 是最早期的互联网协议之一，设计初衷是为了在不同的操作系统和文件系统之间提供统一的文件传输服务。  核心思想：基于客户端-服务器模式，利用独立的控制连接和数据连接，高效可靠地传输文件。   一、为什么需要 FTP？在二十世纪七十年代，互联网的前身 ARPANET 还在发展初期，用户需要一种可靠的方式在不同的计算机系统之间共享文件。FTP 因此被设计出来，解决了以下痛点：  跨平台文件传输：允许不同操作系统（如 Unix、Windows）之间传输文件，统一了文件传输的格式和控制命令。 可靠性：基于 TCP 协议，保证文件传输的可靠性（数据不丢失、不重复、按序到达）。 大文件传输：能够处理大文件的传输，并通过数据流控制确保传输效率。 用户权限管理：支持用户认证，可以根据用户身份分配不同的文件访问权限。  尽管 FTP 历史悠久、...</div></div></div></a><a class="pagination-related" href="/65edca489ee4/" title="DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解"><img class="cover" src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2023-03-20</div><div class="info-item-2">DNS over TLS (DoT) 与 DNS over HTTPS (DoH) 协议详解</div></div><div class="info-2"><div class="info-item-1"> DNS over TLS (DoT) 和 DNS over HTTPS (DoH) 是旨在增强 DNS (Domain Name System) 查询和响应隐私性 (Privacy) 与安全性 (Security) 的两种协议。它们通过对 DNS 流量进行加密，防止网络中间方（如 ISP、政府机构或恶意攻击者）窥探用户的域名解析请求或篡改 DNS 响应，从而解决了传统 DNS 协议固有的安全和隐私缺陷。  核心思想：将明文传输的 DNS 查询封装到加密的传输层安全 (TLS) 或超文本传输安全 (HTTPS) 连接中，以保护用户隐私、防止 DNS 劫持和对抗网络审查。   一、传统 DNS 的隐私与安全痛点传统的 DNS 协议通常通过 UDP (User Datagram Protocol) 或 TCP (Transmission Control Protocol) 的 53 号端口进行通信。这种通信方式存在以下固有的安全和隐私缺陷：  明文传输 (Plaintext Transmission)：DNS 查询和响应在网络上以明文形式传输。  隐私泄露：任何能够嗅探网络流量的中间...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src= "/img/loading.gif" data-lazy-src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">TeaTang</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">700</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">264</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">103</div></a></div><a id="card-info-btn" target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/teatang"><i class="fab fa-github"></i><span>GitHub主页</span></a><div class="card-info-social-icons"><a class="social-icon" href="mailto:tea.tang1211@gmail.com" rel="external nofollow noreferrer" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">网站更多功能即将上线，敬请期待！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%85%B3%E9%94%AE%E6%A6%82%E5%BF%B5%E5%AE%9A%E4%B9%89"><span class="toc-text">一、关键概念定义</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-DNS-Domain-Name-System"><span class="toc-text">1.1 DNS (Domain Name System)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-VPN-Virtual-Private-Network"><span class="toc-text">1.2 VPN (Virtual Private Network)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-ISP-DNS-%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="toc-text">1.3 ISP DNS 服务器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-4-%E7%AC%AC%E4%B8%89%E6%96%B9-DNS-%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="toc-text">1.4 第三方 DNS 服务器</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81DNS-%E6%B3%84%E6%BC%8F%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E4%B8%8E%E5%B8%B8%E8%A7%81%E5%8E%9F%E5%9B%A0"><span class="toc-text">二、DNS 泄漏的工作原理与常见原因</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E9%BB%98%E8%AE%A4-DNS-%E9%85%8D%E7%BD%AE%E4%BC%98%E5%85%88%E7%BA%A7"><span class="toc-text">2.1 操作系统默认 DNS 配置优先级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-VPN-%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE%E4%B8%8D%E5%BD%93%E6%88%96%E5%8A%9F%E8%83%BD%E7%BC%BA%E5%A4%B1"><span class="toc-text">2.2 VPN 客户端配置不当或功能缺失</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-IPv6-DNS-%E6%B3%84%E6%BC%8F"><span class="toc-text">2.3 IPv6 DNS 泄漏</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-WebRTC-%E6%B3%84%E6%BC%8F"><span class="toc-text">2.4 WebRTC 泄漏</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-%E5%BC%BA%E5%88%B6-DNS-Forced-DNS"><span class="toc-text">2.5 强制 DNS (Forced DNS)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-%E6%81%B6%E6%84%8F%E8%BD%AF%E4%BB%B6%E6%88%96%E5%B9%BF%E5%91%8A%E8%BD%AF%E4%BB%B6"><span class="toc-text">2.6 恶意软件或广告软件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81DNS-%E6%B3%84%E6%BC%8F%E7%9A%84%E9%A3%8E%E9%99%A9%E4%B8%8E%E5%8D%B1%E5%AE%B3"><span class="toc-text">三、DNS 泄漏的风险与危害</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%A6%82%E4%BD%95%E6%A3%80%E6%B5%8B-DNS-%E6%B3%84%E6%BC%8F%EF%BC%9F"><span class="toc-text">四、如何检测 DNS 泄漏？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%A6%82%E4%BD%95%E9%98%B2%E6%AD%A2-DNS-%E6%B3%84%E6%BC%8F%EF%BC%9F"><span class="toc-text">五、如何防止 DNS 泄漏？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-32.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang ErrWriter 模式详解"/></a><div class="content"><a class="title" href="/2a593ce8dc8c/" title="Golang ErrWriter 模式详解">Golang ErrWriter 模式详解</a><time datetime="2026-10-07T22:24:00.000Z" title="发表于 2026-10-08 06:24:00">2026-10-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/72310ccfd409/" title="Golang map nil 读写删除操作详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-02.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang map nil 读写删除操作详解"/></a><div class="content"><a class="title" href="/72310ccfd409/" title="Golang map nil 读写删除操作详解">Golang map nil 读写删除操作详解</a><time datetime="2026-08-31T22:24:00.000Z" title="发表于 2026-09-01 06:24:00">2026-09-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-09.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Radix Tree (基数树/压缩前缀树) 详解"/></a><div class="content"><a class="title" href="/2927aced6663/" title="Radix Tree (基数树/压缩前缀树) 详解">Radix Tree (基数树/压缩前缀树) 详解</a><time datetime="2026-08-17T22:24:00.000Z" title="发表于 2026-08-18 06:24:00">2026-08-18</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2b11785b795e/" title="T-Digest 算法详解"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-31.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="T-Digest 算法详解"/></a><div class="content"><a class="title" href="/2b11785b795e/" title="T-Digest 算法详解">T-Digest 算法详解</a><time datetime="2026-08-11T22:24:00.000Z" title="发表于 2026-08-12 06:24:00">2026-08-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法"><img src= "/img/loading.gif" data-lazy-src="/img/cover/default_cover-16.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Golang 方法与结构体的设计哲学：对比 Java 类方法"/></a><div class="content"><a class="title" href="/0ea79a4ebaf0/" title="Golang 方法与结构体的设计哲学：对比 Java 类方法">Golang 方法与结构体的设计哲学：对比 Java 类方法</a><time datetime="2026-08-09T22:24:00.000Z" title="发表于 2026-08-10 06:24:00">2026-08-10</time></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/cover/default_cover-11.jpg);"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">我的轨迹</div><div class="footer-flex-content"><a href="/archives/2023/" target="_blank" title="🆕 2023">🆕 2023</a><a href="/archives/2024/" target="_blank" title="🆒 2024">🆒 2024</a><a href="/archives/2025/" target="_blank" title="👨‍👩‍👦 2025">👨‍👩‍👦 2025</a><a href="/archives/2026/" target="_blank" title="🆙 2026">🆙 2026</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">维度</div><div class="footer-flex-content"><a href="/categories/" target="_blank" title="📁 分类">📁 分类</a><a href="/tags/" target="_blank" title="🔖 标签">🔖 标签</a><a href="/categories/" target="_blank" title="📽️ 时间线">📽️ 时间线</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">其他</div><div class="footer-flex-content"><a href="/shuoshuo" target="_blank" title="💬 说说">💬 说说</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2023 - 2026 By TeaTang</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener external nofollow noreferrer" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = ele => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    ele.forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = `%%{init:{ 'theme':'${theme}'}}%%\n`
+      const mermaidID = `mermaid-${index}`
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const renderMermaid = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      // mermaid v9 and v10 compatibility
+      typeof renderFn === 'string' ? renderMermaid(renderFn) : renderFn.then(({ svg }) => renderMermaid(svg))
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+
+    codeMermaidEle.forEach(ele => {
+      const preEle = document.createElement('pre')
+      preEle.className = 'mermaid-src'
+      preEle.hidden = true
+      preEle.textContent = ele.textContent
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.appendChild(preEle)
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (true) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js').then(runMermaidFn)
+  }
+
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script><script>(() => {
+  const applyThemeDefaultsConfig = theme => {
+    if (theme === 'dark-mode') {
+      Chart.defaults.color = "rgba(255, 255, 255, 0.8)"
+      Chart.defaults.borderColor = "rgba(255, 255, 255, 0.2)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    } else {
+      Chart.defaults.color = "rgba(0, 0, 0, 0.8)"
+      Chart.defaults.borderColor = "rgba(0, 0, 0, 0.1)"
+      Chart.defaults.scale.ticks.backdropColor = "transparent"
+    }
+  }
+
+  // Recursively traverse the config object and automatically apply theme-specific color schemes
+  const applyThemeConfig = (obj, theme) => {
+    if (typeof obj !== 'object' || obj === null) return
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key]
+      // If the property is an object and has theme-specific options, apply them
+      if (typeof value === 'object' && value !== null) {
+        if (value[theme]) {
+          obj[key] = value[theme] // Apply the value for the current theme
+        } else {
+          // Recursively process child objects
+          applyThemeConfig(value, theme)
+        }
+      }
+    })
+  }
+
+  const runChartJS = ele => {
+    window.loadChartJS = true
+
+    Array.from(ele).forEach((item, index) => {
+      const chartSrc = item.firstElementChild
+      const chartID = item.getAttribute('data-chartjs-id') || ('chartjs-' + index) // Use custom ID or default ID
+      const width = item.getAttribute('data-width')
+      const existingCanvas = document.getElementById(chartID)
+
+      // If a canvas already exists, remove it to avoid rendering duplicates
+      if (existingCanvas) {
+          existingCanvas.parentNode.remove()
+      }
+
+      const chartDefinition = chartSrc.textContent
+      const canvas = document.createElement('canvas')
+      canvas.id = chartID
+
+      const div = document.createElement('div')
+      div.className = 'chartjs-wrap'
+
+      if (width) {
+        div.style.width = width
+      }
+
+      div.appendChild(canvas)
+      chartSrc.insertAdjacentElement('afterend', div)
+
+      const ctx = document.getElementById(chartID).getContext('2d')
+
+      const config = JSON.parse(chartDefinition)
+
+      const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark-mode' : 'light-mode'
+
+      // Set default styles (initial setup)
+      applyThemeDefaultsConfig(theme)
+
+      // Automatically traverse the config and apply dual-mode color schemes
+      applyThemeConfig(config, theme)
+
+      new Chart(ctx, config)
+    })
+  }
+
+  const loadChartJS = () => {
+    const chartJSEle = document.querySelectorAll('#article-container .chartjs-container')
+    if (chartJSEle.length === 0) return
+
+    window.loadChartJS ? runChartJS(chartJSEle) : btf.getScript('https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js').then(() => runChartJS(chartJSEle))
+  }
+
+  // Listen for theme change events
+  btf.addGlobalFn('themeChange', loadChartJS, 'chartjs')
+  btf.addGlobalFn('encrypt', loadChartJS, 'chartjs')
+
+  window.pjax ? loadChartJS() : document.addEventListener('DOMContentLoaded', loadChartJS)
+})()</script></div><script data-pjax src="/self/btf.js"></script><canvas class="fireworks" mobile="false"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/fireworks.min.js"></script><script defer="defer" id="ribbon" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-ribbon.min.js" size="40" alpha="0.4" zIndex="1000" mobile="false" data-click="ture"></script><script id="canvas_nest" defer="defer" color="0,200,200" opacity="0.7" zIndex="-1" count="99" mobile="false" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/canvas-nest.min.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script><script>(() => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => fn())
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      const usePjax = true
+      true
+        ? (usePjax ? pjax.loadUrl('/404.html') : window.location.href = '/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})()</script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><span id="loading-status"></span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="search-wrap"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div><hr/><div id="local-search-results"></div><div id="local-search-stats-wrap"></div></div></div><div id="search-mask"></div><script src="/js/search/local-search.js"></script></div></div></body></html>
