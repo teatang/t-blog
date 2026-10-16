@@ -5,9 +5,6 @@
 (() => {
   'use strict';
 
-  // 只在标签页面运行
-  if (!window.location.pathname.includes('/tags')) return;
-
   const ECHARTS_URL =
     'https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js';
 
@@ -15,6 +12,17 @@
     'https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js';
 
   const CONTAINER_ID = 'tag-wordcloud-box';
+
+  // 判断是否为标签云主页面
+  const isTagPage = () => {
+    const path = window.location.pathname;
+    return (
+      path === '/tags/' ||
+      path === '/tags' ||
+      path === '/tags/index.html' ||
+      !!document.querySelector('#page .tag-cloud-list')
+    );
+  };
 
   // 防止重复绑定 resize
   let resizeHandler = null;
@@ -383,39 +391,25 @@
       return container;
     }
 
-    container = document.createElement('div');
-
-    container.id = CONTAINER_ID;
-
-    container.style.cssText = `
-      width: 100%;
-      height: 600px;
-      border-radius: 16px;
-      margin: 20px 0;
-      background: transparent;
-      overflow: hidden;
-    `;
-
     // 原始标签列表
     const originalList =
       document.querySelector(
-        '.tag-cloud-list, .tag-cloud, .card-tag-all'
+        '#page .tag-cloud-list, .tag-cloud-list, .tag-cloud, .card-tag-all'
       );
 
-    if (originalList && originalList.parentNode) {
+    if (!originalList) {
+      return null;
+    }
+
+    container = document.createElement('div');
+    container.id = CONTAINER_ID;
+    container.className = 'loading';
+
+    if (originalList.parentNode) {
       originalList.parentNode.insertBefore(
         container,
         originalList
       );
-    } else {
-      const pageBody =
-        document.querySelector(
-          '.layout > div:first-child'
-        );
-
-      if (pageBody) {
-        pageBody.appendChild(container);
-      }
     }
 
     return container;
@@ -588,6 +582,7 @@
     };
 
     chart.setOption(option);
+    container.classList.remove('loading');
 
     // ========================================================
     // 隐藏原始标签列表
@@ -595,7 +590,7 @@
 
     const originalList =
       document.querySelector(
-        '.tag-cloud-list, .tag-cloud, .card-tag-all'
+        '#page .tag-cloud-list, .tag-cloud-list, .tag-cloud, .card-tag-all'
       );
 
     if (originalList) {
@@ -654,11 +649,6 @@
 
     const observer =
       new MutationObserver(() => {
-        const currentTheme =
-          document.documentElement.getAttribute(
-            'data-theme'
-          );
-
         const currentChart =
           window.echarts.getInstanceByDom(
             container
@@ -704,6 +694,16 @@
 
   const init = async () => {
     try {
+      const originalList = document.querySelector(
+        '#page .tag-cloud-list, .tag-cloud-list, .tag-cloud, .card-tag-all'
+      );
+      if (originalList) {
+        originalList.style.display = 'none';
+      }
+
+      // 优先创建容器以展示 loading
+      getContainer();
+
       // ECharts
       if (!window.echarts) {
         await loadScript(ECHARTS_URL);
@@ -717,16 +717,24 @@
         await loadScript(WORDCLOUD_URL);
       }
 
-      // 给 Butterfly 一点时间完成 DOM 更新
-      setTimeout(() => {
-        renderWordCloud();
-      }, 100);
-
+      renderWordCloud();
     } catch (error) {
       console.error(
         '[WordCloud] Initialization failed:',
         error
       );
+
+      // 加载失败时降级恢复原生列表
+      const originalList = document.querySelector(
+        '#page .tag-cloud-list, .tag-cloud-list, .tag-cloud, .card-tag-all'
+      );
+      if (originalList) {
+        originalList.style.display = '';
+      }
+      const container = document.getElementById(CONTAINER_ID);
+      if (container) {
+        container.remove();
+      }
     }
   };
 
@@ -735,9 +743,7 @@
   // ==========================================================
 
   const run = () => {
-    if (
-      window.location.pathname.includes('/tags')
-    ) {
+    if (isTagPage()) {
       init();
     }
   };
