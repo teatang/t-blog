@@ -111,67 +111,11 @@
   // 获取文章数量
   // ==========================================================
 
-  const getTagCount = (el) => {
-    // --------------------------------------------------------
-    // 方式 1：data-count
-    // --------------------------------------------------------
-
-    const dataCount = el.getAttribute('data-count');
-
-    if (dataCount) {
-      const count = parseInt(dataCount, 10);
-
-      if (!Number.isNaN(count) && count >= 0) {
-        return count;
-      }
+  const getTagCount = (tagName) => {
+    // 剔除年份标签如2025，2026
+    if (window.__TAG_DATA__ && window.__TAG_DATA__[tagName] != null && !/^\d{4}$/.test(tagName)) {
+      return window.__TAG_DATA__[tagName];
     }
-
-    // --------------------------------------------------------
-    // 方式 2：常见数量元素
-    // --------------------------------------------------------
-
-    const countElement = el.querySelector(
-      '.tag-count, .count, .tag-counts, .card-tag-count'
-    );
-
-    if (countElement) {
-      const count = parseInt(
-        countElement.textContent.trim(),
-        10
-      );
-
-      if (!Number.isNaN(count) && count >= 0) {
-        return count;
-      }
-    }
-
-    // --------------------------------------------------------
-    // 方式 3：从父元素寻找数量
-    // --------------------------------------------------------
-
-    const parent = el.parentElement;
-
-    if (parent) {
-      const countElement = parent.querySelector(
-        '.tag-count, .count, .tag-counts, .card-tag-count'
-      );
-
-      if (countElement) {
-        const count = parseInt(
-          countElement.textContent.trim(),
-          10
-        );
-
-        if (!Number.isNaN(count) && count >= 0) {
-          return count;
-        }
-      }
-    }
-
-    // --------------------------------------------------------
-    // 方式 4：兜底
-    // --------------------------------------------------------
-
     return 1;
   };
 
@@ -243,7 +187,7 @@
         return;
       }
 
-      const count = getTagCount(el);
+      const count = getTagCount(text);
 
       exists.add(text);
 
@@ -521,7 +465,11 @@
         {
           type: 'wordCloud',
 
-          shape: 'cardioid',
+          shape: 'circle',
+          left: 'center',
+          top: 'center',
+          width: '100%',
+          height: '100%',
 
           // --------------------------------------------------
           // 保留范围，但字号已经通过 fontSize 明确计算
