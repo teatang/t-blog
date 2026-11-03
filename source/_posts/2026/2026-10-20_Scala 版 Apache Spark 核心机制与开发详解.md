@@ -11,6 +11,7 @@ tags:
 categories:
   - Java
   - Scala
+mathjax: true
 ---
 
 > **Apache Spark** 是一个开源的分布式通用集群计算框架，其原生基于 **Scala** 语言开发。Spark 的核心特性在于**基于内存的弹性分布式计算模型**，能够将迭代计算、交互式查询以及批流处理的中间结果保留在内存中，大幅降低了传统 MapReduce 模型中频繁落盘与网络 I/O 带来的性能瓶颈。
