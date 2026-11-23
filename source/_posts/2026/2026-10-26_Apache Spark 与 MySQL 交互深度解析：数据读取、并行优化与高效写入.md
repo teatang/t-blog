@@ -19,7 +19,7 @@ mathjax: true
 
 {% note info %}
 **核心考量维度：**
-*   **读取瓶颈破解：** 默认配置下 Spark 仅使用**单个 Task** 单线程拉取全量 MySQL 表；必须通过配置**分区字段（Partition Column）**与上下界边界参数，触发分布式并行多管道读取。
+*   **读取瓶颈破解：** 默认配置下 Spark 仅使用**单个 Task** 单线程拉取全量 MySQL 表；必须通过配置**分区字段（Partition Column）**&zwnj;与上下界边界参数，触发分布式并行多管道读取。
 *   **计算边界下推：** 依托 Catalyst 优化器将 `WHERE` 谓词下推（Predicate Pushdown）至 MySQL 执行，减少过网数据体量。
 *   **高并发写入安全：** 控制写入并发度（`coalesce`/`repartition`）、配置批处理提交（`batchsize`）以及解决主键冲突（如 `ON DUPLICATE KEY UPDATE`）。
 {% endnote %}
@@ -71,7 +71,7 @@ $$\text{Stride} = \left\lceil \frac{U - L}{P} \right\rceil$$
 
 对于第 $i$ 个 Task（$0 \le i < P$）：
 *   **首个 Task ($i = 0$)：** `WHERE partitionColumn < L + Stride`（兜底小于下界的数据）
-*   **中间 Task ($0 < i < P - 1$)：** `WHERE partitionColumn >= L + i * Stride AND partitionColumn < L + (i + 1) * Stride`
+*   中间 Task ($0 < i < P - 1$)： `WHERE partitionColumn >= L + i * Stride AND partitionColumn < L + (i + 1) * Stride`
 *   **尾部 Task ($i = P - 1$)：** `WHERE partitionColumn >= L + (P - 1) * Stride`（兜底大于上界的数据）
 
 {% note warning %}
@@ -144,7 +144,7 @@ object MySQLParallelReadDemo {
 
 ### 2.3 任意复杂查询下推（使用 `dbtable` 子查询）
 
-如果 MySQL 中表结构庞大，且只需抽取聚合结果或经过多表 Join 后的视图，可以直接将**子查询（Subquery）**包裹在 `dbtable` 中执行，将算力压到 MySQL 引擎上：
+如果 MySQL 中表结构庞大，且只需抽取聚合结果或经过多表 Join 后的视图，可以直接将**子查询（Subquery）**&zwnj;包裹在 `dbtable` 中执行，将算力压到 MySQL 引擎上：
 
 ```scala
 // 注意：子查询必须显式赋予别名（如 AS sub_tbl），否则 MySQL 解析语法报错
@@ -364,7 +364,7 @@ object MySQLUpsertSink {
 
 ## 六、总结
 
-在 Spark 与 MySQL 的交互过程中，核心设计原则是**“保护数据库源端，压满分布式算力”**：
+在 Spark 与 MySQL 的交互过程中，核心设计原则是“保护数据库源端，压满分布式算力”：
 1.  **读数据时：** 杜绝单 Task 扫描，利用索引主键实施并行分片，同时借助 Catalyst 将筛选逻辑推迟到 MySQL 内部执行以减少数据网络过网；
 2.  **算数据时：** 将多表关联与复杂窗口分析交由 Spark 集群分布式完成；
 3.  **写数据时：** 必须使用 `coalesce` 收敛并发分区数、利用 `rewriteBatchedStatements` 开启批量交互，并在需要强幂等性时采用 `foreachPartition` 编写带有主键冲突处理的 Upsert 逻辑。
